@@ -1,16 +1,16 @@
 # EDISON — Progress Tracker
 
-**Last Verified**: 2026-11-14 (Phase 1, Block 1)  
+**Last Verified**: 2026-11-14 (Phase 2, Block 2.1)  
 **Reporting Rule**: AI Studio assignment progress and Overall EDISON project progress are tracked separately and strictly by verified acceptance criteria.
 
 ---
 
 ## 1. Progress Summary
 
-- **Current Phase**: Phase 1 — Project Definition and Technical Research
-- **Current Stage**: Stage 1.1 — Master Documentation, Technical Research, Command Centre & Reporting Interface
-- **AI Studio Assignment 1 Progress**: Substantive deliverables implemented; pending final build/lint/browser verification and owner Git commit confirmation (`AWAITING VERIFICATION` -> `AWAITING COMMIT`).
-- **Overall EDISON Project Progress**: Phase 1 of 15 in progress (Phases 2–15 `NOT STARTED`).
+- **Current Phase**: Phase 2 — AI Studio Functional Prototype
+- **Current Stage**: Stage 2.1 — Application Foundation, Express Persistence, Auth/RBAC & QR Redirect Core
+- **AI Studio Assignment Progress**: Phase 1 committed by Project Owner; Phase 2 Block 2.1 implemented (awaiting verification & commit).
+- **Overall EDISON Project Progress**: Phase 1 committed; Phase 2 (1 of 11 sub-blocks) in progress; Phases 3–15 `NOT STARTED`.
 
 ---
 
@@ -18,8 +18,8 @@
 
 | Phase | Name | Status | Verified Evidence |
 | :--- | :--- | :--- | :--- |
-| Phase 1 | Project definition and technical research | **IN PROGRESS** | 25 documentation files authored; web research executed for Android TV/Tizen/webOS/SCTE-35/HDCP; Phase 1 portal & Copy Report UI implemented (pending verification). |
-| Phase 2 | AI Studio functional prototype | **NOT STARTED** | Blocked on Phase 1 completion & owner commit confirmation. |
+| Phase 1 | Project definition and technical research | **COMMITTED** | 25 documentation files authored, build/lint verified, owner confirmed commit to GitHub. |
+| Phase 2 | AI Studio functional prototype | **IN PROGRESS** | Block 2.1 implemented & corrected (`server.ts`, locked+fsync `store.ts`, `qrValidator.ts`, `/r/:token` recording `redirect_requested`/`redirect_issued` + bot filtering, Auth/RBAC + QR UI). Blocks 2.2–2.7 pending sequentially. |
 | Phase 3 | VS Code engineering & architecture hardening | **NOT STARTED** | Depends on Phase 2 handover. |
 | Phase 4 | Smart TV platform feasibility & integrations | **NOT STARTED** | Preliminary research done in Phase 1; physical hardware testing not started. |
 | Phase 5 | Commercial-break detection & prediction | **NOT STARTED** | Theoretical analysis started in `COMMERCIAL_BREAK_DETECTION.md`. |
@@ -27,22 +27,14 @@
 
 ---
 
-## 3. Phase 1 Assignment Checklist (Section 24)
+## 3. Phase 2 Sequential Block Plan
 
-1. Establish EDISON project structure — **Implemented (awaiting verification)**
-2. Produce complete development roadmap (`COMPLETE_DEVELOPMENT_ROADMAP.md`) — **Implemented**
-3. Define product requirements (`PRODUCT_REQUIREMENTS.md`) — **Implemented**
-4. Document business model (`BUSINESS_MODEL.md`) — **Implemented**
-5. Research Smart TV technical feasibility (`SMART_TV_COMPATIBILITY_RESEARCH.md`, `COMMERCIAL_BREAK_DETECTION.md`) — **Implemented (`[PRELIMINARY RESEARCH]`)**
-6. Define initial system architecture (`SYSTEM_ARCHITECTURE.md`, `TECHNICAL_REQUIREMENTS.md`) — **Implemented**
-7. Document advertisement creation studio (`ADVERTISEMENT_CREATION_STUDIO.md`) — **Implemented**
-8. Document television preview experience (`TELEVISION_PREVIEW_EXPERIENCE.md`) — **Implemented**
-9. Define QR system (`ADVERTISING_AND_QR_SYSTEM.md`) — **Implemented**
-10. Define advertiser & opportunity management (`ADVERTISER_MANAGEMENT.md`, `OPPORTUNITY_MANAGEMENT.md`) — **Implemented**
-11. Document privacy, security & compliance (`PRIVACY_SECURITY_AND_COMPLIANCE.md`, `COUNTRY_ACTIVATION_REGISTER.md`) — **Implemented**
-12. Create risk register & failure-mode analysis (`RISK_REGISTER.md`, `FAILURE_MODE_ANALYSIS.md`) — **Implemented**
-13. Establish testing strategy (`TESTING_STRATEGY.md`) — **Implemented**
-14. Prepare complete GitHub documentation (25 files) — **Implemented locally (not pushed to remote GitHub)**
-15. Design shared AI Studio–VS Code command centre (`coordination/EDISON_COMMAND_CENTER.md`) — **Implemented**
-16. Implement mandatory Copy Report button — **Implemented in Phase 1 Portal UI (pending build & browser verification)**
-17. Report verified progress and next action — **Pending verification**
+| Block | Scope | Status |
+| :--- | :--- | :--- |
+| **Block 2.1** | Express + Vite server (`node server.ts` prod / `tsx server.ts` dev), lockfile+fsync atomic store, Auth/RBAC, QR validator, `/r/:token` `redirect_requested`/`redirect_issued` telemetry & bot filtering | **AWAITING COMMIT (Corrected)** |
+| **Block 2.2** | Advertiser profiles & full 10-state Campaign Management CRUD | NOT STARTED |
+| **Block 2.3** | Advertisement Creation Studio (Option A guided builder & Option B upload/QR inspection) | NOT STARTED |
+| **Block 2.4** | Realistic 16:9 TV Preview, Pre-Submit Gate & Commercial-Break Simulator | NOT STARTED |
+| **Block 2.5** | Opportunity Submission, 3-Tier Verification, Expiry, Complaints & Appeals | NOT STARTED |
+| **Block 2.6** | Admin Moderation Console (Full Playable Preview) & 7-Stage Analytics | NOT STARTED |
+| **Block 2.7** | Physical Mobile Phone QR Scan Testing, Final QA & VS Code Handover Package | NOT STARTED |

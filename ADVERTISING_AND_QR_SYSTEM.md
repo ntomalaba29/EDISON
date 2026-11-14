@@ -27,8 +27,9 @@
    - Validate domain syntax (reject IP-address URLs, punycode/homograph spoofing warnings, URL shortener chains like `bit.ly` that hide the true final host unless resolved & verified).
    - Display the **exact resolved final domain** clearly in the Advertiser Preview, Pre-Submit Gate, and Admin Review screen.
 3. **Direct-to-Destination Rule**:
-   - When using an EDISON tracking redirect (`https://<edison-host>/r/<token>`), the server validates the token, logs a deduplicated `qr_scanned` / `destination_opened` event asynchronously or in-flight, and issues an immediate HTTP `302 Found` redirect directly to the verified destination.
+   - When using an EDISON tracking redirect (`https://<edison-host>/r/<token>`), the server validates the token, records `redirect_requested` on receipt, evaluates bot/prefetch heuristics + 5-second deduplication, records `redirect_issued` when issuing the HTTP `302 Found` response, and routes directly to the verified destination.
    - **Never** show an intermediate EDISON advertisement, app-install prompt, or interstitial page on the viewer's phone.
+   - **Never** emit `destination_opened` or claim a confirmed human QR scan solely from an HTTP `302` redirect request. Link previewers (WhatsApp, Slack, Facebook), search crawlers, CLI tools, and browser prefetches can trigger `/r/:token` without a human camera scan, and HTTP `302` does not verify that the external destination page finished loading.
 
 ---
 

@@ -16,7 +16,7 @@ export function ReportsView() {
   const report = useMemo(() => generateFormalReport(selectedCommand), [selectedCommand]);
 
   const commands: { id: ReportCommandType; label: string }[] = [
-    { id: 'PHASE_1_COMPLETION', label: 'Phase 1 Completion' },
+    { id: 'PHASE_1_COMPLETION', label: 'Block 2.1 Completion' },
     { id: 'STATUS', label: 'STATUS' },
     { id: 'CHECK', label: 'CHECK' },
     { id: 'NEXT', label: 'NEXT' },
@@ -28,18 +28,18 @@ export function ReportsView() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white border border-slate-200 rounded-lg p-5">
           <p className="text-xs font-medium text-slate-500">Current Stage</p>
-          <p className="mt-1.5 text-lg font-semibold text-slate-900">Phase 1 · Block 1</p>
+          <p className="mt-1.5 text-lg font-semibold text-slate-900">Phase 2 · Block 2.1</p>
           <p className="mt-1 text-xs text-amber-700 font-medium">Awaiting Owner Commit</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-lg p-5">
-          <p className="text-xs font-medium text-slate-500">AI Studio Assignment 1</p>
-          <p className="mt-1.5 text-lg font-semibold text-slate-900 tabular-nums">17 / 17 Items Addressed</p>
-          <p className="mt-1 text-xs text-slate-600">Phase 2 prototype intentionally deferred</p>
+          <p className="text-xs font-medium text-slate-500">Phase 1 Status</p>
+          <p className="mt-1.5 text-lg font-semibold text-emerald-700">COMMITTED</p>
+          <p className="mt-1 text-xs text-slate-600">25 docs & research baseline</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-lg p-5">
           <p className="text-xs font-medium text-slate-500">Overall EDISON Roadmap</p>
-          <p className="mt-1.5 text-lg font-semibold text-slate-900 tabular-nums">Phase 1 of 15</p>
-          <p className="mt-1 text-xs text-slate-600">Phases 2–15 not started</p>
+          <p className="mt-1.5 text-lg font-semibold text-slate-900 tabular-nums">Phase 2 of 15</p>
+          <p className="mt-1 text-xs text-slate-600">Block 2.1 of 7 active</p>
         </div>
       </div>
 
@@ -157,7 +157,17 @@ export function RoadmapView() {
                     </p>
                   </td>
                   <td className="px-4 py-3 text-xs font-medium align-top whitespace-nowrap">
-                    {phase.status === 'AWAITING COMMIT' ? (
+                    {phase.status === 'COMMITTED' ? (
+                      <span className="inline-flex items-center gap-1.5 text-emerald-700">
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        <span>COMMITTED</span>
+                      </span>
+                    ) : phase.status === 'IN PROGRESS' ? (
+                      <span className="inline-flex items-center gap-1.5 text-blue-700">
+                        <Clock className="w-3.5 h-3.5 shrink-0" />
+                        <span>IN PROGRESS</span>
+                      </span>
+                    ) : phase.status === 'AWAITING COMMIT' ? (
                       <span className="inline-flex items-center gap-1.5 text-amber-700">
                         <Clock className="w-3.5 h-3.5 shrink-0" />
                         <span>AWAITING COMMIT</span>
