@@ -6,45 +6,65 @@ interface CopyReportFooterProps {
   reportTitle: string;
 }
 
+async function copyTextWithFallback(text: string): Promise<void> {
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // Fall through to execCommand fallback
+    }
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.top = '-9999px';
+  textarea.style.left = '-9999px';
+  document.body.appendChild(textarea);
+  textarea.select();
+  const succeeded = document.execCommand('copy');
+  document.body.removeChild(textarea);
+  if (!succeeded) {
+    throw new Error('Browser blocked execCommand copy');
+  }
+}
+
 export function CopyReportFooter({ reportText, reportTitle }: CopyReportFooterProps) {
   const [status, setStatus] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [shortcutStatus, setShortcutStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   const handleCopy = async () => {
     setErrorMessage('');
     try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(reportText);
-        setStatus('copied');
-        window.setTimeout(() => setStatus('idle'), 2500);
-        return;
-      }
-      throw new Error('Clipboard API unavailable in non-secure context');
-    } catch {
-      try {
-        const textarea = document.createElement('textarea');
-        textarea.value = reportText;
-        textarea.setAttribute('readonly', '');
-        textarea.style.position = 'fixed';
-        textarea.style.top = '-9999px';
-        textarea.style.left = '-9999px';
-        document.body.appendChild(textarea);
-        textarea.select();
-        const succeeded = document.execCommand('copy');
-        document.body.removeChild(textarea);
-        if (!succeeded) {
-          throw new Error('Browser blocked execCommand copy');
-        }
-        setStatus('copied');
-        window.setTimeout(() => setStatus('idle'), 2500);
-      } catch (err) {
-        setStatus('error');
-        setErrorMessage(
-          err instanceof Error
-            ? `Clipboard access failed (${err.message}). Select the report text above and copy manually.`
-            : 'Clipboard access failed. Select the report text above and copy manually.'
-        );
-      }
+      await copyTextWithFallback(reportText);
+      setStatus('copied');
+      window.setTimeout(() => setStatus('idle'), 2500);
+    } catch (err) {
+      setStatus('error');
+      setErrorMessage(
+        err instanceof Error
+          ? `Clipboard access failed (${err.message}). Select the report text above and copy manually.`
+          : 'Clipboard access failed. Select the report text above and copy manually.'
+      );
+    }
+  };
+
+  const handleCopyCommitShortcut = async () => {
+    setErrorMessage('');
+    try {
+      await copyTextWithFallback('Committed, next');
+      setShortcutStatus('copied');
+      window.setTimeout(() => setShortcutStatus('idle'), 2500);
+    } catch (err) {
+      setShortcutStatus('error');
+      setErrorMessage(
+        err instanceof Error
+          ? `Clipboard access failed (${err.message}).`
+          : 'Clipboard access failed.'
+      );
     }
   };
 
@@ -59,37 +79,62 @@ export function CopyReportFooter({ reportText, reportTitle }: CopyReportFooterPr
       </div>
 
       <div className="flex flex-col items-start sm:items-end gap-1.5">
-        <button
-          type="button"
-          onClick={handleCopy}
-          aria-label={`Copy full ${reportTitle}`}
-          className={`inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 ${
-            status === 'copied'
-              ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-              : status === 'error'
-              ? 'bg-red-600 text-white hover:bg-red-700'
-              : 'bg-blue-600 text-white hover:bg-blue-700'
-          }`}
-        >
-          {status === 'copied' ? (
-            <>
-              <Check className="w-4 h-4 shrink-0" />
-              <span>Copied</span>
-            </>
-          ) : status === 'error' ? (
-            <>
-              <AlertTriangle className="w-4 h-4 shrink-0" />
-              <span>Copy Failed</span>
-            </>
-          ) : (
-            <>
-              <Copy className="w-4 h-4 shrink-0" />
-              <span>Copy Report</span>
-            </>
-          )}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleCopyCommitShortcut}
+            title='Copy "Committed, next" to clipboard for quick chat confirmation after pushing to GitHub'
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 text-sm font-medium border rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 ${
+              shortcutStatus === 'copied'
+                ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            {shortcutStatus === 'copied' ? (
+              <>
+                <Check className="w-4 h-4 shrink-0" />
+                <span>Copied: Committed, next</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4 shrink-0 text-slate-500" />
+                <span>Committed, next</span>
+              </>
+            )}
+          </button>
 
-        {status === 'error' && errorMessage && (
+          <button
+            type="button"
+            onClick={handleCopy}
+            aria-label={`Copy full ${reportTitle}`}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 ${
+              status === 'copied'
+                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                : status === 'error'
+                ? 'bg-red-600 text-white hover:bg-red-700'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            {status === 'copied' ? (
+              <>
+                <Check className="w-4 h-4 shrink-0" />
+                <span>Copied</span>
+              </>
+            ) : status === 'error' ? (
+              <>
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>Copy Failed</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4 shrink-0" />
+                <span>Copy Report</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {(status === 'error' || shortcutStatus === 'error') && errorMessage && (
           <p role="alert" className="text-xs text-red-700 max-w-md sm:text-right">
             {errorMessage}
           </p>

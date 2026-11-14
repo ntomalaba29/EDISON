@@ -1500,13 +1500,22 @@ class EdisonPrototypeStore {
         );
       }
 
-      if (targetStatus === 'submitted') {
+      if (
+        targetStatus === 'submitted' ||
+        targetStatus === 'approved' ||
+        targetStatus === 'scheduled' ||
+        targetStatus === 'active'
+      ) {
         if (!target.qrToken) {
-          throw new Error('Attach a validated QR redirect link before submitting a campaign.');
+          throw new Error(
+            `Attach a validated QR redirect link before transitioning to "${targetStatus}".`
+          );
         }
         const qr = draft.qrLinks.find((q) => q.token === target.qrToken);
         if (!qr || qr.status !== 'active') {
-          throw new Error('Attached QR redirect link must be active before submission.');
+          throw new Error(
+            `Attached QR redirect link must be active before transitioning to "${targetStatus}".`
+          );
         }
       }
 

@@ -15,6 +15,7 @@
 1. Execute Phase 2 sequentially by implementation block (`2.1` through `2.7`).
 2. Enforce strict boundaries: no real payments (`paymentCollectionActive: false`), no real advertiser/employer outreach, no fake Smart TV integration.
 3. Keep VS Code Copilot status as `DRAFT` (standby) until Phase 2 prototype and physical QR scan verification are complete and the full handover package is prepared.
+4. Keep the one-click `"Committed, next"` clipboard shortcut button visible across all EDISON app views (`src/components/CopyReportFooter.tsx`), and always include a copyable `"Committed, next"` line at every block commit gate (note: AI Studio host chat suggestion chips and system prompt settings can only be modified by the Project Owner in AI Studio settings, not by the assistant).
 
 ---
 
