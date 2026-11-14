@@ -13,6 +13,8 @@ import {
   Building2,
   Megaphone,
   Palette,
+  Check,
+  Copy,
 } from 'lucide-react';
 import {
   ReportsView,
@@ -25,6 +27,8 @@ import {
 import { AuthRbacView, QrEngineView } from './components/FoundationViews';
 import { AdvertiserProfileView, CampaignsView } from './components/CampaignViews';
 import { AdStudioView } from './components/AdStudioView';
+import { COMMIT_AND_NEXT_MESSAGE, copyTextWithFallback } from './components/CopyReportFooter';
+import { EDISON_DOCUMENTS } from './data/documents';
 import type { PublicUser } from './types/edison';
 
 type NavTab =
@@ -68,7 +72,7 @@ const GOVERNANCE_NAV: { id: NavTab; label: string; icon: typeof ClipboardCheck }
   { id: 'reports', label: 'Reports & Copy Console', icon: ClipboardCheck },
   { id: 'roadmap', label: 'Roadmap (Phases 1–15)', icon: Map },
   { id: 'research', label: 'Smart TV Research', icon: Tv },
-  { id: 'docs', label: 'Documentation (25)', icon: FolderGit2 },
+  { id: 'docs', label: `Documentation (${EDISON_DOCUMENTS.length})`, icon: FolderGit2 },
   { id: 'command', label: 'Command Centre', icon: Terminal },
   { id: 'risks', label: 'Risks, FMEA & Legal', icon: ShieldAlert },
 ];
@@ -78,6 +82,17 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<PublicUser | null>(null);
   const [summary, setSummary] = useState<FoundationSummary | null>(null);
+  const [headerShortcutCopied, setHeaderShortcutCopied] = useState(false);
+
+  const handleHeaderCommitAndNext = async () => {
+    try {
+      await copyTextWithFallback(COMMIT_AND_NEXT_MESSAGE);
+      setHeaderShortcutCopied(true);
+      window.setTimeout(() => setHeaderShortcutCopied(false), 2500);
+    } catch {
+      setActiveTab('reports');
+    }
+  };
 
   const refreshAuthState = useCallback(async () => {
     try {
@@ -197,12 +212,12 @@ export default function App() {
 
       {/* Main Content */}
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="h-16 bg-white border-b border-slate-200 px-4 sm:px-8 flex items-center justify-between gap-4 sticky top-0 z-10">
-          <div className="flex items-center gap-3 min-w-0">
+        <header className="min-h-16 py-2 sm:py-0 bg-white border-b border-slate-200 px-4 sm:px-8 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 sm:gap-4 sticky top-0 z-10">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 text-slate-600 hover:text-slate-900 rounded-lg border border-slate-200"
+              className="lg:hidden p-2 text-slate-600 hover:text-slate-900 rounded-lg border border-slate-200 shrink-0"
               aria-label="Open navigation menu"
             >
               <Menu className="w-4 h-4" />
@@ -219,16 +234,39 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <span className="hidden md:inline text-xs text-slate-500 font-mono">
               {currentUser ? `${currentUser.role} · ${currentUser.email}` : 'Signed Out'}
             </span>
             <button
               type="button"
-              onClick={() => setActiveTab('reports')}
-              className="px-3.5 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              onClick={handleHeaderCommitAndNext}
+              title={`Copy "${COMMIT_AND_NEXT_MESSAGE}" after committing to GitHub`}
+              className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs font-semibold rounded-lg border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                headerShortcutCopied
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                  : 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700'
+              }`}
             >
-              Copy Report Console
+              {headerShortcutCopied ? (
+                <>
+                  <Check className="w-3.5 h-3.5 shrink-0" />
+                  <span>Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5 shrink-0" />
+                  <span>Commit &amp; Next</span>
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('reports')}
+              className="px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              <span className="sm:hidden">Reports</span>
+              <span className="hidden sm:inline">Copy Report Console</span>
             </button>
           </div>
         </header>

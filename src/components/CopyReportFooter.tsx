@@ -6,7 +6,10 @@ interface CopyReportFooterProps {
   reportTitle: string;
 }
 
-async function copyTextWithFallback(text: string): Promise<void> {
+export const COMMIT_AND_NEXT_MESSAGE =
+  'Committed to GitHub. Please proceed to the next block.';
+
+export async function copyTextWithFallback(text: string): Promise<void> {
   if (navigator.clipboard && window.isSecureContext) {
     try {
       await navigator.clipboard.writeText(text);
@@ -55,7 +58,7 @@ export function CopyReportFooter({ reportText, reportTitle }: CopyReportFooterPr
   const handleCopyCommitShortcut = async () => {
     setErrorMessage('');
     try {
-      await copyTextWithFallback('Committed, next');
+      await copyTextWithFallback(COMMIT_AND_NEXT_MESSAGE);
       setShortcutStatus('copied');
       window.setTimeout(() => setShortcutStatus('idle'), 2500);
     } catch (err) {
@@ -83,7 +86,7 @@ export function CopyReportFooter({ reportText, reportTitle }: CopyReportFooterPr
           <button
             type="button"
             onClick={handleCopyCommitShortcut}
-            title='Copy "Committed, next" to clipboard for quick chat confirmation after pushing to GitHub'
+            title={`Copy "${COMMIT_AND_NEXT_MESSAGE}" to clipboard after committing to GitHub`}
             className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 text-sm font-medium border rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 ${
               shortcutStatus === 'copied'
                 ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
@@ -93,12 +96,12 @@ export function CopyReportFooter({ reportText, reportTitle }: CopyReportFooterPr
             {shortcutStatus === 'copied' ? (
               <>
                 <Check className="w-4 h-4 shrink-0" />
-                <span>Copied: Committed, next</span>
+                <span>Copied: Commit &amp; Next</span>
               </>
             ) : (
               <>
                 <Copy className="w-4 h-4 shrink-0 text-slate-500" />
-                <span>Committed, next</span>
+                <span>Commit &amp; Next</span>
               </>
             )}
           </button>

@@ -16,7 +16,8 @@
 2. Enforce strict boundaries: no real payments (`paymentCollectionActive: false`), no real advertiser/employer outreach, no fake Smart TV integration.
 3. Enforce Advertisement Creation Studio Option B QR integrity rules: never overwrite an existing QR code silently; block campaign submission on mismatch; flag unreadable/suspected QR uploads for admin review.
 4. Keep VS Code Copilot status as `DRAFT` (standby) until Phase 2 prototype and physical QR scan verification are complete and the full handover package is prepared.
-5. Keep the one-click `"Committed, next"` clipboard shortcut button visible across all EDISON app views (`src/components/CopyReportFooter.tsx`), and always include a copyable `"Committed, next"` line at every block commit gate.
+5. Keep the one-click **`Commit & Next`** clipboard shortcut button visible in the persistent header (`src/App.tsx`) and report footers (`src/components/CopyReportFooter.tsx`), copying `"Committed to GitHub. Please proceed to the next block."`.
+6. Maintain `EDISON_PERMANENT_SYSTEM_INSTRUCTIONS.md` and `SESSION_CONTINUITY_LOG.md` in GitHub so any Google account importing `Malaba29/EDISON-International-Smart-TV-Advertising-Network-` retains full rules, project path, and session history.
 
 ---
 
@@ -58,7 +59,7 @@
 
 ## 6. NEXT ACTION
 
-1. **Project Owner**: Review Block 2.3 in the live preview, commit Block 2.3 to GitHub, and confirm `"Committed, next"` to unlock **Block 2.4 (Full 16:9 Television Preview, Pre-Submission Gate & Commercial-Break Simulator)**.
+1. **Project Owner**: Review Block 2.3 and the saved continuity files (`EDISON_PERMANENT_SYSTEM_INSTRUCTIONS.md`, `SESSION_CONTINUITY_LOG.md`) in the live preview, commit/sync to `Malaba29/EDISON-International-Smart-TV-Advertising-Network-`, then click **`Commit & Next`** and send `"Committed to GitHub. Please proceed to the next block."` to unlock **Block 2.4 (Full 16:9 Television Preview, Pre-Submission Gate & Commercial-Break Simulator)**.
 
 ---
 

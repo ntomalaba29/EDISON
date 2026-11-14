@@ -382,7 +382,7 @@ export function DocsBrowserView() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Filter 25 documentation files..."
+            placeholder={`Filter ${EDISON_DOCUMENTS.length} documentation files...`}
             aria-label="Filter documentation files"
             className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
           />
@@ -400,7 +400,7 @@ export function DocsBrowserView() {
                   : 'bg-slate-100 text-slate-600 hover:text-slate-900'
               }`}
             >
-              {cat === 'ALL' ? 'All (25)' : cat}
+              {cat === 'ALL' ? `All (${EDISON_DOCUMENTS.length})` : cat}
             </button>
           ))}
         </div>
