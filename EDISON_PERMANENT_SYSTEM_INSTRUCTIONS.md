@@ -16,8 +16,8 @@
   4. `Block 2.4` — Full 16:9 Television Preview, Pre-Submission Approval Gate & Commercial-Break Simulator — **`COMMITTED`**
   5. `Block 2.5` — Opportunity Submission, Independent 3-Tier Verification, Expiry, Complaints & Appeals — **`COMMITTED`**
   6. `Block 2.6` — Administration, Moderation Console (Playable 16:9 Preview) & 7-Stage Analytics — **`COMMITTED`**
-  7. `Block 2.7` — Physical Mobile QR Scan Testing, Final Prototype QA & VS Code Handover Package — **`VERIFIED · AWAITING COMMIT`**
-- **Next Phase Gate**: `Phase 3 (TASK-P3-001)` — **`LOCKED UNTIL BLOCK 2.7 OWNER COMMIT & PHYSICAL PHONE QR VERIFICATION`**
+  7. `Block 2.7` — Physical Mobile QR Scan Testing, Final Prototype QA & VS Code Handover Package — **`COMMITTED`**
+- **Active Phase**: `Phase 3 — VS Code Engineering & Architecture Hardening` (`TASK-P3-001`: **`READY`** in `coordination/EDISON_COMMAND_CENTER.md`; handover dossier in `VSCODE_HANDOVER_PACKAGE.md`)
 
 ### Quick Re-Import Instructions (When Switching Google Accounts or Starting a New Session)
 1. Import `Malaba29/EDISON-International-Smart-TV-Advertising-Network-` into AI Studio (or clone locally).

@@ -176,7 +176,7 @@ async function startServer() {
     res.json({
       ok: true,
       service: 'edison-prototype-server',
-      phase: 'Phase 2 · Block 2.7',
+      phase: 'Phase 2 Committed · Phase 3 Handover (TASK-P3-001 READY)',
       summary: edisonStore.getFoundationSummary(),
     });
   });

@@ -1,6 +1,6 @@
 # EDISON — International Smart TV Advertising & Opportunity Network
 
-**[STATUS: PHASE 2 — AI STUDIO FUNCTIONAL PROTOTYPE · BLOCK 2.7 (PHYSICAL QR QA & VS CODE HANDOVER)]**  
+**[STATUS: PHASE 2 COMMITTED · PHASE 3 VS CODE HANDOVER READY (`TASK-P3-001`)]**  
 **[REPOSITORY PATH: `Malaba29/EDISON-International-Smart-TV-Advertising-Network-`]**
 
 EDISON is an international television advertising and verified opportunity network designed to display QR-enabled advertisements on compatible Smart TVs during suitable commercial breaks, connecting television viewers directly to advertiser destinations and legitimate employment, education, training, grant, and tender opportunities via mobile QR scanning.
@@ -49,6 +49,7 @@ Every document below is maintained as part of the permanent EDISON engineering r
 | `COMPLETE_DEVELOPMENT_ROADMAP.md` | Complete 15-phase roadmap from definition to international expansion |
 | `AI_STUDIO_WORKING_BOUNDARY.md` | Strict scope boundary for the AI Studio prototype vs production |
 | `VSCODE_HANDOVER_PLAN.md` | Structure and criteria for Phase 2 -> Phase 3 engineering handover |
+| `VSCODE_HANDOVER_PACKAGE.md` | Complete 11-point Phase 2 -> Phase 3 handover dossier for VS Code Copilot |
 | `PROGRESS_TRACKER.md` | Verified progress across AI Studio assignment & overall roadmap |
 | `DECISIONS_LOG.md` | Immutable Architecture Decision Records (ADRs) |
 | `TESTING_STRATEGY.md` | Automated, physical QR, security, and failure-mode test plan |
@@ -62,7 +63,7 @@ Every document below is maintained as part of the permanent EDISON engineering r
 
 ## 4. Current Project Boundary Notice
 
-- **[VERIFIED]**: Phase 1 (27 docs), Phase 2 Blocks 2.1–2.6 (Auth/RBAC/Store/QR, Profiles/Campaigns, Ad Studio, 16:9 TV Preview & Simulator, Opportunities & 3-Tier QA, Admin Moderation & 7-Stage Analytics), and `docs/research/EDISON_OPEN_SOURCE_REPOSITORY_RESEARCH_PLAN.md` (`DEFERRED`) are committed; Block 2.7 (Physical Mobile QR Scan Lab, Final Prototype Readiness Audit, and 11-Point VS Code Handover Package) is implemented and verified awaiting owner commit + real smartphone camera test log. No Smart TV hardware integration, real payment gateway, or production broadcast infrastructure is built or claimed.
+- **[VERIFIED]**: Phase 1 (`28` docs including `VSCODE_HANDOVER_PACKAGE.md`), Phase 2 Blocks 2.1–2.7, and `docs/research/EDISON_OPEN_SOURCE_REPOSITORY_RESEARCH_PLAN.md` (`DEFERRED`) are committed (`Next` per ADR-010); `TASK-P3-001` (PostgreSQL migration & persistence hardening) is queued as `READY` in `coordination/EDISON_COMMAND_CENTER.md` for VS Code Copilot. Real physical smartphone camera QR scan verification remains `PENDING_OWNER_DEVICE_TEST`. No Smart TV hardware integration, real payment gateway, or production broadcast infrastructure is built or claimed.
 - **[LIMITATION]**: The AI Studio runtime has no local `.git` repository or push credentials; saving changes to GitHub requires the Project Owner to commit/sync via AI Studio GitHub export or local git.
 - **Governance Rule**: Development proceeds strictly sequentially through verified implementation blocks (`PLAN -> IMPLEMENT -> TEST -> REPORT -> USER REVIEW -> USER COMMIT -> USER CONFIRMATION -> NEXT BLOCK`). Use the **`Commit & Next`** header/footer shortcut to copy `"Committed to GitHub. Please proceed to the next block."` after committing.
 

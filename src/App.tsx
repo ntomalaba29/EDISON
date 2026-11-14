@@ -165,7 +165,7 @@ export default function App() {
         <nav className="p-3 space-y-5" aria-label="EDISON navigation">
           <div>
             <p className="px-3 mb-1.5 text-xs font-semibold text-slate-500">
-              Phase 2 Prototype · Block 2.7
+              Phase 2 Prototype · Phase 3 Ready
             </p>
             <div className="space-y-1">
               {PROTOTYPE_NAV.map((item) => {
@@ -225,7 +225,7 @@ export default function App() {
         <div className="p-4 m-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-1">
           <p className="font-semibold text-slate-800">Prototype Boundary</p>
           <p className="leading-relaxed">
-            Block 2.7 adds Physical Mobile QR Scan Testing, Final Prototype Readiness Audit, and the 11-point VS Code Handover Package. Zero real payments or Smart TV tuner hooks.
+            Phase 2 (Blocks 2.1–2.7) committed. Phase 3 TASK-P3-001 is READY in the Command Centre for VS Code Copilot. Zero real payments or Smart TV tuner hooks.
           </p>
         </div>
       </aside>
@@ -247,7 +247,7 @@ export default function App() {
               <span className="text-slate-500 whitespace-nowrap">EDISON</span>
               <span className="text-slate-300" aria-hidden="true">/</span>
               <span className="text-slate-500 whitespace-nowrap hidden sm:inline">
-                {isPrototypeTab ? 'Phase 2 · Block 2.7' : 'Governance'}
+                {isPrototypeTab ? 'Phase 2 Committed · Phase 3 Ready' : 'Governance'}
               </span>
               <span className="text-slate-300 hidden sm:inline" aria-hidden="true">/</span>
               <h1 className="font-semibold text-slate-900 truncate">{currentItem.label}</h1>

@@ -228,7 +228,7 @@ export function QaHandoverView({
       '',
       `Generated: ${readiness?.generatedAt ?? new Date().toISOString()}`,
       'Repository: `Malaba29/EDISON-International-Smart-TV-Advertising-Network-`',
-      'Phase 2 Prototype Status: Blocks 2.1–2.7 Implemented (`Block 2.7 Verified · Awaiting Commit` until owner commit confirmation)',
+      'Phase 2 Prototype Status: Blocks 2.1–2.7 Committed (`ADR-010`) · Phase 3 Handover Activated (`TASK-P3-001: READY`)',
       '',
       '---',
       '',
@@ -290,7 +290,7 @@ export function QaHandoverView({
       '- `src/components/OpportunityView.tsx` — Opportunities, 3-Tier Verification, Complaints & Appeals',
       '- `src/components/AdminAnalyticsView.tsx` — Playable Admin Moderation & 7-Stage Analytics Funnel',
       '- `src/components/QaHandoverView.tsx` — Physical QR Scan Lab, Prototype Readiness Audit & Handover Export',
-      '- `src/components/Views.tsx` + `src/data/documents.ts` + `src/data/phase1Data.ts` — Governance & Docs Console (27 files)',
+      '- `src/components/Views.tsx` + `src/data/documents.ts` + `src/data/phase1Data.ts` — Governance & Docs Console (28 files including `VSCODE_HANDOVER_PACKAGE.md`)',
       '',
       '## 7. Automated Verification & Physical Phone QR Scan Log',
       `- Automated Invariants Passed: ${readiness?.automatedInvariantsPassed ?? 0} / ${readiness?.automatedInvariantsTotal ?? 8}`,
@@ -306,14 +306,14 @@ export function QaHandoverView({
       '- Zero real payments (`paymentCollectionActive: false`) and zero legal jurisdiction sign-offs (`COUNTRY_ACTIVATION_REGISTER.md`).',
       '',
       '## 9. Ordered Phase 3 VS Code Copilot Engineering Tasks',
-      '1. `TASK-P3-001` (DRAFT until Block 2.7 commit): Migrate `EdisonPrototypeStore` to PostgreSQL + migrations + transactional audit logging.',
-      '2. `TASK-P3-002`: Harden session/JWT/cookie security, CSRF protection, rate limiting, and structured input schemas (Zod).',
-      '3. `TASK-P3-003`: Build automated Vitest + Playwright E2E suite covering RBAC, 10-state campaigns, Option B QR integrity, 3-tier opportunities, and 7-stage analytics.',
-      '4. `TASK-P3-004`: Build background media worker pipeline (FFmpeg 1080p/720p transcode, EBU R128 loudness check, server-side frame QR verification).',
+      '1. `TASK-P3-001` (`READY` in Command Centre): Migrate `EdisonPrototypeStore` to PostgreSQL + migrations + transactional audit logging.',
+      '2. `TASK-P3-002` (queued after `TASK-P3-001`): Harden session/JWT/cookie security, CSRF protection, rate limiting, and structured input schemas (Zod).',
+      '3. `TASK-P3-003` (queued): Build automated Vitest + Playwright E2E suite covering RBAC, 10-state campaigns, Option B QR integrity, 3-tier opportunities, and 7-stage analytics.',
+      '4. `TASK-P3-004` (queued): Build background media worker pipeline (FFmpeg 1080p/720p transcode, EBU R128 loudness check, server-side frame QR verification).',
       '',
       '## 10. VS Code Command Centre Protocol',
       '- Coordination file: `coordination/EDISON_COMMAND_CENTER.md`.',
-      '- Copilot must only execute a task explicitly marked `Status: READY`. While `Status: DRAFT`, report standby.',
+      '- Copilot must execute the newest `READY` task (`TASK-P3-001`) and report exact commands, files, and exit codes in Section 4 (`AWAITING REVIEW`).',
     ].join('\n');
   }, [readiness]);
 
@@ -349,7 +349,7 @@ export function QaHandoverView({
       `Automated Prototype Invariants: ${passed} / ${total} passed`,
       `Physical Phone Camera Scan Gate: ${readiness?.physicalQrScanStatus ?? 'PENDING_OWNER_DEVICE_TEST'} (${readiness?.physicalQrPassedCount ?? 0} passed / ${readiness?.physicalQrTotalCount ?? 0} logged)`,
       `Live Redirect Telemetry: Requests=${readiness?.summary.redirectRequestsTotal ?? 0} | 302 Issued=${readiness?.summary.redirectIssuedTotal ?? 0} | Bots Excluded=${readiness?.summary.suspectedBotRedirects ?? 0} | Verified Opens=${readiness?.summary.verifiedDestinationOpens ?? 0}`,
-      `Handover Package Status: Complete 11-item checklist prepared for Phase 3 (TASK-P3-001 remains DRAFT until Block 2.7 owner commit confirmation).`,
+      `Handover Package Status: Complete 11-item checklist activated for Phase 3 (VSCODE_HANDOVER_PACKAGE.md authored; TASK-P3-001 Status: READY).`,
     ].join('\n');
   }, [readiness, currentUser]);
 
@@ -400,7 +400,7 @@ export function QaHandoverView({
         <div className="bg-white border border-slate-200 rounded-lg p-5">
           <p className="text-xs font-medium text-slate-500">Phase 3 VS Code Handover</p>
           <p className="mt-1.5 text-sm font-semibold text-slate-900">11-Point Package Ready</p>
-          <p className="mt-1 text-xs text-slate-600 font-mono">TASK-P3-001: DRAFT (Commit Gate)</p>
+          <p className="mt-1 text-xs text-emerald-700 font-mono">TASK-P3-001: READY (Command Centre)</p>
         </div>
       </div>
 
@@ -1008,7 +1008,7 @@ export function QaHandoverView({
                 VS Code Copilot Engineering Handover Package (Phase 2 → Phase 3)
               </h2>
               <p className="text-xs text-slate-600 mt-0.5">
-                Covers all 11 mandatory deliverables defined in <code className="font-mono">VSCODE_HANDOVER_PLAN.md</code>. Phase 3 tasks remain <code className="font-mono">DRAFT</code> until Block 2.7 commit confirmation.
+                Covers all 11 mandatory deliverables defined in <code className="font-mono">VSCODE_HANDOVER_PLAN.md</code>. <code className="font-mono">TASK-P3-001</code> is <code className="font-mono">READY</code> in <code className="font-mono">coordination/EDISON_COMMAND_CENTER.md</code>.
               </p>
             </div>
 

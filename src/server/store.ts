@@ -3885,10 +3885,10 @@ class EdisonPrototypeStore {
     const latestAudit = this.data.auditLogs[0] ?? null;
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 2 — AI Studio Functional Prototype',
-      stage: 'Stage 2.7 — Physical Mobile QR Testing, Final QA & VS Code Handover',
-      block: 'Block 2.7 (Verified)',
-      gateStatus: 'VERIFIED · AWAITING COMMIT',
+      phase: 'Phase 3 — VS Code Engineering Hardening (Handover Ready)',
+      stage: 'Stage 3.1 — PostgreSQL Migration & Persistence Hardening (TASK-P3-001 READY)',
+      block: 'Phase 2 Committed · Phase 3 Handover Ready',
+      gateStatus: 'HANDOVER READY · AWAITING OWNER COMMIT & COPILOT',
       latestAuditAt: latestAudit?.createdAt ?? null,
       latestAuditAction: latestAudit?.action ?? null,
       campaignStatusBreakdown: breakdown,

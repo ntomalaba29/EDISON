@@ -18,6 +18,7 @@ import fmeaMd from '../../FAILURE_MODE_ANALYSIS.md?raw';
 import roadmapMd from '../../COMPLETE_DEVELOPMENT_ROADMAP.md?raw';
 import boundaryMd from '../../AI_STUDIO_WORKING_BOUNDARY.md?raw';
 import handoverMd from '../../VSCODE_HANDOVER_PLAN.md?raw';
+import handoverPkgMd from '../../VSCODE_HANDOVER_PACKAGE.md?raw';
 import progressMd from '../../PROGRESS_TRACKER.md?raw';
 import decisionsMd from '../../DECISIONS_LOG.md?raw';
 import testingMd from '../../TESTING_STRATEGY.md?raw';
@@ -209,6 +210,13 @@ export const EDISON_DOCUMENTS: EdisonDocument[] = [
     title: 'VS Code Engineering Handover Plan',
     category: 'Coordination',
     content: handoverMd,
+  },
+  {
+    id: 'vscode-handover-pkg',
+    filename: 'VSCODE_HANDOVER_PACKAGE.md',
+    title: 'VS Code Phase 2->3 Handover Package',
+    category: 'Coordination',
+    content: handoverPkgMd,
   },
   {
     id: 'command-center',

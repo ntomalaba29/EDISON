@@ -61,5 +61,12 @@
 ## Session Entry — 2026-11-14 (Block 2.6 Commit & Block 2.7 Final Prototype QA + VS Code Handover)
 
 - **Owner Commit Confirmation (`ADR-010`)**: Project Owner confirmed `"Next"`, locking in Block 2.6 and unlocking **Block 2.7**.
-- **Verified Block 2.7**: Implemented Physical Mobile QR Scan Lab (`QaHandoverView.tsx`, `GET /api/qa/qr-watch/:token`, `GET/POST/DELETE /api/qa/physical-qr-tests`), Prototype Readiness & Security Invariant Audit (`GET /api/qa/prototype-readiness`, schemaVersion 6), and the complete 11-Point VS Code Engineering Handover Package viewer/downloader. Automated store invariants verified cleanly; real physical phone camera scanning stays honestly flagged `PENDING_OWNER_DEVICE_TEST` until logged on physical hardware via the live preview UI.
-- **Next Authorised Milestone (Locked until Block 2.7 Commit Confirmation)**: **Phase 3 — VS Code Engineering Hardening (`TASK-P3-001`: PostgreSQL Migration & Persistent Hardening)** queued as `DRAFT` in `coordination/EDISON_COMMAND_CENTER.md`.
+- **Verified Block 2.7**: Implemented Physical Mobile QR Scan Lab (`QaHandoverView.tsx`, `GET /api/qa/qr-watch/:token`, `GET/POST/DELETE /api/qa/physical-qr-tests`), Prototype Readiness & Security Invariant Audit (`GET /api/qa/prototype-readiness`, schemaVersion 6), and the complete 11-Point VS Code Engineering Handover Package viewer/downloader. Automated store invariants verified cleanly; real physical phone camera scanning stays honestly flagged `PENDING_OWNER_DEVICE_TEST` until logged on physical hardware via the live preview UI. Status: `COMMITTED` via Project Owner `"Next"` confirmation (`ADR-010`).
+
+---
+
+## Session Entry — 2026-11-14 (Phase 2 Commit Confirmation & Phase 3 VS Code Handover Activation)
+
+- **Owner Commit Confirmation (`ADR-010`)**: Project Owner confirmed `"Next"`, locking in Block 2.7 and completing Phase 2 (`Blocks 2.1–2.7`) inside AI Studio's implementation boundary (`AI_STUDIO_WORKING_BOUNDARY.md`).
+- **Handover Package & Copilot Activation**: Authored permanent `VSCODE_HANDOVER_PACKAGE.md` covering all 11 checklist items from `VSCODE_HANDOVER_PLAN.md` and transitioned `TASK-P3-001` (PostgreSQL Migration & Production Persistence Hardening) from `DRAFT` to **`READY`** in `coordination/EDISON_COMMAND_CENTER.md`.
+- **Remaining Owner Action**: Commit these Phase 3 handover activation records to GitHub, pull locally, instruct VS Code Copilot to execute `TASK-P3-001`, and run an optional physical smartphone camera QR scan via `QR QA & VS Code Handover`.
