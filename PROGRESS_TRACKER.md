@@ -1,6 +1,6 @@
 # EDISON — Progress Tracker
 
-**Last Verified**: 2026-11-14 (Phase 2, Block 2.5)  
+**Last Verified**: 2026-11-14 (Phase 2, Block 2.6)  
 **Reporting Rule**: AI Studio assignment progress and Overall EDISON project progress are tracked separately and strictly by verified acceptance criteria.
 
 ---
@@ -8,9 +8,9 @@
 ## 1. Progress Summary
 
 - **Current Phase**: Phase 2 — AI Studio Functional Prototype
-- **Current Stage**: Stage 2.5 — Opportunity Submission, Independent 3-Tier Verification, Expiry, Complaints & Appeals
-- **AI Studio Assignment Progress**: Phase 1, Blocks 2.1–2.4, and Deferred Research Plan committed by Project Owner; Block 2.5 verified (`AWAITING COMMIT`).
-- **Overall EDISON Project Progress**: Phase 1 committed; Phase 2 (4 committed, Block 2.5 verified awaiting commit of 7 prototype blocks); Phases 3–15 `NOT STARTED`.
+- **Current Stage**: Stage 2.6 — Admin Moderation Console (Full Playable Preview) & 7-Stage Trustworthy Analytics
+- **AI Studio Assignment Progress**: Phase 1, Blocks 2.1–2.5, and Deferred Research Plan committed by Project Owner; Block 2.6 verified (`AWAITING COMMIT`).
+- **Overall EDISON Project Progress**: Phase 1 committed; Phase 2 (5 committed, Block 2.6 verified awaiting commit of 7 prototype blocks); Phases 3–15 `NOT STARTED`.
 
 ---
 
@@ -19,7 +19,7 @@
 | Phase | Name | Status | Verified Evidence |
 | :--- | :--- | :--- | :--- |
 | Phase 1 | Project definition and technical research | **COMMITTED** | 27 documentation files authored, build/lint verified, owner confirmed commit to GitHub. |
-| Phase 2 | AI Studio functional prototype | **IN PROGRESS** | Block 2.1 committed (`server.ts`, locked+fsync `store.ts`, `qrValidator.ts`, `/r/:token`). Block 2.2 committed (Advertiser Profiles, Support Tickets, Simulated Rate-Card Estimates, 10-State Campaigns). Block 2.3 committed (Option A Studio & Option B External Upload/jsQR Inspector). Block 2.4 committed (16:9 TV Preview Player, Pre-Submit Gate & Commercial-Break Simulator). Deferred Repository Research Plan committed. Block 2.5 verified awaiting commit (Opportunity Submission across 14 categories & Individual Employers, 3-Tier Non-Transitive Verification, Financial Independence, Expiry & Campaign Lockout, Complaints & Appeals). Blocks 2.6–2.7 pending sequentially. |
+| Phase 2 | AI Studio functional prototype | **IN PROGRESS** | Blocks 2.1–2.5 & Deferred Repository Research Plan committed (`server.ts`, locked+fsync `store.ts`, `qrValidator.ts`, `/r/:token`, Profiles/Tickets/10-State Campaigns, Option A/B Ad Studio, 16:9 TV Preview & Break Simulator, Opportunity Submission & 3-Tier QA). Block 2.6 verified awaiting commit (Playable 16:9 Campaign Moderation, QR/Account/Ticket Governance, Audit Ledger Filtering, and 7-Stage Analytics separating Simulated vs Real Measured vs Unverified Stage 7). Block 2.7 pending commit confirmation. |
 | Phase 3 | VS Code engineering & architecture hardening | **NOT STARTED** | Depends on Phase 2 handover. |
 | Phase 4 | Smart TV platform feasibility & integrations | **NOT STARTED** | Preliminary research done in Phase 1; deferred repo shortlist recorded in `docs/research/EDISON_OPEN_SOURCE_REPOSITORY_RESEARCH_PLAN.md`; physical hardware testing not started. |
 | Phase 5 | Commercial-break detection & prediction | **NOT STARTED** | Theoretical analysis started in `COMMERCIAL_BREAK_DETECTION.md`; deferred repo shortlist recorded. |
@@ -35,6 +35,6 @@
 | **Block 2.2** | Advertiser profiles, verification submission, support/dispute tickets, simulated rate-card estimate, & full 10-state Campaign Management CRUD | **COMMITTED** |
 | **Block 2.3** | Advertisement Creation Studio (Option A guided builder & Option B upload/QR inspection) | **COMMITTED** |
 | **Block 2.4** | Realistic 16:9 TV Preview, Pre-Submit Gate & Commercial-Break Simulator | **COMMITTED** |
-| **Block 2.5** | Opportunity Submission, 3-Tier Verification, Expiry, Complaints & Appeals | **VERIFIED · AWAITING COMMIT** |
-| **Block 2.6** | Admin Moderation Console (Full Playable Preview) & 7-Stage Analytics | NOT STARTED |
+| **Block 2.5** | Opportunity Submission, 3-Tier Verification, Expiry, Complaints & Appeals | **COMMITTED** |
+| **Block 2.6** | Admin Moderation Console (Full Playable Preview) & 7-Stage Analytics | **VERIFIED · AWAITING COMMIT** |
 | **Block 2.7** | Physical Mobile Phone QR Scan Testing, Final QA & VS Code Handover Package | NOT STARTED |

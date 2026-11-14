@@ -501,7 +501,55 @@ export interface LiveReportSnapshot {
     redirectIssuedTotal: number;
     suspectedBotRedirects: number;
     verifiedDestinationOpens: number;
+    verifiedConversionsTotal?: number;
+    simulatedEventsTotal?: number;
     auditLogCount: number;
     storagePath: string;
   };
 }
+
+export interface AnalyticsFunnelStageItem {
+  stageNumber: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  key: string;
+  label: string;
+  measurementSource: 'real_measured' | 'simulated_prototype' | 'unverified_in_prototype';
+  rawCount: number;
+  deduplicatedCount: number;
+  suspectedBotExcluded: number;
+  secondaryCount?: number;
+  secondaryLabel?: string;
+  epistemicNote: string;
+}
+
+export interface SevenStageAnalyticsSnapshot {
+  generatedAt: string;
+  scope: 'network_wide' | 'user_owned';
+  campaignFilterId: string | null;
+  stages: AnalyticsFunnelStageItem[];
+  recentEvents: AnalyticsEventRecord[];
+  campaignBreakdown: Array<{
+    campaignId: string;
+    title: string;
+    status: CampaignStatus;
+    qrToken: string | null;
+    simulatedRequested: number;
+    simulatedPlayed: number;
+    realRedirectRequested: number;
+    realRedirectIssued: number;
+    suspectedBotFiltered: number;
+    verifiedOpens: number;
+  }>;
+}
+
+export interface AdminModerationOverview {
+  generatedAt: string;
+  pendingCampaigns: CampaignRecord[];
+  activeOrScheduledCampaigns: CampaignRecord[];
+  flaggedCreatives: AdCreativeRecord[];
+  advertiserProfiles: AdvertiserProfile[];
+  qrLinks: QrLinkRecord[];
+  supportTickets: SupportTicketRecord[];
+  openComplaintsCount: number;
+  openAppealsCount: number;
+}
+

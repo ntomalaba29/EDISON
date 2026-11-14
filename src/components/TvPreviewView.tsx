@@ -62,7 +62,7 @@ interface CreativeStageProps {
   onVideoEnded?: () => void;
 }
 
-function CreativeStage({
+export function CreativeStage({
   creative,
   qrDataUrl,
   isPlaying,

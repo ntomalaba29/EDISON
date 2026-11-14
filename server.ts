@@ -176,7 +176,7 @@ async function startServer() {
     res.json({
       ok: true,
       service: 'edison-prototype-server',
-      phase: 'Phase 2 · Block 2.5',
+      phase: 'Phase 2 · Block 2.6',
       summary: edisonStore.getFoundationSummary(),
     });
   });
@@ -958,10 +958,86 @@ async function startServer() {
     }
   );
 
+  // Admin Moderation Overview, QR Moderation, Creative Flag Clearance & 7-Stage Analytics (Block 2.6)
+  app.get(
+    '/api/admin/moderation-overview',
+    requireAdmin,
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        res.json(edisonStore.getAdminModerationOverview(req.currentUser!));
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.patch(
+    '/api/admin/qr/:token/moderate',
+    requireAdmin,
+    (req: AuthenticatedRequest, res: Response) => {
+      const { status, reason } = req.body ?? {};
+      if (status !== 'active' && status !== 'disabled' && status !== 'flagged') {
+        res.status(400).json({ error: 'status must be active, disabled, or flagged.' });
+        return;
+      }
+      try {
+        const item = edisonStore.adminModerateQrLink(
+          req.currentUser!,
+          req.params.token,
+          status,
+          String(reason ?? '')
+        );
+        res.json({ item });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.post(
+    '/api/admin/creatives/:id/clear-qr-flag',
+    requireAdmin,
+    (req: AuthenticatedRequest, res: Response) => {
+      const { notes } = req.body ?? {};
+      try {
+        const item = edisonStore.adminClearCreativeQrFlag(
+          req.currentUser!,
+          req.params.id,
+          String(notes ?? '')
+        );
+        res.json({ item });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.get('/api/analytics/funnel', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const campaignId =
+      typeof req.query.campaignId === 'string' && req.query.campaignId.trim()
+        ? req.query.campaignId.trim()
+        : null;
+    try {
+      res.json(edisonStore.getSevenStageAnalyticsFunnel(req.currentUser!, campaignId));
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
   // Admin-only Audit Log & Redirect Event Endpoints (RBAC Verification Targets)
-  app.get('/api/admin/audit-logs', requireAdmin, (_req: AuthenticatedRequest, res: Response) => {
+  app.get('/api/admin/audit-logs', requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+    const targetType =
+      typeof req.query.targetType === 'string' ? req.query.targetType.trim() : undefined;
+    const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined;
     res.json({
-      items: edisonStore.listAuditLogs(),
+      items: edisonStore.listAuditLogs({
+        targetType,
+        limit: Number.isFinite(limit) ? limit : undefined,
+      }),
     });
   });
 

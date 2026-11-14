@@ -48,3 +48,11 @@
 - **Owner Commit Confirmation (`ADR-010`)**: Project Owner confirmed `"Committed, next"`, locking in Block 2.4 + the deferred research plan and unlocking **Block 2.5**.
 - **Verified Block 2.5**: Implemented and E2E-verified (`BLOCK25_E2E_OK`) Opportunity Submission across all 14 categories for both `registered_organisation` and `individual_informal_employer`, anti-scam/guarantee guardrails, independent non-transitive 3-tier verification, financial independence (`advertisingFeeInfluencesVerification: false`), automated expiry + campaign scheduling lockout, viewer/advertiser complaints, suspension cascade, and appeals/reinstatement. Status: `VERIFIED · AWAITING COMMIT`.
 - **Next Authorised Block (Locked until Commit Confirmation)**: **Block 2.6 — Administration, Moderation Console & 7-Stage Analytics**.
+
+---
+
+## Session Entry — 2026-11-14 (Block 2.5 Commit & Block 2.6 Verification)
+
+- **Owner Commit Confirmation (`ADR-010`)**: Project Owner confirmed `"Committed, next"`, locking in Block 2.5 and unlocking **Block 2.6**.
+- **Verified Block 2.6**: Implemented and E2E-verified (`BLOCK26_E2E_OK`) Admin Moderation Console (`AdminAnalyticsView.tsx`, `/api/admin/moderation-overview`, `/api/admin/creatives/:id/clear-qr-flag`, `/api/admin/qr/:token/moderate`, filterable `/api/admin/audit-logs`) embedding playable 16:9 `CreativeStage` inspection, mandatory written moderation reasons, and the 7-Stage Analytics Funnel (`/api/analytics/funnel`) isolating `[SIMULATED PROTOTYPE ONLY]` stages 1–4 from `[REAL MEASURED]` `/r/:token` stages 5–6 and keeping Stage 7 (`destination_opened` / `verified_conversion`) strictly unverified (`0`) unless independently confirmed. Status: `VERIFIED · AWAITING COMMIT`.
+- **Next Authorised Block (Locked until Commit Confirmation)**: **Block 2.7 — Physical Mobile Phone QR Scan Testing, Final Prototype QA & VS Code Handover Package**.

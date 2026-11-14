@@ -8,7 +8,9 @@ import type {
   AdStudioMode,
   AdvertiserEntityType,
   AdvertiserProfile,
+  AdminModerationOverview,
   AnalyticsEventRecord,
+  AnalyticsFunnelStageItem,
   AuditLogRecord,
   BillingEstimateSummary,
   CampaignContentCategory,
@@ -36,6 +38,7 @@ import type {
   QrLinkRecord,
   QrLinkStatus,
   SessionRecord,
+  SevenStageAnalyticsSnapshot,
   SupportTicketCategory,
   SupportTicketRecord,
   SupportTicketStatus,
@@ -3225,9 +3228,315 @@ class EdisonPrototypeStore {
     });
   }
 
-  listAuditLogs(): AuditLogRecord[] {
+  adminModerateQrLink(
+    admin: PublicUser,
+    token: string,
+    status: QrLinkStatus,
+    reason: string
+  ): QrLinkRecord {
+    if (admin.role !== 'admin') {
+      throw new Error('FORBIDDEN: Only administrators can moderate QR redirect links.');
+    }
+    const cleanReason = reason.trim();
+    if (cleanReason.length < 5) {
+      throw new Error('Written moderation reason (min 5 characters) is required.');
+    }
+    return this.withWriteTransaction((draft) => {
+      const target = draft.qrLinks.find((q) => q.token === token);
+      if (!target) {
+        throw new Error('QR token not found.');
+      }
+      const prev = target.status;
+      target.status = status;
+      this.addAudit(
+        draft,
+        admin.id,
+        admin.role,
+        'ADMIN_QR_MODERATED',
+        'qr_link',
+        target.token,
+        `Moderator changed /r/${target.token} from ${prev} to ${status}. Reason: ${cleanReason}`
+      );
+      return { ...target };
+    });
+  }
+
+  adminClearCreativeQrFlag(
+    admin: PublicUser,
+    creativeId: string,
+    notes: string
+  ): AdCreativeRecord {
+    if (admin.role !== 'admin') {
+      throw new Error('FORBIDDEN: Only administrators can clear creative QR review flags.');
+    }
+    const cleanNotes = notes.trim();
+    if (cleanNotes.length < 5) {
+      throw new Error('Written moderator verification notes (min 5 characters) are required.');
+    }
+    return this.withWriteTransaction((draft) => {
+      const creative = draft.adCreatives.find((c) => c.id === creativeId);
+      if (!creative) {
+        throw new Error('Ad creative not found.');
+      }
+      if (creative.optionB?.qrInspectionStatus === 'decoded_mismatch') {
+        throw new Error(
+          'Cannot clear QR flag: external media decoded a conflicting QR destination. Advertiser must upload matching media or align the campaign QR.'
+        );
+      }
+      if (creative.optionB) {
+        creative.optionB.requiresAdminReviewFlag = false;
+      }
+      creative.status = 'ready_for_preview';
+      creative.updatedAt = new Date().toISOString();
+
+      this.addAudit(
+        draft,
+        admin.id,
+        admin.role,
+        'ADMIN_CREATIVE_QR_FLAG_CLEARED',
+        'ad_creative',
+        creative.id,
+        `Moderator cleared review flag on "${creative.title}". Notes: ${cleanNotes}`
+      );
+      return { ...creative };
+    });
+  }
+
+  getAdminModerationOverview(admin: PublicUser): AdminModerationOverview {
+    if (admin.role !== 'admin') {
+      throw new Error('FORBIDDEN: Only administrators can view the moderation overview.');
+    }
     this.syncIfDiskNewer();
-    return [...this.data.auditLogs];
+    const pendingCampaigns = this.data.campaigns
+      .filter((c) => c.status === 'submitted' || c.status === 'under_review')
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    const activeOrScheduledCampaigns = this.data.campaigns
+      .filter((c) => c.status === 'approved' || c.status === 'scheduled' || c.status === 'active' || c.status === 'paused')
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    const flaggedCreatives = this.data.adCreatives.filter(
+      (cr) =>
+        cr.status === 'flagged_for_review' ||
+        cr.optionB?.requiresAdminReviewFlag ||
+        cr.optionB?.qrInspectionStatus === 'decoded_mismatch' ||
+        cr.optionB?.qrInspectionStatus === 'suspected_unreadable'
+    );
+
+    return {
+      generatedAt: new Date().toISOString(),
+      pendingCampaigns,
+      activeOrScheduledCampaigns,
+      flaggedCreatives,
+      advertiserProfiles: [...this.data.advertiserProfiles].sort((a, b) =>
+        b.updatedAt.localeCompare(a.updatedAt)
+      ),
+      qrLinks: [...this.data.qrLinks].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+      supportTickets: [...this.data.supportTickets].sort((a, b) =>
+        b.updatedAt.localeCompare(a.updatedAt)
+      ),
+      openComplaintsCount: this.data.opportunityComplaints.filter(
+        (c) => c.status === 'reported' || c.status === 'under_investigation'
+      ).length,
+      openAppealsCount: this.data.opportunityAppeals.filter(
+        (a) => a.status === 'submitted' || a.status === 'under_review'
+      ).length,
+    };
+  }
+
+  getSevenStageAnalyticsFunnel(
+    actor: PublicUser,
+    campaignFilterId: string | null = null
+  ): SevenStageAnalyticsSnapshot {
+    this.syncIfDiskNewer();
+
+    const accessibleCampaigns =
+      actor.role === 'admin'
+        ? this.data.campaigns
+        : this.data.campaigns.filter((c) => c.ownerId === actor.id);
+
+    let scopedCampaigns = accessibleCampaigns;
+    let scopedQrTokens = new Set<string>(
+      (actor.role === 'admin'
+        ? this.data.qrLinks
+        : this.data.qrLinks.filter((q) => q.ownerId === actor.id)
+      ).map((q) => q.token)
+    );
+
+    if (campaignFilterId) {
+      const target = this.data.campaigns.find((c) => c.id === campaignFilterId);
+      if (!target) {
+        throw new Error('Campaign not found.');
+      }
+      if (actor.role !== 'admin' && target.ownerId !== actor.id) {
+        throw new Error('FORBIDDEN: You do not own this campaign.');
+      }
+      scopedCampaigns = [target];
+      scopedQrTokens = new Set(target.qrToken ? [target.qrToken] : []);
+    }
+
+    const scopedCampaignIds = new Set(scopedCampaigns.map((c) => c.id));
+
+    const eventMatchesScope = (ev: AnalyticsEventRecord): boolean => {
+      if (campaignFilterId) {
+        if (ev.campaignId === campaignFilterId) return true;
+        if (!ev.campaignId && ev.qrToken && scopedQrTokens.has(ev.qrToken)) return true;
+        return false;
+      }
+      if (actor.role === 'admin') return true;
+      if (ev.campaignId && scopedCampaignIds.has(ev.campaignId)) return true;
+      if (ev.qrToken && scopedQrTokens.has(ev.qrToken)) return true;
+      return false;
+    };
+
+    const scopedEvents = this.data.analyticsEvents.filter(eventMatchesScope);
+
+    const simCount = (type: AnalyticsEventRecord['eventType']) =>
+      scopedEvents.filter((e) => e.eventType === type && e.measurementSource === 'simulated_prototype').length;
+
+    const reqEvents = scopedEvents.filter(
+      (e) => e.eventType === 'redirect_requested' && e.measurementSource === 'real_measured'
+    );
+    const reqBots = reqEvents.filter((e) => e.isSuspectedBot === true).length;
+    const reqDups = reqEvents.filter((e) => !e.isSuspectedBot && e.isDeduplicated === true).length;
+    const reqNonBotUnique = Math.max(0, reqEvents.length - reqBots - reqDups);
+
+    const issuedEvents = scopedEvents.filter(
+      (e) => e.eventType === 'redirect_issued' && e.measurementSource === 'real_measured'
+    );
+    const issuedBots = issuedEvents.filter((e) => e.isSuspectedBot === true).length;
+    const issuedDups = issuedEvents.filter((e) => !e.isSuspectedBot && e.isDeduplicated === true).length;
+    const issuedNonBotUnique = Math.max(0, issuedEvents.length - issuedBots - issuedDups);
+
+    const opensVerified = scopedEvents.filter((e) => e.eventType === 'destination_opened').length;
+    const conversionsVerified = scopedEvents.filter((e) => e.eventType === 'verified_conversion').length;
+
+    const stages: AnalyticsFunnelStageItem[] = [
+      {
+        stageNumber: 1,
+        key: 'ad_requested',
+        label: '1. Ad Requested',
+        measurementSource: 'simulated_prototype',
+        rawCount: simCount('ad_requested'),
+        deduplicatedCount: simCount('ad_requested'),
+        suspectedBotExcluded: 0,
+        epistemicNote: 'SIMULATED PROTOTYPE ONLY — Commercial-Break Simulator requested playback slot.',
+      },
+      {
+        stageNumber: 2,
+        key: 'ad_delivered',
+        label: '2. Ad Delivered',
+        measurementSource: 'simulated_prototype',
+        rawCount: simCount('ad_delivered'),
+        deduplicatedCount: simCount('ad_delivered'),
+        suspectedBotExcluded: 0,
+        epistemicNote: 'SIMULATED PROTOTYPE ONLY — Creative loaded in simulator; not physical TV tuner delivery.',
+      },
+      {
+        stageNumber: 3,
+        key: 'ad_played',
+        label: '3. Ad Played',
+        measurementSource: 'simulated_prototype',
+        rawCount: simCount('ad_played'),
+        deduplicatedCount: simCount('ad_played'),
+        suspectedBotExcluded: 0,
+        epistemicNote: 'SIMULATED PROTOTYPE ONLY — Browser player started playback.',
+      },
+      {
+        stageNumber: 4,
+        key: 'ad_viewable',
+        label: '4. Ad Technically Viewable (>= 2s)',
+        measurementSource: 'simulated_prototype',
+        rawCount: simCount('ad_viewable'),
+        deduplicatedCount: simCount('ad_viewable'),
+        suspectedBotExcluded: 0,
+        epistemicNote: 'SIMULATED PROTOTYPE ONLY — Technical viewport >= 2s; never proves human presence or attention.',
+      },
+      {
+        stageNumber: 5,
+        key: 'redirect_requested',
+        label: '5. QR Redirect Requested (/r/:token)',
+        measurementSource: 'real_measured',
+        rawCount: reqEvents.length,
+        deduplicatedCount: reqNonBotUnique,
+        suspectedBotExcluded: reqBots,
+        secondaryCount: reqDups,
+        secondaryLabel: '5s Duplicate Requests',
+        epistemicNote: 'REAL MEASURED — Includes bots/link-previewers before filtering; a redirect hit alone does not prove a human camera scan.',
+      },
+      {
+        stageNumber: 6,
+        key: 'redirect_issued',
+        label: '6. QR Redirect Issued (HTTP 302)',
+        measurementSource: 'real_measured',
+        rawCount: issuedEvents.length,
+        deduplicatedCount: issuedNonBotUnique,
+        suspectedBotExcluded: issuedBots,
+        secondaryCount: issuedDups,
+        secondaryLabel: '5s Duplicate Redirects',
+        epistemicNote: 'REAL MEASURED — Direct HTTP 302 sent; strictly does NOT guarantee external destination page loaded.',
+      },
+      {
+        stageNumber: 7,
+        key: 'destination_opened_and_conversion',
+        label: '7. Destination Opened & Verified Conversion',
+        measurementSource: 'unverified_in_prototype',
+        rawCount: opensVerified,
+        deduplicatedCount: opensVerified,
+        suspectedBotExcluded: 0,
+        secondaryCount: conversionsVerified,
+        secondaryLabel: 'Verified Conversions',
+        epistemicNote: 'INDEPENDENT VERIFICATION REQUIRED — Never inferred from HTTP 302; remains 0 unless external destination confirmation is explicitly received.',
+      },
+    ];
+
+    const campaignBreakdown = accessibleCampaigns.map((cmp) => {
+      const matchesCamp = (ev: AnalyticsEventRecord) =>
+        ev.campaignId === cmp.id || (!ev.campaignId && cmp.qrToken && ev.qrToken === cmp.qrToken);
+      const cmpEvents = this.data.analyticsEvents.filter(matchesCamp);
+      const cmpReq = cmpEvents.filter(
+        (e) => e.eventType === 'redirect_requested' && e.measurementSource === 'real_measured'
+      );
+      return {
+        campaignId: cmp.id,
+        title: cmp.title,
+        status: cmp.status,
+        qrToken: cmp.qrToken,
+        simulatedRequested: cmpEvents.filter(
+          (e) => e.eventType === 'ad_requested' && e.measurementSource === 'simulated_prototype'
+        ).length,
+        simulatedPlayed: cmpEvents.filter(
+          (e) => e.eventType === 'ad_played' && e.measurementSource === 'simulated_prototype'
+        ).length,
+        realRedirectRequested: cmpReq.filter((e) => !e.isSuspectedBot && !e.isDeduplicated).length,
+        realRedirectIssued: cmpEvents.filter(
+          (e) =>
+            e.eventType === 'redirect_issued' &&
+            e.measurementSource === 'real_measured' &&
+            !e.isSuspectedBot &&
+            !e.isDeduplicated
+        ).length,
+        suspectedBotFiltered: cmpReq.filter((e) => e.isSuspectedBot === true).length,
+        verifiedOpens: cmpEvents.filter((e) => e.eventType === 'destination_opened').length,
+      };
+    });
+
+    return {
+      generatedAt: new Date().toISOString(),
+      scope: actor.role === 'admin' && !campaignFilterId ? 'network_wide' : 'user_owned',
+      campaignFilterId,
+      stages,
+      recentEvents: scopedEvents.slice(0, 80),
+      campaignBreakdown,
+    };
+  }
+
+  listAuditLogs(filters: { targetType?: string; limit?: number } = {}): AuditLogRecord[] {
+    this.syncIfDiskNewer();
+    let logs = [...this.data.auditLogs];
+    if (filters.targetType && filters.targetType !== 'all') {
+      logs = logs.filter((l) => l.targetType === filters.targetType);
+    }
+    const max = Math.min(500, Math.max(1, filters.limit ?? 200));
+    return logs.slice(0, max);
   }
 
   listAnalyticsEvents(limit = 50): AnalyticsEventRecord[] {
@@ -3269,6 +3578,12 @@ class EdisonPrototypeStore {
       verifiedDestinationOpens: this.data.analyticsEvents.filter(
         (e) => e.eventType === 'destination_opened'
       ).length,
+      verifiedConversionsTotal: this.data.analyticsEvents.filter(
+        (e) => e.eventType === 'verified_conversion'
+      ).length,
+      simulatedEventsTotal: this.data.analyticsEvents.filter(
+        (e) => e.measurementSource === 'simulated_prototype'
+      ).length,
       auditLogCount: this.data.auditLogs.length,
       storagePath: 'data/edison-store.json (Locked Atomic Write)',
     };
@@ -3296,8 +3611,8 @@ class EdisonPrototypeStore {
     return {
       generatedAt: new Date().toISOString(),
       phase: 'Phase 2 — AI Studio Functional Prototype',
-      stage: 'Stage 2.5 — Opportunity Submission, 3-Tier Verification, Expiry, Complaints & Appeals',
-      block: 'Block 2.5 (Verified)',
+      stage: 'Stage 2.6 — Admin Moderation Console & 7-Stage Trustworthy Analytics',
+      block: 'Block 2.6 (Verified)',
       gateStatus: 'VERIFIED · AWAITING COMMIT',
       latestAuditAt: latestAudit?.createdAt ?? null,
       latestAuditAction: latestAudit?.action ?? null,
