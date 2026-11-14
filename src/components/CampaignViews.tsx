@@ -1481,6 +1481,9 @@ export function CampaignsView({ currentUser, onNavigateAuth, onSummaryRefresh }:
                           <p className="font-mono text-slate-800">
                             {c.qrToken ? `/r/${c.qrToken}` : 'No QR attached'}
                           </p>
+                          <p className="font-mono text-[11px] text-slate-600 mt-0.5">
+                            Creative: {c.adCreativeRef ?? 'Unassigned'}
+                          </p>
                           <p className="font-mono tabular-nums text-slate-600 mt-0.5">
                             {c.startDate} to {c.endDate}
                           </p>

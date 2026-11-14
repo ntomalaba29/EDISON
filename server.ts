@@ -6,13 +6,20 @@ import {
   ALLOWED_CAMPAIGN_TRANSITIONS,
   edisonStore,
 } from './src/server/store.ts';
+import {
+  resolveSafeUploadPath,
+  saveValidatedMediaUpload,
+} from './src/server/mediaSecurity.ts';
 import { validateQrDestination } from './src/server/qrValidator.ts';
 import type {
   AccountVerificationStatus,
+  AdStudioMode,
   AdvertiserEntityType,
   CampaignContentCategory,
   CampaignStatus,
   DaypartSlot,
+  OptionAComposition,
+  OptionBUploadSpec,
   PublicUser,
   QrDestinationType,
   QrLinkStatus,
@@ -109,17 +116,67 @@ function mapErrorStatus(err: unknown, defaultCode = 400): { code: number; messag
 async function startServer() {
   const app = express();
   app.set('trust proxy', true);
-  app.use(express.json({ limit: '1mb' }));
   app.use(attachSession);
+
+  // Validated media upload endpoint (route-scoped 26MB JSON limit, auth required first)
+  app.post(
+    '/api/media/upload',
+    requireAuth,
+    express.json({ limit: '26mb' }),
+    (req: AuthenticatedRequest, res: Response) => {
+      const { dataBase64, declaredKind } = req.body ?? {};
+      if (typeof dataBase64 !== 'string' || !dataBase64.trim()) {
+        res.status(400).json({ error: 'dataBase64 payload is required.' });
+        return;
+      }
+      const kind =
+        declaredKind === 'image' || declaredKind === 'video' || declaredKind === 'any'
+          ? declaredKind
+          : 'any';
+      try {
+        const result = saveValidatedMediaUpload({ dataBase64, declaredKind: kind });
+        edisonStore.recordMediaUploadAudit(
+          req.currentUser!,
+          result.storedFileName,
+          result.mimeType,
+          result.fileSizeBytes
+        );
+        res.status(201).json(result);
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err, 400);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  // Serve strictly validated uploaded media with nosniff header
+  app.get('/uploads/:filename', (req: Request, res: Response) => {
+    const resolved = resolveSafeUploadPath(req.params.filename);
+    if (!resolved) {
+      res.status(404).json({ error: 'Uploaded media asset not found.' });
+      return;
+    }
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Type', resolved.contentType);
+    res.sendFile(resolved.fullPath);
+  });
+
+  app.use(express.json({ limit: '1mb' }));
 
   // Health & prototype status
   app.get('/api/health', (_req: Request, res: Response) => {
     res.json({
       ok: true,
       service: 'edison-prototype-server',
-      phase: 'Phase 2 · Block 2.2',
+      phase: 'Phase 2 · Block 2.3',
       summary: edisonStore.getFoundationSummary(),
     });
+  });
+
+  // Live non-sensitive formal report snapshot for Reports & Copy Console
+  app.get('/api/reports/live', (_req: Request, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(edisonStore.getLiveReportSnapshot());
   });
 
   // Auth & RBAC endpoints
@@ -452,6 +509,93 @@ async function startServer() {
   app.delete('/api/campaigns/:id', requireAuth, (req: AuthenticatedRequest, res: Response) => {
     try {
       edisonStore.deleteCampaign(req.currentUser!, req.params.id);
+      res.json({ ok: true });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  // --- Advertisement Creation Studio Endpoints (Block 2.3) ---
+  app.get('/api/ad-creatives', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    res.json({ items: edisonStore.listAdCreativesForUser(req.currentUser!) });
+  });
+
+  app.post('/api/ad-creatives', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const body = req.body ?? {};
+    const mode = body.mode as AdStudioMode;
+    if (mode !== 'option_a_studio' && mode !== 'option_b_upload') {
+      res.status(400).json({ error: 'mode must be option_a_studio or option_b_upload.' });
+      return;
+    }
+    try {
+      const item = edisonStore.saveAdCreative(req.currentUser!, {
+        campaignId: typeof body.campaignId === 'string' && body.campaignId ? body.campaignId : null,
+        qrToken: typeof body.qrToken === 'string' && body.qrToken ? body.qrToken : null,
+        title: String(body.title ?? ''),
+        mode,
+        displayDurationSeconds: Number(body.displayDurationSeconds ?? 15),
+        safeZoneWarnings: Array.isArray(body.safeZoneWarnings) ? body.safeZoneWarnings.map(String) : [],
+        contrastWarnings: Array.isArray(body.contrastWarnings) ? body.contrastWarnings.map(String) : [],
+        optionA: mode === 'option_a_studio' ? (body.optionA as OptionAComposition) : null,
+        optionB: mode === 'option_b_upload' ? (body.optionB as OptionBUploadSpec) : null,
+      });
+      res.status(201).json({ item });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.put('/api/ad-creatives/:id', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const body = req.body ?? {};
+    const mode = body.mode as AdStudioMode;
+    if (mode !== 'option_a_studio' && mode !== 'option_b_upload') {
+      res.status(400).json({ error: 'mode must be option_a_studio or option_b_upload.' });
+      return;
+    }
+    try {
+      const item = edisonStore.saveAdCreative(req.currentUser!, {
+        id: req.params.id,
+        campaignId: typeof body.campaignId === 'string' && body.campaignId ? body.campaignId : null,
+        qrToken: typeof body.qrToken === 'string' && body.qrToken ? body.qrToken : null,
+        title: String(body.title ?? ''),
+        mode,
+        displayDurationSeconds: Number(body.displayDurationSeconds ?? 15),
+        safeZoneWarnings: Array.isArray(body.safeZoneWarnings) ? body.safeZoneWarnings.map(String) : [],
+        contrastWarnings: Array.isArray(body.contrastWarnings) ? body.contrastWarnings.map(String) : [],
+        optionA: mode === 'option_a_studio' ? (body.optionA as OptionAComposition) : null,
+        optionB: mode === 'option_b_upload' ? (body.optionB as OptionBUploadSpec) : null,
+      });
+      res.json({ item });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.post('/api/ad-creatives/:id/attach', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const { campaignId } = req.body ?? {};
+    if (typeof campaignId !== 'string' || !campaignId.trim()) {
+      res.status(400).json({ error: 'campaignId string is required.' });
+      return;
+    }
+    try {
+      const result = edisonStore.attachAdCreativeToCampaign(
+        req.currentUser!,
+        req.params.id,
+        campaignId.trim()
+      );
+      res.json(result);
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.delete('/api/ad-creatives/:id', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    try {
+      edisonStore.deleteAdCreative(req.currentUser!, req.params.id);
       res.json({ ok: true });
     } catch (err) {
       const { code, message } = mapErrorStatus(err);

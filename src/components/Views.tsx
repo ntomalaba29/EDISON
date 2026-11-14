@@ -1,5 +1,13 @@
-import { useMemo, useState } from 'react';
-import { Search, FileText, Terminal, ShieldAlert, CheckCircle2, Clock } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  Search,
+  FileText,
+  Terminal,
+  ShieldAlert,
+  CheckCircle2,
+  Clock,
+  RefreshCw,
+} from 'lucide-react';
 import { EDISON_DOCUMENTS, DocCategory } from '../data/documents';
 import {
   ROADMAP_PHASES,
@@ -8,15 +16,48 @@ import {
   ReportCommandType,
   generateFormalReport,
 } from '../data/phase1Data';
+import type { LiveReportSnapshot } from '../types/edison';
 import { CopyReportFooter } from './CopyReportFooter';
 import { MarkdownRenderer } from './MarkdownRenderer';
 
 export function ReportsView() {
   const [selectedCommand, setSelectedCommand] = useState<ReportCommandType>('PHASE_1_COMPLETION');
-  const report = useMemo(() => generateFormalReport(selectedCommand), [selectedCommand]);
+  const [liveSnapshot, setLiveSnapshot] = useState<LiveReportSnapshot | null>(null);
+  const [loadingLive, setLoadingLive] = useState(false);
+
+  const fetchLiveReport = useCallback(async () => {
+    setLoadingLive(true);
+    try {
+      const res = await fetch('/api/reports/live', { cache: 'no-store' });
+      if (res.ok) {
+        const data = (await res.json()) as LiveReportSnapshot;
+        setLiveSnapshot(data);
+      }
+    } catch {
+      // Keep last known snapshot cleanly if server restarts
+    } finally {
+      setLoadingLive(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLiveReport();
+    const onFocus = () => fetchLiveReport();
+    window.addEventListener('focus', onFocus);
+    const interval = window.setInterval(fetchLiveReport, 10000);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.clearInterval(interval);
+    };
+  }, [fetchLiveReport]);
+
+  const report = useMemo(
+    () => generateFormalReport(selectedCommand, liveSnapshot),
+    [selectedCommand, liveSnapshot]
+  );
 
   const commands: { id: ReportCommandType; label: string }[] = [
-    { id: 'PHASE_1_COMPLETION', label: 'Block 2.2 Completion' },
+    { id: 'PHASE_1_COMPLETION', label: 'Block 2.3 Final Report' },
     { id: 'STATUS', label: 'STATUS' },
     { id: 'CHECK', label: 'CHECK' },
     { id: 'NEXT', label: 'NEXT' },
@@ -27,19 +68,33 @@ export function ReportsView() {
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white border border-slate-200 rounded-lg p-5">
-          <p className="text-xs font-medium text-slate-500">Current Stage</p>
-          <p className="mt-1.5 text-lg font-semibold text-slate-900">Phase 2 · Block 2.2</p>
-          <p className="mt-1 text-xs text-amber-700 font-medium">Awaiting Owner Commit</p>
+          <p className="text-xs font-medium text-slate-500">Current Stage (Live)</p>
+          <p className="mt-1.5 text-lg font-semibold text-slate-900">
+            {liveSnapshot?.block ?? 'Phase 2 · Block 2.3'}
+          </p>
+          <p className="mt-1 text-xs text-emerald-700 font-medium">
+            {liveSnapshot?.gateStatus ?? 'VERIFIED · AWAITING COMMIT'}
+          </p>
         </div>
         <div className="bg-white border border-slate-200 rounded-lg p-5">
-          <p className="text-xs font-medium text-slate-500">Committed Baseline</p>
-          <p className="mt-1.5 text-lg font-semibold text-emerald-700">Phase 1 + Block 2.1</p>
-          <p className="mt-1 text-xs text-slate-600">25 docs, Auth/RBAC & /r/:token</p>
+          <p className="text-xs font-medium text-slate-500">Live Store Telemetry</p>
+          <p className="mt-1.5 text-lg font-semibold text-slate-900 tabular-nums">
+            {liveSnapshot
+              ? `${liveSnapshot.summary.adCreativeCount} creatives · ${liveSnapshot.summary.campaignCount} campaigns`
+              : 'Syncing live counts...'}
+          </p>
+          <p className="mt-1 text-xs text-slate-600 tabular-nums">
+            {liveSnapshot
+              ? `${liveSnapshot.summary.auditLogCount} audits · ${liveSnapshot.summary.qrCount} QR links`
+              : 'Phase 1 + Blocks 2.1–2.2 committed'}
+          </p>
         </div>
         <div className="bg-white border border-slate-200 rounded-lg p-5">
-          <p className="text-xs font-medium text-slate-500">Overall EDISON Roadmap</p>
-          <p className="mt-1.5 text-lg font-semibold text-slate-900 tabular-nums">Phase 2 of 15</p>
-          <p className="mt-1 text-xs text-slate-600">Block 2.2 of 7 active</p>
+          <p className="text-xs font-medium text-slate-500">Last Live Server Sync</p>
+          <p className="mt-1.5 text-sm font-semibold font-mono tabular-nums text-slate-900 truncate">
+            {liveSnapshot?.generatedAt ?? 'Connecting...'}
+          </p>
+          <p className="mt-1 text-xs text-slate-600">Auto-refreshes from /api/reports/live</p>
         </div>
       </div>
 
@@ -50,21 +105,36 @@ export function ReportsView() {
             <p className="text-sm text-slate-600 mt-0.5">{report.subtitle}</p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 rounded-lg">
-            {commands.map((cmd) => (
-              <button
-                key={cmd.id}
-                type="button"
-                onClick={() => setSelectedCommand(cmd.id)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                  selectedCommand === cmd.id
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {cmd.label}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={fetchLiveReport}
+              disabled={loadingLive}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer whitespace-nowrap"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loadingLive ? 'animate-spin' : ''}`} />
+              <span>Refresh Live</span>
+            </button>
+
+            <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 rounded-lg">
+              {commands.map((cmd) => (
+                <button
+                  key={cmd.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedCommand(cmd.id);
+                    fetchLiveReport();
+                  }}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                    selectedCommand === cmd.id
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {cmd.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -81,8 +151,9 @@ export function ReportsView() {
 export function RoadmapView() {
   const reportText = useMemo(() => {
     const lines = [
-      'EDISON — COMPLETE ROADMAP & ASSIGNMENT 1 VERIFICATION REPORT',
-      'Current Gate: Phase 1 (AWAITING COMMIT)',
+      'EDISON — COMPLETE ROADMAP & ASSIGNMENT VERIFICATION REPORT',
+      'Current Gate: Phase 2 · Block 2.3 (VERIFIED · AWAITING COMMIT)',
+      'Committed Baseline: Phase 1 + Phase 2 Blocks 2.1–2.2',
       '',
       'PHASE 1 ASSIGNMENT CHECKLIST:',
       ...PHASE1_CHECKLIST.map((c) => `${c.id}. ${c.item} — [${c.status}]`),

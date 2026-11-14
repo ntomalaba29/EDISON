@@ -12,6 +12,7 @@ import {
   QrCode,
   Building2,
   Megaphone,
+  Palette,
 } from 'lucide-react';
 import {
   ReportsView,
@@ -23,12 +24,14 @@ import {
 } from './components/Views';
 import { AuthRbacView, QrEngineView } from './components/FoundationViews';
 import { AdvertiserProfileView, CampaignsView } from './components/CampaignViews';
+import { AdStudioView } from './components/AdStudioView';
 import type { PublicUser } from './types/edison';
 
 type NavTab =
   | 'auth'
   | 'profile'
   | 'campaigns'
+  | 'studio'
   | 'qr'
   | 'reports'
   | 'roadmap'
@@ -42,6 +45,7 @@ interface FoundationSummary {
   qrCount: number;
   campaignCount?: number;
   activeCampaignCount?: number;
+  adCreativeCount?: number;
   profileCount?: number;
   openTicketCount?: number;
   redirectRequestsTotal: number;
@@ -56,6 +60,7 @@ const PROTOTYPE_NAV: { id: NavTab; label: string; icon: typeof KeyRound }[] = [
   { id: 'auth', label: 'Auth & RBAC Console', icon: KeyRound },
   { id: 'profile', label: 'Advertiser Profile', icon: Building2 },
   { id: 'campaigns', label: 'Campaigns (10-State)', icon: Megaphone },
+  { id: 'studio', label: 'Ad Creation Studio', icon: Palette },
   { id: 'qr', label: 'QR Redirect Engine', icon: QrCode },
 ];
 
@@ -69,7 +74,7 @@ const GOVERNANCE_NAV: { id: NavTab; label: string; icon: typeof ClipboardCheck }
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<NavTab>('campaigns');
+  const [activeTab, setActiveTab] = useState<NavTab>('studio');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<PublicUser | null>(null);
   const [summary, setSummary] = useState<FoundationSummary | null>(null);
@@ -125,7 +130,7 @@ export default function App() {
         <nav className="p-3 space-y-5" aria-label="EDISON navigation">
           <div>
             <p className="px-3 mb-1.5 text-xs font-semibold text-slate-500">
-              Phase 2 Prototype · Block 2.2
+              Phase 2 Prototype · Block 2.3
             </p>
             <div className="space-y-1">
               {PROTOTYPE_NAV.map((item) => {
@@ -185,7 +190,7 @@ export default function App() {
         <div className="p-4 m-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-1">
           <p className="font-semibold text-slate-800">Prototype Boundary</p>
           <p className="leading-relaxed">
-            Block 2.2 adds advertiser profiles, 10-state campaign management, simulated rate-card estimates, and support tickets. Zero real payments or Smart TV tuner hooks.
+            Block 2.3 adds the guided Option A 16:9 Ad Creation Studio and Option B external media upload with jsQR verification. Zero real payments or Smart TV tuner hooks.
           </p>
         </div>
       </aside>
@@ -207,7 +212,7 @@ export default function App() {
               <span className="text-slate-500 whitespace-nowrap">EDISON</span>
               <span className="text-slate-300" aria-hidden="true">/</span>
               <span className="text-slate-500 whitespace-nowrap hidden sm:inline">
-                {isPrototypeTab ? 'Phase 2 · Block 2.2' : 'Governance'}
+                {isPrototypeTab ? 'Phase 2 · Block 2.3' : 'Governance'}
               </span>
               <span className="text-slate-300 hidden sm:inline" aria-hidden="true">/</span>
               <h1 className="font-semibold text-slate-900 truncate">{currentItem.label}</h1>
@@ -245,6 +250,13 @@ export default function App() {
           )}
           {activeTab === 'campaigns' && (
             <CampaignsView
+              currentUser={currentUser}
+              onNavigateAuth={() => setActiveTab('auth')}
+              onSummaryRefresh={refreshAuthState}
+            />
+          )}
+          {activeTab === 'studio' && (
+            <AdStudioView
               currentUser={currentUser}
               onNavigateAuth={() => setActiveTab('auth')}
               onSummaryRefresh={refreshAuthState}

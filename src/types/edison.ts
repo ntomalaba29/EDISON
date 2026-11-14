@@ -155,6 +155,118 @@ export interface SupportTicketRecord {
   updatedAt: string;
 }
 
+// --- Advertisement Creation Studio (Block 2.3) ---
+
+export type AdStudioMode = 'option_a_studio' | 'option_b_upload';
+
+export type StudioTemplateId =
+  | 'commercial_offer'
+  | 'retail_promo'
+  | 'product_launch'
+  | 'brand_spotlight'
+  | 'event_notice'
+  | 'opportunity_job'
+  | 'opportunity_scholarship'
+  | 'opportunity_grant';
+
+export type CanvasElementKind =
+  | 'logo'
+  | 'product_image'
+  | 'headline'
+  | 'description'
+  | 'promo_badge'
+  | 'price_value'
+  | 'contact_info'
+  | 'website_url'
+  | 'cta_button'
+  | 'qr_block';
+
+export interface CanvasElementLayout {
+  id: string;
+  kind: CanvasElementKind;
+  label: string;
+  xPct: number;
+  yPct: number;
+  widthPct: number;
+  heightPct: number;
+  zIndex: number;
+  fontSizePx: number;
+  visible: boolean;
+}
+
+export type QrPlacementPreset = 'bottom_right' | 'bottom_left' | 'sidebar_right' | 'custom';
+
+export interface OptionAComposition {
+  templateId: StudioTemplateId;
+  backgroundColor: string;
+  gradientEndColor: string;
+  useGradient: boolean;
+  accentColor: string;
+  textColor: string;
+  scrimOpacity: number;
+  logoUrl: string | null;
+  productImageUrl: string | null;
+  backgroundImageUrl: string | null;
+  heading: string;
+  description: string;
+  promoText: string;
+  priceOrValue: string;
+  contactDetails: string;
+  websiteAddress: string;
+  callToAction: string;
+  qrPlacement: QrPlacementPreset;
+  elements: CanvasElementLayout[];
+}
+
+export type ExternalQrInspectionStatus =
+  | 'none_found'
+  | 'decoded_matched'
+  | 'decoded_mismatch'
+  | 'suspected_unreadable';
+
+export interface OptionBUploadSpec {
+  mediaKind: 'image' | 'video';
+  fileUrl: string;
+  originalFileName: string;
+  mimeType: string;
+  fileSizeBytes: number;
+  widthPx: number;
+  heightPx: number;
+  aspectRatioLabel: string;
+  aspectRatioValid: boolean;
+  durationSeconds: number | null;
+  hasAudioTrack: boolean | null;
+  audioNotice: string;
+  qrInspectionStatus: ExternalQrInspectionStatus;
+  decodedQrPayload: string | null;
+  qrOverlayConfirmed: boolean;
+  qrOverlayCorner: 'bottom_right' | 'bottom_left';
+  requiresAdminReviewFlag: boolean;
+  contentAttested: boolean;
+  validationWarnings: string[];
+  validationErrors: string[];
+}
+
+export type AdCreativeStatus = 'draft' | 'ready_for_preview' | 'flagged_for_review';
+
+export interface AdCreativeRecord {
+  id: string;
+  ownerId: string;
+  campaignId: string | null;
+  qrToken: string | null;
+  title: string;
+  mode: AdStudioMode;
+  displayDurationSeconds: number;
+  safeZoneWarnings: string[];
+  contrastWarnings: string[];
+  optionA: OptionAComposition | null;
+  optionB: OptionBUploadSpec | null;
+  status: AdCreativeStatus;
+  isPrototypeSeed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type OpportunityCategory =
   | 'permanent_employment'
   | 'temporary_employment'
@@ -206,7 +318,16 @@ export interface AuditLogRecord {
   actorId: string | null;
   actorRole: UserRole | 'anonymous' | 'system';
   action: string;
-  targetType: 'auth' | 'qr_link' | 'advertiser_profile' | 'campaign' | 'support_ticket' | 'opportunity' | 'system';
+  targetType:
+    | 'auth'
+    | 'qr_link'
+    | 'advertiser_profile'
+    | 'campaign'
+    | 'ad_creative'
+    | 'media_upload'
+    | 'support_ticket'
+    | 'opportunity'
+    | 'system';
   targetId: string;
   detail: string;
   createdAt: string;
@@ -219,7 +340,34 @@ export interface EdisonStoreData {
   qrLinks: QrLinkRecord[];
   advertiserProfiles: AdvertiserProfile[];
   campaigns: CampaignRecord[];
+  adCreatives: AdCreativeRecord[];
   supportTickets: SupportTicketRecord[];
   analyticsEvents: AnalyticsEventRecord[];
   auditLogs: AuditLogRecord[];
+}
+
+export interface LiveReportSnapshot {
+  generatedAt: string;
+  phase: string;
+  stage: string;
+  block: string;
+  gateStatus: string;
+  latestAuditAt: string | null;
+  latestAuditAction: string | null;
+  campaignStatusBreakdown: Record<CampaignStatus, number>;
+  summary: {
+    userCount: number;
+    qrCount: number;
+    campaignCount: number;
+    activeCampaignCount: number;
+    adCreativeCount: number;
+    profileCount: number;
+    openTicketCount: number;
+    redirectRequestsTotal: number;
+    redirectIssuedTotal: number;
+    suspectedBotRedirects: number;
+    verifiedDestinationOpens: number;
+    auditLogCount: number;
+    storagePath: string;
+  };
 }

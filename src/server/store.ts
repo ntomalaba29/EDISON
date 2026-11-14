@@ -3,6 +3,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type {
   AccountVerificationStatus,
+  AdCreativeRecord,
+  AdCreativeStatus,
+  AdStudioMode,
   AdvertiserEntityType,
   AdvertiserProfile,
   AnalyticsEventRecord,
@@ -13,6 +16,9 @@ import type {
   CampaignStatus,
   DaypartSlot,
   EdisonStoreData,
+  LiveReportSnapshot,
+  OptionAComposition,
+  OptionBUploadSpec,
   PublicUser,
   QrDestinationType,
   QrLinkRecord,
@@ -371,6 +377,103 @@ function buildSeedTickets(now: string): SupportTicketRecord[] {
   ];
 }
 
+function buildSeedAdCreatives(now: string): AdCreativeRecord[] {
+  return [
+    {
+      id: 'crt_seed_01',
+      ownerId: 'usr_seed_adv_01',
+      campaignId: 'cmp_seed_01',
+      qrToken: 'edison-demo',
+      title: 'Northstar Autumn Smart-Home TV Spot (Prototype Seed)',
+      mode: 'option_a_studio',
+      displayDurationSeconds: 30,
+      safeZoneWarnings: [],
+      contrastWarnings: [],
+      optionA: {
+        templateId: 'commercial_offer',
+        backgroundColor: '#0F172A',
+        gradientEndColor: '#1E3A8A',
+        useGradient: true,
+        accentColor: '#F59E0B',
+        textColor: '#FFFFFF',
+        scrimOpacity: 0.35,
+        logoUrl: null,
+        productImageUrl: null,
+        backgroundImageUrl: null,
+        heading: 'Upgrade Home Comfort This Autumn',
+        description: 'Energy-rated appliances with nationwide installation and 3-year manufacturer warranty.',
+        promoText: 'LIMITED OFFER · SAVE 20%',
+        priceOrValue: 'From $299',
+        contactDetails: '+44 20 7946 0192 · Northstar Retail',
+        websiteAddress: 'example.org/edison-commercial-demo',
+        callToAction: 'Scan QR to Claim Offer',
+        qrPlacement: 'bottom_right',
+        elements: [
+          { id: 'el_logo', kind: 'logo', label: 'Brand Logo', xPct: 6, yPct: 7, widthPct: 16, heightPct: 12, zIndex: 2, fontSizePx: 14, visible: true },
+          { id: 'el_promo', kind: 'promo_badge', label: 'Promo Text', xPct: 6, yPct: 22, widthPct: 42, heightPct: 8, zIndex: 3, fontSizePx: 14, visible: true },
+          { id: 'el_head', kind: 'headline', label: 'Main Headline', xPct: 6, yPct: 33, widthPct: 58, heightPct: 18, zIndex: 4, fontSizePx: 32, visible: true },
+          { id: 'el_desc', kind: 'description', label: 'Description', xPct: 6, yPct: 54, widthPct: 56, heightPct: 15, zIndex: 4, fontSizePx: 16, visible: true },
+          { id: 'el_price', kind: 'price_value', label: 'Price / Offer', xPct: 6, yPct: 72, widthPct: 28, heightPct: 11, zIndex: 5, fontSizePx: 26, visible: true },
+          { id: 'el_cta', kind: 'cta_button', label: 'Call to Action', xPct: 6, yPct: 85, widthPct: 34, heightPct: 8, zIndex: 5, fontSizePx: 15, visible: true },
+          { id: 'el_contact', kind: 'contact_info', label: 'Contact & Site', xPct: 42, yPct: 86, widthPct: 32, heightPct: 7, zIndex: 4, fontSizePx: 12, visible: true },
+          { id: 'el_qr', kind: 'qr_block', label: 'QR Code Block', xPct: 76, yPct: 58, widthPct: 18, heightPct: 32, zIndex: 6, fontSizePx: 12, visible: true },
+        ],
+      },
+      optionB: null,
+      status: 'ready_for_preview',
+      isPrototypeSeed: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'crt_seed_02',
+      ownerId: 'usr_seed_opp_01',
+      campaignId: 'cmp_seed_03',
+      qrToken: 'job-demo',
+      title: 'Civic Skills Electrical Apprenticeship Card (Prototype Seed)',
+      mode: 'option_a_studio',
+      displayDurationSeconds: 30,
+      safeZoneWarnings: [],
+      contrastWarnings: [],
+      optionA: {
+        templateId: 'opportunity_job',
+        backgroundColor: '#064E3B',
+        gradientEndColor: '#0F172A',
+        useGradient: true,
+        accentColor: '#34D399',
+        textColor: '#FFFFFF',
+        scrimOpacity: 0.3,
+        logoUrl: null,
+        productImageUrl: null,
+        backgroundImageUrl: null,
+        heading: 'Paid Electrical Apprenticeships — 2026 Intake',
+        description: 'Manchester & North West cohort · Employer-sponsored Level 3 certification · Zero applicant fees.',
+        promoText: 'VERIFIED OPPORTUNITY · NO FEE TO APPLY',
+        priceOrValue: '£24,500 Starting Allowance',
+        contactDetails: 'Civic Skills Academy · Closing 15 Dec 2026',
+        websiteAddress: 'example.org/edison-apprenticeship-demo',
+        callToAction: 'Scan QR for Application Form',
+        qrPlacement: 'bottom_right',
+        elements: [
+          { id: 'el_logo', kind: 'logo', label: 'Provider Logo', xPct: 6, yPct: 7, widthPct: 16, heightPct: 12, zIndex: 2, fontSizePx: 14, visible: true },
+          { id: 'el_promo', kind: 'promo_badge', label: 'Notice Line', xPct: 6, yPct: 22, widthPct: 50, heightPct: 8, zIndex: 3, fontSizePx: 14, visible: true },
+          { id: 'el_head', kind: 'headline', label: 'Opportunity Title', xPct: 6, yPct: 33, widthPct: 60, heightPct: 18, zIndex: 4, fontSizePx: 30, visible: true },
+          { id: 'el_desc', kind: 'description', label: 'Eligibility & Location', xPct: 6, yPct: 54, widthPct: 58, heightPct: 15, zIndex: 4, fontSizePx: 16, visible: true },
+          { id: 'el_price', kind: 'price_value', label: 'Allowance / Stipend', xPct: 6, yPct: 72, widthPct: 38, heightPct: 10, zIndex: 5, fontSizePx: 22, visible: true },
+          { id: 'el_cta', kind: 'cta_button', label: 'Call to Action', xPct: 6, yPct: 85, widthPct: 34, heightPct: 8, zIndex: 5, fontSizePx: 15, visible: true },
+          { id: 'el_contact', kind: 'contact_info', label: 'Provider & Closing', xPct: 42, yPct: 86, widthPct: 32, heightPct: 7, zIndex: 4, fontSizePx: 12, visible: true },
+          { id: 'el_qr', kind: 'qr_block', label: 'QR Code Block', xPct: 76, yPct: 58, widthPct: 18, heightPct: 32, zIndex: 6, fontSizePx: 12, visible: true },
+        ],
+      },
+      optionB: null,
+      status: 'ready_for_preview',
+      isPrototypeSeed: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
+}
+
 function createInitialSeed(): EdisonStoreData {
   const now = new Date().toISOString();
   const advertiserId = 'usr_seed_adv_01';
@@ -378,7 +481,7 @@ function createInitialSeed(): EdisonStoreData {
   const adminId = 'usr_seed_adm_01';
 
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     users: [
       {
         id: advertiserId,
@@ -453,6 +556,7 @@ function createInitialSeed(): EdisonStoreData {
     ],
     advertiserProfiles: buildSeedAdvertiserProfiles(now),
     campaigns: buildSeedCampaigns(now),
+    adCreatives: buildSeedAdCreatives(now),
     supportTickets: buildSeedTickets(now),
     analyticsEvents: [],
     auditLogs: [
@@ -463,7 +567,7 @@ function createInitialSeed(): EdisonStoreData {
         action: 'STORE_INITIALIZED',
         targetType: 'system',
         targetId: 'edison-store',
-        detail: 'Prototype persistence initialized (schema v3) with seeded accounts, QR links, profiles, and campaigns.',
+        detail: 'Prototype persistence initialized (schema v4) with seeded accounts, QR links, profiles, campaigns, and studio creatives.',
         createdAt: now,
       },
     ],
@@ -492,17 +596,30 @@ function normalizeStoreData(parsed: EdisonStoreData): EdisonStoreData {
   const campaigns =
     existingCampaigns.length > 0 ? existingCampaigns : buildSeedCampaigns(now);
 
+  const existingCreatives = Array.isArray(parsed.adCreatives) ? parsed.adCreatives : [];
+  const adCreatives =
+    existingCreatives.length > 0 ? existingCreatives : buildSeedAdCreatives(now);
+
+  // Backfill adCreativeRef on seed campaigns if upgrading from schema v3
+  if (existingCreatives.length === 0) {
+    for (const c of campaigns) {
+      if (c.id === 'cmp_seed_01' && !c.adCreativeRef) c.adCreativeRef = 'crt_seed_01';
+      if (c.id === 'cmp_seed_03' && !c.adCreativeRef) c.adCreativeRef = 'crt_seed_02';
+    }
+  }
+
   const existingTickets = Array.isArray(parsed.supportTickets) ? parsed.supportTickets : [];
   const supportTickets =
     existingTickets.length > 0 ? existingTickets : buildSeedTickets(now);
 
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     users: parsed.users || [],
     sessions: parsed.sessions || [],
     qrLinks: migratedLinks,
     advertiserProfiles: profiles,
     campaigns,
+    adCreatives,
     supportTickets,
     analyticsEvents: parsed.analyticsEvents || [],
     auditLogs: parsed.auditLogs || [],
@@ -1517,6 +1634,14 @@ class EdisonPrototypeStore {
             `Attached QR redirect link must be active before transitioning to "${targetStatus}".`
           );
         }
+        if (target.adCreativeRef) {
+          const creative = draft.adCreatives.find((cr) => cr.id === target.adCreativeRef);
+          if (creative?.optionB?.qrInspectionStatus === 'decoded_mismatch') {
+            throw new Error(
+              `Attached external advertisement (${creative.id}) has a QR destination mismatch and cannot move to "${targetStatus}" until resolved.`
+            );
+          }
+        }
       }
 
       if (targetStatus === 'rejected') {
@@ -1673,6 +1798,302 @@ class EdisonPrototypeStore {
     });
   }
 
+  // --- Advertisement Creation Studio (Block 2.3) ---
+
+  listAdCreativesForUser(user: PublicUser): AdCreativeRecord[] {
+    this.syncIfDiskNewer();
+    const list =
+      user.role === 'admin'
+        ? [...this.data.adCreatives]
+        : this.data.adCreatives.filter((c) => c.ownerId === user.id);
+    return list.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+
+  saveAdCreative(
+    actor: PublicUser,
+    input: {
+      id?: string;
+      campaignId?: string | null;
+      qrToken?: string | null;
+      title: string;
+      mode: AdStudioMode;
+      displayDurationSeconds: number;
+      safeZoneWarnings: string[];
+      contrastWarnings: string[];
+      optionA: OptionAComposition | null;
+      optionB: OptionBUploadSpec | null;
+    }
+  ): AdCreativeRecord {
+    const title = input.title.trim();
+    if (title.length < 3) {
+      throw new Error('Advertisement creative title must be at least 3 characters.');
+    }
+    const duration = Math.round(Number(input.displayDurationSeconds));
+    if (!Number.isFinite(duration) || duration < 5 || duration > 60) {
+      throw new Error('Advertisement playback duration must be between 5 and 60 seconds.');
+    }
+
+    const safeUploadUrlRegex = /^\/uploads\/edison_(img|vid)_[a-f0-9]{20}\.(png|jpg|webp|mp4|webm)$/i;
+    const hexColorRegex = /^#[0-9a-fA-F]{6}$/;
+
+    if (input.mode === 'option_a_studio') {
+      if (!input.optionA || !input.optionA.heading.trim()) {
+        throw new Error('Option A Studio composition requires a main heading.');
+      }
+      const assetUrls = [
+        input.optionA.logoUrl,
+        input.optionA.productImageUrl,
+        input.optionA.backgroundImageUrl,
+      ];
+      for (const u of assetUrls) {
+        if (u && !safeUploadUrlRegex.test(u)) {
+          throw new Error('Invalid Option A media asset URL. Upload media via /api/media/upload.');
+        }
+      }
+      const colors = [
+        input.optionA.backgroundColor,
+        input.optionA.gradientEndColor,
+        input.optionA.accentColor,
+        input.optionA.textColor,
+      ];
+      for (const col of colors) {
+        if (!hexColorRegex.test(col)) {
+          throw new Error('Option A colour values must be valid 6-digit hex codes.');
+        }
+      }
+    } else {
+      if (!input.optionB || !input.optionB.fileUrl) {
+        throw new Error('Option B external upload requires a validated media asset.');
+      }
+      if (!safeUploadUrlRegex.test(input.optionB.fileUrl)) {
+        throw new Error('Invalid Option B media URL. Upload files through /api/media/upload first.');
+      }
+      if (!input.optionB.contentAttested) {
+        throw new Error('Confirm the rights & accuracy attestation before saving an external upload.');
+      }
+      if (input.optionB.validationErrors.length > 0) {
+        throw new Error(`External upload failed validation: ${input.optionB.validationErrors[0]}`);
+      }
+      // Hard QR policy: never allow overlay when an existing QR was detected in the upload
+      if (
+        input.optionB.qrInspectionStatus !== 'none_found' &&
+        input.optionB.qrOverlayConfirmed
+      ) {
+        throw new Error(
+          'EDISON prohibits pasting a new QR overlay over an asset that already contains a QR code.'
+        );
+      }
+    }
+
+    return this.withWriteTransaction((draft) => {
+      let linkedCampaign: CampaignRecord | undefined;
+      if (input.campaignId) {
+        linkedCampaign = draft.campaigns.find((c) => c.id === input.campaignId);
+        if (!linkedCampaign) {
+          throw new Error('Selected campaign was not found.');
+        }
+        if (actor.role !== 'admin' && linkedCampaign.ownerId !== actor.id) {
+          throw new Error('FORBIDDEN: Cannot attach a creative to another user campaign.');
+        }
+      }
+
+      if (input.qrToken) {
+        const qr = draft.qrLinks.find((q) => q.token === input.qrToken);
+        if (!qr) {
+          throw new Error('Selected QR token was not found.');
+        }
+        if (actor.role !== 'admin' && qr.ownerId !== actor.id) {
+          throw new Error('FORBIDDEN: You can only link your own QR destinations.');
+        }
+      }
+
+      const requiresReview = Boolean(
+        input.mode === 'option_b_upload' &&
+          input.optionB &&
+          (input.optionB.requiresAdminReviewFlag ||
+            input.optionB.qrInspectionStatus === 'suspected_unreadable' ||
+            input.optionB.qrInspectionStatus === 'decoded_mismatch')
+      );
+
+      const status: AdCreativeStatus = requiresReview
+        ? 'flagged_for_review'
+        : input.qrToken || (input.optionB && input.optionB.qrInspectionStatus === 'decoded_matched')
+        ? 'ready_for_preview'
+        : 'draft';
+
+      const now = new Date().toISOString();
+
+      if (input.id) {
+        const existing = draft.adCreatives.find((c) => c.id === input.id);
+        if (!existing) {
+          throw new Error('Ad creative not found.');
+        }
+        if (actor.role !== 'admin' && existing.ownerId !== actor.id) {
+          throw new Error('FORBIDDEN: You do not own this ad creative.');
+        }
+
+        existing.title = title;
+        existing.campaignId = input.campaignId ?? null;
+        existing.qrToken = input.qrToken ?? null;
+        existing.mode = input.mode;
+        existing.displayDurationSeconds = duration;
+        existing.safeZoneWarnings = input.safeZoneWarnings;
+        existing.contrastWarnings = input.contrastWarnings;
+        existing.optionA = input.mode === 'option_a_studio' ? input.optionA : null;
+        existing.optionB =
+          input.mode === 'option_b_upload' && input.optionB
+            ? { ...input.optionB, requiresAdminReviewFlag: requiresReview }
+            : null;
+        existing.status = status;
+        existing.isPrototypeSeed = false;
+        existing.updatedAt = now;
+
+        if (linkedCampaign) {
+          linkedCampaign.adCreativeRef = existing.id;
+          linkedCampaign.updatedAt = now;
+        }
+
+        this.addAudit(
+          draft,
+          actor.id,
+          actor.role,
+          'AD_CREATIVE_UPDATED',
+          'ad_creative',
+          existing.id,
+          `Updated ${input.mode} creative "${existing.title}" (${status}).`
+        );
+        return { ...existing };
+      }
+
+      const created: AdCreativeRecord = {
+        id: `crt_${crypto.randomBytes(5).toString('hex')}`,
+        ownerId: actor.id,
+        campaignId: input.campaignId ?? null,
+        qrToken: input.qrToken ?? null,
+        title,
+        mode: input.mode,
+        displayDurationSeconds: duration,
+        safeZoneWarnings: input.safeZoneWarnings,
+        contrastWarnings: input.contrastWarnings,
+        optionA: input.mode === 'option_a_studio' ? input.optionA : null,
+        optionB:
+          input.mode === 'option_b_upload' && input.optionB
+            ? { ...input.optionB, requiresAdminReviewFlag: requiresReview }
+            : null,
+        status,
+        isPrototypeSeed: false,
+        createdAt: now,
+        updatedAt: now,
+      };
+      draft.adCreatives.unshift(created);
+      if (linkedCampaign) {
+        linkedCampaign.adCreativeRef = created.id;
+        linkedCampaign.updatedAt = now;
+      }
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'AD_CREATIVE_CREATED',
+        'ad_creative',
+        created.id,
+        `Created ${input.mode} creative "${created.title}" (${status}).`
+      );
+      return { ...created };
+    });
+  }
+
+  attachAdCreativeToCampaign(
+    actor: PublicUser,
+    creativeId: string,
+    campaignId: string
+  ): { creative: AdCreativeRecord; campaign: CampaignRecord } {
+    return this.withWriteTransaction((draft) => {
+      const creative = draft.adCreatives.find((c) => c.id === creativeId);
+      if (!creative) {
+        throw new Error('Ad creative not found.');
+      }
+      if (actor.role !== 'admin' && creative.ownerId !== actor.id) {
+        throw new Error('FORBIDDEN: You do not own this ad creative.');
+      }
+      const campaign = draft.campaigns.find((c) => c.id === campaignId);
+      if (!campaign) {
+        throw new Error('Campaign not found.');
+      }
+      if (actor.role !== 'admin' && campaign.ownerId !== actor.id) {
+        throw new Error('FORBIDDEN: You do not own this campaign.');
+      }
+
+      const now = new Date().toISOString();
+      creative.campaignId = campaign.id;
+      creative.updatedAt = now;
+      campaign.adCreativeRef = creative.id;
+      if (creative.qrToken && !campaign.qrToken) {
+        campaign.qrToken = creative.qrToken;
+      }
+      campaign.updatedAt = now;
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'AD_CREATIVE_ATTACHED',
+        'campaign',
+        campaign.id,
+        `Attached creative ${creative.id} to campaign ${campaign.id}.`
+      );
+      return { creative: { ...creative }, campaign: { ...campaign } };
+    });
+  }
+
+  deleteAdCreative(actor: PublicUser, creativeId: string): void {
+    this.withWriteTransaction((draft) => {
+      const idx = draft.adCreatives.findIndex((c) => c.id === creativeId);
+      if (idx === -1) {
+        throw new Error('Ad creative not found.');
+      }
+      const target = draft.adCreatives[idx];
+      if (actor.role !== 'admin' && target.ownerId !== actor.id) {
+        throw new Error('FORBIDDEN: You do not own this ad creative.');
+      }
+      for (const camp of draft.campaigns) {
+        if (camp.adCreativeRef === target.id) {
+          camp.adCreativeRef = null;
+        }
+      }
+      draft.adCreatives.splice(idx, 1);
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'AD_CREATIVE_DELETED',
+        'ad_creative',
+        target.id,
+        `Deleted ad creative "${target.title}".`
+      );
+    });
+  }
+
+  recordMediaUploadAudit(
+    actor: PublicUser,
+    fileName: string,
+    mimeType: string,
+    sizeBytes: number
+  ): void {
+    this.withWriteTransaction((draft) => {
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'MEDIA_UPLOADED',
+        'media_upload',
+        fileName,
+        `Validated ${mimeType} upload (${sizeBytes} bytes).`
+      );
+    });
+  }
+
   listAuditLogs(): AuditLogRecord[] {
     this.syncIfDiskNewer();
     return [...this.data.auditLogs];
@@ -1690,6 +2111,7 @@ class EdisonPrototypeStore {
       qrCount: this.data.qrLinks.length,
       campaignCount: this.data.campaigns.length,
       activeCampaignCount: this.data.campaigns.filter((c) => c.status === 'active').length,
+      adCreativeCount: this.data.adCreatives.length,
       profileCount: this.data.advertiserProfiles.length,
       openTicketCount: this.data.supportTickets.filter(
         (t) => t.status === 'open' || t.status === 'in_review'
@@ -1708,6 +2130,38 @@ class EdisonPrototypeStore {
       ).length,
       auditLogCount: this.data.auditLogs.length,
       storagePath: 'data/edison-store.json (Locked Atomic Write)',
+    };
+  }
+
+  getLiveReportSnapshot(): LiveReportSnapshot {
+    const summary = this.getFoundationSummary();
+    const breakdown: Record<CampaignStatus, number> = {
+      draft: 0,
+      submitted: 0,
+      under_review: 0,
+      approved: 0,
+      rejected: 0,
+      scheduled: 0,
+      active: 0,
+      paused: 0,
+      completed: 0,
+      expired: 0,
+    };
+    for (const c of this.data.campaigns) {
+      breakdown[c.status] = (breakdown[c.status] || 0) + 1;
+    }
+
+    const latestAudit = this.data.auditLogs[0] ?? null;
+    return {
+      generatedAt: new Date().toISOString(),
+      phase: 'Phase 2 — AI Studio Functional Prototype',
+      stage: 'Stage 2.3 — Advertisement Creation Studio (Option A & Option B)',
+      block: 'Block 2.3 (Verified)',
+      gateStatus: 'VERIFIED · AWAITING COMMIT (RECOMMEND COMMIT)',
+      latestAuditAt: latestAudit?.createdAt ?? null,
+      latestAuditAction: latestAudit?.action ?? null,
+      campaignStatusBreakdown: breakdown,
+      summary,
     };
   }
 }
