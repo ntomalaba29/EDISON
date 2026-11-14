@@ -1,0 +1,14 @@
+# EDISON — Risk Register
+
+**Document Status**: Phase 1 Active Risk Register
+
+| Risk ID | Category | Risk Description | Likelihood | Impact | Mitigation Strategy | Owner / Target Phase |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `RSK-01` | Platform / Technical | Major Smart TV OSes (Tizen, webOS, Android TV) block 3P background channel monitoring and forced source switching. | **High** | **Critical** | Do not rely on prohibited 3P background APIs; pursue Arch A (Linear/TIF/HbbTV), Arch B (OEM/Operator partnership), or Arch C (External HDMI/STB) + viewer-prompted pilot. | Phase 1 / Phase 4 |
+| `RSK-02` | Broadcast / Legal | Modifying, covering, or intercepting broadcaster content/ads triggers copyright, signal-integrity, or broadcast regulatory liability. | Medium | **Critical** | Strict architectural prohibition on broadcaster stream modification or DRM/HDCP bypass; operate only on permitted switching/linear paths. | Phase 1 / Phase 10 |
+| `RSK-03` | Viewer Trust / UX | False-positive break detection or slow return-to-TV cuts into live TV programme (especially live sports/news). | Medium | **High** | Enforce conservative `Safe Playback Condition` with safety buffer + hardware watchdog return + manual return button; skip when uncertain. | Phase 5 / Phase 11 |
+| `RSK-04` | Trust & Safety | Fraudulent employers post fake jobs/scholarships to harvest PII or charge illegal applicant fees via QR destinations. | **High** | **Critical** | Mandatory 3-tier verification (`Identity`, `Org`, `Specific Opportunity`), evidence upload, payment-independence rule, upfront-fee ban, viewer complaint/suspension workflow. | Phase 2 / Phase 9 |
+| `RSK-05` | Security / QR | Malicious or compromised QR destination URLs (phishing, malware, open redirect abuse). | Medium | **High** | Strict scheme allowlist (`https:`, `tel:`, `wa.me`), resolved-domain display in Admin Review, no silent QR replacement, continuous link scanning. | Phase 2 / Phase 6 |
+| `RSK-06` | Legal / Privacy | Conditioning free employment opportunities on ad-tracking consent ruled invalid under GDPR/POPIA/local labour laws. | Medium | **High** | Obtain local legal counsel opinion; architect contextual-only non-personalised opportunity mode independent of ad-tracking consent. | Phase 10 / Phase 14 |
+| `RSK-07` | Analytics Integrity | Automated bots or repeated clicks inflate QR scan or playback counts, damaging advertiser trust. | Medium | Medium | 7-stage event funnel, server-side deduplication, rate-limiting, explicit `[SIMULATED]` vs `[REAL MEASURED]` separation. | Phase 2 / Phase 6 |
+| `RSK-08` | Hardware / HDMI | HDCP 2.2/2.3 handshake drops or CEC timing failures leave viewer on a black screen during external HDMI switching. | Medium | **High** | Mandatory Phase 4 hardware lab benchmarking across TV models; fail-safe passive bypass if handshake fails. | Phase 4 / Phase 11 |

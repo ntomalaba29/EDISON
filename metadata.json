@@ -1,0 +1,6 @@
+{
+  "name": "EDISON",
+  "description": "EDISON International Smart TV Advertising & Opportunity Network — Governance, Architecture, Research, and Prototype Platform.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

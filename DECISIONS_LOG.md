@@ -1,0 +1,11 @@
+# EDISON — Architecture & Product Decisions Log (ADRs)
+
+| ADR ID | Date | Decision | Rationale | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| `ADR-001` | 2026-11-14 | **Do not rely on unprivileged 3P Smart TV background channel hijacking.** | Verified documentation for Android TV (`READ_EPG_DATA` system-only, `SYSTEM_ALERT_WINDOW` restricted), Samsung Tizen (`background-support` disabled since 2015), and LG webOS (app suspension on blur, restricted Luna ACGs) shows 3P store apps cannot silently monitor live TV and force-switch inputs. Viable paths are Arch A (TIF/Linear/HbbTV), Arch B (OEM/Operator), Arch C (External HDMI/STB), and prompted pilot. | Accepted (Phase 1) |
+| `ADR-002` | 2026-11-14 | **Direct-to-Destination QR Routing (No Secondary Phone Ad Screen).** | Preserves viewer trust and core EDISON value proposition; QR redirect (`/r/:token`) performs fast validation + logging and issues `302` directly to advertiser/opportunity URL. | Accepted (Phase 1) |
+| `ADR-003` | 2026-11-14 | **3-Tier Opportunity Verification Decoupled from Payment.** | Organisation verification does not prove a specific job/grant exists; paid fees must never affect verification outcome to prevent job-scam liability. | Accepted (Phase 1) |
+| `ADR-004` | 2026-11-14 | **Strict Separation of `[SIMULATED]` vs `[REAL MEASURED]` Analytics & 7-Stage Funnel.** | TV uptime does not equal human attention; QR scan does not equal conversion. Prevents misleading commercial reporting. | Accepted (Phase 1) |
+| `ADR-005` | 2026-11-14 | **Conservative Fail-Safe Playback Formula & Skip-on-Uncertainty.** | Ordinary TV must never break or miss programme resumption; missing a break is acceptable, cutting into live TV is not. | Accepted (Phase 1) |
+| `ADR-006` | 2026-11-14 | **Decouple Technical Feasibility of Contextual Opportunities from Ad-Tracking Consent.** | Prepares architecture for jurisdictions (EU/UK/etc.) where conditioning free job/scholarship access on ad-tracking consent may be unlawful. | Proposed (`[LEGAL REVIEW PENDING]`) |
+| `ADR-007` | 2026-11-14 | **Manual GitHub Command Centre (`coordination/EDISON_COMMAND_CENTER.md`) without background polling.** | Complies with owner-triggered coordination model across AI Studio and VS Code Copilot. | Accepted (Phase 1) |
