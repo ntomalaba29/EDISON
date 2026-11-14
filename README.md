@@ -1,6 +1,6 @@
 # EDISON — International Smart TV Advertising & Opportunity Network
 
-**[STATUS: PHASE 2 — AI STUDIO FUNCTIONAL PROTOTYPE · BLOCK 2.4 (TV PREVIEW & SIMULATOR)]**  
+**[STATUS: PHASE 2 — AI STUDIO FUNCTIONAL PROTOTYPE · BLOCK 2.5 (OPPORTUNITIES & 3-TIER QA)]**  
 **[REPOSITORY PATH: `Malaba29/EDISON-International-Smart-TV-Advertising-Network-`]**
 
 EDISON is an international television advertising and verified opportunity network designed to display QR-enabled advertisements on compatible Smart TVs during suitable commercial breaks, connecting television viewers directly to advertiser destinations and legitimate employment, education, training, grant, and tender opportunities via mobile QR scanning.
@@ -56,12 +56,13 @@ Every document below is maintained as part of the permanent EDISON engineering r
 | `coordination/EDISON_COMMAND_CENTER.md` | Shared AI Studio <-> VS Code Copilot manual coordination hub |
 | `EDISON_PERMANENT_SYSTEM_INSTRUCTIONS.md` | Portable copy of all permanent EDISON rules, custom instructions & project path |
 | `SESSION_CONTINUITY_LOG.md` | Cross-account session log of discussions, fixes & active checkpoints |
+| `docs/research/EDISON_OPEN_SOURCE_REPOSITORY_RESEARCH_PLAN.md` | Deferred open-source TV remote-control & break-detection repository research plan (`Status: DEFERRED`) |
 
 ---
 
 ## 4. Current Project Boundary Notice
 
-- **[VERIFIED]**: Phase 1 (25 docs), Block 2.1 (Auth/RBAC/Store/QR), and Block 2.2 (Profiles/Tickets/10-State Campaigns) are committed; Block 2.3 (Ad Creation Studio) + GitHub continuity files are verified and awaiting owner commit. No Smart TV hardware integration, real payment gateway, or production broadcast infrastructure is built or claimed.
+- **[VERIFIED]**: Phase 1 (27 docs), Blocks 2.1–2.4 (Auth/RBAC/Store/QR, Profiles/Campaigns, Ad Studio, 16:9 TV Preview & Simulator), and `docs/research/EDISON_OPEN_SOURCE_REPOSITORY_RESEARCH_PLAN.md` (`DEFERRED`) are committed; Block 2.5 (Opportunity Submission, Independent 3-Tier Verification, Expiry, Complaints & Appeals) is verified and awaiting owner commit. No Smart TV hardware integration, real payment gateway, or production broadcast infrastructure is built or claimed.
 - **[LIMITATION]**: The AI Studio runtime has no local `.git` repository or push credentials; saving changes to GitHub requires the Project Owner to commit/sync via AI Studio GitHub export or local git.
 - **Governance Rule**: Development proceeds strictly sequentially through verified implementation blocks (`PLAN -> IMPLEMENT -> TEST -> REPORT -> USER REVIEW -> USER COMMIT -> USER CONFIRMATION -> NEXT BLOCK`). Use the **`Commit & Next`** header/footer shortcut to copy `"Committed to GitHub. Please proceed to the next block."` after committing.
 

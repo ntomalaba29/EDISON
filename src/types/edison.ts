@@ -304,10 +304,116 @@ export type OpportunityCategory =
   | 'workshop_seminar'
   | 'other';
 
+export type OpportunityProviderType =
+  | 'registered_organisation'
+  | 'individual_informal_employer';
+
+export type OpportunityStatus =
+  | 'draft'
+  | 'submitted'
+  | 'under_review'
+  | 'verified_live'
+  | 'rejected'
+  | 'suspended'
+  | 'expired'
+  | 'revoked';
+
+export type OpportunityTierStatus =
+  | 'unverified'
+  | 'pending_review'
+  | 'verified'
+  | 'not_applicable'
+  | 'rejected';
+
 export interface OpportunityVerificationTiers {
-  identityVerified: boolean;
-  organisationVerified: boolean;
-  specificOpportunityVerified: boolean;
+  identityStatus: OpportunityTierStatus;
+  identityEvidenceRef: string;
+  identityNotes: string;
+  identityVerifiedAt: string | null;
+  organisationStatus: OpportunityTierStatus;
+  organisationEvidenceRef: string;
+  organisationNotes: string;
+  organisationVerifiedAt: string | null;
+  specificOpportunityStatus: OpportunityTierStatus;
+  specificOpportunityEvidenceRef: string;
+  specificOpportunityNotes: string;
+  specificOpportunityVerifiedAt: string | null;
+}
+
+export interface OpportunityRecord {
+  id: string;
+  ownerId: string;
+  providerType: OpportunityProviderType;
+  providerName: string;
+  category: OpportunityCategory;
+  title: string;
+  description: string;
+  location: string;
+  eligibilityRequirements: string;
+  applicationMethod: string;
+  contactInfo: string;
+  qrToken: string | null;
+  linkedCampaignId: string | null;
+  closingDate: string;
+  expiryDate: string;
+  status: OpportunityStatus;
+  verificationTiers: OpportunityVerificationTiers;
+  scamRiskFlags: string[];
+  applicationFeeFreeConfirmed: boolean;
+  noGuaranteeConfirmed: boolean;
+  advertisingFeeInfluencesVerification: false;
+  rejectionReason: string | null;
+  suspensionReason: string | null;
+  isPrototypeSeed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type OpportunityComplaintStatus =
+  | 'reported'
+  | 'under_investigation'
+  | 'cleared'
+  | 'suspended'
+  | 'revoked';
+
+export type OpportunityComplaintReason =
+  | 'upfront_fee_scam'
+  | 'misleading_guarantee'
+  | 'expired_or_closed'
+  | 'broken_or_wrong_qr'
+  | 'fake_employer_or_listing'
+  | 'other';
+
+export interface OpportunityComplaintRecord {
+  id: string;
+  opportunityId: string;
+  reporterId: string;
+  reporterRole: UserRole;
+  reasonCategory: OpportunityComplaintReason;
+  description: string;
+  evidenceDetails: string;
+  status: OpportunityComplaintStatus;
+  resolutionNotes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type OpportunityAppealStatus =
+  | 'submitted'
+  | 'under_review'
+  | 'upheld_reinstated'
+  | 'denied';
+
+export interface OpportunityAppealRecord {
+  id: string;
+  opportunityId: string;
+  ownerId: string;
+  reason: string;
+  additionalEvidence: string;
+  status: OpportunityAppealStatus;
+  adminNotes: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type AnalyticsEventType =
@@ -363,6 +469,9 @@ export interface EdisonStoreData {
   campaigns: CampaignRecord[];
   adCreatives: AdCreativeRecord[];
   supportTickets: SupportTicketRecord[];
+  opportunities: OpportunityRecord[];
+  opportunityComplaints: OpportunityComplaintRecord[];
+  opportunityAppeals: OpportunityAppealRecord[];
   analyticsEvents: AnalyticsEventRecord[];
   auditLogs: AuditLogRecord[];
 }
@@ -384,6 +493,10 @@ export interface LiveReportSnapshot {
     adCreativeCount: number;
     profileCount: number;
     openTicketCount: number;
+    opportunityCount?: number;
+    verifiedLiveOpportunityCount?: number;
+    openComplaintCount?: number;
+    openAppealCount?: number;
     redirectRequestsTotal: number;
     redirectIssuedTotal: number;
     suspectedBotRedirects: number;

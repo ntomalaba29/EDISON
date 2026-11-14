@@ -40,3 +40,11 @@
 - **Owner Directive (`ADR-010`)**: Project Owner confirmed Block 2.3 committed (`"Next"`) and established the rule that saying `"Next"` confirms the preceding block was committed to GitHub.
 - **Unlocked & Active Block**: **Phase 2 · Stage 2.4 · Block 2.4** — Full 16:9 Television Preview Player, Pre-Submission Approval Gate (`POST /api/campaigns/:id/transition` + `GET /api/campaigns/:id/preview-gate`), and explicitly labelled Commercial-Break Simulator (`SIMULATION — NOT LIVE BROADCAST TUNER`).
 
+---
+
+## Session Entry — 2026-11-14 (Deferred Repo Research Plan, Block 2.4 Commit & Block 2.5 Verification)
+
+- **Documentation-Only Record Committed**: Authored `docs/research/EDISON_OPEN_SOURCE_REPOSITORY_RESEARCH_PLAN.md` (`Status: DEFERRED`, capturing 14 candidate TV remote-control and break-detection repositories, shortlists, intended workflow, Aura note, Android TV/Tizen targets, and zero-clone/zero-implementation restrictions).
+- **Owner Commit Confirmation (`ADR-010`)**: Project Owner confirmed `"Committed, next"`, locking in Block 2.4 + the deferred research plan and unlocking **Block 2.5**.
+- **Verified Block 2.5**: Implemented and E2E-verified (`BLOCK25_E2E_OK`) Opportunity Submission across all 14 categories for both `registered_organisation` and `individual_informal_employer`, anti-scam/guarantee guardrails, independent non-transitive 3-tier verification, financial independence (`advertisingFeeInfluencesVerification: false`), automated expiry + campaign scheduling lockout, viewer/advertiser complaints, suspension cascade, and appeals/reinstatement. Status: `VERIFIED · AWAITING COMMIT`.
+- **Next Authorised Block (Locked until Commit Confirmation)**: **Block 2.6 — Administration, Moderation Console & 7-Stage Analytics**.

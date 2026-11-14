@@ -20,6 +20,16 @@ import type {
   LiveReportSnapshot,
   OptionAComposition,
   OptionBUploadSpec,
+  OpportunityAppealRecord,
+  OpportunityAppealStatus,
+  OpportunityCategory,
+  OpportunityComplaintReason,
+  OpportunityComplaintRecord,
+  OpportunityComplaintStatus,
+  OpportunityProviderType,
+  OpportunityRecord,
+  OpportunityStatus,
+  OpportunityTierStatus,
   PreSubmitCheckItem,
   PublicUser,
   QrDestinationType,
@@ -101,6 +111,40 @@ const ADMIN_ONLY_TARGET_STATUSES: ReadonlySet<CampaignStatus> = new Set([
   'approved',
   'rejected',
 ]);
+
+export const ALL_OPPORTUNITY_CATEGORIES: readonly OpportunityCategory[] = [
+  'permanent_employment',
+  'temporary_employment',
+  'part_time_employment',
+  'contract_employment',
+  'internship',
+  'apprenticeship',
+  'scholarship',
+  'education',
+  'training',
+  'grant',
+  'tender',
+  'business_opportunity',
+  'workshop_seminar',
+  'other',
+] as const;
+
+const OPPORTUNITY_RISK_PATTERNS: { pattern: RegExp; label: string }[] = [
+  { pattern: /\b(pay\s+to\s+apply|application\s+fee|processing\s+fee|registration\s+fee|uniform\s+deposit|admin\s+fee\s+required)\b/i, label: 'Potential upfront applicant fee demand detected' },
+  { pattern: /\b(guaranteed\s+(job|employment|placement|scholarship|funding|grant)|100%\s+job\s+guarantee)\b/i, label: 'Prohibited outcome guarantee claim detected' },
+  { pattern: /\b(wire\s+transfer\s+before|advance\s+payment\s+required)\b/i, label: 'Suspicious advance-payment instruction detected' },
+];
+
+export function scanOpportunityRiskPhrases(fields: string[]): string[] {
+  const combined = fields.join(' \n ');
+  const flags: string[] = [];
+  for (const rule of OPPORTUNITY_RISK_PATTERNS) {
+    if (rule.pattern.test(combined)) {
+      flags.push(rule.label);
+    }
+  }
+  return flags;
+}
 
 export function computeSimulatedBillingEstimate(params: {
   durationSeconds: number;
@@ -476,6 +520,142 @@ function buildSeedAdCreatives(now: string): AdCreativeRecord[] {
   ];
 }
 
+function buildSeedOpportunities(now: string): OpportunityRecord[] {
+  const closingFuture = isoDateDaysFromNow(45);
+  const expiryFuture = isoDateDaysFromNow(50);
+  const closingPast = isoDateDaysFromNow(-10);
+  const expiryPast = isoDateDaysFromNow(-5);
+
+  return [
+    {
+      id: 'opp_seed_01',
+      ownerId: 'usr_seed_opp_01',
+      providerType: 'registered_organisation',
+      providerName: 'Civic Skills Academy (Prototype Seed)',
+      category: 'apprenticeship',
+      title: 'Paid Electrical Apprenticeships — 2026 Intake',
+      description:
+        'Manchester & North West accredited Level 3 electrical apprenticeship cohort. Funded training with zero fees for applicants.',
+      location: 'Manchester, United Kingdom',
+      eligibilityRequirements: 'Aged 18+, Maths & English GCSE or equivalent, right to work in UK.',
+      applicationMethod: 'Free online application portal via QR destination.',
+      contactInfo: 'admissions@civicskills.example · +441614960311',
+      qrToken: 'job-demo',
+      linkedCampaignId: 'cmp_seed_03',
+      closingDate: closingFuture,
+      expiryDate: expiryFuture,
+      status: 'verified_live',
+      verificationTiers: {
+        identityStatus: 'verified',
+        identityEvidenceRef: 'KYC-SEED-SAMUEL-OKAFOR',
+        identityNotes: 'Tier 1 identity verified for prototype submitter.',
+        identityVerifiedAt: now,
+        organisationStatus: 'verified',
+        organisationEvidenceRef: 'PROTO-CHARITY-4410',
+        organisationNotes: 'Tier 2 charity/provider registration verified.',
+        organisationVerifiedAt: now,
+        specificOpportunityStatus: 'verified',
+        specificOpportunityEvidenceRef: 'LETTERHEAD-INTAKE-2026-REF',
+        specificOpportunityNotes: 'Tier 3 specific apprenticeship intake verified independently.',
+        specificOpportunityVerifiedAt: now,
+      },
+      scamRiskFlags: [],
+      applicationFeeFreeConfirmed: true,
+      noGuaranteeConfirmed: true,
+      advertisingFeeInfluencesVerification: false,
+      rejectionReason: null,
+      suspensionReason: null,
+      isPrototypeSeed: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'opp_seed_02',
+      ownerId: 'usr_seed_opp_01',
+      providerType: 'individual_informal_employer',
+      providerName: 'Daniel Mercer Electrical Services (Individual Sample)',
+      category: 'temporary_employment',
+      title: 'Part-Time Solar Array Installation Assistant (6 Weeks)',
+      description:
+        'Assisting certified electrician with residential roof mounting and cable routing. Paid weekly; safety gear provided free.',
+      location: 'Leeds / West Yorkshire',
+      eligibilityRequirements: 'CSCS card preferred; physically fit for outdoor roof work.',
+      applicationMethod: 'Direct telephone / enquiry link via QR.',
+      contactInfo: 'daniel.mercer.sample@example.org',
+      qrToken: 'job-demo',
+      linkedCampaignId: null,
+      closingDate: closingFuture,
+      expiryDate: expiryFuture,
+      status: 'under_review',
+      verificationTiers: {
+        identityStatus: 'verified',
+        identityEvidenceRef: 'ID-CHECK-MERCER-01',
+        identityNotes: 'Tier 1 human identity verified.',
+        identityVerifiedAt: now,
+        organisationStatus: 'not_applicable',
+        organisationEvidenceRef: 'Individual / Informal Employer (Tier 2 N/A)',
+        organisationNotes: 'Individual employers do not require corporate registration.',
+        organisationVerifiedAt: null,
+        specificOpportunityStatus: 'pending_review',
+        specificOpportunityEvidenceRef: 'SIGNED-DECLARATION-SOLAR-02',
+        specificOpportunityNotes: 'Awaiting Tier 3 specific job site confirmation.',
+        specificOpportunityVerifiedAt: null,
+      },
+      scamRiskFlags: [],
+      applicationFeeFreeConfirmed: true,
+      noGuaranteeConfirmed: true,
+      advertisingFeeInfluencesVerification: false,
+      rejectionReason: null,
+      suspensionReason: null,
+      isPrototypeSeed: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'opp_seed_03',
+      ownerId: 'usr_seed_opp_01',
+      providerType: 'registered_organisation',
+      providerName: 'Civic Skills Academy (Prototype Seed)',
+      category: 'scholarship',
+      title: 'Summer 2026 Welding Bursary (Closed / Expired Seed)',
+      description:
+        'Historical expired bursary demonstrating EDISON automated expiry enforcement so expired listings are never scheduled for TV.',
+      location: 'Liverpool, United Kingdom',
+      eligibilityRequirements: 'Regional welding trainees (window closed).',
+      applicationMethod: 'Closed portal.',
+      contactInfo: 'admissions@civicskills.example',
+      qrToken: 'job-demo',
+      linkedCampaignId: null,
+      closingDate: closingPast,
+      expiryDate: expiryPast,
+      status: 'expired',
+      verificationTiers: {
+        identityStatus: 'verified',
+        identityEvidenceRef: 'KYC-SEED-SAMUEL-OKAFOR',
+        identityNotes: 'Tier 1 identity verified.',
+        identityVerifiedAt: now,
+        organisationStatus: 'verified',
+        organisationEvidenceRef: 'PROTO-CHARITY-4410',
+        organisationNotes: 'Tier 2 verified (non-transitive to Tier 3).',
+        organisationVerifiedAt: now,
+        specificOpportunityStatus: 'verified',
+        specificOpportunityEvidenceRef: 'BURSARY-2026-ARCHIVE',
+        specificOpportunityNotes: 'Expired automatically after closing date passed.',
+        specificOpportunityVerifiedAt: now,
+      },
+      scamRiskFlags: [],
+      applicationFeeFreeConfirmed: true,
+      noGuaranteeConfirmed: true,
+      advertisingFeeInfluencesVerification: false,
+      rejectionReason: null,
+      suspensionReason: null,
+      isPrototypeSeed: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
+}
+
 function createInitialSeed(): EdisonStoreData {
   const now = new Date().toISOString();
   const advertiserId = 'usr_seed_adv_01';
@@ -483,7 +663,7 @@ function createInitialSeed(): EdisonStoreData {
   const adminId = 'usr_seed_adm_01';
 
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     users: [
       {
         id: advertiserId,
@@ -560,6 +740,9 @@ function createInitialSeed(): EdisonStoreData {
     campaigns: buildSeedCampaigns(now),
     adCreatives: buildSeedAdCreatives(now),
     supportTickets: buildSeedTickets(now),
+    opportunities: buildSeedOpportunities(now),
+    opportunityComplaints: [],
+    opportunityAppeals: [],
     analyticsEvents: [],
     auditLogs: [
       {
@@ -569,7 +752,7 @@ function createInitialSeed(): EdisonStoreData {
         action: 'STORE_INITIALIZED',
         targetType: 'system',
         targetId: 'edison-store',
-        detail: 'Prototype persistence initialized (schema v4) with seeded accounts, QR links, profiles, campaigns, and studio creatives.',
+        detail: 'Prototype persistence initialized (schema v5) with seeded accounts, QR links, profiles, campaigns, studio creatives, and opportunities.',
         createdAt: now,
       },
     ],
@@ -614,8 +797,19 @@ function normalizeStoreData(parsed: EdisonStoreData): EdisonStoreData {
   const supportTickets =
     existingTickets.length > 0 ? existingTickets : buildSeedTickets(now);
 
+  const existingOpps = Array.isArray(parsed.opportunities) ? parsed.opportunities : [];
+  const opportunities =
+    existingOpps.length > 0 ? existingOpps : buildSeedOpportunities(now);
+
+  const opportunityComplaints = Array.isArray(parsed.opportunityComplaints)
+    ? parsed.opportunityComplaints
+    : [];
+  const opportunityAppeals = Array.isArray(parsed.opportunityAppeals)
+    ? parsed.opportunityAppeals
+    : [];
+
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     users: parsed.users || [],
     sessions: parsed.sessions || [],
     qrLinks: migratedLinks,
@@ -623,6 +817,9 @@ function normalizeStoreData(parsed: EdisonStoreData): EdisonStoreData {
     campaigns,
     adCreatives,
     supportTickets,
+    opportunities,
+    opportunityComplaints,
+    opportunityAppeals,
     analyticsEvents: parsed.analyticsEvents || [],
     auditLogs: parsed.auditLogs || [],
   };
@@ -1651,6 +1848,26 @@ class EdisonPrototypeStore {
             );
           }
         }
+
+        if (
+          target.contentCategory === 'opportunity_promotion' &&
+          (targetStatus === 'scheduled' || targetStatus === 'active')
+        ) {
+          this.expireOpportunitiesInDraft(draft);
+          const linkedOpp = draft.opportunities.find((o) => o.linkedCampaignId === target.id);
+          if (linkedOpp) {
+            if (linkedOpp.status === 'expired' || linkedOpp.status === 'suspended' || linkedOpp.status === 'revoked') {
+              throw new Error(
+                `Linked opportunity "${linkedOpp.title}" is ${linkedOpp.status} and cannot be scheduled or activated for TV playback.`
+              );
+            }
+            if (linkedOpp.status !== 'verified_live') {
+              throw new Error(
+                `Linked opportunity "${linkedOpp.title}" must complete 3-tier verification (status: verified_live) before TV scheduling.`
+              );
+            }
+          }
+        }
       }
 
       if (targetStatus === 'rejected') {
@@ -2368,6 +2585,646 @@ class EdisonPrototypeStore {
     });
   }
 
+  // --- Opportunity Management, 3-Tier Verification, Expiry, Complaints & Appeals (Block 2.5) ---
+
+  private expireOpportunitiesInDraft(draft: EdisonStoreData): number {
+    const today = new Date().toISOString().slice(0, 10);
+    let count = 0;
+    for (const opp of draft.opportunities) {
+      if (
+        opp.status !== 'expired' &&
+        opp.status !== 'revoked' &&
+        opp.status !== 'rejected' &&
+        (opp.closingDate < today || opp.expiryDate < today)
+      ) {
+        const prevStatus = opp.status;
+        opp.status = 'expired';
+        opp.updatedAt = new Date().toISOString();
+        count += 1;
+        this.addAudit(
+          draft,
+          null,
+          'system',
+          'OPPORTUNITY_AUTO_EXPIRED',
+          'opportunity',
+          opp.id,
+          `Opportunity "${opp.title}" automatically expired from ${prevStatus} (closing: ${opp.closingDate}, expiry: ${opp.expiryDate}).`
+        );
+      }
+    }
+    return count;
+  }
+
+  listOpportunitiesForUser(actor: PublicUser): OpportunityRecord[] {
+    // Run automated expiry check and persist if any opportunity transitioned
+    this.syncIfDiskNewer();
+    const today = new Date().toISOString().slice(0, 10);
+    const hasPendingExpiry = this.data.opportunities.some(
+      (opp) =>
+        opp.status !== 'expired' &&
+        opp.status !== 'revoked' &&
+        opp.status !== 'rejected' &&
+        (opp.closingDate < today || opp.expiryDate < today)
+    );
+    if (hasPendingExpiry) {
+      this.withWriteTransaction((draft) => {
+        this.expireOpportunitiesInDraft(draft);
+      });
+    }
+
+    const all = this.data.opportunities.filter(
+      (opp) =>
+        actor.role === 'admin' ||
+        opp.ownerId === actor.id ||
+        opp.status === 'verified_live' ||
+        opp.status === 'expired'
+    );
+    return all
+      .map((o) => ({ ...o, verificationTiers: { ...o.verificationTiers } }))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+
+  createOpportunity(
+    actor: PublicUser,
+    input: {
+      providerType: OpportunityProviderType;
+      providerName: string;
+      category: OpportunityCategory;
+      title: string;
+      description: string;
+      location: string;
+      eligibilityRequirements: string;
+      applicationMethod: string;
+      contactInfo: string;
+      qrToken: string | null;
+      linkedCampaignId: string | null;
+      closingDate: string;
+      expiryDate: string;
+      identityEvidenceRef: string;
+      organisationEvidenceRef: string;
+      specificOpportunityEvidenceRef: string;
+      applicationFeeFreeConfirmed: boolean;
+      noGuaranteeConfirmed: boolean;
+    }
+  ): OpportunityRecord {
+    const title = input.title.trim();
+    const providerName = input.providerName.trim();
+    const description = input.description.trim();
+    const location = input.location.trim();
+    const eligibilityRequirements = input.eligibilityRequirements.trim();
+    const applicationMethod = input.applicationMethod.trim();
+    const contactInfo = input.contactInfo.trim();
+
+    if (title.length < 4 || providerName.length < 2 || description.length < 15) {
+      throw new Error(
+        'Provide a valid title (4+ chars), provider name, and description (15+ chars).'
+      );
+    }
+    if (!location || !eligibilityRequirements || !applicationMethod || !contactInfo) {
+      throw new Error(
+        'Location, eligibility requirements, application method, and contact info are all required.'
+      );
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(input.closingDate) || !/^\d{4}-\d{2}-\d{2}$/.test(input.expiryDate)) {
+      throw new Error('Closing date and expiry date must be valid YYYY-MM-DD dates.');
+    }
+    if (!input.applicationFeeFreeConfirmed || !input.noGuaranteeConfirmed) {
+      throw new Error(
+        'Viewer protection confirmations are mandatory: confirm zero applicant fees and non-guarantee policy.'
+      );
+    }
+
+    const riskFlags = scanOpportunityRiskPhrases([
+      title,
+      description,
+      eligibilityRequirements,
+      applicationMethod,
+    ]);
+    if (riskFlags.length > 0) {
+      throw new Error(`Viewer protection blocked listing: ${riskFlags.join('; ')}`);
+    }
+
+    return this.withWriteTransaction((draft) => {
+      if (input.qrToken) {
+        const qr = draft.qrLinks.find((q) => q.token === input.qrToken);
+        if (!qr || (actor.role !== 'admin' && qr.ownerId !== actor.id)) {
+          throw new Error('Selected QR token was not found or is not owned by your account.');
+        }
+      }
+      if (input.linkedCampaignId) {
+        const cmp = draft.campaigns.find((c) => c.id === input.linkedCampaignId);
+        if (!cmp || (actor.role !== 'admin' && cmp.ownerId !== actor.id)) {
+          throw new Error('Linked campaign was not found or is not owned by your account.');
+        }
+      }
+
+      const now = new Date().toISOString();
+      const today = now.slice(0, 10);
+      const isAlreadyExpired = input.closingDate < today || input.expiryDate < today;
+
+      const record: OpportunityRecord = {
+        id: `opp_${crypto.randomBytes(5).toString('hex')}`,
+        ownerId: actor.id,
+        providerType: input.providerType,
+        providerName,
+        category: input.category,
+        title,
+        description,
+        location,
+        eligibilityRequirements,
+        applicationMethod,
+        contactInfo,
+        qrToken: input.qrToken || null,
+        linkedCampaignId: input.linkedCampaignId || null,
+        closingDate: input.closingDate,
+        expiryDate: input.expiryDate,
+        status: isAlreadyExpired ? 'expired' : 'draft',
+        verificationTiers: {
+          identityStatus: input.identityEvidenceRef.trim() ? 'pending_review' : 'unverified',
+          identityEvidenceRef: input.identityEvidenceRef.trim(),
+          identityNotes: '',
+          identityVerifiedAt: null,
+          organisationStatus:
+            input.providerType === 'individual_informal_employer'
+              ? 'not_applicable'
+              : input.organisationEvidenceRef.trim()
+              ? 'pending_review'
+              : 'unverified',
+          organisationEvidenceRef:
+            input.providerType === 'individual_informal_employer'
+              ? 'Individual / Informal Employer (Corporate Registration Not Required)'
+              : input.organisationEvidenceRef.trim(),
+          organisationNotes: '',
+          organisationVerifiedAt: null,
+          specificOpportunityStatus: input.specificOpportunityEvidenceRef.trim()
+            ? 'pending_review'
+            : 'unverified',
+          specificOpportunityEvidenceRef: input.specificOpportunityEvidenceRef.trim(),
+          specificOpportunityNotes: '',
+          specificOpportunityVerifiedAt: null,
+        },
+        scamRiskFlags: [],
+        applicationFeeFreeConfirmed: true,
+        noGuaranteeConfirmed: true,
+        advertisingFeeInfluencesVerification: false,
+        rejectionReason: null,
+        suspensionReason: null,
+        isPrototypeSeed: false,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      draft.opportunities.unshift(record);
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'OPPORTUNITY_CREATED',
+        'opportunity',
+        record.id,
+        `Created opportunity "${record.title}" (${record.category}, providerType=${record.providerType}, status=${record.status}).`
+      );
+      return { ...record, verificationTiers: { ...record.verificationTiers } };
+    });
+  }
+
+  submitOpportunity(actor: PublicUser, opportunityId: string): OpportunityRecord {
+    return this.withWriteTransaction((draft) => {
+      this.expireOpportunitiesInDraft(draft);
+      const opp = draft.opportunities.find((o) => o.id === opportunityId);
+      if (!opp) throw new Error('Opportunity not found.');
+      if (actor.role !== 'admin' && opp.ownerId !== actor.id) {
+        throw new Error('FORBIDDEN: You do not own this opportunity.');
+      }
+      if (opp.status !== 'draft' && opp.status !== 'rejected') {
+        throw new Error(`Cannot submit opportunity from status "${opp.status}".`);
+      }
+
+      const today = new Date().toISOString().slice(0, 10);
+      if (opp.closingDate < today || opp.expiryDate < today) {
+        opp.status = 'expired';
+        opp.updatedAt = new Date().toISOString();
+        throw new Error('Closing or expiry date has already passed; listing moved to expired.');
+      }
+
+      if (!opp.verificationTiers.identityEvidenceRef.trim()) {
+        throw new Error('Tier 1 identity evidence reference is required before submission.');
+      }
+      if (!opp.verificationTiers.specificOpportunityEvidenceRef.trim()) {
+        throw new Error(
+          'Tier 3 specific opportunity evidence (vacancy link/letterhead/declaration) is required before submission.'
+        );
+      }
+
+      const riskFlags = scanOpportunityRiskPhrases([
+        opp.title,
+        opp.description,
+        opp.eligibilityRequirements,
+        opp.applicationMethod,
+      ]);
+      if (riskFlags.length > 0) {
+        opp.scamRiskFlags = riskFlags;
+        opp.status = 'rejected';
+        opp.rejectionReason = `Automatic viewer protection trigger: ${riskFlags.join('; ')}`;
+        opp.updatedAt = new Date().toISOString();
+        throw new Error(opp.rejectionReason);
+      }
+
+      opp.status = 'submitted';
+      opp.rejectionReason = null;
+      if (opp.verificationTiers.identityStatus === 'unverified' || opp.verificationTiers.identityStatus === 'rejected') {
+        opp.verificationTiers.identityStatus = 'pending_review';
+      }
+      if (
+        opp.providerType === 'registered_organisation' &&
+        (opp.verificationTiers.organisationStatus === 'unverified' ||
+          opp.verificationTiers.organisationStatus === 'rejected')
+      ) {
+        opp.verificationTiers.organisationStatus = 'pending_review';
+      }
+      // Strict Non-Transitivity: submitting or having org verified does not auto-verify specific listing
+      if (opp.verificationTiers.specificOpportunityStatus !== 'verified') {
+        opp.verificationTiers.specificOpportunityStatus = 'pending_review';
+      }
+      opp.updatedAt = new Date().toISOString();
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'OPPORTUNITY_SUBMITTED',
+        'opportunity',
+        opp.id,
+        `Submitted opportunity "${opp.title}" for independent 3-tier verification.`
+      );
+      return { ...opp, verificationTiers: { ...opp.verificationTiers } };
+    });
+  }
+
+  adminUpdateOpportunityVerification(
+    actor: PublicUser,
+    opportunityId: string,
+    input: {
+      identityStatus?: OpportunityTierStatus;
+      identityNotes?: string;
+      organisationStatus?: OpportunityTierStatus;
+      organisationNotes?: string;
+      specificOpportunityStatus?: OpportunityTierStatus;
+      specificOpportunityNotes?: string;
+      targetStatus?: OpportunityStatus;
+      rejectionReason?: string;
+    }
+  ): OpportunityRecord {
+    if (actor.role !== 'admin') {
+      throw new Error('FORBIDDEN: Only administrators can verify or moderate opportunities.');
+    }
+
+    return this.withWriteTransaction((draft) => {
+      this.expireOpportunitiesInDraft(draft);
+      const opp = draft.opportunities.find((o) => o.id === opportunityId);
+      if (!opp) throw new Error('Opportunity not found.');
+
+      const now = new Date().toISOString();
+      const t = opp.verificationTiers;
+
+      // Update each of the 3 tiers STRICTLY independently (Non-Transitivity enforced)
+      if (input.identityStatus) {
+        t.identityStatus = input.identityStatus;
+        t.identityVerifiedAt = input.identityStatus === 'verified' ? now : null;
+      }
+      if (typeof input.identityNotes === 'string') {
+        t.identityNotes = input.identityNotes.trim();
+      }
+
+      if (input.organisationStatus) {
+        if (opp.providerType === 'individual_informal_employer' && input.organisationStatus === 'verified') {
+          t.organisationStatus = 'not_applicable';
+        } else {
+          t.organisationStatus = input.organisationStatus;
+          t.organisationVerifiedAt = input.organisationStatus === 'verified' ? now : null;
+        }
+      }
+      if (typeof input.organisationNotes === 'string') {
+        t.organisationNotes = input.organisationNotes.trim();
+      }
+
+      if (input.specificOpportunityStatus) {
+        t.specificOpportunityStatus = input.specificOpportunityStatus;
+        t.specificOpportunityVerifiedAt =
+          input.specificOpportunityStatus === 'verified' ? now : null;
+      }
+      if (typeof input.specificOpportunityNotes === 'string') {
+        t.specificOpportunityNotes = input.specificOpportunityNotes.trim();
+      }
+
+      if (input.targetStatus) {
+        if (input.targetStatus === 'verified_live') {
+          const today = now.slice(0, 10);
+          if (opp.status === 'expired' || opp.closingDate < today || opp.expiryDate < today) {
+            throw new Error('Cannot set verified_live: opportunity is expired.');
+          }
+          if (t.identityStatus !== 'verified') {
+            throw new Error(
+              'Cannot publish verified_live: Tier 1 (Identity Verified) has not passed.'
+            );
+          }
+          if (opp.providerType === 'registered_organisation' && t.organisationStatus !== 'verified') {
+            throw new Error(
+              'Cannot publish verified_live: Tier 2 (Organisation Verified) is required for registered organisations.'
+            );
+          }
+          if (t.specificOpportunityStatus !== 'verified') {
+            throw new Error(
+              'Non-Transitivity Rule: Tier 3 (Specific Opportunity Verified) must be independently verified before publishing verified_live.'
+            );
+          }
+          opp.status = 'verified_live';
+          opp.rejectionReason = null;
+          opp.suspensionReason = null;
+        } else if (input.targetStatus === 'rejected') {
+          const reason = (input.rejectionReason ?? '').trim();
+          if (reason.length < 5) {
+            throw new Error('A written rejection reason (min 5 characters) is mandatory.');
+          }
+          opp.status = 'rejected';
+          opp.rejectionReason = reason;
+        } else {
+          opp.status = input.targetStatus;
+          if (input.targetStatus === 'suspended' && input.rejectionReason) {
+            opp.suspensionReason = input.rejectionReason.trim();
+          }
+        }
+      }
+
+      opp.updatedAt = now;
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'OPPORTUNITY_3TIER_REVIEWED',
+        'opportunity',
+        opp.id,
+        `3-tier review updated for ${opp.id}: Tier1=${t.identityStatus}, Tier2=${t.organisationStatus}, Tier3=${t.specificOpportunityStatus}, status=${opp.status}. Financial independence preserved.`
+      );
+      return { ...opp, verificationTiers: { ...opp.verificationTiers } };
+    });
+  }
+
+  listOpportunityComplaintsForUser(actor: PublicUser): OpportunityComplaintRecord[] {
+    this.syncIfDiskNewer();
+    if (actor.role === 'admin') {
+      return [...this.data.opportunityComplaints].sort((a, b) =>
+        b.updatedAt.localeCompare(a.updatedAt)
+      );
+    }
+    const ownedOppIds = new Set(
+      this.data.opportunities.filter((o) => o.ownerId === actor.id).map((o) => o.id)
+    );
+    return this.data.opportunityComplaints
+      .filter((c) => c.reporterId === actor.id || ownedOppIds.has(c.opportunityId))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+
+  createOpportunityComplaint(
+    actor: PublicUser,
+    opportunityId: string,
+    input: {
+      reasonCategory: OpportunityComplaintReason;
+      description: string;
+      evidenceDetails?: string;
+    }
+  ): OpportunityComplaintRecord {
+    const description = input.description.trim();
+    if (description.length < 10) {
+      throw new Error('Complaint description must be at least 10 characters.');
+    }
+
+    return this.withWriteTransaction((draft) => {
+      const opp = draft.opportunities.find((o) => o.id === opportunityId);
+      if (!opp) throw new Error('Opportunity not found.');
+
+      const now = new Date().toISOString();
+      const complaint: OpportunityComplaintRecord = {
+        id: `cmpn_${crypto.randomBytes(5).toString('hex')}`,
+        opportunityId: opp.id,
+        reporterId: actor.id,
+        reporterRole: actor.role,
+        reasonCategory: input.reasonCategory,
+        description,
+        evidenceDetails: (input.evidenceDetails ?? '').trim(),
+        status: 'reported',
+        resolutionNotes: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      draft.opportunityComplaints.unshift(complaint);
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'OPPORTUNITY_COMPLAINT_REPORTED',
+        'opportunity',
+        opp.id,
+        `Filed ${input.reasonCategory} complaint (${complaint.id}) against opportunity "${opp.title}".`
+      );
+      return { ...complaint };
+    });
+  }
+
+  adminUpdateComplaintStatus(
+    actor: PublicUser,
+    complaintId: string,
+    input: { status: OpportunityComplaintStatus; resolutionNotes: string }
+  ): { complaint: OpportunityComplaintRecord; opportunity: OpportunityRecord | null } {
+    if (actor.role !== 'admin') {
+      throw new Error('FORBIDDEN: Only administrators can investigate or resolve complaints.');
+    }
+    const notes = input.resolutionNotes.trim();
+    if (notes.length < 5) {
+      throw new Error('Written investigation notes (min 5 characters) are required.');
+    }
+
+    return this.withWriteTransaction((draft) => {
+      const complaint = draft.opportunityComplaints.find((c) => c.id === complaintId);
+      if (!complaint) throw new Error('Complaint record not found.');
+
+      const now = new Date().toISOString();
+      complaint.status = input.status;
+      complaint.resolutionNotes = notes;
+      complaint.updatedAt = now;
+
+      const opp = draft.opportunities.find((o) => o.id === complaint.opportunityId) ?? null;
+      if (opp && (input.status === 'suspended' || input.status === 'revoked')) {
+        opp.status = input.status;
+        opp.suspensionReason = `Complaint ${complaint.id}: ${notes}`;
+        opp.updatedAt = now;
+      }
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'OPPORTUNITY_COMPLAINT_UPDATED',
+        'opportunity',
+        complaint.opportunityId,
+        `Complaint ${complaint.id} moved to ${input.status}. Note: ${notes}`
+      );
+      return {
+        complaint: { ...complaint },
+        opportunity: opp ? { ...opp, verificationTiers: { ...opp.verificationTiers } } : null,
+      };
+    });
+  }
+
+  listOpportunityAppealsForUser(actor: PublicUser): OpportunityAppealRecord[] {
+    this.syncIfDiskNewer();
+    if (actor.role === 'admin') {
+      return [...this.data.opportunityAppeals].sort((a, b) =>
+        b.updatedAt.localeCompare(a.updatedAt)
+      );
+    }
+    return this.data.opportunityAppeals
+      .filter((a) => a.ownerId === actor.id)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+
+  createOpportunityAppeal(
+    actor: PublicUser,
+    opportunityId: string,
+    input: { reason: string; additionalEvidence: string }
+  ): OpportunityAppealRecord {
+    const reason = input.reason.trim();
+    const additionalEvidence = input.additionalEvidence.trim();
+    if (reason.length < 10 || additionalEvidence.length < 5) {
+      throw new Error(
+        'Provide a written appeal reason (10+ chars) and additional supporting evidence.'
+      );
+    }
+
+    return this.withWriteTransaction((draft) => {
+      const opp = draft.opportunities.find((o) => o.id === opportunityId);
+      if (!opp) throw new Error('Opportunity not found.');
+      if (actor.role !== 'admin' && opp.ownerId !== actor.id) {
+        throw new Error('FORBIDDEN: Only the opportunity owner can file an appeal.');
+      }
+      if (opp.status !== 'rejected' && opp.status !== 'suspended') {
+        throw new Error('Appeals can only be submitted for rejected or suspended opportunities.');
+      }
+
+      const now = new Date().toISOString();
+      const appeal: OpportunityAppealRecord = {
+        id: `apl_${crypto.randomBytes(5).toString('hex')}`,
+        opportunityId: opp.id,
+        ownerId: opp.ownerId,
+        reason,
+        additionalEvidence,
+        status: 'submitted',
+        adminNotes: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      draft.opportunityAppeals.unshift(appeal);
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'OPPORTUNITY_APPEAL_SUBMITTED',
+        'opportunity',
+        opp.id,
+        `Submitted appeal ${appeal.id} for ${opp.status} opportunity "${opp.title}".`
+      );
+      return { ...appeal };
+    });
+  }
+
+  adminResolveAppeal(
+    actor: PublicUser,
+    appealId: string,
+    input: { status: OpportunityAppealStatus; adminNotes: string }
+  ): { appeal: OpportunityAppealRecord; opportunity: OpportunityRecord | null } {
+    if (actor.role !== 'admin') {
+      throw new Error('FORBIDDEN: Only administrators can decide opportunity appeals.');
+    }
+    const adminNotes = input.adminNotes.trim();
+    if (adminNotes.length < 5) {
+      throw new Error('Written admin appeal decision notes (min 5 characters) are required.');
+    }
+
+    return this.withWriteTransaction((draft) => {
+      this.expireOpportunitiesInDraft(draft);
+      const appeal = draft.opportunityAppeals.find((a) => a.id === appealId);
+      if (!appeal) throw new Error('Appeal record not found.');
+
+      const now = new Date().toISOString();
+      appeal.status = input.status;
+      appeal.adminNotes = adminNotes;
+      appeal.updatedAt = now;
+
+      const opp = draft.opportunities.find((o) => o.id === appeal.opportunityId) ?? null;
+      if (opp && input.status === 'upheld_reinstated' && opp.status !== 'expired') {
+        opp.status = 'under_review';
+        opp.rejectionReason = null;
+        opp.suspensionReason = null;
+        opp.verificationTiers.specificOpportunityEvidenceRef = `${opp.verificationTiers.specificOpportunityEvidenceRef} | Appeal: ${appeal.additionalEvidence}`;
+        opp.updatedAt = now;
+      }
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'OPPORTUNITY_APPEAL_DECIDED',
+        'opportunity',
+        appeal.opportunityId,
+        `Appeal ${appeal.id} decided as ${input.status}. Notes: ${adminNotes}`
+      );
+      return {
+        appeal: { ...appeal },
+        opportunity: opp ? { ...opp, verificationTiers: { ...opp.verificationTiers } } : null,
+      };
+    });
+  }
+
+  deleteOpportunity(actor: PublicUser, opportunityId: string): void {
+    this.withWriteTransaction((draft) => {
+      const idx = draft.opportunities.findIndex((o) => o.id === opportunityId);
+      if (idx === -1) {
+        throw new Error('Opportunity not found.');
+      }
+      const target = draft.opportunities[idx];
+      if (actor.role !== 'admin' && target.ownerId !== actor.id) {
+        throw new Error('FORBIDDEN: You do not own this opportunity.');
+      }
+      if (
+        actor.role !== 'admin' &&
+        target.status !== 'draft' &&
+        target.status !== 'rejected' &&
+        target.status !== 'expired'
+      ) {
+        throw new Error('Only draft, rejected, or expired opportunities can be deleted.');
+      }
+
+      draft.opportunities.splice(idx, 1);
+      draft.opportunityComplaints = draft.opportunityComplaints.filter(
+        (c) => c.opportunityId !== target.id
+      );
+      draft.opportunityAppeals = draft.opportunityAppeals.filter(
+        (a) => a.opportunityId !== target.id
+      );
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'OPPORTUNITY_DELETED',
+        'opportunity',
+        target.id,
+        `Deleted opportunity "${target.title}".`
+      );
+    });
+  }
+
   listAuditLogs(): AuditLogRecord[] {
     this.syncIfDiskNewer();
     return [...this.data.auditLogs];
@@ -2389,6 +3246,16 @@ class EdisonPrototypeStore {
       profileCount: this.data.advertiserProfiles.length,
       openTicketCount: this.data.supportTickets.filter(
         (t) => t.status === 'open' || t.status === 'in_review'
+      ).length,
+      opportunityCount: this.data.opportunities.length,
+      verifiedLiveOpportunityCount: this.data.opportunities.filter(
+        (o) => o.status === 'verified_live'
+      ).length,
+      openComplaintCount: this.data.opportunityComplaints.filter(
+        (c) => c.status === 'reported' || c.status === 'under_investigation'
+      ).length,
+      openAppealCount: this.data.opportunityAppeals.filter(
+        (a) => a.status === 'submitted' || a.status === 'under_review'
       ).length,
       redirectRequestsTotal: this.data.analyticsEvents.filter(
         (e) => e.eventType === 'redirect_requested' && e.measurementSource === 'real_measured'
@@ -2429,8 +3296,8 @@ class EdisonPrototypeStore {
     return {
       generatedAt: new Date().toISOString(),
       phase: 'Phase 2 — AI Studio Functional Prototype',
-      stage: 'Stage 2.4 — Full 16:9 TV Preview, Pre-Submit Gate & Break Simulator',
-      block: 'Block 2.4 (Verified)',
+      stage: 'Stage 2.5 — Opportunity Submission, 3-Tier Verification, Expiry, Complaints & Appeals',
+      block: 'Block 2.5 (Verified)',
       gateStatus: 'VERIFIED · AWAITING COMMIT',
       latestAuditAt: latestAudit?.createdAt ?? null,
       latestAuditAction: latestAudit?.action ?? null,

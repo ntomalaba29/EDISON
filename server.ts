@@ -4,6 +4,7 @@ import express, { type Request, type Response, type NextFunction } from 'express
 import {
   ALL_CAMPAIGN_STATUSES,
   ALLOWED_CAMPAIGN_TRANSITIONS,
+  ALL_OPPORTUNITY_CATEGORIES,
   edisonStore,
 } from './src/server/store.ts';
 import {
@@ -20,6 +21,13 @@ import type {
   DaypartSlot,
   OptionAComposition,
   OptionBUploadSpec,
+  OpportunityAppealStatus,
+  OpportunityCategory,
+  OpportunityComplaintReason,
+  OpportunityComplaintStatus,
+  OpportunityProviderType,
+  OpportunityStatus,
+  OpportunityTierStatus,
   PublicUser,
   QrDestinationType,
   QrLinkStatus,
@@ -168,7 +176,7 @@ async function startServer() {
     res.json({
       ok: true,
       service: 'edison-prototype-server',
-      phase: 'Phase 2 · Block 2.4',
+      phase: 'Phase 2 · Block 2.5',
       summary: edisonStore.getFoundationSummary(),
     });
   });
@@ -683,6 +691,266 @@ async function startServer() {
           typeof adminResponse === 'string' ? adminResponse : undefined
         );
         res.json({ item });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  // --- Opportunity Management, 3-Tier Verification, Complaints & Appeals (Block 2.5) ---
+  app.get('/api/opportunities', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    res.json({
+      items: edisonStore.listOpportunitiesForUser(req.currentUser!),
+      categories: ALL_OPPORTUNITY_CATEGORIES,
+    });
+  });
+
+  app.post('/api/opportunities', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const body = req.body ?? {};
+    const providerType: OpportunityProviderType =
+      body.providerType === 'individual_informal_employer'
+        ? 'individual_informal_employer'
+        : 'registered_organisation';
+    const category = body.category as OpportunityCategory;
+    if (!(ALL_OPPORTUNITY_CATEGORIES as readonly string[]).includes(String(category))) {
+      res.status(400).json({ error: 'Invalid opportunity category.' });
+      return;
+    }
+
+    try {
+      const item = edisonStore.createOpportunity(req.currentUser!, {
+        providerType,
+        providerName: String(body.providerName ?? ''),
+        category,
+        title: String(body.title ?? ''),
+        description: String(body.description ?? ''),
+        location: String(body.location ?? ''),
+        eligibilityRequirements: String(body.eligibilityRequirements ?? ''),
+        applicationMethod: String(body.applicationMethod ?? ''),
+        contactInfo: String(body.contactInfo ?? ''),
+        qrToken: typeof body.qrToken === 'string' && body.qrToken.trim() ? body.qrToken.trim() : null,
+        linkedCampaignId:
+          typeof body.linkedCampaignId === 'string' && body.linkedCampaignId.trim()
+            ? body.linkedCampaignId.trim()
+            : null,
+        closingDate: String(body.closingDate ?? ''),
+        expiryDate: String(body.expiryDate ?? ''),
+        identityEvidenceRef: String(body.identityEvidenceRef ?? ''),
+        organisationEvidenceRef: String(body.organisationEvidenceRef ?? ''),
+        specificOpportunityEvidenceRef: String(body.specificOpportunityEvidenceRef ?? ''),
+        applicationFeeFreeConfirmed: Boolean(body.applicationFeeFreeConfirmed),
+        noGuaranteeConfirmed: Boolean(body.noGuaranteeConfirmed),
+      });
+      res.status(201).json({ item });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.post('/api/opportunities/:id/submit', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const item = edisonStore.submitOpportunity(req.currentUser!, req.params.id);
+      res.json({ item });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.delete('/api/opportunities/:id', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    try {
+      edisonStore.deleteOpportunity(req.currentUser!, req.params.id);
+      res.json({ ok: true });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.patch(
+    '/api/admin/opportunities/:id/verify-tiers',
+    requireAdmin,
+    (req: AuthenticatedRequest, res: Response) => {
+      const body = req.body ?? {};
+      const validTiers: OpportunityTierStatus[] = [
+        'unverified',
+        'pending_review',
+        'verified',
+        'not_applicable',
+        'rejected',
+      ];
+      const validStatuses: OpportunityStatus[] = [
+        'draft',
+        'submitted',
+        'under_review',
+        'verified_live',
+        'rejected',
+        'suspended',
+        'expired',
+        'revoked',
+      ];
+
+      if (body.identityStatus && !validTiers.includes(body.identityStatus)) {
+        res.status(400).json({ error: 'Invalid identityStatus.' });
+        return;
+      }
+      if (body.organisationStatus && !validTiers.includes(body.organisationStatus)) {
+        res.status(400).json({ error: 'Invalid organisationStatus.' });
+        return;
+      }
+      if (
+        body.specificOpportunityStatus &&
+        !validTiers.includes(body.specificOpportunityStatus)
+      ) {
+        res.status(400).json({ error: 'Invalid specificOpportunityStatus.' });
+        return;
+      }
+      if (body.targetStatus && !validStatuses.includes(body.targetStatus)) {
+        res.status(400).json({ error: 'Invalid targetStatus.' });
+        return;
+      }
+
+      try {
+        const item = edisonStore.adminUpdateOpportunityVerification(
+          req.currentUser!,
+          req.params.id,
+          {
+            identityStatus: body.identityStatus,
+            identityNotes: typeof body.identityNotes === 'string' ? body.identityNotes : undefined,
+            organisationStatus: body.organisationStatus,
+            organisationNotes:
+              typeof body.organisationNotes === 'string' ? body.organisationNotes : undefined,
+            specificOpportunityStatus: body.specificOpportunityStatus,
+            specificOpportunityNotes:
+              typeof body.specificOpportunityNotes === 'string'
+                ? body.specificOpportunityNotes
+                : undefined,
+            targetStatus: body.targetStatus,
+            rejectionReason:
+              typeof body.rejectionReason === 'string' ? body.rejectionReason : undefined,
+          }
+        );
+        res.json({ item });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.get('/api/opportunity-complaints', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    res.json({ items: edisonStore.listOpportunityComplaintsForUser(req.currentUser!) });
+  });
+
+  app.post(
+    '/api/opportunities/:id/complaints',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const body = req.body ?? {};
+      const validReasons: OpportunityComplaintReason[] = [
+        'upfront_fee_scam',
+        'misleading_guarantee',
+        'expired_or_closed',
+        'broken_or_wrong_qr',
+        'fake_employer_or_listing',
+        'other',
+      ];
+      if (!validReasons.includes(body.reasonCategory)) {
+        res.status(400).json({ error: 'Invalid complaint reasonCategory.' });
+        return;
+      }
+      try {
+        const item = edisonStore.createOpportunityComplaint(req.currentUser!, req.params.id, {
+          reasonCategory: body.reasonCategory,
+          description: String(body.description ?? ''),
+          evidenceDetails: typeof body.evidenceDetails === 'string' ? body.evidenceDetails : '',
+        });
+        res.status(201).json({ item });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.patch(
+    '/api/admin/opportunity-complaints/:complaintId',
+    requireAdmin,
+    (req: AuthenticatedRequest, res: Response) => {
+      const body = req.body ?? {};
+      const validStatuses: OpportunityComplaintStatus[] = [
+        'reported',
+        'under_investigation',
+        'cleared',
+        'suspended',
+        'revoked',
+      ];
+      if (!validStatuses.includes(body.status)) {
+        res.status(400).json({ error: 'Invalid complaint status.' });
+        return;
+      }
+      try {
+        const result = edisonStore.adminUpdateComplaintStatus(
+          req.currentUser!,
+          req.params.complaintId,
+          {
+            status: body.status,
+            resolutionNotes: String(body.resolutionNotes ?? ''),
+          }
+        );
+        res.json(result);
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.get('/api/opportunity-appeals', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    res.json({ items: edisonStore.listOpportunityAppealsForUser(req.currentUser!) });
+  });
+
+  app.post(
+    '/api/opportunities/:id/appeals',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const body = req.body ?? {};
+      try {
+        const item = edisonStore.createOpportunityAppeal(req.currentUser!, req.params.id, {
+          reason: String(body.reason ?? ''),
+          additionalEvidence: String(body.additionalEvidence ?? ''),
+        });
+        res.status(201).json({ item });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.patch(
+    '/api/admin/opportunity-appeals/:appealId',
+    requireAdmin,
+    (req: AuthenticatedRequest, res: Response) => {
+      const body = req.body ?? {};
+      const validStatuses: OpportunityAppealStatus[] = [
+        'submitted',
+        'under_review',
+        'upheld_reinstated',
+        'denied',
+      ];
+      if (!validStatuses.includes(body.status)) {
+        res.status(400).json({ error: 'Invalid appeal decision status.' });
+        return;
+      }
+      try {
+        const result = edisonStore.adminResolveAppeal(req.currentUser!, req.params.appealId, {
+          status: body.status,
+          adminNotes: String(body.adminNotes ?? ''),
+        });
+        res.json(result);
       } catch (err) {
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });

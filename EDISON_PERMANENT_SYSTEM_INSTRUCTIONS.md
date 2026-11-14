@@ -13,9 +13,9 @@
   1. `Block 2.1` — Express/Vite server, locked atomic store (`data/edison-store.json`), Auth/RBAC, QR validator, `/r/:token` redirect engine — **`COMMITTED`**
   2. `Block 2.2` — Advertiser profiles, verification submission, support/dispute tickets, simulated rate-card estimates, 10-state Campaign Management — **`COMMITTED`**
   3. `Block 2.3` — Advertisement Creation Studio (Option A guided 16:9 builder + Option B external media upload, magic-byte validation, `jsQR` inspection, non-overwrite QR enforcement) — **`COMMITTED`**
-  4. `Block 2.4` — Full 16:9 Television Preview, Pre-Submission Approval Gate & Commercial-Break Simulator — **`IN PROGRESS`**
-  5. `Block 2.5` — Opportunity Submission & 3-Tier Verification — **`NEXT AUTHORISED BLOCK (LOCKED UNTIL BLOCK 2.4 COMMIT)`**
-  6. `Block 2.6` — Administration, Moderation Console & 7-Stage Analytics — **`NOT STARTED`**
+  4. `Block 2.4` — Full 16:9 Television Preview, Pre-Submission Approval Gate & Commercial-Break Simulator — **`COMMITTED`**
+  5. `Block 2.5` — Opportunity Submission, Independent 3-Tier Verification, Expiry, Complaints & Appeals — **`VERIFIED · AWAITING COMMIT`**
+  6. `Block 2.6` — Administration, Moderation Console & 7-Stage Analytics — **`NEXT AUTHORISED BLOCK (LOCKED UNTIL BLOCK 2.5 COMMIT)`**
   7. `Block 2.7` — Physical Mobile QR Scan Testing, Final Prototype QA & VS Code Handover Package — **`NOT STARTED`**
 
 ### Quick Re-Import Instructions (When Switching Google Accounts or Starting a New Session)
