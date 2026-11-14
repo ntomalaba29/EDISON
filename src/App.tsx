@@ -18,6 +18,7 @@ import {
   MonitorPlay,
   Briefcase,
   BarChart3,
+  Smartphone,
 } from 'lucide-react';
 import {
   ReportsView,
@@ -33,6 +34,7 @@ import { AdStudioView } from './components/AdStudioView';
 import { TvPreviewView, type TvPreviewSubTab } from './components/TvPreviewView';
 import { OpportunityView } from './components/OpportunityView';
 import { AdminAnalyticsView } from './components/AdminAnalyticsView';
+import { QaHandoverView } from './components/QaHandoverView';
 import { COMMIT_AND_NEXT_MESSAGE, copyTextWithFallback } from './components/CopyReportFooter';
 import { EDISON_DOCUMENTS } from './data/documents';
 import type { PublicUser } from './types/edison';
@@ -45,6 +47,7 @@ type NavTab =
   | 'tv_preview'
   | 'opportunities'
   | 'admin_analytics'
+  | 'qa_handover'
   | 'qr'
   | 'reports'
   | 'roadmap'
@@ -77,6 +80,7 @@ const PROTOTYPE_NAV: { id: NavTab; label: string; icon: typeof KeyRound }[] = [
   { id: 'tv_preview', label: 'TV Preview & Break Sim', icon: MonitorPlay },
   { id: 'opportunities', label: 'Opportunities & 3-Tier QA', icon: Briefcase },
   { id: 'admin_analytics', label: 'Moderation & Analytics', icon: BarChart3 },
+  { id: 'qa_handover', label: 'QR QA & VS Code Handover', icon: Smartphone },
   { id: 'qr', label: 'QR Redirect Engine', icon: QrCode },
 ];
 
@@ -90,7 +94,7 @@ const GOVERNANCE_NAV: { id: NavTab; label: string; icon: typeof ClipboardCheck }
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<NavTab>('admin_analytics');
+  const [activeTab, setActiveTab] = useState<NavTab>('qa_handover');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<PublicUser | null>(null);
   const [summary, setSummary] = useState<FoundationSummary | null>(null);
@@ -161,7 +165,7 @@ export default function App() {
         <nav className="p-3 space-y-5" aria-label="EDISON navigation">
           <div>
             <p className="px-3 mb-1.5 text-xs font-semibold text-slate-500">
-              Phase 2 Prototype · Block 2.6
+              Phase 2 Prototype · Block 2.7
             </p>
             <div className="space-y-1">
               {PROTOTYPE_NAV.map((item) => {
@@ -221,7 +225,7 @@ export default function App() {
         <div className="p-4 m-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-1">
           <p className="font-semibold text-slate-800">Prototype Boundary</p>
           <p className="leading-relaxed">
-            Block 2.6 adds Playable 16:9 Campaign Moderation, QR/Account Governance, Audit Logs, and 7-Stage Funnel Analytics separating simulated vs real HTTP 302 events. Zero real payments or Smart TV tuner hooks.
+            Block 2.7 adds Physical Mobile QR Scan Testing, Final Prototype Readiness Audit, and the 11-point VS Code Handover Package. Zero real payments or Smart TV tuner hooks.
           </p>
         </div>
       </aside>
@@ -243,7 +247,7 @@ export default function App() {
               <span className="text-slate-500 whitespace-nowrap">EDISON</span>
               <span className="text-slate-300" aria-hidden="true">/</span>
               <span className="text-slate-500 whitespace-nowrap hidden sm:inline">
-                {isPrototypeTab ? 'Phase 2 · Block 2.6' : 'Governance'}
+                {isPrototypeTab ? 'Phase 2 · Block 2.7' : 'Governance'}
               </span>
               <span className="text-slate-300 hidden sm:inline" aria-hidden="true">/</span>
               <h1 className="font-semibold text-slate-900 truncate">{currentItem.label}</h1>
@@ -351,6 +355,13 @@ export default function App() {
           )}
           {activeTab === 'admin_analytics' && (
             <AdminAnalyticsView
+              currentUser={currentUser}
+              onNavigateAuth={() => setActiveTab('auth')}
+              onSummaryRefresh={refreshAuthState}
+            />
+          )}
+          {activeTab === 'qa_handover' && (
+            <QaHandoverView
               currentUser={currentUser}
               onNavigateAuth={() => setActiveTab('auth')}
               onSummaryRefresh={refreshAuthState}

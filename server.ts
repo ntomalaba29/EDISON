@@ -176,7 +176,7 @@ async function startServer() {
     res.json({
       ok: true,
       service: 'edison-prototype-server',
-      phase: 'Phase 2 · Block 2.6',
+      phase: 'Phase 2 · Block 2.7',
       summary: edisonStore.getFoundationSummary(),
     });
   });
@@ -1027,6 +1027,72 @@ async function startServer() {
       res.status(code).json({ error: message });
     }
   });
+
+  // --- Physical Mobile QR Scan Testing & Final Prototype Readiness (Block 2.7) ---
+  app.get(
+    '/api/qa/prototype-readiness',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        res.json(edisonStore.getPrototypeReadinessSnapshot(req.currentUser!));
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.get('/api/qa/qr-watch/:token', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    try {
+      res.json(edisonStore.getQrWatchSnapshot(req.currentUser!, req.params.token));
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.get('/api/qa/physical-qr-tests', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    res.json({ items: edisonStore.listPhysicalQrScanTests(req.currentUser!) });
+  });
+
+  app.post('/api/qa/physical-qr-tests', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const body = req.body ?? {};
+    const osPlatform =
+      body.osPlatform === 'iOS' || body.osPlatform === 'Android' ? body.osPlatform : 'Other Mobile';
+    const outcome = body.outcome === 'failed' ? 'failed' : 'passed';
+    try {
+      const item = edisonStore.recordPhysicalQrScanTest(req.currentUser!, {
+        qrToken: String(body.qrToken ?? ''),
+        encodedRedirectUrl: String(body.encodedRedirectUrl ?? ''),
+        deviceModel: String(body.deviceModel ?? ''),
+        osPlatform,
+        cameraApp: String(body.cameraApp ?? ''),
+        outcome,
+        reachedRedirectEndpoint: Boolean(body.reachedRedirectEndpoint),
+        landedDestinationObserved: Boolean(body.landedDestinationObserved),
+        timeToScanSeconds: Number(body.timeToScanSeconds ?? 1.5),
+        notes: String(body.notes ?? ''),
+      });
+      res.status(201).json({ item });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.delete(
+    '/api/qa/physical-qr-tests/:id',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        edisonStore.deletePhysicalQrScanTest(req.currentUser!, req.params.id);
+        res.json({ ok: true });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
 
   // Admin-only Audit Log & Redirect Event Endpoints (RBAC Verification Targets)
   app.get('/api/admin/audit-logs', requireAdmin, (req: AuthenticatedRequest, res: Response) => {

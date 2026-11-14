@@ -454,10 +454,69 @@ export interface AuditLogRecord {
     | 'media_upload'
     | 'support_ticket'
     | 'opportunity'
+    | 'qa_handover'
     | 'system';
   targetId: string;
   detail: string;
   createdAt: string;
+}
+
+export interface PhysicalQrScanTestRecord {
+  id: string;
+  testerUserId: string;
+  testerEmail: string;
+  qrToken: string;
+  encodedRedirectUrl: string;
+  resolvedTargetUrl: string;
+  deviceModel: string;
+  osPlatform: 'iOS' | 'Android' | 'Other Mobile';
+  cameraApp: string;
+  testMode: 'physical_phone_camera';
+  outcome: 'passed' | 'failed';
+  reachedRedirectEndpoint: boolean;
+  landedDestinationObserved: boolean;
+  timeToScanSeconds: number;
+  observedRedirectIssuedAtLogTime: number;
+  notes: string;
+  createdAt: string;
+}
+
+export interface PrototypeQaCheckItem {
+  id: string;
+  block: string;
+  label: string;
+  status: 'pass' | 'warn' | 'fail' | 'pending_manual';
+  scope: 'automated_invariant' | 'manual_owner_device';
+  detail: string;
+}
+
+export interface PrototypeReadinessSnapshot {
+  generatedAt: string;
+  phase: string;
+  block: string;
+  automatedInvariantsPassed: number;
+  automatedInvariantsTotal: number;
+  physicalQrScanStatus: 'PENDING_OWNER_DEVICE_TEST' | 'VERIFIED_BY_OWNER_LOG';
+  physicalQrPassedCount: number;
+  physicalQrTotalCount: number;
+  checks: PrototypeQaCheckItem[];
+  physicalScanTests: PhysicalQrScanTestRecord[];
+  summary: {
+    userCount: number;
+    profileCount: number;
+    campaignCount: number;
+    activeCampaignCount: number;
+    adCreativeCount: number;
+    opportunityCount: number;
+    verifiedLiveOpportunityCount: number;
+    qrCount: number;
+    redirectRequestsTotal: number;
+    redirectIssuedTotal: number;
+    suspectedBotRedirects: number;
+    verifiedDestinationOpens: number;
+    simulatedEventsTotal: number;
+    auditLogCount: number;
+  };
 }
 
 export interface EdisonStoreData {
@@ -473,6 +532,7 @@ export interface EdisonStoreData {
   opportunityComplaints: OpportunityComplaintRecord[];
   opportunityAppeals: OpportunityAppealRecord[];
   analyticsEvents: AnalyticsEventRecord[];
+  physicalQrScanTests: PhysicalQrScanTestRecord[];
   auditLogs: AuditLogRecord[];
 }
 
@@ -503,6 +563,8 @@ export interface LiveReportSnapshot {
     verifiedDestinationOpens: number;
     verifiedConversionsTotal?: number;
     simulatedEventsTotal?: number;
+    physicalQrTestsCount?: number;
+    physicalQrPassedCount?: number;
     auditLogCount: number;
     storagePath: string;
   };

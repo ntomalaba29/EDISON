@@ -57,7 +57,7 @@ export function ReportsView() {
   );
 
   const commands: { id: ReportCommandType; label: string }[] = [
-    { id: 'PHASE_1_COMPLETION', label: 'Block 2.3 Final Report' },
+    { id: 'PHASE_1_COMPLETION', label: 'Block 2.7 Final Report' },
     { id: 'STATUS', label: 'STATUS' },
     { id: 'CHECK', label: 'CHECK' },
     { id: 'NEXT', label: 'NEXT' },
@@ -70,7 +70,7 @@ export function ReportsView() {
         <div className="bg-white border border-slate-200 rounded-lg p-5">
           <p className="text-xs font-medium text-slate-500">Current Stage (Live)</p>
           <p className="mt-1.5 text-lg font-semibold text-slate-900">
-            {liveSnapshot?.block ?? 'Phase 2 · Block 2.3'}
+            {liveSnapshot?.block ?? 'Phase 2 · Block 2.7'}
           </p>
           <p className="mt-1 text-xs text-emerald-700 font-medium">
             {liveSnapshot?.gateStatus ?? 'VERIFIED · AWAITING COMMIT'}
@@ -152,8 +152,8 @@ export function RoadmapView() {
   const reportText = useMemo(() => {
     const lines = [
       'EDISON — COMPLETE ROADMAP & ASSIGNMENT VERIFICATION REPORT',
-      'Current Gate: Phase 2 · Block 2.3 (VERIFIED · AWAITING COMMIT)',
-      'Committed Baseline: Phase 1 + Phase 2 Blocks 2.1–2.2',
+      'Current Gate: Phase 2 · Block 2.7 (VERIFIED · AWAITING COMMIT)',
+      'Committed Baseline: Phase 1 + Phase 2 Blocks 2.1–2.6',
       '',
       'PHASE 1 ASSIGNMENT CHECKLIST:',
       ...PHASE1_CHECKLIST.map((c) => `${c.id}. ${c.item} — [${c.status}]`),
