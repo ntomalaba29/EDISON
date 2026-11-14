@@ -267,6 +267,27 @@ export interface AdCreativeRecord {
   updatedAt: string;
 }
 
+export type PreSubmitCheckStatus = 'pass' | 'warn' | 'fail';
+
+export interface PreSubmitCheckItem {
+  id: string;
+  label: string;
+  status: PreSubmitCheckStatus;
+  detail: string;
+}
+
+export interface CampaignPreviewGateResult {
+  campaign: CampaignRecord;
+  creative: AdCreativeRecord | null;
+  qrLink: QrLinkRecord | null;
+  advertiserProfile: AdvertiserProfile | null;
+  readyToSubmit: boolean;
+  blockingErrors: string[];
+  warnings: string[];
+  requiresAdminQrReview: boolean;
+  checklist: PreSubmitCheckItem[];
+}
+
 export type OpportunityCategory =
   | 'permanent_employment'
   | 'temporary_employment'

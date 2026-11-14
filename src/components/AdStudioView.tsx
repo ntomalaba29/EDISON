@@ -17,6 +17,7 @@ import {
   RotateCcw,
   ShieldAlert,
   Trash2,
+  Tv,
   Upload,
 } from 'lucide-react';
 import type {
@@ -37,6 +38,9 @@ import { CopyReportFooter } from './CopyReportFooter';
 
 interface AdStudioProps {
   currentUser: PublicUser | null;
+  initialCreativeId?: string | null;
+  onConsumedInitialCreative?: () => void;
+  onPreviewCreative?: (creativeId: string) => void;
   onNavigateAuth: () => void;
   onSummaryRefresh: () => Promise<void>;
 }
@@ -620,6 +624,9 @@ async function inspectExternalVideo(
 
 export function AdStudioView({
   currentUser,
+  initialCreativeId = null,
+  onConsumedInitialCreative,
+  onPreviewCreative,
   onNavigateAuth,
   onSummaryRefresh,
 }: AdStudioProps) {
@@ -1075,7 +1082,7 @@ export function AdStudioView({
     }
   };
 
-  const handleLoadCreative = (crt: AdCreativeRecord) => {
+  const handleLoadCreative = useCallback((crt: AdCreativeRecord) => {
     setEditingId(crt.id);
     setCreativeTitle(crt.title);
     setCampaignId(crt.campaignId || '');
@@ -1093,7 +1100,16 @@ export function AdStudioView({
       setOptionB({ ...crt.optionB });
     }
     setSaveFeedback({ type: 'ok', text: `Loaded creative "${crt.title}" into Studio.` });
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!initialCreativeId || creatives.length === 0) return;
+    const match = creatives.find((c) => c.id === initialCreativeId);
+    if (match) {
+      handleLoadCreative(match);
+    }
+    onConsumedInitialCreative?.();
+  }, [initialCreativeId, creatives, handleLoadCreative, onConsumedInitialCreative]);
 
   const handleAttachCreative = async (crtId: string) => {
     const targetCmp = attachCampaignMap[crtId];
@@ -1208,6 +1224,16 @@ export function AdStudioView({
               Option B · External Upload
             </button>
           </div>
+          {onPreviewCreative && editingId && (
+            <button
+              type="button"
+              onClick={() => onPreviewCreative(editingId)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg cursor-pointer whitespace-nowrap"
+            >
+              <Tv className="w-3.5 h-3.5" />
+              <span>Preview on 16:9 TV</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={loadAll}
@@ -2376,6 +2402,19 @@ export function AdStudioView({
                       </div>
                     </td>
                     <td className="px-3.5 py-3 align-top text-right whitespace-nowrap space-x-2">
+                      {onPreviewCreative && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => onPreviewCreative(crt.id)}
+                            className="inline-flex items-center gap-1 text-emerald-700 hover:underline font-medium cursor-pointer"
+                          >
+                            <Tv className="w-3 h-3" />
+                            <span>TV Preview</span>
+                          </button>
+                          <span className="text-slate-300" aria-hidden="true">·</span>
+                        </>
+                      )}
                       <button
                         type="button"
                         onClick={() => handleLoadCreative(crt)}

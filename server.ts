@@ -168,7 +168,7 @@ async function startServer() {
     res.json({
       ok: true,
       service: 'edison-prototype-server',
-      phase: 'Phase 2 · Block 2.3',
+      phase: 'Phase 2 · Block 2.4',
       summary: edisonStore.getFoundationSummary(),
     });
   });
@@ -514,6 +514,36 @@ async function startServer() {
       const { code, message } = mapErrorStatus(err);
       res.status(code).json({ error: message });
     }
+  });
+
+  // --- 16:9 TV Preview Gate & Commercial-Break Simulator Telemetry (Block 2.4) ---
+  app.get(
+    '/api/campaigns/:id/preview-gate',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const gate = edisonStore.evaluateCampaignPreSubmitGate(req.currentUser!, req.params.id);
+        res.json({ gate });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.post('/api/simulator/events', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const { campaignId, qrToken, eventType } = req.body ?? {};
+    const allowedEvents = ['ad_requested', 'ad_delivered', 'ad_played', 'ad_viewable'];
+    if (!allowedEvents.includes(eventType)) {
+      res.status(400).json({ error: 'Invalid simulated eventType.' });
+      return;
+    }
+    const event = edisonStore.recordSimulatedPlaybackEvent(req.currentUser!, {
+      campaignId: typeof campaignId === 'string' && campaignId ? campaignId : null,
+      qrToken: typeof qrToken === 'string' && qrToken ? qrToken : null,
+      eventType,
+    });
+    res.status(201).json({ event });
   });
 
   // --- Advertisement Creation Studio Endpoints (Block 2.3) ---

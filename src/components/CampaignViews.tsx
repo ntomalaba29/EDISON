@@ -6,6 +6,7 @@ import {
   Copy,
   FileCheck2,
   LifeBuoy,
+  MonitorPlay,
   PauseCircle,
   PlayCircle,
   Plus,
@@ -863,11 +864,17 @@ export function AdvertiserProfileView({
 
 interface CampaignsProps {
   currentUser: PublicUser | null;
+  onOpenPreviewGate?: (campaignId: string) => void;
   onNavigateAuth: () => void;
   onSummaryRefresh: () => Promise<void>;
 }
 
-export function CampaignsView({ currentUser, onNavigateAuth, onSummaryRefresh }: CampaignsProps) {
+export function CampaignsView({
+  currentUser,
+  onOpenPreviewGate,
+  onNavigateAuth,
+  onSummaryRefresh,
+}: CampaignsProps) {
   const defaults = useMemo(() => defaultDateRange(), []);
 
   const [campaigns, setCampaigns] = useState<CampaignRecord[]>([]);
@@ -1520,6 +1527,16 @@ export function CampaignsView({ currentUser, onNavigateAuth, onSummaryRefresh }:
 
                         <td className="px-3.5 py-3 align-top text-right">
                           <div className="flex flex-wrap justify-end gap-2">
+                            {onOpenPreviewGate && (
+                              <button
+                                type="button"
+                                onClick={() => onOpenPreviewGate(c.id)}
+                                className="inline-flex items-center gap-1 text-emerald-700 hover:underline font-medium cursor-pointer"
+                              >
+                                <MonitorPlay className="w-3 h-3" />
+                                <span>Pre-Submit TV Gate</span>
+                              </button>
+                            )}
                             {(c.status === 'draft' || c.status === 'rejected') && (
                               <button
                                 type="button"

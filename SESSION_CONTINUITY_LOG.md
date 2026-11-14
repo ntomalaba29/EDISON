@@ -32,3 +32,11 @@
 - **Committed Baseline**: Phase 1 + Phase 2 Block 2.1 + Phase 2 Block 2.2
 - **Current Checkpoint**: Phase 2 · Stage 2.3 · Block 2.3 (`VERIFIED · AWAITING COMMIT`) — plus import-restoration & governance continuity updates
 - **Next Authorised Block (Locked until Commit Confirmation)**: **Block 2.4 — Full 16:9 Television Preview, Pre-Submission Approval Gate & Commercial-Break Simulator**
+
+---
+
+## Session Entry — 2026-11-14 (Owner `"Next" = Committed` Rule & Block 2.4 Start)
+
+- **Owner Directive (`ADR-010`)**: Project Owner confirmed Block 2.3 committed (`"Next"`) and established the rule that saying `"Next"` confirms the preceding block was committed to GitHub.
+- **Unlocked & Active Block**: **Phase 2 · Stage 2.4 · Block 2.4** — Full 16:9 Television Preview Player, Pre-Submission Approval Gate (`POST /api/campaigns/:id/transition` + `GET /api/campaigns/:id/preview-gate`), and explicitly labelled Commercial-Break Simulator (`SIMULATION — NOT LIVE BROADCAST TUNER`).
+

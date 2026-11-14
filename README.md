@@ -1,6 +1,6 @@
 # EDISON — International Smart TV Advertising & Opportunity Network
 
-**[STATUS: PHASE 2 — AI STUDIO FUNCTIONAL PROTOTYPE · BLOCK 2.3 AWAITING COMMIT · NEXT: BLOCK 2.4]**  
+**[STATUS: PHASE 2 — AI STUDIO FUNCTIONAL PROTOTYPE · BLOCK 2.4 (TV PREVIEW & SIMULATOR)]**  
 **[REPOSITORY PATH: `Malaba29/EDISON-International-Smart-TV-Advertising-Network-`]**
 
 EDISON is an international television advertising and verified opportunity network designed to display QR-enabled advertisements on compatible Smart TVs during suitable commercial breaks, connecting television viewers directly to advertiser destinations and legitimate employment, education, training, grant, and tender opportunities via mobile QR scanning.

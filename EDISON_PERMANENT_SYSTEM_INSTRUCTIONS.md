@@ -12,9 +12,9 @@
 - **Phase 2 Sequential Block Path**:
   1. `Block 2.1` — Express/Vite server, locked atomic store (`data/edison-store.json`), Auth/RBAC, QR validator, `/r/:token` redirect engine — **`COMMITTED`**
   2. `Block 2.2` — Advertiser profiles, verification submission, support/dispute tickets, simulated rate-card estimates, 10-state Campaign Management — **`COMMITTED`**
-  3. `Block 2.3` — Advertisement Creation Studio (Option A guided 16:9 builder + Option B external media upload, magic-byte validation, `jsQR` inspection, non-overwrite QR enforcement) — **`VERIFIED · AWAITING COMMIT`**
-  4. `Block 2.4` — Full 16:9 Television Preview, Pre-Submission Approval Gate & Commercial-Break Simulator — **`NEXT AUTHORISED BLOCK (LOCKED UNTIL BLOCK 2.3 COMMIT CONFIRMATION)`**
-  5. `Block 2.5` — Opportunity Submission & 3-Tier Verification — **`NOT STARTED`**
+  3. `Block 2.3` — Advertisement Creation Studio (Option A guided 16:9 builder + Option B external media upload, magic-byte validation, `jsQR` inspection, non-overwrite QR enforcement) — **`COMMITTED`**
+  4. `Block 2.4` — Full 16:9 Television Preview, Pre-Submission Approval Gate & Commercial-Break Simulator — **`IN PROGRESS`**
+  5. `Block 2.5` — Opportunity Submission & 3-Tier Verification — **`NEXT AUTHORISED BLOCK (LOCKED UNTIL BLOCK 2.4 COMMIT)`**
   6. `Block 2.6` — Administration, Moderation Console & 7-Stage Analytics — **`NOT STARTED`**
   7. `Block 2.7` — Physical Mobile QR Scan Testing, Final Prototype QA & VS Code Handover Package — **`NOT STARTED`**
 
@@ -127,7 +127,7 @@ Every implementation block requires a commit checkpoint:
 `IMPLEMENTATION -> VERIFICATION -> REPORT -> OWNER REVIEW -> MANUAL COMMIT -> OWNER CONFIRMATION -> NEXT BLOCK`
 
 - Mark completed blocks `AWAITING COMMIT`.
-- Do not assume a commit has happened. Saying `"Next"` alone does not prove a commit; require explicit confirmation (e.g., clicking **`Commit & Next`** which copies `"Committed to GitHub. Please proceed to the next block."`).
+- **Project Owner Override Rule (2026-11-14)**: When the Project Owner replies with `"Next"` (or `"Committed, next"` / `"Committed to GitHub..."`), that explicit instruction confirms the preceding block was committed to GitHub and authorises unlocking the next sequential block (`ADR-010`).
 - Never use destructive Git commands, never overwrite unrelated work, never access or stage secrets or `.env` files or runtime `/data/edison-store.json`.
 
 ---

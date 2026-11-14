@@ -12,6 +12,7 @@ import type {
   AuditLogRecord,
   BillingEstimateSummary,
   CampaignContentCategory,
+  CampaignPreviewGateResult,
   CampaignRecord,
   CampaignStatus,
   DaypartSlot,
@@ -19,6 +20,7 @@ import type {
   LiveReportSnapshot,
   OptionAComposition,
   OptionBUploadSpec,
+  PreSubmitCheckItem,
   PublicUser,
   QrDestinationType,
   QrLinkRecord,
@@ -248,7 +250,7 @@ function buildSeedCampaigns(now: string): CampaignRecord[] {
       contentCategory: 'commercial_advertising',
       summary: 'Direct-to-store QR offer for smart home appliances during evening entertainment breaks.',
       qrToken: 'edison-demo',
-      adCreativeRef: null,
+      adCreativeRef: 'crt_seed_01',
       durationSeconds: 30,
       dailyFrequencyCap: 4,
       targetRegions: ['United Kingdom · National', 'Ireland · Metro'],
@@ -306,7 +308,7 @@ function buildSeedCampaigns(now: string): CampaignRecord[] {
       contentCategory: 'opportunity_promotion',
       summary: 'Zero-fee apprenticeship recruitment spot linking viewers directly to official intake form.',
       qrToken: 'job-demo',
-      adCreativeRef: null,
+      adCreativeRef: 'crt_seed_02',
       durationSeconds: 30,
       dailyFrequencyCap: 3,
       targetRegions: ['United Kingdom · North West'],
@@ -600,12 +602,12 @@ function normalizeStoreData(parsed: EdisonStoreData): EdisonStoreData {
   const adCreatives =
     existingCreatives.length > 0 ? existingCreatives : buildSeedAdCreatives(now);
 
-  // Backfill adCreativeRef on seed campaigns if upgrading from schema v3
-  if (existingCreatives.length === 0) {
-    for (const c of campaigns) {
-      if (c.id === 'cmp_seed_01' && !c.adCreativeRef) c.adCreativeRef = 'crt_seed_01';
-      if (c.id === 'cmp_seed_03' && !c.adCreativeRef) c.adCreativeRef = 'crt_seed_02';
-    }
+  // Backfill adCreativeRef on seed campaigns if missing
+  const hasSeed1 = adCreatives.some((cr) => cr.id === 'crt_seed_01');
+  const hasSeed2 = adCreatives.some((cr) => cr.id === 'crt_seed_02');
+  for (const c of campaigns) {
+    if (c.id === 'cmp_seed_01' && !c.adCreativeRef && hasSeed1) c.adCreativeRef = 'crt_seed_01';
+    if (c.id === 'cmp_seed_03' && !c.adCreativeRef && hasSeed2) c.adCreativeRef = 'crt_seed_02';
   }
 
   const existingTickets = Array.isArray(parsed.supportTickets) ? parsed.supportTickets : [];
@@ -1634,7 +1636,14 @@ class EdisonPrototypeStore {
             `Attached QR redirect link must be active before transitioning to "${targetStatus}".`
           );
         }
-        if (target.adCreativeRef) {
+        if (targetStatus === 'submitted') {
+          const gate = this.computePreviewGateFromData(draft, target);
+          if (!gate.readyToSubmit) {
+            throw new Error(
+              `Pre-Submission Preview Gate blocked submission: ${gate.blockingErrors[0]}`
+            );
+          }
+        } else if (target.adCreativeRef) {
           const creative = draft.adCreatives.find((cr) => cr.id === target.adCreativeRef);
           if (creative?.optionB?.qrInspectionStatus === 'decoded_mismatch') {
             throw new Error(
@@ -2094,6 +2103,271 @@ class EdisonPrototypeStore {
     });
   }
 
+  private computePreviewGateFromData(
+    data: EdisonStoreData,
+    campaign: CampaignRecord
+  ): CampaignPreviewGateResult {
+    const qrLink = campaign.qrToken
+      ? data.qrLinks.find((q) => q.token === campaign.qrToken) ?? null
+      : null;
+    const creative = campaign.adCreativeRef
+      ? data.adCreatives.find((cr) => cr.id === campaign.adCreativeRef) ?? null
+      : data.adCreatives.find((cr) => cr.campaignId === campaign.id) ?? null;
+    const advertiserProfile =
+      data.advertiserProfiles.find((p) => p.userId === campaign.ownerId) ?? null;
+
+    const blockingErrors: string[] = [];
+    const warnings: string[] = [];
+    const checklist: PreSubmitCheckItem[] = [];
+    let requiresAdminQrReview = false;
+
+    // 1. Category & Metadata Check
+    if (!campaign.title.trim() || campaign.summary.trim().length < 10) {
+      blockingErrors.push('Campaign title and summary (min 10 chars) are required.');
+      checklist.push({
+        id: 'metadata',
+        label: 'Campaign Metadata & Category Classification',
+        status: 'fail',
+        detail: 'Missing complete campaign title or summary.',
+      });
+    } else {
+      checklist.push({
+        id: 'metadata',
+        label: 'Campaign Metadata & Category Classification',
+        status: 'pass',
+        detail: `${
+          campaign.contentCategory === 'opportunity_promotion'
+            ? 'Opportunity Promotion'
+            : 'Commercial Advertising'
+        } · ${campaign.durationSeconds}s · ${campaign.startDate} to ${campaign.endDate}`,
+      });
+    }
+
+    // 2. QR Link & Destination Check
+    if (!qrLink) {
+      blockingErrors.push('No validated EDISON QR redirect link (/r/:token) attached.');
+      checklist.push({
+        id: 'qr_link',
+        label: 'QR Destination & Active Redirect Link',
+        status: 'fail',
+        detail: 'Attach an active /r/:token QR link before submitting.',
+      });
+    } else if (qrLink.status !== 'active') {
+      blockingErrors.push(`Attached QR link /r/${qrLink.token} is currently "${qrLink.status}".`);
+      checklist.push({
+        id: 'qr_link',
+        label: 'QR Destination & Active Redirect Link',
+        status: 'fail',
+        detail: `/r/${qrLink.token} status is ${qrLink.status}; only active QR links can submit.`,
+      });
+    } else {
+      checklist.push({
+        id: 'qr_link',
+        label: 'QR Destination & Active Redirect Link',
+        status: 'pass',
+        detail: `/r/${qrLink.token} -> ${qrLink.resolvedUrl}`,
+      });
+    }
+
+    // 3. Attached Advertisement Creative & Media Compatibility Check
+    if (!creative) {
+      blockingErrors.push(
+        'No advertisement creative attached. Create or attach an Option A or Option B creative first.'
+      );
+      checklist.push({
+        id: 'creative',
+        label: '16:9 Advertisement Creative & Media Compatibility',
+        status: 'fail',
+        detail: 'Attach an Option A Studio or Option B uploaded spot.',
+      });
+    } else if (creative.mode === 'option_a_studio') {
+      const optA = creative.optionA;
+      const qrBlockVisible = Boolean(
+        optA?.elements.some((el) => el.kind === 'qr_block' && el.visible)
+      );
+      if (!optA || !optA.heading.trim() || !qrBlockVisible) {
+        blockingErrors.push(
+          'Option A Studio composition requires a main headline and a visible QR code block.'
+        );
+        checklist.push({
+          id: 'creative',
+          label: '16:9 Advertisement Creative & Media Compatibility',
+          status: 'fail',
+          detail: 'Option A creative is missing headline or visible QR overlay block.',
+        });
+      } else {
+        checklist.push({
+          id: 'creative',
+          label: '16:9 Advertisement Creative & Media Compatibility',
+          status: 'pass',
+          detail: `Option A Studio (${optA.templateId}) · ${creative.displayDurationSeconds}s`,
+        });
+      }
+    } else {
+      const optB = creative.optionB;
+      if (!optB) {
+        blockingErrors.push('Option B external creative is missing media payload.');
+        checklist.push({
+          id: 'creative',
+          label: '16:9 Advertisement Creative & Media Compatibility',
+          status: 'fail',
+          detail: 'Upload a valid 16:9 PNG/JPG/WebP/MP4/WebM file.',
+        });
+      } else if (optB.validationErrors.length > 0) {
+        blockingErrors.push(optB.validationErrors[0]);
+        checklist.push({
+          id: 'creative',
+          label: '16:9 Advertisement Creative & Media Compatibility',
+          status: 'fail',
+          detail: optB.validationErrors.join(' '),
+        });
+      } else if (!optB.contentAttested) {
+        blockingErrors.push('Option B broadcast/copyright attestation must be confirmed.');
+        checklist.push({
+          id: 'creative',
+          label: '16:9 Advertisement Creative & Media Compatibility',
+          status: 'fail',
+          detail: 'Rights & accuracy attestation unchecked.',
+        });
+      } else if (optB.qrInspectionStatus === 'decoded_mismatch') {
+        blockingErrors.push(
+          `Embedded QR ("${optB.decodedQrPayload}") mismatches /r/${campaign.qrToken}. Non-overwrite rule blocks submission.`
+        );
+        checklist.push({
+          id: 'creative',
+          label: '16:9 Advertisement Creative & Media Compatibility',
+          status: 'fail',
+          detail: `Embedded QR mismatch (${optB.decodedQrPayload}).`,
+        });
+      } else if (optB.qrInspectionStatus === 'none_found' && !optB.qrOverlayConfirmed) {
+        blockingErrors.push(
+          'Uploaded asset has no detected QR code; confirm the EDISON safe-corner QR overlay in Studio.'
+        );
+        checklist.push({
+          id: 'creative',
+          label: '16:9 Advertisement Creative & Media Compatibility',
+          status: 'fail',
+          detail: 'No QR detected and EDISON corner overlay not yet confirmed.',
+        });
+      } else if (optB.qrInspectionStatus === 'suspected_unreadable') {
+        requiresAdminQrReview = true;
+        warnings.push(
+          'Asset flagged as suspected_unreadable QR: queued for mandatory Admin human inspection.'
+        );
+        checklist.push({
+          id: 'creative',
+          label: '16:9 Advertisement Creative & Media Compatibility',
+          status: 'warn',
+          detail: `${optB.aspectRatioLabel} · Flagged for mandatory Admin QR review`,
+        });
+      } else {
+        checklist.push({
+          id: 'creative',
+          label: '16:9 Advertisement Creative & Media Compatibility',
+          status: 'pass',
+          detail: `${optB.aspectRatioLabel} · QR=${optB.qrInspectionStatus}`,
+        });
+      }
+    }
+
+    // 4. TV Readability & Safe-Zone Advisories
+    const readabilityWarnings = [
+      ...(creative?.contrastWarnings ?? []),
+      ...(creative?.safeZoneWarnings ?? []),
+    ];
+    if (readabilityWarnings.length > 0) {
+      warnings.push(...readabilityWarnings);
+      checklist.push({
+        id: 'readability',
+        label: '16:9 Television Readability & 5% Title-Safe Margin',
+        status: 'warn',
+        detail: `${readabilityWarnings.length} readability/safe-zone warning(s) flagged for review.`,
+      });
+    } else if (creative) {
+      checklist.push({
+        id: 'readability',
+        label: '16:9 Television Readability & 5% Title-Safe Margin',
+        status: 'pass',
+        detail: 'No contrast or 5% title-safe overscan warnings.',
+      });
+    }
+
+    // 5. Opportunity & Profile Governance Check
+    if (campaign.contentCategory === 'opportunity_promotion') {
+      warnings.push(
+        'Opportunity Spot Notice: 3-tier verification (Block 2.5) and non-guarantee disclaimer apply independently of any ad spend.'
+      );
+      checklist.push({
+        id: 'opportunity_notice',
+        label: 'Opportunity Verification & Non-Guarantee Policy',
+        status: 'warn',
+        detail: 'Non-guarantee disclaimer rendered; independent opportunity verification required prior to live broadcast.',
+      });
+    } else {
+      checklist.push({
+        id: 'advertiser_profile',
+        label: 'Advertiser Profile & Verification Standing',
+        status: advertiserProfile?.verificationStatus === 'verified' ? 'pass' : 'warn',
+        detail: advertiserProfile
+          ? `${advertiserProfile.businessOrTradingName} (${advertiserProfile.verificationStatus})`
+          : 'Complete Advertiser Profile recommended prior to admin approval.',
+      });
+    }
+
+    return {
+      campaign: { ...campaign },
+      creative: creative ? { ...creative } : null,
+      qrLink: qrLink ? { ...qrLink } : null,
+      advertiserProfile: advertiserProfile ? { ...advertiserProfile } : null,
+      readyToSubmit: blockingErrors.length === 0,
+      blockingErrors,
+      warnings,
+      requiresAdminQrReview,
+      checklist,
+    };
+  }
+
+  evaluateCampaignPreSubmitGate(
+    actor: PublicUser,
+    campaignId: string
+  ): CampaignPreviewGateResult {
+    this.syncIfDiskNewer();
+    const campaign = this.data.campaigns.find((c) => c.id === campaignId);
+    if (!campaign) {
+      throw new Error('Campaign not found.');
+    }
+    if (actor.role !== 'admin' && campaign.ownerId !== actor.id) {
+      throw new Error('FORBIDDEN: You do not own this campaign.');
+    }
+    return this.computePreviewGateFromData(this.data, campaign);
+  }
+
+  recordSimulatedPlaybackEvent(
+    actor: PublicUser,
+    input: {
+      campaignId?: string | null;
+      qrToken?: string | null;
+      eventType: 'ad_requested' | 'ad_delivered' | 'ad_played' | 'ad_viewable';
+    }
+  ): AnalyticsEventRecord {
+    return this.withWriteTransaction((draft) => {
+      const ev: AnalyticsEventRecord = {
+        id: `evt_sim_${crypto.randomBytes(5).toString('hex')}`,
+        qrToken: input.qrToken ?? null,
+        campaignId: input.campaignId ?? null,
+        eventType: input.eventType,
+        measurementSource: 'simulated_prototype',
+        dedupKey: `sim:${actor.id}:${input.eventType}:${Date.now()}`,
+        createdAt: new Date().toISOString(),
+      };
+      draft.analyticsEvents.unshift(ev);
+      if (draft.analyticsEvents.length > 2000) {
+        draft.analyticsEvents.length = 2000;
+      }
+      return { ...ev };
+    });
+  }
+
   listAuditLogs(): AuditLogRecord[] {
     this.syncIfDiskNewer();
     return [...this.data.auditLogs];
@@ -2155,9 +2429,9 @@ class EdisonPrototypeStore {
     return {
       generatedAt: new Date().toISOString(),
       phase: 'Phase 2 — AI Studio Functional Prototype',
-      stage: 'Stage 2.3 — Advertisement Creation Studio (Option A & Option B)',
-      block: 'Block 2.3 (Verified)',
-      gateStatus: 'VERIFIED · AWAITING COMMIT (RECOMMEND COMMIT)',
+      stage: 'Stage 2.4 — Full 16:9 TV Preview, Pre-Submit Gate & Break Simulator',
+      block: 'Block 2.4 (Verified)',
+      gateStatus: 'VERIFIED · AWAITING COMMIT',
       latestAuditAt: latestAudit?.createdAt ?? null,
       latestAuditAction: latestAudit?.action ?? null,
       campaignStatusBreakdown: breakdown,
