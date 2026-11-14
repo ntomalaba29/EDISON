@@ -73,6 +73,88 @@ export type CampaignStatus =
   | 'completed'
   | 'expired';
 
+export type AdvertiserEntityType = 'registered_business' | 'individual_sole_trader' | 'public_ngo';
+
+export interface AdvertiserProfile {
+  userId: string;
+  entityType: AdvertiserEntityType;
+  businessOrTradingName: string;
+  registrationOrTaxId: string;
+  industryCategory: string;
+  countryCode: string;
+  cityRegion: string;
+  physicalAddress: string;
+  primaryContactName: string;
+  primaryContactEmail: string;
+  primaryContactPhone: string;
+  billingContactName: string;
+  billingContactEmail: string;
+  websiteUrl: string;
+  verificationStatus: AccountVerificationStatus;
+  verificationNotes: string;
+  isPrototypeSeed: boolean;
+  updatedAt: string;
+}
+
+export type CampaignContentCategory = 'commercial_advertising' | 'opportunity_promotion';
+
+export type DaypartSlot = 'morning' | 'daytime' | 'primetime' | 'late_night' | 'all_day';
+
+export interface BillingEstimateSummary {
+  model: 'simulated_cpm_flat_rate';
+  currency: 'USD';
+  estimatedSpots: number;
+  estimatedRatePerSpotUsd: number;
+  estimatedTotalUsd: number;
+  paymentCollectionActive: false;
+  disclaimer: string;
+}
+
+export interface CampaignRecord {
+  id: string;
+  ownerId: string;
+  title: string;
+  contentCategory: CampaignContentCategory;
+  summary: string;
+  qrToken: string | null;
+  adCreativeRef: string | null;
+  durationSeconds: number;
+  dailyFrequencyCap: number;
+  targetRegions: string[];
+  dayparts: DaypartSlot[];
+  startDate: string;
+  endDate: string;
+  status: CampaignStatus;
+  rejectionReason: string | null;
+  fixInstructions: string | null;
+  simulatedEstimate: BillingEstimateSummary;
+  isPrototypeSeed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SupportTicketStatus = 'open' | 'in_review' | 'resolved' | 'closed';
+
+export type SupportTicketCategory =
+  | 'campaign_review'
+  | 'verification_enquiry'
+  | 'qr_technical'
+  | 'billing_dispute'
+  | 'policy_appeal';
+
+export interface SupportTicketRecord {
+  id: string;
+  ownerId: string;
+  campaignId: string | null;
+  category: SupportTicketCategory;
+  subject: string;
+  message: string;
+  status: SupportTicketStatus;
+  adminResponse: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type OpportunityCategory =
   | 'permanent_employment'
   | 'temporary_employment'
@@ -124,7 +206,7 @@ export interface AuditLogRecord {
   actorId: string | null;
   actorRole: UserRole | 'anonymous' | 'system';
   action: string;
-  targetType: 'auth' | 'qr_link' | 'campaign' | 'opportunity' | 'system';
+  targetType: 'auth' | 'qr_link' | 'advertiser_profile' | 'campaign' | 'support_ticket' | 'opportunity' | 'system';
   targetId: string;
   detail: string;
   createdAt: string;
@@ -135,6 +217,9 @@ export interface EdisonStoreData {
   users: UserAccount[];
   sessions: SessionRecord[];
   qrLinks: QrLinkRecord[];
+  advertiserProfiles: AdvertiserProfile[];
+  campaigns: CampaignRecord[];
+  supportTickets: SupportTicketRecord[];
   analyticsEvents: AnalyticsEventRecord[];
   auditLogs: AuditLogRecord[];
 }

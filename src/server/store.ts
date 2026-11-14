@@ -2,14 +2,25 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import type {
+  AccountVerificationStatus,
+  AdvertiserEntityType,
+  AdvertiserProfile,
   AnalyticsEventRecord,
   AuditLogRecord,
+  BillingEstimateSummary,
+  CampaignContentCategory,
+  CampaignRecord,
+  CampaignStatus,
+  DaypartSlot,
   EdisonStoreData,
   PublicUser,
   QrDestinationType,
   QrLinkRecord,
   QrLinkStatus,
   SessionRecord,
+  SupportTicketCategory,
+  SupportTicketRecord,
+  SupportTicketStatus,
   UserAccount,
   UserRole,
 } from '../types/edison.ts';
@@ -50,6 +61,74 @@ const BOT_USER_AGENT_PATTERNS = [
   /^undici/i,
   /go-http-client/i,
 ];
+
+export const ALL_CAMPAIGN_STATUSES: readonly CampaignStatus[] = [
+  'draft',
+  'submitted',
+  'under_review',
+  'approved',
+  'rejected',
+  'scheduled',
+  'active',
+  'paused',
+  'completed',
+  'expired',
+] as const;
+
+export const ALLOWED_CAMPAIGN_TRANSITIONS: Record<CampaignStatus, CampaignStatus[]> = {
+  draft: ['submitted', 'expired'],
+  submitted: ['under_review', 'approved', 'rejected', 'draft', 'expired'],
+  under_review: ['approved', 'rejected', 'draft'],
+  approved: ['scheduled', 'active', 'paused', 'expired'],
+  rejected: ['draft', 'submitted'],
+  scheduled: ['active', 'paused', 'completed', 'expired'],
+  active: ['paused', 'completed', 'expired'],
+  paused: ['active', 'scheduled', 'completed', 'expired'],
+  completed: [],
+  expired: ['draft'],
+};
+
+const ADMIN_ONLY_TARGET_STATUSES: ReadonlySet<CampaignStatus> = new Set([
+  'under_review',
+  'approved',
+  'rejected',
+]);
+
+export function computeSimulatedBillingEstimate(params: {
+  durationSeconds: number;
+  dailyFrequencyCap: number;
+  startDate: string;
+  endDate: string;
+  targetRegions: string[];
+  dayparts: DaypartSlot[];
+}): BillingEstimateSummary {
+  const startMs = Date.parse(params.startDate);
+  const endMs = Date.parse(params.endDate);
+  const days =
+    Number.isFinite(startMs) && Number.isFinite(endMs) && endMs >= startMs
+      ? Math.max(1, Math.round((endMs - startMs) / (1000 * 60 * 60 * 24)) + 1)
+      : 7;
+
+  const regionFactor = Math.max(1, params.targetRegions.length);
+  const spotsPerDay = Math.max(1, params.dailyFrequencyCap) * regionFactor;
+  const estimatedSpots = days * spotsPerDay;
+
+  const durationMultiplier = Math.max(0.5, params.durationSeconds / 15);
+  const primetimeMultiplier = params.dayparts.includes('primetime') || params.dayparts.includes('all_day') ? 1.35 : 1.0;
+  const estimatedRatePerSpotUsd = Number((4.5 * durationMultiplier * primetimeMultiplier).toFixed(2));
+  const estimatedTotalUsd = Number((estimatedSpots * estimatedRatePerSpotUsd).toFixed(2));
+
+  return {
+    model: 'simulated_cpm_flat_rate',
+    currency: 'USD',
+    estimatedSpots,
+    estimatedRatePerSpotUsd,
+    estimatedTotalUsd,
+    paymentCollectionActive: false,
+    disclaimer:
+      'SIMULATED PROTOTYPE ESTIMATE ONLY — No real billing, card processing, or commercial invoices are active in Phase 2.',
+  };
+}
 
 export function detectSuspectedBotOrPrefetch(
   userAgent: string,
@@ -97,6 +176,201 @@ export function toPublicUser(user: UserAccount): PublicUser {
   return rest;
 }
 
+function isoDateDaysFromNow(offsetDays: number): string {
+  const d = new Date(Date.now() + offsetDays * 86400 * 1000);
+  return d.toISOString().slice(0, 10);
+}
+
+function buildSeedAdvertiserProfiles(now: string): AdvertiserProfile[] {
+  return [
+    {
+      userId: 'usr_seed_adv_01',
+      entityType: 'registered_business',
+      businessOrTradingName: 'Northstar Retail Group (Prototype Seed)',
+      registrationOrTaxId: 'PROTO-REG-88412',
+      industryCategory: 'Retail & Consumer Goods',
+      countryCode: 'GB',
+      cityRegion: 'London / South East',
+      physicalAddress: '14 Harbour Way, London E14 (Sample Address)',
+      primaryContactName: 'Clara Vance',
+      primaryContactEmail: 'advertiser@edison.demo',
+      primaryContactPhone: '+442079460192',
+      billingContactName: 'Northstar Accounts Payable',
+      billingContactEmail: 'billing@northstar.example',
+      websiteUrl: 'https://example.org/northstar-retail',
+      verificationStatus: 'verified',
+      verificationNotes: 'Prototype seed advertiser profile verified for demonstration workflows.',
+      isPrototypeSeed: true,
+      updatedAt: now,
+    },
+    {
+      userId: 'usr_seed_opp_01',
+      entityType: 'public_ngo',
+      businessOrTradingName: 'Civic Skills Academy (Prototype Seed)',
+      registrationOrTaxId: 'PROTO-CHARITY-4410',
+      industryCategory: 'Education & Apprenticeships',
+      countryCode: 'GB',
+      cityRegion: 'Manchester / North West',
+      physicalAddress: '8 Foundry Street, Manchester M1 (Sample Address)',
+      primaryContactName: 'Samuel Okafor',
+      primaryContactEmail: 'employer@edison.demo',
+      primaryContactPhone: '+441614960311',
+      billingContactName: 'Civic Grants Office',
+      billingContactEmail: 'grants@civicskills.example',
+      websiteUrl: 'https://example.org/civic-skills',
+      verificationStatus: 'verified',
+      verificationNotes: 'Prototype seed opportunity provider account.',
+      isPrototypeSeed: true,
+      updatedAt: now,
+    },
+  ];
+}
+
+function buildSeedCampaigns(now: string): CampaignRecord[] {
+  const startActive = isoDateDaysFromNow(-2);
+  const endActive = isoDateDaysFromNow(28);
+  const startFuture = isoDateDaysFromNow(10);
+  const endFuture = isoDateDaysFromNow(40);
+  const startPast = isoDateDaysFromNow(-30);
+  const endPast = isoDateDaysFromNow(-5);
+
+  return [
+    {
+      id: 'cmp_seed_01',
+      ownerId: 'usr_seed_adv_01',
+      title: 'Northstar Autumn Homeware Launch (Prototype Seed)',
+      contentCategory: 'commercial_advertising',
+      summary: 'Direct-to-store QR offer for smart home appliances during evening entertainment breaks.',
+      qrToken: 'edison-demo',
+      adCreativeRef: null,
+      durationSeconds: 30,
+      dailyFrequencyCap: 4,
+      targetRegions: ['United Kingdom · National', 'Ireland · Metro'],
+      dayparts: ['primetime', 'daytime'],
+      startDate: startActive,
+      endDate: endActive,
+      status: 'active',
+      rejectionReason: null,
+      fixInstructions: null,
+      simulatedEstimate: computeSimulatedBillingEstimate({
+        durationSeconds: 30,
+        dailyFrequencyCap: 4,
+        startDate: startActive,
+        endDate: endActive,
+        targetRegions: ['United Kingdom · National', 'Ireland · Metro'],
+        dayparts: ['primetime', 'daytime'],
+      }),
+      isPrototypeSeed: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'cmp_seed_02',
+      ownerId: 'usr_seed_adv_01',
+      title: 'Weekend Flash Clearance Spot (Prototype Seed)',
+      contentCategory: 'commercial_advertising',
+      summary: 'Short 15-second commercial break reminder awaiting moderator creative inspection.',
+      qrToken: 'edison-demo',
+      adCreativeRef: null,
+      durationSeconds: 15,
+      dailyFrequencyCap: 6,
+      targetRegions: ['United Kingdom · Midlands'],
+      dayparts: ['morning', 'daytime'],
+      startDate: startFuture,
+      endDate: endFuture,
+      status: 'submitted',
+      rejectionReason: null,
+      fixInstructions: null,
+      simulatedEstimate: computeSimulatedBillingEstimate({
+        durationSeconds: 15,
+        dailyFrequencyCap: 6,
+        startDate: startFuture,
+        endDate: endFuture,
+        targetRegions: ['United Kingdom · Midlands'],
+        dayparts: ['morning', 'daytime'],
+      }),
+      isPrototypeSeed: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'cmp_seed_03',
+      ownerId: 'usr_seed_opp_01',
+      title: 'Civic Skills Electrical Apprenticeship Broadcast (Prototype Seed)',
+      contentCategory: 'opportunity_promotion',
+      summary: 'Zero-fee apprenticeship recruitment spot linking viewers directly to official intake form.',
+      qrToken: 'job-demo',
+      adCreativeRef: null,
+      durationSeconds: 30,
+      dailyFrequencyCap: 3,
+      targetRegions: ['United Kingdom · North West'],
+      dayparts: ['daytime', 'primetime'],
+      startDate: startFuture,
+      endDate: endFuture,
+      status: 'scheduled',
+      rejectionReason: null,
+      fixInstructions: null,
+      simulatedEstimate: computeSimulatedBillingEstimate({
+        durationSeconds: 30,
+        dailyFrequencyCap: 3,
+        startDate: startFuture,
+        endDate: endFuture,
+        targetRegions: ['United Kingdom · North West'],
+        dayparts: ['daytime', 'primetime'],
+      }),
+      isPrototypeSeed: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'cmp_seed_04',
+      ownerId: 'usr_seed_adv_01',
+      title: 'Summer Clearance Recap (Prototype Seed)',
+      contentCategory: 'commercial_advertising',
+      summary: 'Completed seasonal campaign preserved in ledger for clone/relaunch verification.',
+      qrToken: 'edison-demo',
+      adCreativeRef: null,
+      durationSeconds: 20,
+      dailyFrequencyCap: 2,
+      targetRegions: ['United Kingdom · Scotland'],
+      dayparts: ['daytime'],
+      startDate: startPast,
+      endDate: endPast,
+      status: 'completed',
+      rejectionReason: null,
+      fixInstructions: null,
+      simulatedEstimate: computeSimulatedBillingEstimate({
+        durationSeconds: 20,
+        dailyFrequencyCap: 2,
+        startDate: startPast,
+        endDate: endPast,
+        targetRegions: ['United Kingdom · Scotland'],
+        dayparts: ['daytime'],
+      }),
+      isPrototypeSeed: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
+}
+
+function buildSeedTickets(now: string): SupportTicketRecord[] {
+  return [
+    {
+      id: 'tkt_seed_01',
+      ownerId: 'usr_seed_adv_01',
+      campaignId: 'cmp_seed_02',
+      category: 'campaign_review',
+      subject: 'Confirm QR safe-zone margin on 15s weekend spot (Prototype Seed)',
+      message: 'Submitted campaign for moderation queue check before Friday broadcast window.',
+      status: 'open',
+      adminResponse: null,
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
+}
+
 function createInitialSeed(): EdisonStoreData {
   const now = new Date().toISOString();
   const advertiserId = 'usr_seed_adv_01';
@@ -104,7 +378,7 @@ function createInitialSeed(): EdisonStoreData {
   const adminId = 'usr_seed_adm_01';
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     users: [
       {
         id: advertiserId,
@@ -177,6 +451,9 @@ function createInitialSeed(): EdisonStoreData {
         createdAt: now,
       },
     ],
+    advertiserProfiles: buildSeedAdvertiserProfiles(now),
+    campaigns: buildSeedCampaigns(now),
+    supportTickets: buildSeedTickets(now),
     analyticsEvents: [],
     auditLogs: [
       {
@@ -186,7 +463,7 @@ function createInitialSeed(): EdisonStoreData {
         action: 'STORE_INITIALIZED',
         targetType: 'system',
         targetId: 'edison-store',
-        detail: 'Prototype persistence initialized with seeded test accounts and sample QR links.',
+        detail: 'Prototype persistence initialized (schema v3) with seeded accounts, QR links, profiles, and campaigns.',
         createdAt: now,
       },
     ],
@@ -194,6 +471,7 @@ function createInitialSeed(): EdisonStoreData {
 }
 
 function normalizeStoreData(parsed: EdisonStoreData): EdisonStoreData {
+  const now = new Date().toISOString();
   const migratedLinks: QrLinkRecord[] = (parsed.qrLinks || []).map((link) => {
     const legacy = link as QrLinkRecord & { scanCount?: number; lastScannedAt?: string | null };
     return {
@@ -206,11 +484,26 @@ function normalizeStoreData(parsed: EdisonStoreData): EdisonStoreData {
     };
   });
 
+  const existingProfiles = Array.isArray(parsed.advertiserProfiles) ? parsed.advertiserProfiles : [];
+  const profiles =
+    existingProfiles.length > 0 ? existingProfiles : buildSeedAdvertiserProfiles(now);
+
+  const existingCampaigns = Array.isArray(parsed.campaigns) ? parsed.campaigns : [];
+  const campaigns =
+    existingCampaigns.length > 0 ? existingCampaigns : buildSeedCampaigns(now);
+
+  const existingTickets = Array.isArray(parsed.supportTickets) ? parsed.supportTickets : [];
+  const supportTickets =
+    existingTickets.length > 0 ? existingTickets : buildSeedTickets(now);
+
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     users: parsed.users || [],
     sessions: parsed.sessions || [],
     qrLinks: migratedLinks,
+    advertiserProfiles: profiles,
+    campaigns,
+    supportTickets,
     analyticsEvents: parsed.analyticsEvents || [],
     auditLogs: parsed.auditLogs || [],
   };
@@ -280,7 +573,6 @@ class EdisonPrototypeStore {
         if (Date.now() > deadline) {
           throw new Error('Timed out waiting for store write lock.');
         }
-        // Brief busy-wait yield (1-2ms) for cross-process lock release
         Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2);
       }
     }
@@ -311,11 +603,6 @@ class EdisonPrototypeStore {
     this.lastKnownMtimeMs = fs.statSync(STORE_PATH).mtimeMs;
   }
 
-  /**
-   * Executes a read-modify-write transaction under an exclusive advisory lockfile.
-   * Reloads from disk if another process modified edison-store.json since our last read,
-   * preventing lost updates across concurrent local writers.
-   */
   private withWriteTransaction<T>(mutator: (draft: EdisonStoreData) => T): T {
     this.acquireLock();
     try {
@@ -396,12 +683,13 @@ class EdisonPrototypeStore {
       }
 
       const now = new Date().toISOString();
+      const orgName = params.organisationName.trim() || 'Independent / Individual';
       const user: UserAccount = {
         id: `usr_${crypto.randomBytes(6).toString('hex')}`,
         email: emailNorm,
         passwordHash: hashPassword(params.password),
         name: params.name.trim(),
-        organisationName: params.organisationName.trim() || 'Independent / Individual',
+        organisationName: orgName,
         role: params.role,
         verificationStatus: 'unverified',
         isPrototypeSeed: false,
@@ -409,6 +697,27 @@ class EdisonPrototypeStore {
       };
 
       draft.users.push(user);
+      draft.advertiserProfiles.push({
+        userId: user.id,
+        entityType: orgName === 'Independent / Individual' ? 'individual_sole_trader' : 'registered_business',
+        businessOrTradingName: orgName,
+        registrationOrTaxId: '',
+        industryCategory: params.role === 'opportunity_submitter' ? 'Employment & Opportunities' : 'General Commercial',
+        countryCode: 'GB',
+        cityRegion: '',
+        physicalAddress: '',
+        primaryContactName: user.name,
+        primaryContactEmail: user.email,
+        primaryContactPhone: '',
+        billingContactName: user.name,
+        billingContactEmail: user.email,
+        websiteUrl: '',
+        verificationStatus: 'unverified',
+        verificationNotes: '',
+        isPrototypeSeed: false,
+        updatedAt: now,
+      });
+
       const session = this.createSessionInDraft(draft, user);
       this.addAudit(
         draft,
@@ -499,6 +808,8 @@ class EdisonPrototypeStore {
     });
   }
 
+  // --- QR Links & Redirect Core ---
+
   listQrLinksForUser(user: PublicUser): QrLinkRecord[] {
     this.syncIfDiskNewer();
     if (user.role === 'admin') {
@@ -579,14 +890,6 @@ class EdisonPrototypeStore {
     });
   }
 
-  /**
-   * Handles a request to /r/:token with honest event separation:
-   * 1. Always records `redirect_requested` when the endpoint receives a request.
-   * 2. Never emits `qr_scanned` or `destination_opened` (since HTTP 302 does not prove
-   *    either a confirmed human camera scan or that the external destination page loaded).
-   * 3. Emits `redirect_issued` only when the HTTP 302 response is cleared to be sent.
-   * 4. Tags suspected bot/crawler/prefetch traffic and deduplicates repeated hits within 5s.
-   */
   resolveQrRedirect(
     token: string,
     clientIp: string,
@@ -683,7 +986,6 @@ class EdisonPrototypeStore {
         };
       }
 
-      // Record redirect_requested before issuing HTTP 302
       this.pushAnalyticsEvent(draft, {
         id: `evt_${crypto.randomBytes(6).toString('hex')}`,
         qrToken: target.token,
@@ -703,7 +1005,6 @@ class EdisonPrototypeStore {
         target.deduplicatedNonBotRedirects += 1;
       }
 
-      // Record redirect_issued (NOT qr_scanned or destination_opened)
       this.pushAnalyticsEvent(draft, {
         id: `evt_${crypto.randomBytes(6).toString('hex')}`,
         qrToken: target.token,
@@ -718,6 +1019,648 @@ class EdisonPrototypeStore {
       });
 
       return { ok: true, record: { ...target }, deduplicated, isSuspectedBot };
+    });
+  }
+
+  // --- Advertiser Profiles (Block 2.2) ---
+
+  getAdvertiserProfile(user: PublicUser): AdvertiserProfile {
+    this.syncIfDiskNewer();
+    const existing = this.data.advertiserProfiles.find((p) => p.userId === user.id);
+    if (existing) {
+      return { ...existing };
+    }
+    return this.withWriteTransaction((draft) => {
+      const again = draft.advertiserProfiles.find((p) => p.userId === user.id);
+      if (again) return { ...again };
+      const now = new Date().toISOString();
+      const created: AdvertiserProfile = {
+        userId: user.id,
+        entityType: 'registered_business',
+        businessOrTradingName: user.organisationName,
+        registrationOrTaxId: '',
+        industryCategory: 'General Commercial',
+        countryCode: 'GB',
+        cityRegion: '',
+        physicalAddress: '',
+        primaryContactName: user.name,
+        primaryContactEmail: user.email,
+        primaryContactPhone: '',
+        billingContactName: user.name,
+        billingContactEmail: user.email,
+        websiteUrl: '',
+        verificationStatus: user.verificationStatus,
+        verificationNotes: '',
+        isPrototypeSeed: user.isPrototypeSeed,
+        updatedAt: now,
+      };
+      draft.advertiserProfiles.push(created);
+      return { ...created };
+    });
+  }
+
+  listAllAdvertiserProfiles(): AdvertiserProfile[] {
+    this.syncIfDiskNewer();
+    return [...this.data.advertiserProfiles].sort((a, b) =>
+      b.updatedAt.localeCompare(a.updatedAt)
+    );
+  }
+
+  upsertAdvertiserProfile(
+    actor: PublicUser,
+    input: {
+      entityType: AdvertiserEntityType;
+      businessOrTradingName: string;
+      registrationOrTaxId?: string;
+      industryCategory: string;
+      countryCode: string;
+      cityRegion: string;
+      physicalAddress: string;
+      primaryContactName: string;
+      primaryContactEmail: string;
+      primaryContactPhone: string;
+      billingContactName: string;
+      billingContactEmail: string;
+      websiteUrl?: string;
+      requestVerification?: boolean;
+    }
+  ): AdvertiserProfile {
+    if (!input.businessOrTradingName.trim()) {
+      throw new Error('Business or trading name is required.');
+    }
+    if (!input.primaryContactName.trim() || !input.primaryContactEmail.trim()) {
+      throw new Error('Primary contact name and email are required.');
+    }
+
+    if (input.websiteUrl && input.websiteUrl.trim()) {
+      const check = validateQrDestination(input.websiteUrl.trim(), 'website');
+      if (!check.valid) {
+        throw new Error(`Website URL invalid: ${check.error}`);
+      }
+    }
+
+    return this.withWriteTransaction((draft) => {
+      const now = new Date().toISOString();
+      let profile = draft.advertiserProfiles.find((p) => p.userId === actor.id);
+      if (!profile) {
+        profile = {
+          userId: actor.id,
+          entityType: input.entityType,
+          businessOrTradingName: input.businessOrTradingName.trim(),
+          registrationOrTaxId: '',
+          industryCategory: input.industryCategory.trim() || 'General Commercial',
+          countryCode: input.countryCode.trim().toUpperCase() || 'GB',
+          cityRegion: '',
+          physicalAddress: '',
+          primaryContactName: input.primaryContactName.trim(),
+          primaryContactEmail: input.primaryContactEmail.trim(),
+          primaryContactPhone: '',
+          billingContactName: '',
+          billingContactEmail: '',
+          websiteUrl: '',
+          verificationStatus: 'unverified',
+          verificationNotes: '',
+          isPrototypeSeed: false,
+          updatedAt: now,
+        };
+        draft.advertiserProfiles.push(profile);
+      }
+
+      profile.entityType = input.entityType;
+      profile.businessOrTradingName = input.businessOrTradingName.trim();
+      profile.registrationOrTaxId = (input.registrationOrTaxId ?? '').trim();
+      profile.industryCategory = input.industryCategory.trim() || 'General Commercial';
+      profile.countryCode = input.countryCode.trim().toUpperCase() || 'GB';
+      profile.cityRegion = input.cityRegion.trim();
+      profile.physicalAddress = input.physicalAddress.trim();
+      profile.primaryContactName = input.primaryContactName.trim();
+      profile.primaryContactEmail = input.primaryContactEmail.trim();
+      profile.primaryContactPhone = input.primaryContactPhone.trim();
+      profile.billingContactName = input.billingContactName.trim() || profile.primaryContactName;
+      profile.billingContactEmail = input.billingContactEmail.trim() || profile.primaryContactEmail;
+      profile.websiteUrl = (input.websiteUrl ?? '').trim();
+      profile.updatedAt = now;
+
+      const userAccount = draft.users.find((u) => u.id === actor.id);
+      if (userAccount) {
+        userAccount.organisationName = profile.businessOrTradingName;
+      }
+
+      if (input.requestVerification && profile.verificationStatus === 'unverified') {
+        profile.verificationStatus = 'pending_review';
+        if (userAccount) {
+          userAccount.verificationStatus = 'pending_review';
+        }
+        this.addAudit(
+          draft,
+          actor.id,
+          actor.role,
+          'ADVERTISER_VERIFICATION_REQUESTED',
+          'advertiser_profile',
+          actor.id,
+          `Requested profile verification for ${profile.businessOrTradingName}.`
+        );
+      } else {
+        this.addAudit(
+          draft,
+          actor.id,
+          actor.role,
+          'ADVERTISER_PROFILE_UPDATED',
+          'advertiser_profile',
+          actor.id,
+          `Updated advertiser profile (${profile.businessOrTradingName}).`
+        );
+      }
+
+      return { ...profile };
+    });
+  }
+
+  adminUpdateAdvertiserVerification(
+    admin: PublicUser,
+    targetUserId: string,
+    status: AccountVerificationStatus,
+    notes: string
+  ): AdvertiserProfile {
+    if (admin.role !== 'admin') {
+      throw new Error('FORBIDDEN: Only administrators can alter verification status.');
+    }
+    if (!notes.trim()) {
+      throw new Error('Verification notes / reason are mandatory.');
+    }
+
+    return this.withWriteTransaction((draft) => {
+      const profile = draft.advertiserProfiles.find((p) => p.userId === targetUserId);
+      if (!profile) {
+        throw new Error('Advertiser profile not found.');
+      }
+      profile.verificationStatus = status;
+      profile.verificationNotes = notes.trim();
+      profile.updatedAt = new Date().toISOString();
+
+      const user = draft.users.find((u) => u.id === targetUserId);
+      if (user) {
+        user.verificationStatus = status;
+      }
+
+      this.addAudit(
+        draft,
+        admin.id,
+        admin.role,
+        'ADVERTISER_VERIFICATION_UPDATED',
+        'advertiser_profile',
+        targetUserId,
+        `Set verificationStatus=${status}. Note: ${notes.trim()}`
+      );
+      return { ...profile };
+    });
+  }
+
+  // --- Campaign Management & 10-State Lifecycle (Block 2.2) ---
+
+  listCampaignsForUser(user: PublicUser, statusFilter?: CampaignStatus | 'all'): CampaignRecord[] {
+    this.syncIfDiskNewer();
+    const scoped =
+      user.role === 'admin'
+        ? [...this.data.campaigns]
+        : this.data.campaigns.filter((c) => c.ownerId === user.id);
+
+    const filtered =
+      statusFilter && statusFilter !== 'all'
+        ? scoped.filter((c) => c.status === statusFilter)
+        : scoped;
+
+    return filtered.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+
+  createCampaign(
+    owner: PublicUser,
+    input: {
+      title: string;
+      contentCategory: CampaignContentCategory;
+      summary: string;
+      qrToken?: string | null;
+      durationSeconds: number;
+      dailyFrequencyCap: number;
+      targetRegions: string[];
+      dayparts: DaypartSlot[];
+      startDate: string;
+      endDate: string;
+    }
+  ): CampaignRecord {
+    const title = input.title.trim();
+    if (title.length < 3) {
+      throw new Error('Campaign title must be at least 3 characters.');
+    }
+    if (!input.startDate || !input.endDate || input.endDate < input.startDate) {
+      throw new Error('End date must be on or after the start date.');
+    }
+    if (input.durationSeconds < 5 || input.durationSeconds > 120) {
+      throw new Error('Advertisement duration must be between 5 and 120 seconds.');
+    }
+    if (input.dailyFrequencyCap < 1 || input.dailyFrequencyCap > 48) {
+      throw new Error('Daily frequency cap must be between 1 and 48 plays.');
+    }
+
+    const regions = input.targetRegions.map((r) => r.trim()).filter(Boolean);
+    const dayparts: DaypartSlot[] = input.dayparts.length > 0 ? input.dayparts : ['daytime'];
+
+    return this.withWriteTransaction((draft) => {
+      let resolvedQrToken: string | null = null;
+      if (input.qrToken) {
+        const qr = draft.qrLinks.find((q) => q.token === input.qrToken);
+        if (!qr) {
+          throw new Error('Selected QR token was not found.');
+        }
+        if (owner.role !== 'admin' && qr.ownerId !== owner.id) {
+          throw new Error('FORBIDDEN: You can only attach your own QR links.');
+        }
+        resolvedQrToken = qr.token;
+      }
+
+      const now = new Date().toISOString();
+      const record: CampaignRecord = {
+        id: `cmp_${crypto.randomBytes(5).toString('hex')}`,
+        ownerId: owner.id,
+        title,
+        contentCategory: input.contentCategory,
+        summary: input.summary.trim(),
+        qrToken: resolvedQrToken,
+        adCreativeRef: null,
+        durationSeconds: Math.round(input.durationSeconds),
+        dailyFrequencyCap: Math.round(input.dailyFrequencyCap),
+        targetRegions: regions.length > 0 ? regions : ['United Kingdom · National'],
+        dayparts,
+        startDate: input.startDate,
+        endDate: input.endDate,
+        status: 'draft',
+        rejectionReason: null,
+        fixInstructions: null,
+        simulatedEstimate: computeSimulatedBillingEstimate({
+          durationSeconds: Math.round(input.durationSeconds),
+          dailyFrequencyCap: Math.round(input.dailyFrequencyCap),
+          startDate: input.startDate,
+          endDate: input.endDate,
+          targetRegions: regions.length > 0 ? regions : ['United Kingdom · National'],
+          dayparts,
+        }),
+        isPrototypeSeed: false,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      draft.campaigns.unshift(record);
+      this.addAudit(
+        draft,
+        owner.id,
+        owner.role,
+        'CAMPAIGN_CREATED',
+        'campaign',
+        record.id,
+        `Created draft campaign "${record.title}".`
+      );
+      return { ...record };
+    });
+  }
+
+  updateCampaign(
+    actor: PublicUser,
+    campaignId: string,
+    patch: {
+      title?: string;
+      contentCategory?: CampaignContentCategory;
+      summary?: string;
+      qrToken?: string | null;
+      durationSeconds?: number;
+      dailyFrequencyCap?: number;
+      targetRegions?: string[];
+      dayparts?: DaypartSlot[];
+      startDate?: string;
+      endDate?: string;
+    }
+  ): CampaignRecord {
+    return this.withWriteTransaction((draft) => {
+      const target = draft.campaigns.find((c) => c.id === campaignId);
+      if (!target) {
+        throw new Error('Campaign not found.');
+      }
+      if (actor.role !== 'admin' && target.ownerId !== actor.id) {
+        throw new Error('FORBIDDEN: You do not own this campaign.');
+      }
+      if (
+        actor.role !== 'admin' &&
+        target.status !== 'draft' &&
+        target.status !== 'rejected' &&
+        target.status !== 'paused'
+      ) {
+        throw new Error(
+          `Cannot edit campaign while status is "${target.status}". Move it to draft or paused first.`
+        );
+      }
+
+      const nextTitle = patch.title !== undefined ? patch.title.trim() : target.title;
+      if (nextTitle.length < 3) {
+        throw new Error('Campaign title must be at least 3 characters.');
+      }
+
+      const nextStart = patch.startDate ?? target.startDate;
+      const nextEnd = patch.endDate ?? target.endDate;
+      if (nextEnd < nextStart) {
+        throw new Error('End date must be on or after start date.');
+      }
+
+      const nextDuration =
+        patch.durationSeconds !== undefined ? Math.round(patch.durationSeconds) : target.durationSeconds;
+      if (nextDuration < 5 || nextDuration > 120) {
+        throw new Error('Advertisement duration must be between 5 and 120 seconds.');
+      }
+
+      const nextCap =
+        patch.dailyFrequencyCap !== undefined
+          ? Math.round(patch.dailyFrequencyCap)
+          : target.dailyFrequencyCap;
+      if (nextCap < 1 || nextCap > 48) {
+        throw new Error('Daily frequency cap must be between 1 and 48 plays.');
+      }
+
+      if (patch.qrToken !== undefined) {
+        if (patch.qrToken === null || patch.qrToken === '') {
+          target.qrToken = null;
+        } else {
+          const qr = draft.qrLinks.find((q) => q.token === patch.qrToken);
+          if (!qr) {
+            throw new Error('Selected QR token was not found.');
+          }
+          if (actor.role !== 'admin' && qr.ownerId !== target.ownerId) {
+            throw new Error('FORBIDDEN: You can only attach your own QR links.');
+          }
+          target.qrToken = qr.token;
+        }
+      }
+
+      target.title = nextTitle;
+      if (patch.contentCategory) target.contentCategory = patch.contentCategory;
+      if (patch.summary !== undefined) target.summary = patch.summary.trim();
+      target.durationSeconds = nextDuration;
+      target.dailyFrequencyCap = nextCap;
+      if (patch.targetRegions) {
+        const cleaned = patch.targetRegions.map((r) => r.trim()).filter(Boolean);
+        target.targetRegions = cleaned.length > 0 ? cleaned : ['United Kingdom · National'];
+      }
+      if (patch.dayparts && patch.dayparts.length > 0) {
+        target.dayparts = patch.dayparts;
+      }
+      target.startDate = nextStart;
+      target.endDate = nextEnd;
+      target.simulatedEstimate = computeSimulatedBillingEstimate({
+        durationSeconds: target.durationSeconds,
+        dailyFrequencyCap: target.dailyFrequencyCap,
+        startDate: target.startDate,
+        endDate: target.endDate,
+        targetRegions: target.targetRegions,
+        dayparts: target.dayparts,
+      });
+      target.updatedAt = new Date().toISOString();
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'CAMPAIGN_UPDATED',
+        'campaign',
+        target.id,
+        `Updated campaign "${target.title}".`
+      );
+      return { ...target };
+    });
+  }
+
+  cloneCampaign(actor: PublicUser, campaignId: string): CampaignRecord {
+    return this.withWriteTransaction((draft) => {
+      const source = draft.campaigns.find((c) => c.id === campaignId);
+      if (!source) {
+        throw new Error('Campaign not found.');
+      }
+      if (actor.role !== 'admin' && source.ownerId !== actor.id) {
+        throw new Error('FORBIDDEN: You do not own this campaign.');
+      }
+
+      const now = new Date().toISOString();
+      const copy: CampaignRecord = {
+        ...source,
+        id: `cmp_${crypto.randomBytes(5).toString('hex')}`,
+        ownerId: actor.role === 'admin' ? source.ownerId : actor.id,
+        title: `${source.title.replace(/\s*\(Prototype Seed\)$/i, '')} (Copy)`,
+        status: 'draft',
+        rejectionReason: null,
+        fixInstructions: null,
+        isPrototypeSeed: false,
+        createdAt: now,
+        updatedAt: now,
+      };
+      draft.campaigns.unshift(copy);
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'CAMPAIGN_CLONED',
+        'campaign',
+        copy.id,
+        `Cloned campaign ${source.id} -> ${copy.id} (draft).`
+      );
+      return { ...copy };
+    });
+  }
+
+  transitionCampaignStatus(
+    actor: PublicUser,
+    campaignId: string,
+    targetStatus: CampaignStatus,
+    options: { rejectionReason?: string; fixInstructions?: string } = {}
+  ): CampaignRecord {
+    return this.withWriteTransaction((draft) => {
+      const target = draft.campaigns.find((c) => c.id === campaignId);
+      if (!target) {
+        throw new Error('Campaign not found.');
+      }
+      if (actor.role !== 'admin' && target.ownerId !== actor.id) {
+        throw new Error('FORBIDDEN: You do not own this campaign.');
+      }
+
+      if (ADMIN_ONLY_TARGET_STATUSES.has(targetStatus) && actor.role !== 'admin') {
+        throw new Error(
+          `FORBIDDEN: Only an administrator can transition a campaign to "${targetStatus}".`
+        );
+      }
+
+      const allowed = ALLOWED_CAMPAIGN_TRANSITIONS[target.status] || [];
+      if (!allowed.includes(targetStatus)) {
+        throw new Error(
+          `Invalid state transition: "${target.status}" cannot move directly to "${targetStatus}".`
+        );
+      }
+
+      if (targetStatus === 'submitted') {
+        if (!target.qrToken) {
+          throw new Error('Attach a validated QR redirect link before submitting a campaign.');
+        }
+        const qr = draft.qrLinks.find((q) => q.token === target.qrToken);
+        if (!qr || qr.status !== 'active') {
+          throw new Error('Attached QR redirect link must be active before submission.');
+        }
+      }
+
+      if (targetStatus === 'rejected') {
+        const reason = (options.rejectionReason ?? '').trim();
+        if (reason.length < 5) {
+          throw new Error('A written rejection reason (min 5 characters) is mandatory.');
+        }
+        target.rejectionReason = reason;
+        target.fixInstructions = (options.fixInstructions ?? '').trim() || null;
+      } else if (targetStatus === 'approved' || targetStatus === 'draft' || targetStatus === 'submitted') {
+        target.rejectionReason = null;
+        target.fixInstructions = null;
+      }
+
+      const prevStatus = target.status;
+      target.status = targetStatus;
+      target.updatedAt = new Date().toISOString();
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'CAMPAIGN_STATUS_TRANSITION',
+        'campaign',
+        target.id,
+        `Campaign ${target.id} transitioned ${prevStatus} -> ${targetStatus}${
+          target.rejectionReason ? ` (Reason: ${target.rejectionReason})` : ''
+        }`
+      );
+      return { ...target };
+    });
+  }
+
+  deleteCampaign(actor: PublicUser, campaignId: string): void {
+    this.withWriteTransaction((draft) => {
+      const idx = draft.campaigns.findIndex((c) => c.id === campaignId);
+      if (idx === -1) {
+        throw new Error('Campaign not found.');
+      }
+      const target = draft.campaigns[idx];
+      if (actor.role !== 'admin' && target.ownerId !== actor.id) {
+        throw new Error('FORBIDDEN: You do not own this campaign.');
+      }
+      if (
+        actor.role !== 'admin' &&
+        target.status !== 'draft' &&
+        target.status !== 'rejected' &&
+        target.status !== 'expired'
+      ) {
+        throw new Error('Only draft, rejected, or expired campaigns can be deleted.');
+      }
+
+      draft.campaigns.splice(idx, 1);
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'CAMPAIGN_DELETED',
+        'campaign',
+        target.id,
+        `Deleted campaign "${target.title}".`
+      );
+    });
+  }
+
+  // --- Support & Dispute Tickets (Block 2.2) ---
+
+  listSupportTicketsForUser(user: PublicUser): SupportTicketRecord[] {
+    this.syncIfDiskNewer();
+    const list =
+      user.role === 'admin'
+        ? [...this.data.supportTickets]
+        : this.data.supportTickets.filter((t) => t.ownerId === user.id);
+    return list.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+
+  createSupportTicket(
+    owner: PublicUser,
+    input: {
+      campaignId?: string | null;
+      category: SupportTicketCategory;
+      subject: string;
+      message: string;
+    }
+  ): SupportTicketRecord {
+    const subject = input.subject.trim();
+    const message = input.message.trim();
+    if (subject.length < 4 || message.length < 8) {
+      throw new Error('Ticket subject (min 4 chars) and message (min 8 chars) are required.');
+    }
+
+    return this.withWriteTransaction((draft) => {
+      const now = new Date().toISOString();
+      const ticket: SupportTicketRecord = {
+        id: `tkt_${crypto.randomBytes(5).toString('hex')}`,
+        ownerId: owner.id,
+        campaignId: input.campaignId || null,
+        category: input.category,
+        subject,
+        message,
+        status: 'open',
+        adminResponse: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      draft.supportTickets.unshift(ticket);
+      this.addAudit(
+        draft,
+        owner.id,
+        owner.role,
+        'SUPPORT_TICKET_CREATED',
+        'support_ticket',
+        ticket.id,
+        `Created ${ticket.category} ticket: ${ticket.subject}`
+      );
+      return { ...ticket };
+    });
+  }
+
+  updateSupportTicketStatus(
+    actor: PublicUser,
+    ticketId: string,
+    status: SupportTicketStatus,
+    adminResponse?: string
+  ): SupportTicketRecord {
+    return this.withWriteTransaction((draft) => {
+      const ticket = draft.supportTickets.find((t) => t.id === ticketId);
+      if (!ticket) {
+        throw new Error('Support ticket not found.');
+      }
+      if (actor.role !== 'admin' && ticket.ownerId !== actor.id) {
+        throw new Error('FORBIDDEN: You do not own this ticket.');
+      }
+      if (actor.role !== 'admin' && status !== 'closed') {
+        throw new Error('FORBIDDEN: Only administrators can move tickets to in_review or resolved.');
+      }
+
+      ticket.status = status;
+      if (adminResponse !== undefined && actor.role === 'admin') {
+        ticket.adminResponse = adminResponse.trim() || null;
+      }
+      ticket.updatedAt = new Date().toISOString();
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'SUPPORT_TICKET_UPDATED',
+        'support_ticket',
+        ticket.id,
+        `Updated ticket status to ${status}.`
+      );
+      return { ...ticket };
     });
   }
 
@@ -736,6 +1679,12 @@ class EdisonPrototypeStore {
     return {
       userCount: this.data.users.length,
       qrCount: this.data.qrLinks.length,
+      campaignCount: this.data.campaigns.length,
+      activeCampaignCount: this.data.campaigns.filter((c) => c.status === 'active').length,
+      profileCount: this.data.advertiserProfiles.length,
+      openTicketCount: this.data.supportTickets.filter(
+        (t) => t.status === 'open' || t.status === 'in_review'
+      ).length,
       redirectRequestsTotal: this.data.analyticsEvents.filter(
         (e) => e.eventType === 'redirect_requested' && e.measurementSource === 'real_measured'
       ).length,

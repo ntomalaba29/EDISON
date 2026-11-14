@@ -1,9 +1,24 @@
 import 'dotenv/config';
 import path from 'node:path';
 import express, { type Request, type Response, type NextFunction } from 'express';
-import { edisonStore } from './src/server/store.ts';
+import {
+  ALL_CAMPAIGN_STATUSES,
+  ALLOWED_CAMPAIGN_TRANSITIONS,
+  edisonStore,
+} from './src/server/store.ts';
 import { validateQrDestination } from './src/server/qrValidator.ts';
-import type { PublicUser, QrDestinationType, QrLinkStatus } from './src/types/edison.ts';
+import type {
+  AccountVerificationStatus,
+  AdvertiserEntityType,
+  CampaignContentCategory,
+  CampaignStatus,
+  DaypartSlot,
+  PublicUser,
+  QrDestinationType,
+  QrLinkStatus,
+  SupportTicketCategory,
+  SupportTicketStatus,
+} from './src/types/edison.ts';
 
 const PORT = Number(process.env.PORT || 3000);
 const SESSION_COOKIE_NAME = 'edison_proto_session';
@@ -84,6 +99,13 @@ function escapeHtml(value: string): string {
     .replaceAll("'", '&#39;');
 }
 
+function mapErrorStatus(err: unknown, defaultCode = 400): { code: number; message: string } {
+  const message = err instanceof Error ? err.message : 'Request failed.';
+  if (message.startsWith('FORBIDDEN:')) return { code: 403, message };
+  if (message.toLowerCase().includes('not found')) return { code: 404, message };
+  return { code: defaultCode, message };
+}
+
 async function startServer() {
   const app = express();
   app.set('trust proxy', true);
@@ -95,7 +117,7 @@ async function startServer() {
     res.json({
       ok: true,
       service: 'edison-prototype-server',
-      phase: 'Phase 2 · Block 2.1',
+      phase: 'Phase 2 · Block 2.2',
       summary: edisonStore.getFoundationSummary(),
     });
   });
@@ -223,11 +245,276 @@ async function startServer() {
       const updated = edisonStore.updateQrStatus(user, token, status as QrLinkStatus);
       res.json({ item: updated });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unable to update QR status.';
-      const code = message.startsWith('FORBIDDEN:') ? 403 : 404;
+      const { code, message } = mapErrorStatus(err, 404);
       res.status(code).json({ error: message });
     }
   });
+
+  // --- Advertiser Profile Endpoints (Block 2.2) ---
+  app.get('/api/advertiser/profile', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const profile = edisonStore.getAdvertiserProfile(req.currentUser!);
+    res.json({ profile });
+  });
+
+  app.put('/api/advertiser/profile', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const body = req.body ?? {};
+    const entityType = body.entityType as AdvertiserEntityType;
+    if (
+      entityType !== 'registered_business' &&
+      entityType !== 'individual_sole_trader' &&
+      entityType !== 'public_ngo'
+    ) {
+      res.status(400).json({
+        error: 'Invalid entityType. Must be registered_business, individual_sole_trader, or public_ngo.',
+      });
+      return;
+    }
+
+    try {
+      const profile = edisonStore.upsertAdvertiserProfile(req.currentUser!, {
+        entityType,
+        businessOrTradingName: String(body.businessOrTradingName ?? ''),
+        registrationOrTaxId: String(body.registrationOrTaxId ?? ''),
+        industryCategory: String(body.industryCategory ?? ''),
+        countryCode: String(body.countryCode ?? 'GB'),
+        cityRegion: String(body.cityRegion ?? ''),
+        physicalAddress: String(body.physicalAddress ?? ''),
+        primaryContactName: String(body.primaryContactName ?? ''),
+        primaryContactEmail: String(body.primaryContactEmail ?? ''),
+        primaryContactPhone: String(body.primaryContactPhone ?? ''),
+        billingContactName: String(body.billingContactName ?? ''),
+        billingContactEmail: String(body.billingContactEmail ?? ''),
+        websiteUrl: String(body.websiteUrl ?? ''),
+        requestVerification: Boolean(body.requestVerification),
+      });
+      res.json({ profile });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.get('/api/admin/advertiser-profiles', requireAdmin, (_req: AuthenticatedRequest, res: Response) => {
+    res.json({ items: edisonStore.listAllAdvertiserProfiles() });
+  });
+
+  app.patch(
+    '/api/admin/advertiser-profiles/:userId/verification',
+    requireAdmin,
+    (req: AuthenticatedRequest, res: Response) => {
+      const { status, notes } = req.body ?? {};
+      const validStatuses: AccountVerificationStatus[] = [
+        'unverified',
+        'pending_review',
+        'verified',
+        'suspended',
+      ];
+      if (!validStatuses.includes(status)) {
+        res.status(400).json({ error: 'Invalid verification status.' });
+        return;
+      }
+      try {
+        const profile = edisonStore.adminUpdateAdvertiserVerification(
+          req.currentUser!,
+          req.params.userId,
+          status,
+          String(notes ?? '')
+        );
+        res.json({ profile });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  // --- Campaign Management Endpoints (Block 2.2) ---
+  app.get('/api/campaigns', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const statusParam = typeof req.query.status === 'string' ? req.query.status : 'all';
+    const isAll = statusParam === 'all';
+    const isValidStatus = (ALL_CAMPAIGN_STATUSES as readonly string[]).includes(statusParam);
+    if (!isAll && !isValidStatus) {
+      res.status(400).json({ error: 'Invalid campaign status filter.' });
+      return;
+    }
+    const items = edisonStore.listCampaignsForUser(
+      req.currentUser!,
+      isAll ? 'all' : (statusParam as CampaignStatus)
+    );
+    res.json({
+      items,
+      statuses: ALL_CAMPAIGN_STATUSES,
+      transitions: ALLOWED_CAMPAIGN_TRANSITIONS,
+    });
+  });
+
+  app.post('/api/campaigns', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const body = req.body ?? {};
+    const category = body.contentCategory as CampaignContentCategory;
+    if (category !== 'commercial_advertising' && category !== 'opportunity_promotion') {
+      res.status(400).json({
+        error: 'contentCategory must be commercial_advertising or opportunity_promotion.',
+      });
+      return;
+    }
+
+    try {
+      const item = edisonStore.createCampaign(req.currentUser!, {
+        title: String(body.title ?? ''),
+        contentCategory: category,
+        summary: String(body.summary ?? ''),
+        qrToken: typeof body.qrToken === 'string' && body.qrToken.trim() ? body.qrToken.trim() : null,
+        durationSeconds: Number(body.durationSeconds ?? 30),
+        dailyFrequencyCap: Number(body.dailyFrequencyCap ?? 4),
+        targetRegions: Array.isArray(body.targetRegions)
+          ? body.targetRegions.map(String)
+          : typeof body.targetRegions === 'string'
+          ? body.targetRegions.split(',')
+          : ['United Kingdom · National'],
+        dayparts: Array.isArray(body.dayparts)
+          ? (body.dayparts as DaypartSlot[])
+          : ['daytime'],
+        startDate: String(body.startDate ?? ''),
+        endDate: String(body.endDate ?? ''),
+      });
+      res.status(201).json({ item });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.patch('/api/campaigns/:id', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const body = req.body ?? {};
+    try {
+      const item = edisonStore.updateCampaign(req.currentUser!, req.params.id, {
+        title: typeof body.title === 'string' ? body.title : undefined,
+        contentCategory:
+          body.contentCategory === 'commercial_advertising' ||
+          body.contentCategory === 'opportunity_promotion'
+            ? body.contentCategory
+            : undefined,
+        summary: typeof body.summary === 'string' ? body.summary : undefined,
+        qrToken: body.qrToken !== undefined ? (body.qrToken ? String(body.qrToken) : null) : undefined,
+        durationSeconds:
+          body.durationSeconds !== undefined ? Number(body.durationSeconds) : undefined,
+        dailyFrequencyCap:
+          body.dailyFrequencyCap !== undefined ? Number(body.dailyFrequencyCap) : undefined,
+        targetRegions: Array.isArray(body.targetRegions)
+          ? body.targetRegions.map(String)
+          : typeof body.targetRegions === 'string'
+          ? body.targetRegions.split(',')
+          : undefined,
+        dayparts: Array.isArray(body.dayparts) ? (body.dayparts as DaypartSlot[]) : undefined,
+        startDate: typeof body.startDate === 'string' ? body.startDate : undefined,
+        endDate: typeof body.endDate === 'string' ? body.endDate : undefined,
+      });
+      res.json({ item });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.post('/api/campaigns/:id/clone', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const item = edisonStore.cloneCampaign(req.currentUser!, req.params.id);
+      res.status(201).json({ item });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.post('/api/campaigns/:id/transition', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const { targetStatus, rejectionReason, fixInstructions } = req.body ?? {};
+    if (!(ALL_CAMPAIGN_STATUSES as readonly string[]).includes(String(targetStatus))) {
+      res.status(400).json({ error: 'Invalid targetStatus.' });
+      return;
+    }
+    try {
+      const item = edisonStore.transitionCampaignStatus(
+        req.currentUser!,
+        req.params.id,
+        targetStatus as CampaignStatus,
+        {
+          rejectionReason: typeof rejectionReason === 'string' ? rejectionReason : undefined,
+          fixInstructions: typeof fixInstructions === 'string' ? fixInstructions : undefined,
+        }
+      );
+      res.json({ item });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.delete('/api/campaigns/:id', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    try {
+      edisonStore.deleteCampaign(req.currentUser!, req.params.id);
+      res.json({ ok: true });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  // --- Support & Dispute Tickets (Block 2.2) ---
+  app.get('/api/support-tickets', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    res.json({ items: edisonStore.listSupportTicketsForUser(req.currentUser!) });
+  });
+
+  app.post('/api/support-tickets', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const body = req.body ?? {};
+    const validCategories: SupportTicketCategory[] = [
+      'campaign_review',
+      'verification_enquiry',
+      'qr_technical',
+      'billing_dispute',
+      'policy_appeal',
+    ];
+    if (!validCategories.includes(body.category)) {
+      res.status(400).json({ error: 'Invalid support ticket category.' });
+      return;
+    }
+    try {
+      const item = edisonStore.createSupportTicket(req.currentUser!, {
+        campaignId: typeof body.campaignId === 'string' && body.campaignId ? body.campaignId : null,
+        category: body.category,
+        subject: String(body.subject ?? ''),
+        message: String(body.message ?? ''),
+      });
+      res.status(201).json({ item });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.patch(
+    '/api/support-tickets/:id/status',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const { status, adminResponse } = req.body ?? {};
+      const validStatuses: SupportTicketStatus[] = ['open', 'in_review', 'resolved', 'closed'];
+      if (!validStatuses.includes(status)) {
+        res.status(400).json({ error: 'Invalid ticket status.' });
+        return;
+      }
+      try {
+        const item = edisonStore.updateSupportTicketStatus(
+          req.currentUser!,
+          req.params.id,
+          status,
+          typeof adminResponse === 'string' ? adminResponse : undefined
+        );
+        res.json({ item });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
 
   // Admin-only Audit Log & Redirect Event Endpoints (RBAC Verification Targets)
   app.get('/api/admin/audit-logs', requireAdmin, (_req: AuthenticatedRequest, res: Response) => {
