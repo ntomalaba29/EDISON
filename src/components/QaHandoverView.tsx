@@ -229,14 +229,14 @@ export function QaHandoverView({
       '',
       `Generated: ${readiness?.generatedAt ?? new Date().toISOString()}`,
       'Repository: `Malaba29/EDISON-International-Smart-TV-Advertising-Network-`',
-      'Status: Phase 2 Track A (`P2-V2.1`–`P2-V2.4`, 85% AI Studio scope) COMMITTED · Phase 3 `Block P3-A` VERIFIED & AWAITING COMMIT · `TASK-P3-001: READY` (JSON retained without paid Cloud SQL) · Track B (15%) Blocked on `DEC-OPEN-01`',
+      'Status: Phase 2 Track A (`P2-V2.1`–`P2-V2.4`, 85% AI Studio scope) & Phase 3 `Block P3-A` COMMITTED · Phase 3 `Block P3-B` VERIFIED & AWAITING COMMIT · `TASK-P3-001: READY` (JSON retained without paid Cloud SQL) · Track B (15%) Blocked on `DEC-OPEN-01`',
       '',
       '---',
       '',
       '## 1. Project Architecture',
-      '- **Frontend**: React 19 + TypeScript SPA on Vite 8 (`src/App.tsx`, Tailwind CSS v4), bundled cleanly via `npm run build` into `dist/`, with automatic same-origin CSRF fetch protection (`src/lib/csrfFetch.ts`).',
-      '- **Backend Server**: Testable Express 4 app factory (`createEdisonApp` in `src/server/app.ts`) + single entry `server.ts` hardened with Zod schema validation (`src/server/validationSchemas.ts`), CSRF/same-origin checks, rate limiters, and security headers (`src/server/security.ts`).',
-      '- **Persistence Layer**: Atomic single-host JSON store (`src/server/store.ts` -> `data/edison-store.json`, `schemaVersion: 8`) hashing session tokens at rest (`tokenHash`) with 2h idle timeout and session rotation. PostgreSQL migration blueprint ready in `docs/migration/TASK_P3_001_POSTGRES_MIGRATION_REQUIREMENTS.md` (`TASK-P3-001`).',
+      '- **Frontend**: React 19 + TypeScript SPA on Vite 8 (`src/App.tsx`, Tailwind CSS v4), bundled cleanly via `npm run build` into `dist/`, protected by `AppErrorBoundary` (`src/components/AppErrorBoundary.tsx`) and `edisonFetch` CSRF client (`src/lib/csrfFetch.ts`).',
+      '- **Backend Server**: Testable Express 4 app factory (`createEdisonApp` in `src/server/app.ts`) decoupled via `EdisonDataRepository` (`src/server/repository.ts`), hardened with Zod validation (`src/server/validationSchemas.ts`), CSRF/same-origin checks, rate limiters, API `504` timeout & opaque JSON error middleware (`src/server/security.ts`), and sandboxed `/uploads/*` CSP/CORP/symlink controls (`src/server/mediaSecurity.ts`).',
+      '- **Persistence Layer**: Atomic single-host JSON store (`src/server/store.ts` implementing `EdisonDataRepository` -> `data/edison-store.json`, `schemaVersion: 8`) hashing session tokens at rest (`tokenHash`) with 2h idle timeout and session rotation. PostgreSQL migration blueprint ready in `docs/migration/TASK_P3_001_POSTGRES_MIGRATION_REQUIREMENTS.md` (`TASK-P3-001`).',
       '- **QR Redirect Engine**: Server-side URL/phone normaliser (`src/server/qrValidator.ts`) + direct HTTP 302 router (`GET /r/:token`) with User-Agent/prefetch bot exclusion and 5-second duplicate window filtering (`ADR-002`).',
       '- **Commercial Formats & Alternating Break Scheduler**: Supports Option A Studio, Option B External Upload/jsQR, and Commercial `Text-Only` ads; permanent `$0.00 / FREE` Charity lock (`paymentCollectionActive: false`); Alternating 4-slot scheduler (`CHARITY -> COMMERCIAL -> CHARITY -> COMMERCIAL`) + Direct Priority over `MockAdNetworkBackfillAdapter` + separated 6-Stream Revenue Ledger.',
       '- **TV & Shared Intelligence Simulation Boundaries**: All 16:9 playback, break triggers, and `SharedIntelligencePreviewView` (ADR-016 / PRD-19) run explicitly as software simulations (`SimulationTvAdapter` / mock shared-intelligence cache). Zero unprivileged Smart TV OS tuner hooks (`ADR-001`, `ADR-005`).',
@@ -246,7 +246,7 @@ export function QaHandoverView({
       '',
       '## 2. Technology Stack & Commands',
       '- Runtime: Node.js 22+, TypeScript, Express 4.21, React 19, Vite 8.3, Tailwind CSS 4.3, `zod`, `qrcode`, `jsqr`, `lucide-react`, `tsx`, `vitest`, `supertest`',
-      '- Unit & HTTP Regression Suite: `npm test` (`vitest run` — 23/23 across 5 suites)',
+      '- Unit & HTTP Regression Suite: `npm test` (`vitest run` — 27/27 across 5 suites)',
       '- Type-Check: `npm run lint` (`tsc --noEmit`)',
       '- Production Build: `npm run build` (`vite build`)',
       '- Dev / Prod Server: `npm run dev` / `npm start` on `http://0.0.0.0:3000`',
@@ -282,8 +282,8 @@ export function QaHandoverView({
       '- **Unresolved Blocking Decisions (`DEC-OPEN-01` .. `DEC-OPEN-03`)**: `DEC-OPEN-01` blocks **ONLY Track B** consent/household/multi-profile/epoch-403 work (15% of AI Studio scope) — it does **not** block Phase 3 (`TASK-P3-001`) Track A engineering hardening.',
       '',
       '## 6. Automated Verification & Physical Phone QR Scan Log',
-      `- Automated Invariants Passed: ${readiness?.automatedInvariantsPassed ?? 0} / ${readiness?.automatedInvariantsTotal ?? 12}`,
-      `- Vitest + Supertest Regression & Security Suites: Installed (\`npm test\` covering QR validator, Break Scheduler, API RBAC, Charity Lock, Option B mismatch, Opportunities, Ledger, Shared Intelligence preview & Block P3-A Security Hardening)`,
+      `- Automated Invariants Passed: ${readiness?.automatedInvariantsPassed ?? 0} / ${readiness?.automatedInvariantsTotal ?? 13}`,
+      `- Vitest + Supertest Regression & Security Suites: Installed (\`npm test\` covering QR validator, Break Scheduler, API RBAC, Charity Lock, Option B mismatch, Opportunities, Ledger, Shared Intelligence preview, Block P3-A Security Hardening & Block P3-B Portability/Asset Hardening)`,
       `- Physical Phone QR Scan Gate Status: ${readiness?.physicalQrScanStatus ?? 'PENDING_OWNER_DEVICE_TEST'}`,
       scanSection,
       '',
@@ -295,13 +295,14 @@ export function QaHandoverView({
       '- Stage 7 `destination_opened` remains `0` without external webhook confirmation (never fabricated from HTTP 302).',
       '- Zero real payments (`paymentCollectionActive: false`), zero GAM CTV account (`DEC-OPEN-03`), and zero country legal sign-offs.',
       '',
-      '## 8. Ordered Phase 3 Engineering Tasks (`TASK-P3-001` Now `READY` · `Block P3-A` Complete)',
+      '## 8. Ordered Phase 3 Engineering Tasks (`TASK-P3-001` `READY` · `Block P3-A` Committed · `Block P3-B` Complete)',
       'Prerequisites to transition `TASK-P3-001` from `DRAFT` -> `READY` (independent of `DEC-OPEN-01`): (1) Owner commit of `Block P2-V2.4` [MET], and (2) explicit Owner Phase 3 activation [MET].',
-      '1. `Block P3-A` / former `TASK-P3-002` (`VERIFIED · AWAITING COMMIT` in AI Studio): API Zod validation, cookie/header CSRF & same-origin protection, rate limiting (`429`), hashed/rotated sessions (`schemaVersion: 8`), security headers & `tests/securityHardening.test.ts`.',
-      '2. `TASK-P3-001` (`READY` — blueprint at `docs/migration/TASK_P3_001_POSTGRES_MIGRATION_REQUIREMENTS.md`): Migrate `EdisonPrototypeStore` (Track A baseline) to PostgreSQL + migrations + transactional audit logging when DB provisioning is approved.',
-      '3. `Block P3-B` (queued): Extract repository interfaces (`EdisonDataRepository`), harden upload/static asset headers & runtime error boundaries.',
-      '4. `TASK-P3-003` (queued): Extend `tests/` with browser Playwright E2E suite in CI.',
-      '5. `TASK-P3-004` (queued): Build background media worker pipeline (FFmpeg transcode, loudness check, frame QR verification).',
+      '1. `Block P3-A` / former `TASK-P3-002` (`COMMITTED`): API Zod validation, cookie/header CSRF & same-origin protection, `edisonFetch`, rate limiting (`429`), hashed/rotated sessions (`schemaVersion: 8`), security headers & `tests/securityHardening.test.ts`.',
+      '2. `Block P3-B` (`VERIFIED · AWAITING COMMIT` in AI Studio): `EdisonDataRepository` storage port extraction, `/uploads/*` CSP/CORP/symlink/polyglot hardening, API timeout (`504`) & JSON error middleware, React `AppErrorBoundary`, and `.github/workflows/edison-ci.yml`.',
+      '3. `TASK-P3-001` (`READY` — blueprint at `docs/migration/TASK_P3_001_POSTGRES_MIGRATION_REQUIREMENTS.md`): Migrate `EdisonDataRepository` (Track A baseline) to PostgreSQL + migrations + transactional audit logging when DB provisioning is approved.',
+      '4. `Block P3-C` (queued): Request correlation/audit export hardening + software-only Phase 4 modular `TvPlatformAdapter` contract & Normal TV Remote simulation suite.',
+      '5. `TASK-P3-003` (queued): Extend `tests/` with browser Playwright E2E suite in CI.',
+      '6. `TASK-P3-004` (queued): Build background media worker pipeline (FFmpeg transcode, loudness check, frame QR verification).',
     ].join('\n');
   }, [readiness]);
 
@@ -329,15 +330,15 @@ export function QaHandoverView({
 
   const reportText = useMemo(() => {
     const passed = readiness?.automatedInvariantsPassed ?? 0;
-    const total = readiness?.automatedInvariantsTotal ?? 12;
+    const total = readiness?.automatedInvariantsTotal ?? 13;
     return [
-      'EDISON — PHASE 3 BLOCK P3-A SECURITY HARDENING, PHYSICAL QR QA & HANDOVER REPORT',
+      'EDISON — PHASE 3 BLOCK P3-B PORTABILITY & ASSET HARDENING, PHYSICAL QR QA & HANDOVER REPORT',
       `Generated: ${readiness?.generatedAt ?? new Date().toISOString()}`,
       `Active Operator: ${currentUser ? `${currentUser.email} (${currentUser.role})` : 'Signed out'}`,
       `Automated Store & Security Invariants: ${passed} / ${total} passed`,
       `Physical Phone Camera Scan Gate: ${readiness?.physicalQrScanStatus ?? 'PENDING_OWNER_DEVICE_TEST'} (${readiness?.physicalQrPassedCount ?? 0} passed / ${readiness?.physicalQrTotalCount ?? 0} logged)`,
       `Live Redirect Telemetry: Requests=${readiness?.summary.redirectRequestsTotal ?? 0} | 302 Issued=${readiness?.summary.redirectIssuedTotal ?? 0} | Bots Excluded=${readiness?.summary.suspectedBotRedirects ?? 0} | Verified Opens=${readiness?.summary.verifiedDestinationOpens ?? 0}`,
-      `Phase 3 Status: Block P3-A VERIFIED & AWAITING COMMIT · TASK-P3-001 READY (JSON retained without paid Cloud SQL) · Track B (15%) strictly blocked on DEC-OPEN-01.`,
+      `Phase 3 Status: Block P3-A COMMITTED · Block P3-B VERIFIED & AWAITING COMMIT · TASK-P3-001 READY (JSON retained without paid Cloud SQL) · Track B (15%) strictly blocked on DEC-OPEN-01.`,
     ].join('\n');
   }, [readiness, currentUser]);
 
@@ -996,7 +997,7 @@ export function QaHandoverView({
                 VS Code Copilot Engineering Handover Package (Phase 2 Track A → Phase 3)
               </h2>
               <p className="text-xs text-slate-600 mt-0.5">
-                Covers all mandatory deliverables defined in <code className="font-mono">VSCODE_HANDOVER_PLAN.md</code>. <code className="font-mono">Block P3-A</code> is verified &amp; awaiting commit; <code className="font-mono">TASK-P3-001</code> is <code className="font-mono">READY</code> (JSON persistence retained without paid Cloud SQL; <code className="font-mono">DEC-OPEN-01</code> blocks Track B only).
+                Covers all mandatory deliverables defined in <code className="font-mono">VSCODE_HANDOVER_PLAN.md</code>. <code className="font-mono">Block P3-A</code> is committed; <code className="font-mono">Block P3-B</code> is verified &amp; awaiting commit; <code className="font-mono">TASK-P3-001</code> is <code className="font-mono">READY</code> (JSON persistence retained without paid Cloud SQL; <code className="font-mono">DEC-OPEN-01</code> blocks Track B only).
               </p>
             </div>
 

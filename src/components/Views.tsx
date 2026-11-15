@@ -82,7 +82,7 @@ export function ReportsView() {
           <p className="mt-1.5 text-lg font-semibold text-slate-900 tabular-nums">
             {liveSnapshot?.progressMetrics
               ? `${liveSnapshot.progressMetrics.overallFullAppPct}% Full App · ${liveSnapshot.progressMetrics.aiStudioAssignmentPct}% Phase 2 AI Studio`
-              : '22.0% Full App · 85% Phase 2 AI Studio'}
+              : '25.0% Full App · 85% Phase 2 AI Studio'}
           </p>
           <p className="mt-1 text-xs text-slate-600 tabular-nums">
             {liveSnapshot?.progressMetrics
@@ -518,7 +518,7 @@ export function CommandCentreView() {
             </div>
           </div>
           <span className="text-xs font-mono font-semibold text-emerald-700 whitespace-nowrap">
-            TASK-P3-001: READY · BLOCK P3-A AWAITING COMMIT
+            TASK-P3-001: READY · BLOCK P3-B AWAITING COMMIT
           </span>
         </div>
 

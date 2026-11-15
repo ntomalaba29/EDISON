@@ -8,9 +8,12 @@ import { createEdisonApp } from '../src/server/app.ts';
 import {
   CSRF_COOKIE_NAME,
   SESSION_COOKIE_NAME,
+  apiErrorMiddleware,
+  apiTimeoutMiddleware,
   hashSessionToken,
   securityHeadersMiddleware,
 } from '../src/server/security.ts';
+import type { EdisonDataRepository } from '../src/server/repository.ts';
 import { EdisonPrototypeStore } from '../src/server/store.ts';
 import type { EdisonStoreData } from '../src/types/edison.ts';
 
@@ -417,5 +420,132 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
       }
     }
   });
+
+  it('decouples HTTP server via EdisonDataRepository and reports JSON schema v8 truthfully on /api/health', async () => {
+    // Wrap store behind pure EdisonDataRepository interface delegate to verify zero concrete-class coupling
+    const delegatedRepo: EdisonDataRepository = store;
+    const decoupledApp = createEdisonApp(delegatedRepo, { uploadsDir });
+
+    const healthRes = await request(decoupledApp).get('/api/health');
+    expect(healthRes.status).toBe(200);
+    expect(healthRes.body.storageBackend).toMatchObject({
+      backend: 'json_file_store',
+      schemaVersion: 8,
+      postgresMigrationReady: true,
+      migrationBlueprintPath: 'docs/migration/TASK_P3_001_POSTGRES_MIGRATION_REQUIREMENTS.md',
+    });
+
+    const adminLogin = await request(decoupledApp).post('/api/auth/login').send({
+      email: 'admin@edison.demo',
+      password: 'EdisonAdmin!2026',
+    });
+    expect(adminLogin.status).toBe(200);
+    const readinessRes = await request(decoupledApp)
+      .get('/api/qa/prototype-readiness')
+      .set('Authorization', `Bearer ${adminLogin.body.token}`);
+    expect(readinessRes.status).toBe(200);
+    expect(readinessRes.body.automatedInvariantsPassed).toBe(13);
+    expect(readinessRes.body.automatedInvariantsTotal).toBe(13);
+  });
+
+  it('hardens /api/media/upload against SVG/HTML polyglots & invalid base64 and locks down /uploads/* headers & symlinks', async () => {
+    const loginRes = await request(app).post('/api/auth/login').send({
+      email: 'advertiser@edison.demo',
+      password: 'EdisonProto!2026',
+    });
+    const token = loginRes.body.token as string;
+
+    // 1. Valid minimal 1x1 PNG (68 bytes) -> succeeds and serves with strict CSP sandbox & CORP headers
+    const validPngB64 = Buffer.from(
+      '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c6360606060000000050001a5f645400000000049454e44ae426082',
+      'hex'
+    ).toString('base64');
+
+    const uploadOk = await request(app)
+      .post('/api/media/upload')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ dataBase64: `data:image/png;base64,${validPngB64}`, declaredKind: 'image' });
+    expect(uploadOk.status).toBe(201);
+    expect(uploadOk.body.fileUrl).toMatch(/^\/uploads\/edison_img_[a-f0-9]{20}\.png$/);
+
+    const serveRes = await request(app).get(uploadOk.body.fileUrl);
+    expect(serveRes.status).toBe(200);
+    expect(serveRes.headers['content-security-policy']).toBe("default-src 'none'; sandbox");
+    expect(serveRes.headers['x-content-type-options']).toBe('nosniff');
+    expect(serveRes.headers['cross-origin-resource-policy']).toBe('same-origin');
+    expect(serveRes.headers['x-frame-options']).toBe('DENY');
+
+    // 2. Reject SVG/script payload
+    const svgUpload = await request(app)
+      .post('/api/media/upload')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        dataBase64: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>').toString('base64'),
+        declaredKind: 'image',
+      });
+    expect(svgUpload.status).toBe(400);
+
+    // 3. Reject PNG-magic polyglot containing embedded <script>
+    const polyglotBytes = Buffer.concat([
+      Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489', 'hex'),
+      Buffer.from('<script>alert(1)</script>'),
+    ]);
+    const polyglotUpload = await request(app)
+      .post('/api/media/upload')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ dataBase64: polyglotBytes.toString('base64'), declaredKind: 'image' });
+    expect(polyglotUpload.status).toBe(400);
+
+    // 4. Reject invalid base64 payload cleanly
+    const badB64 = await request(app)
+      .post('/api/media/upload')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ dataBase64: '!!!not-valid-base64!!!', declaredKind: 'image' });
+    expect(badB64.status).toBe(400);
+
+    // 5. Block symlink escape from uploadsDir on /uploads/:filename
+    const outsideSecret = path.join(tempRoot, 'outside-secret.png');
+    fs.writeFileSync(outsideSecret, Buffer.from(validPngB64, 'base64'));
+    const symlinkName = 'edison_img_aaaaaaaaaaaaaaaaaaaa.png';
+    const symlinkTarget = path.join(uploadsDir, symlinkName);
+    fs.symlinkSync(outsideSecret, symlinkTarget);
+
+    const symlinkRes = await request(app).get(`/uploads/${symlinkName}`);
+    expect(symlinkRes.status).toBe(404);
+  });
+
+  it('returns structured JSON 400 on malformed JSON, opaque JSON 500 without stack leaks, and 504 on API timeouts', async () => {
+    // 1. Malformed JSON sent to EDISON app must yield clean JSON 400 (never Express HTML error page)
+    const malformedRes = await request(app)
+      .post('/api/auth/login')
+      .set('Content-Type', 'application/json')
+      .send('{"email": "broken');
+    expect(malformedRes.status).toBe(400);
+    expect(malformedRes.headers['content-type']).toContain('application/json');
+    expect(malformedRes.body.error).toBe('Malformed JSON request payload.');
+
+    // 2. Timeout + uncaught error handlers return deterministic opaque JSON without stack leaks
+    const errTestApp = express();
+    errTestApp.use('/api', apiTimeoutMiddleware(30));
+    errTestApp.get('/api/slow', (_req, res) => {
+      setTimeout(() => {
+        if (!res.headersSent) res.json({ ok: true });
+      }, 120);
+    });
+    errTestApp.get('/api/boom', () => {
+      throw new Error('Sensitive internal DB string should not leak');
+    });
+    errTestApp.use(apiErrorMiddleware);
+
+    const timeoutRes = await request(errTestApp).get('/api/slow');
+    expect(timeoutRes.status).toBe(504);
+    expect(timeoutRes.body.error).toContain('timed out');
+
+    const boomRes = await request(errTestApp).get('/api/boom');
+    expect(boomRes.status).toBe(500);
+    expect(boomRes.body.error).toBe('Internal server error.');
+    expect(JSON.stringify(boomRes.body)).not.toContain('Sensitive internal DB string');
+  });
 });
+
 

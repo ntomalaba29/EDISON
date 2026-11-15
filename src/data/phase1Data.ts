@@ -27,10 +27,10 @@ export const ROADMAP_PHASES: RoadmapPhaseItem[] = [
   },
   {
     phase: 3,
-    title: 'Software-First Engineering & Architecture Hardening (Block P3-A + TASK-P3-001)',
+    title: 'Software-First Engineering & Architecture Hardening (Block P3-A + Block P3-B + TASK-P3-001)',
     summary:
-      'IN PROGRESS — Block P3-A (API Zod validation, CSRF, rate limiting, SHA-256 hashed/rotated sessions & Vitest/Supertest security suite) VERIFIED & AWAITING COMMIT. TASK-P3-001 transitioned DRAFT -> READY (docs/migration/TASK_P3_001_POSTGRES_MIGRATION_REQUIREMENTS.md; JSON retained in AI Studio without paid Cloud SQL). Track B excluded per DEC-OPEN-01.',
-    milestoneGate: 'Hardened Track A codebase with automated security/CI tests and PostgreSQL migration readiness.',
+      'IN PROGRESS — Block P3-A (API Zod validation, CSRF, edisonFetch, rate limits, SHA-256 sessions) COMMITTED. Block P3-B (EdisonDataRepository port, /uploads/* CSP/symlink/polyglot hardening, API timeout 504 & JSON error middleware, React AppErrorBoundary & GitHub CI workflow) VERIFIED & AWAITING COMMIT. TASK-P3-001 is READY (JSON retained without paid Cloud SQL). Track B excluded per DEC-OPEN-01.',
+    milestoneGate: 'Hardened Track A codebase with repository portability, automated security/CI tests & PostgreSQL migration readiness.',
     status: 'AWAITING COMMIT',
   },
   {
@@ -246,7 +246,7 @@ export function generateFormalReport(
   const pm = liveSnapshot?.progressMetrics;
   const pctBlock = pm
     ? `${pm.overallFullAppPct}% of Full 15-Phase App (${pm.remainingUntilFullAppPct}% remaining) · ${pm.softwareToStageP6Pct}% of Software-to-Stage-P6 Milestone · ${pm.aiStudioAssignmentPct}% of Phase 2 AI Studio Scope (${pm.consentBlockedScopePct}% blocked on DEC-OPEN-01)`
-    : '22.0% of Full 15-Phase App (78.0% remaining) · 35.5% of Software-to-Stage-P6 · 85% of Phase 2 AI Studio Scope (15% Track B blocked on DEC-OPEN-01)';
+    : '25.0% of Full 15-Phase App (75.0% remaining) · 40.3% of Software-to-Stage-P6 · 85% of Phase 2 AI Studio Scope (15% Track B blocked on DEC-OPEN-01)';
 
   if (command === 'STATUS') {
     return {
@@ -256,28 +256,29 @@ export function generateFormalReport(
         'EDISON — PROJECT STATUS REPORT',
         `Generated: ${generatedAt}`,
         `Current Phase: ${liveSnapshot?.phase ?? 'Phase 3 — Software-First Engineering Hardening (Track A Active · JSON Retained)'}`,
-        `Current Stage: ${liveSnapshot?.stage ?? 'Block P3-A Complete (API Security Hardening) · TASK-P3-001 READY (Postgres Blueprint Prepared)'}`,
-        `Current Block: ${liveSnapshot?.block ?? 'Block P3-A (Zod Validation, CSRF, Rate Limiting, Session/Cookie Hardening & Security Suite)'}`,
-        `Commit Gate: ${liveSnapshot?.gateStatus ?? 'BLOCK P3-A VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · NO CLOUD SQL PROVISIONED)'}`,
+        `Current Stage: ${liveSnapshot?.stage ?? 'Block P3-A Committed · Block P3-B Complete (Repository Port, Asset/Timeout/ErrorBoundary & CI) · TASK-P3-001 READY'}`,
+        `Current Block: ${liveSnapshot?.block ?? 'Block P3-B (EdisonDataRepository Port, /uploads CSP/Symlink Hardening, Timeout/ErrorBoundary & CI)'}`,
+        `Commit Gate: ${liveSnapshot?.gateStatus ?? 'BLOCK P3-B VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · NO CLOUD SQL PROVISIONED)'}`,
         '',
         `PROGRESS UNTIL FULL APP: ${pctBlock}`,
         '',
         'PHASE 2 & PHASE 3 PROGRESS:',
         '- Phase 1 + Blueprint v2.1 + v2.2 Shared Ad Intelligence Specs: COMMITTED (6.0% Full App)',
         '- Phase 2 Track A Complete (Blocks 2.1–2.7 + P2-V2.1–P2-V2.4, 85% AI Studio): COMMITTED (13.0% / 14.0% Full App)',
-        '- Phase 3 Block P3-A (API Zod validation, CSRF, rate limits, hashed/rotated sessions & security suite): VERIFIED · AWAITING COMMIT (3.0% / 12.0% Full App)',
+        '- Phase 3 Block P3-A (API Zod validation, CSRF, rate limits, hashed/rotated sessions & security suite): COMMITTED (3.0% / 12.0% Full App)',
+        '- Phase 3 Block P3-B (EdisonDataRepository port, /uploads/* CSP/symlink/polyglot hardening, API timeout 504/JSON error middleware, AppErrorBoundary & CI): VERIFIED · AWAITING COMMIT (3.0% / 12.0% Full App)',
         '- TASK-P3-001 PostgreSQL 16+ Migration Requirements Blueprint: READY (JSON persistence retained in AI Studio without Cloud SQL)',
         '- Track B (Consent / Household Geo / Multi-Profile / Epoch 403): BLOCKED ON DEC-OPEN-01 (15% Phase 2 scope)',
         '',
         'OVERALL EDISON PROJECT PROGRESS:',
-        `- ${pm?.rubricSummary ?? 'Phase 1 Specs (6.0%) + Phase 2 Track A Complete (13.0%) + Phase 3 Block P3-A (3.0%) = 22.0% of Full 15-Phase Commercial App (78.0% remaining).'}`,
+        `- ${pm?.rubricSummary ?? 'Phase 1 Specs (6.0%) + Phase 2 Track A Complete (13.0%) + Phase 3 Block P3-A Committed (3.0%) + Block P3-B Awaiting Commit (3.0%) = 25.0% of Full 15-Phase Commercial App (75.0% remaining).'}`,
         '- Normal Everyday TV Remote (AURA -> EDISON Control Engine -> platform adapters -> TV) NOT STARTED; Shared Intelligence Phase 5 Service NOT STARTED; single Stage P6 physical TV test deferred until app completion.',
         '',
         'LIVE STORE COUNTS:',
         countsLine,
         '',
         'NEXT AUTHORISED ACTION:',
-        'Review and commit Block P3-A changes, then confirm commit to unlock Block P3-B (storage repository extraction & asset/runtime hardening). Track B remains strictly blocked pending DEC-OPEN-01.',
+        'Review and commit Block P3-B changes, then confirm commit to unlock Block P3-C (structured request logging/audit export + software-only Phase 4 TV adapter & Normal TV Remote simulation contracts). Track B remains strictly blocked pending DEC-OPEN-01.',
       ].join('\n'),
     };
   }
@@ -289,16 +290,18 @@ export function generateFormalReport(
       body: [
         'EDISON — VERIFICATION & GATE CHECK',
         `Generated: ${generatedAt}`,
-        `Active Block: ${liveSnapshot?.block ?? 'Block P3-A (Zod Validation, CSRF, Rate Limiting, Session/Cookie Hardening & Security Suite)'}`,
+        `Active Block: ${liveSnapshot?.block ?? 'Block P3-B (EdisonDataRepository Port, /uploads CSP/Symlink Hardening, Timeout/ErrorBoundary & CI)'}`,
         `Progress Metrics: ${pctBlock}`,
         `Live Store Telemetry: ${countsLine}`,
         `QR Telemetry: Redirect Requests=${s?.redirectRequestsTotal ?? 0} | Redirects Issued=${s?.redirectIssuedTotal ?? 0} | Suspected Bots=${s?.suspectedBotRedirects ?? 0} | Verified Destination Opens=${s?.verifiedDestinationOpens ?? 0} | Verified Conversions=${s?.verifiedConversionsTotal ?? 0}`,
         `Physical Phone Scan Logs: ${s?.physicalQrPassedCount ?? 0} passed / ${s?.physicalQrTestsCount ?? 0} total`,
         '',
-        'VERIFIED IMPLEMENTATIONS (PHASE 2 TRACK A COMMITTED + PHASE 3 BLOCK P3-A):',
-        '- Locked atomic JSON persistence (data/edison-store.json, schemaVersion 8, SHA-256 session tokenHash at rest)',
+        'VERIFIED IMPLEMENTATIONS (PHASE 2 TRACK A + BLOCK P3-A COMMITTED + BLOCK P3-B):',
+        '- Persistence portability via EdisonDataRepository interface (JSON store schemaVersion 8 retained; zero Cloud SQL cost)',
         '- Auth/RBAC (advertiser, opportunity_submitter, admin) with scrypt hashing, session rotation & 2h idle timeout',
-        '- API Zod validation schemas, cookie/header double-submit CSRF, same-origin enforcement & sliding-window rate limiting',
+        '- API Zod validation schemas, cookie/header CSRF + edisonFetch, sliding-window rate limiting, 504 timeout & opaque JSON error middleware',
+        '- Hardened /uploads/* static serving (CSP default-src none; sandbox, CORP same-origin, canonical realpath symlink guard, SVG/polyglot blocking)',
+        '- React AppErrorBoundary + GitHub Actions CI (.github/workflows/edison-ci.yml)',
         '- Real QR destination validation & /r/:token redirect telemetry',
         '- Advertiser profile, 10-state campaigns & permanent $0.00 / FREE CHARITY ADS lock (paymentCollectionActive: false)',
         '- Option A Studio, Option B External Upload/jsQR, and zero-media Commercial Text-Only Ad format',
@@ -306,7 +309,7 @@ export function generateFormalReport(
         '- Direct-Paid Commercial Priority vs MockAdNetworkBackfillAdapter (DEC-OPEN-03) & Separated 6-Stream Financial Ledger (ADR-012)',
         '- Opportunity Submission, Non-Transitive 3-Tier Verification, Expiry, Complaints & Appeals',
         '- Admin Moderation Console & 7-Stage Funnel Analytics',
-        '- Vitest + Supertest Automated Suite (npm test — 23/23 across 5 suites incl. securityHardening.test.ts)',
+        '- Vitest + Supertest Automated Suite (npm test — 27/27 across 5 suites incl. securityHardening.test.ts)',
         '- Shared Ad Intelligence Prototype Preview (Mock Simulation Only — K=3 Quorum, Zero PII, Scoped Cache, Auto-Rollback)',
         '',
         'OUTSTANDING CHECKS & POST-PROTOTYPE CORE REQUIREMENTS:',
@@ -322,18 +325,18 @@ export function generateFormalReport(
   if (command === 'NEXT') {
     return {
       title: 'EDISON — NEXT AUTHORISED ACTION',
-      subtitle: 'Block P3-A verified & awaiting commit; TASK-P3-001 READY; Track B blocked on DEC-OPEN-01',
+      subtitle: 'Block P3-B verified & awaiting commit; Block P3-A committed; TASK-P3-001 READY',
       body: [
         'EDISON — NEXT GATE EVALUATION',
         `Generated: ${generatedAt}`,
-        `Current Gate: ${liveSnapshot?.gateStatus ?? 'BLOCK P3-A VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · NO CLOUD SQL PROVISIONED)'}`,
+        `Current Gate: ${liveSnapshot?.gateStatus ?? 'BLOCK P3-B VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · NO CLOUD SQL PROVISIONED)'}`,
         `Progress Until Full App: ${pctBlock}`,
         '',
         'GATE STATUS & NEXT BLOCK:',
-        'Block P3-A (API Zod validation, CSRF, rate limiting, session/cookie hardening & Vitest/Supertest security suite) is VERIFIED & AWAITING COMMIT. TASK-P3-001 PostgreSQL migration blueprint is READY while retaining JSON persistence in AI Studio without paid Cloud SQL.',
+        'Block P3-B (EdisonDataRepository port, /uploads/* CSP/symlink/polyglot hardening, API timeout 504 & opaque JSON error middleware, React AppErrorBoundary & CI workflow) is VERIFIED & AWAITING COMMIT. TASK-P3-001 PostgreSQL blueprint is READY while retaining JSON persistence in AI Studio without paid Cloud SQL.',
         '',
         'AFTER COMMIT CONFIRMATION:',
-        '- Next AI Studio Software-First Block (Block P3-B): Repository interface extraction (EdisonDataRepository), upload/static asset CSP/header hardening, and structured runtime error boundaries.',
+        '- Next AI Studio Software-First Block (Block P3-C): Request correlation/audit export hardening + software-only Phase 4 modular TvPlatformAdapter & Normal Everyday TV Remote (AURA -> EDISON Control Engine -> platform adapters -> TV) contract/simulator suite.',
         '- DEC-OPEN-01 (Blocks Track B Only): Select Option A, Option B, or Option C to unlock Track B (15%).',
         '- DEC-OPEN-02: Confirm k=1 short-break alternating rule.',
         '- DEC-OPEN-03: Google Ad Manager CTV account / format confirmation (mock adapter active until resolved).',
@@ -344,40 +347,40 @@ export function generateFormalReport(
   if (command === 'COMMIT') {
     return {
       title: 'EDISON — COMMIT CHECKPOINT',
-      subtitle: 'Block P3-A verified and awaiting manual owner commit',
+      subtitle: 'Block P3-B verified and awaiting manual owner commit',
       body: [
-        'EDISON — COMMIT CHECKPOINT (BLOCK P3-A)',
+        'EDISON — COMMIT CHECKPOINT (BLOCK P3-B)',
         `Generated: ${generatedAt}`,
         `Progress Metrics: ${pctBlock}`,
         `Live Store Telemetry: ${countsLine}`,
         '',
         'STATUS: VERIFIED · AWAITING MANUAL OWNER COMMIT',
-        'REQUIRED USER ACTION: Review the Block P3-A changes and manually commit them before proceeding to Block P3-B.',
+        'REQUIRED USER ACTION: Review the Block P3-B changes and manually commit them before proceeding.',
       ].join('\n'),
     };
   }
 
   return {
-    title: 'EDISON — PHASE 3 ACTIVATION & FULL-APP PROGRESS REPORT',
+    title: 'EDISON — PHASE 3 HARDENING & FULL-APP PROGRESS REPORT',
     subtitle: 'Formal status report with live server telemetry and progress breakdown',
     body: [
       'EDISON — IMPLEMENTATION BLOCK COMPLETION REPORT',
       '',
       'Project: EDISON — International Smart TV Advertising & Opportunities Network',
       `Production Phase: ${liveSnapshot?.phase ?? 'Phase 3 — Software-First Engineering Hardening (Track A Active · JSON Retained)'}`,
-      `Stage: ${liveSnapshot?.stage ?? 'Block P3-A Complete (API Security Hardening) · TASK-P3-001 READY (Postgres Blueprint Prepared)'}`,
-      `Implementation Block: ${liveSnapshot?.block ?? 'Block P3-A (Zod Validation, CSRF, Rate Limiting, Session/Cookie Hardening & Security Suite)'}`,
-      `Status: ${liveSnapshot?.gateStatus ?? 'BLOCK P3-A VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · NO CLOUD SQL PROVISIONED)'}`,
+      `Stage: ${liveSnapshot?.stage ?? 'Block P3-A Committed · Block P3-B Complete (Repository Port, Asset/Timeout/ErrorBoundary & CI) · TASK-P3-001 READY'}`,
+      `Implementation Block: ${liveSnapshot?.block ?? 'Block P3-B (EdisonDataRepository Port, /uploads CSP/Symlink Hardening, Timeout/ErrorBoundary & CI)'}`,
+      `Status: ${liveSnapshot?.gateStatus ?? 'BLOCK P3-B VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · NO CLOUD SQL PROVISIONED)'}`,
       '',
       `PHASE 2 AI STUDIO SCOPE: ${pm?.aiStudioAssignmentPct ?? 85}% (100% Track A Committed; 15% Track B Blocked on DEC-OPEN-01)`,
-      `OVERALL EDISON PROJECT PROGRESS: ${pm?.overallFullAppPct ?? 22.0}% of Full 15-Phase App (${pm?.remainingUntilFullAppPct ?? 78.0}% remaining) · ${pm?.softwareToStageP6Pct ?? 35.5}% of Software-to-Stage-P6 Milestone`,
+      `OVERALL EDISON PROJECT PROGRESS: ${pm?.overallFullAppPct ?? 25.0}% of Full 15-Phase App (${pm?.remainingUntilFullAppPct ?? 75.0}% remaining) · ${pm?.softwareToStageP6Pct ?? 40.3}% of Software-to-Stage-P6 Milestone`,
       '',
       'LIVE STORE TELEMETRY:',
       countsLine,
       `Latest Audit: ${liveSnapshot?.latestAuditAction ?? 'N/A'} (${liveSnapshot?.latestAuditAt ?? 'N/A'})`,
       '',
       'REQUIRED USER ACTION:',
-      'Review Block P3-A changes and manually commit them to unlock Block P3-B.',
+      'Review Block P3-B changes and manually commit them to unlock Block P3-C.',
       '',
       'PRODUCTION GATE:',
       'LOCKED UNTIL COMMIT CONFIRMATION (TRACK B BLOCKED ON DEC-OPEN-01).',

@@ -1,8 +1,13 @@
-import {createRoot} from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
+import { AppErrorBoundary } from './components/AppErrorBoundary.tsx';
 import { installEdisonCsrfFetch } from './lib/csrfFetch.ts';
 
 installEdisonCsrfFetch();
 
-createRoot(document.getElementById('root')!).render(<App />);
+createRoot(document.getElementById('root')!).render(
+  <AppErrorBoundary>
+    <App />
+  </AppErrorBoundary>
+);

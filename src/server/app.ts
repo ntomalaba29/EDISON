@@ -3,10 +3,11 @@ import {
   ALL_CAMPAIGN_STATUSES,
   ALLOWED_CAMPAIGN_TRANSITIONS,
   ALL_OPPORTUNITY_CATEGORIES,
-  EdisonPrototypeStore,
   edisonStore,
 } from './store.ts';
+import type { EdisonDataRepository } from './repository.ts';
 import {
+  STATIC_ASSET_SECURITY_HEADERS,
   UPLOADS_DIR,
   resolveSafeUploadPath,
   saveValidatedMediaUpload,
@@ -18,6 +19,8 @@ import {
   CSRF_HEADER_NAME,
   InMemoryRateLimiter,
   SESSION_COOKIE_NAME,
+  apiErrorMiddleware,
+  apiTimeoutMiddleware,
   buildClearCookieOptions,
   buildHardenedCookieOptions,
   generateCsrfToken,
@@ -142,8 +145,12 @@ function sendValidationError(
 }
 
 export function createEdisonApp(
-  store: EdisonPrototypeStore = edisonStore,
-  options?: { uploadsDir?: string; rateLimits?: EdisonRateLimitOptions }
+  store: EdisonDataRepository = edisonStore,
+  options?: {
+    uploadsDir?: string;
+    rateLimits?: EdisonRateLimitOptions;
+    requestTimeoutMs?: number;
+  }
 ): Express {
   const uploadsDir = options?.uploadsDir ?? UPLOADS_DIR;
   const app = express();
@@ -297,6 +304,7 @@ export function createEdisonApp(
   }
 
   app.use(securityHeadersMiddleware);
+  app.use('/api', apiTimeoutMiddleware(options?.requestTimeoutMs ?? 15_000));
   app.use(attachSession);
   app.use('/api', requireCsrfAndSameOrigin);
   app.use('/api', (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -349,14 +357,16 @@ export function createEdisonApp(
     }
   );
 
-  // Serve strictly validated uploaded media with nosniff header
+  // Serve strictly validated uploaded media with hardened CSP, CORP, and nosniff headers
   app.get('/uploads/:filename', (req: Request, res: Response) => {
     const resolved = resolveSafeUploadPath(req.params.filename, uploadsDir);
     if (!resolved) {
       res.status(404).json({ error: 'Uploaded media asset not found.' });
       return;
     }
-    res.setHeader('X-Content-Type-Options', 'nosniff');
+    for (const [header, value] of Object.entries(STATIC_ASSET_SECURITY_HEADERS)) {
+      res.setHeader(header, value);
+    }
     res.setHeader('Content-Type', resolved.contentType);
     res.sendFile(resolved.fullPath);
   });
@@ -366,11 +376,13 @@ export function createEdisonApp(
   // Health & prototype status
   app.get('/api/health', (_req: Request, res: Response) => {
     const live = store.getLiveReportSnapshot();
+    const storageBackend = store.getStorageBackendMetadata();
     res.json({
       ok: true,
       service: 'edison-prototype-server',
       phase: live.phase,
       block: live.block,
+      storageBackend,
       progressMetrics: live.progressMetrics,
       summary: live.summary,
     });
@@ -1357,6 +1369,9 @@ export function createEdisonApp(
 
     res.redirect(302, outcome.record.resolvedUrl);
   });
+
+  // Structured JSON error handler prevents Express HTML error pages or stack leaks on malformed JSON / runtime errors
+  app.use(apiErrorMiddleware);
 
   return app;
 }

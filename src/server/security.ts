@@ -202,3 +202,75 @@ export function securityHeadersMiddleware(req: Request, res: Response, next: Nex
   }
   next();
 }
+
+export function apiTimeoutMiddleware(timeoutMs = 15_000) {
+  const safeTimeout = Math.max(25, Math.min(120_000, timeoutMs));
+  return (_req: Request, res: Response, next: NextFunction): void => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      settled = true;
+      if (!res.headersSent) {
+        res.status(504).json({
+          error: 'Request timed out before completing. Please retry.',
+        });
+      }
+    }, safeTimeout);
+    timer.unref?.();
+
+    const clear = () => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+      }
+    };
+    res.on('finish', clear);
+    res.on('close', clear);
+    next();
+  };
+}
+
+export function apiErrorMiddleware(
+  err: unknown,
+  _req: Request,
+  res: Response,
+  _next: NextFunction
+): void {
+  if (res.headersSent) {
+    return;
+  }
+
+  const typedErr = err as { type?: string; status?: number; statusCode?: number; message?: string };
+  if (typedErr?.type === 'entity.parse.failed' || err instanceof SyntaxError) {
+    res.status(400).json({
+      error: 'Malformed JSON request payload.',
+    });
+    return;
+  }
+
+  if (typedErr?.type === 'entity.too.large' || typedErr?.status === 413) {
+    res.status(413).json({
+      error: 'Request payload exceeds maximum allowed size.',
+    });
+    return;
+  }
+
+  const statusCode =
+    typeof typedErr?.statusCode === 'number' &&
+    typedErr.statusCode >= 400 &&
+    typedErr.statusCode < 500
+      ? typedErr.statusCode
+      : 500;
+
+  if (statusCode >= 500) {
+    console.error('[EDISON API Error]', err instanceof Error ? err.message : 'Unexpected error');
+    res.status(500).json({
+      error: 'Internal server error.',
+    });
+    return;
+  }
+
+  res.status(statusCode).json({
+    error: typedErr?.message || 'Request failed.',
+  });
+}
+
