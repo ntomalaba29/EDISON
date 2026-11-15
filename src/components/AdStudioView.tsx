@@ -32,6 +32,7 @@ import type {
   QrLinkRecord,
   QrPlacementPreset,
   StudioTemplateId,
+  TextOnlyCommercialSpec,
 } from '../types/edison';
 import { QrCodePreview } from './QrCodePreview';
 import { CopyReportFooter } from './CopyReportFooter';
@@ -657,6 +658,19 @@ export function AdStudioView({
   const [inspectingUpload, setInspectingUpload] = useState(false);
   const [attachCampaignMap, setAttachCampaignMap] = useState<Record<string, string>>({});
 
+  // Commercial Text-Only State (Block P2-V2.1)
+  const [textOnly, setTextOnly] = useState<TextOnlyCommercialSpec>({
+    advertiserName: 'EDISON Local Partner',
+    headline: 'Spring Trade-In Event — Save 25%',
+    messageBody:
+      'High-contrast 16:9 commercial announcement engineered without images or video assets. Clear typography ready for living-room viewing.',
+    contactInfo: 'Call 0800 555 0140 · Valid across local branches',
+    backgroundColor: '#0f172a',
+    accentColor: '#38bdf8',
+    textColor: '#f8fafc',
+    qrPlacement: 'bottom_right',
+  });
+
   const [saveFeedback, setSaveFeedback] = useState<{ type: 'ok' | 'err'; text: string } | null>(
     null
   );
@@ -731,11 +745,14 @@ export function AdStudioView({
     };
   }, [activeQrRedirectUrl]);
 
-  // Live Guardrail computations for Option A
+  // Live Guardrail computations for Option A, Option B, and Text-Only Commercial
   const { safeZoneWarnings, contrastWarnings, contrastRatio } = useMemo(() => {
     const sw: string[] = [];
     const cw: string[] = [];
-    const ratio = computeContrastRatio(optionA.textColor, optionA.backgroundColor);
+    const ratio =
+      mode === 'text_only_commercial'
+        ? computeContrastRatio(textOnly.textColor, textOnly.backgroundColor)
+        : computeContrastRatio(optionA.textColor, optionA.backgroundColor);
 
     if (mode === 'option_a_studio') {
       if (ratio < 4.5 && (!optionA.backgroundImageUrl || optionA.scrimOpacity < 0.45)) {
@@ -774,6 +791,24 @@ export function AdStudioView({
       if (!qrToken) {
         sw.push('No validated /r/:token QR destination linked yet.');
       }
+    } else if (mode === 'text_only_commercial') {
+      if (ratio < 4.5) {
+        cw.push(
+          `Text contrast vs background is ${ratio}:1 (below WCAG AA 4.5:1 TV readability target).`
+        );
+      }
+      if (textOnly.advertiserName.trim().length < 2) {
+        sw.push('Advertiser name must be at least 2 characters.');
+      }
+      if (textOnly.headline.trim().length < 3) {
+        sw.push('Headline must be at least 3 characters.');
+      }
+      if (textOnly.messageBody.trim().length < 8) {
+        sw.push('Message body should be at least 8 characters for 10-foot TV legibility.');
+      }
+      if (!qrToken) {
+        sw.push('Optional QR code unlinked — attach /r/:token if mobile scan-to-action is needed.');
+      }
     } else if (optionB) {
       if (optionB.qrInspectionStatus === 'decoded_mismatch') {
         sw.push(
@@ -787,7 +822,7 @@ export function AdStudioView({
     }
 
     return { safeZoneWarnings: sw, contrastWarnings: cw, contrastRatio: ratio };
-  }, [optionA, mode, qrToken, optionB]);
+  }, [optionA, textOnly, mode, qrToken, optionB]);
 
   const applyTemplatePreset = (presetId: StudioTemplateId) => {
     const preset = TEMPLATE_PRESETS.find((t) => t.id === presetId) ?? TEMPLATE_PRESETS[0];
@@ -1058,6 +1093,7 @@ export function AdStudioView({
           contrastWarnings,
           optionA: mode === 'option_a_studio' ? optionA : null,
           optionB: mode === 'option_b_upload' ? optionB : null,
+          textOnly: mode === 'text_only_commercial' ? textOnly : null,
         }),
       });
       const data = await res.json();
@@ -1098,6 +1134,9 @@ export function AdStudioView({
       setOptionB(null);
     } else if (crt.mode === 'option_b_upload' && crt.optionB) {
       setOptionB({ ...crt.optionB });
+    } else if (crt.mode === 'text_only_commercial' && crt.textOnly) {
+      setTextOnly({ ...crt.textOnly });
+      setOptionB(null);
     }
     setSaveFeedback({ type: 'ok', text: `Loaded creative "${crt.title}" into Studio.` });
   }, []);
@@ -1176,13 +1215,21 @@ export function AdStudioView({
   const sortedElements = [...optionA.elements].sort((a, b) => a.zIndex - b.zIndex);
 
   const reportText = [
-    'EDISON — BLOCK 2.3 ADVERTISEMENT CREATION STUDIO REPORT',
+    'EDISON — BLOCK 2.3 / P2-V2.1 ADVERTISEMENT CREATION STUDIO REPORT',
     `Account: ${currentUser.email} (${currentUser.role})`,
-    `Active Studio Mode: ${mode === 'option_a_studio' ? 'Option A · Guided Non-Designer Studio' : 'Option B · External Media Upload & QR Inspector'}`,
+    `Active Studio Mode: ${
+      mode === 'option_a_studio'
+        ? 'Option A · Guided Non-Designer Studio'
+        : mode === 'option_b_upload'
+        ? 'Option B · External Media Upload & QR Inspector'
+        : 'Commercial Text-Only Advertisement'
+    }`,
     `Active Creative Title: ${creativeTitle}${editingId ? ` (${editingId})` : ' (Unsaved Draft)'}`,
     `Linked QR Redirect: ${qrToken ? `/r/${qrToken}` : 'None'} | Duration: ${displayDurationSeconds}s`,
     mode === 'option_a_studio'
       ? `Option A Contrast Ratio: ${contrastRatio}:1 | Safe-Zone Warnings: ${safeZoneWarnings.length} | Contrast Warnings: ${contrastWarnings.length}`
+      : mode === 'text_only_commercial'
+      ? `Text-Only Contrast Ratio: ${contrastRatio}:1 | Advertiser: ${textOnly.advertiserName} | Warnings: ${safeZoneWarnings.length + contrastWarnings.length}`
       : `Option B Inspection: ${optionB ? `${optionB.aspectRatioLabel} · QR=${optionB.qrInspectionStatus} · Overlay=${optionB.qrOverlayConfirmed}` : 'No upload loaded'}`,
     `Saved Ad Creatives Accessible: ${creatives.length}`,
   ].join('\n');
@@ -1195,12 +1242,12 @@ export function AdStudioView({
             Advertisement Creation Studio
           </h2>
           <p className="text-xs text-slate-600 mt-0.5">
-            Guided 16:9 television spot author (Option A) and externally produced media validator with strict non-overwrite QR integrity rules (Option B).
+            Guided 16:9 studio (Option A), external media validator with non-overwrite QR integrity (Option B), and zero-media Text-Only commercial cards.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
+          <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 rounded-lg">
             <button
               type="button"
               onClick={() => setMode('option_a_studio')}
@@ -1222,6 +1269,17 @@ export function AdStudioView({
               }`}
             >
               Option B · External Upload
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('text_only_commercial')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap cursor-pointer ${
+                mode === 'text_only_commercial'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Commercial · Text-Only Ad
             </button>
           </div>
           {onPreviewCreative && editingId && (
@@ -1258,7 +1316,7 @@ export function AdStudioView({
         </div>
       )}
 
-      {mode === 'option_a_studio' ? (
+      {mode === 'option_a_studio' && (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
           {/* Left: Structured Non-Designer Controls */}
           <form
@@ -1978,7 +2036,9 @@ export function AdStudioView({
             </div>
           </div>
         </div>
-      ) : (
+      )}
+
+      {mode === 'option_b_upload' && (
         /* Option B External Upload & QR Integrity Scanner */
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
           <form
@@ -2301,6 +2361,329 @@ export function AdStudioView({
         </div>
       )}
 
+      {mode === 'text_only_commercial' && (
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+          <form
+            onSubmit={handleSaveCreative}
+            className="xl:col-span-5 bg-white border border-slate-200 rounded-lg p-5 space-y-4"
+          >
+            <div className="pb-3 border-b border-slate-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Commercial Text-Only Television Card
+                </h3>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Publish high-contrast text commercial spots with zero image or video upload required.
+                </p>
+              </div>
+              <span className="text-xs font-mono text-slate-500">
+                {editingId ? editingId : 'New Draft'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  Creative Internal Title
+                </label>
+                <input
+                  type="text"
+                  required
+                  minLength={3}
+                  value={creativeTitle}
+                  onChange={(e) => setCreativeTitle(e.target.value)}
+                  className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  TV Duration (5–60s)
+                </label>
+                <input
+                  type="number"
+                  min={5}
+                  max={60}
+                  value={displayDurationSeconds}
+                  onChange={(e) => setDisplayDurationSeconds(Number(e.target.value))}
+                  className="w-full px-3 py-1.5 text-xs font-mono tabular-nums border border-slate-200 rounded-lg"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Advertiser Name (Shown on TV Header)
+              </label>
+              <input
+                type="text"
+                required
+                minLength={2}
+                value={textOnly.advertiserName}
+                onChange={(e) => setTextOnly({ ...textOnly, advertiserName: e.target.value })}
+                className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Main Headline
+              </label>
+              <input
+                type="text"
+                required
+                minLength={3}
+                value={textOnly.headline}
+                onChange={(e) => setTextOnly({ ...textOnly, headline: e.target.value })}
+                className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Commercial Message Body
+              </label>
+              <textarea
+                rows={3}
+                required
+                minLength={8}
+                value={textOnly.messageBody}
+                onChange={(e) => setTextOnly({ ...textOnly, messageBody: e.target.value })}
+                className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Contact Details / Location (Optional)
+              </label>
+              <input
+                type="text"
+                value={textOnly.contactInfo}
+                onChange={(e) => setTextOnly({ ...textOnly, contactInfo: e.target.value })}
+                placeholder="e.g. Call 0800 555 0140 · Open 7 days"
+                className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  Validated QR Link (Optional)
+                </label>
+                <select
+                  value={qrToken}
+                  onChange={(e) => setQrToken(e.target.value)}
+                  className="w-full px-3 py-1.5 text-xs font-mono bg-white border border-slate-200 rounded-lg"
+                >
+                  <option value="">(Text-Only · No QR Overlay)</option>
+                  {qrLinks.map((q) => (
+                    <option key={q.token} value={q.token}>
+                      /r/{q.token} · {q.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  QR Corner Placement
+                </label>
+                <select
+                  value={textOnly.qrPlacement}
+                  onChange={(e) =>
+                    setTextOnly({
+                      ...textOnly,
+                      qrPlacement: e.target.value as 'bottom_right' | 'bottom_left',
+                    })
+                  }
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg"
+                >
+                  <option value="bottom_right">Bottom-Right Safe Corner</option>
+                  <option value="bottom_left">Bottom-Left Safe Corner</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 pt-1">
+              <div>
+                <label className="block text-[11px] font-medium text-slate-700 mb-1">
+                  Background
+                </label>
+                <input
+                  type="color"
+                  value={textOnly.backgroundColor}
+                  onChange={(e) => setTextOnly({ ...textOnly, backgroundColor: e.target.value })}
+                  className="w-full h-8 p-0.5 border border-slate-200 rounded cursor-pointer"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-slate-700 mb-1">
+                  Accent
+                </label>
+                <input
+                  type="color"
+                  value={textOnly.accentColor}
+                  onChange={(e) => setTextOnly({ ...textOnly, accentColor: e.target.value })}
+                  className="w-full h-8 p-0.5 border border-slate-200 rounded cursor-pointer"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-slate-700 mb-1">
+                  Text Color
+                </label>
+                <input
+                  type="color"
+                  value={textOnly.textColor}
+                  onChange={(e) => setTextOnly({ ...textOnly, textColor: e.target.value })}
+                  className="w-full h-8 p-0.5 border border-slate-200 rounded cursor-pointer"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-3 border-t border-slate-200">
+              <div className="flex-1 w-full">
+                <label className="block text-[11px] font-medium text-slate-700 mb-1">
+                  Link to Campaign (Optional)
+                </label>
+                <select
+                  value={campaignId}
+                  onChange={(e) => setCampaignId(e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg"
+                >
+                  <option value="">Save Unlinked Creative</option>
+                  {campaigns.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.title} ({c.status})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="submit"
+                disabled={savingCreative}
+                className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 cursor-pointer whitespace-nowrap"
+              >
+                {savingCreative ? 'Saving...' : 'Save Text-Only Creative'}
+              </button>
+            </div>
+          </form>
+
+          {/* Live 16:9 TV Preview for Text-Only Commercial */}
+          <div className="xl:col-span-7 bg-white border border-slate-200 rounded-lg p-6 space-y-4">
+            <div className="pb-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">
+                  16:9 Living-Room Text-Only Preview
+                </h3>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Contrast ratio: <strong className="font-mono">{contrastRatio}:1</strong> (Target ≥ 4.5:1) · Overscan 5% safe zone enforced
+                </p>
+              </div>
+              <label className="inline-flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showSafeGuide}
+                  onChange={(e) => setShowSafeGuide(e.target.checked)}
+                />
+                <span>5% Safe Guide</span>
+              </label>
+            </div>
+
+            <div
+              className="relative w-full aspect-video rounded-lg overflow-hidden border border-slate-300 shadow-sm flex flex-col justify-between p-[6%] select-none"
+              style={{
+                backgroundColor: textOnly.backgroundColor,
+                color: textOnly.textColor,
+              }}
+            >
+              {showSafeGuide && (
+                <div
+                  aria-hidden="true"
+                  className="absolute pointer-events-none border border-dashed border-amber-400/80 z-30"
+                  style={{ left: '5%', top: '5%', width: '90%', height: '90%' }}
+                />
+              )}
+
+              <div className="flex items-center justify-between gap-4 z-10">
+                <div className="flex items-center gap-2.5">
+                  <span
+                    className="inline-block w-2 h-5 rounded-sm shrink-0"
+                    style={{ backgroundColor: textOnly.accentColor }}
+                  />
+                  <span className="text-xs font-mono font-semibold uppercase tracking-wider opacity-90">
+                    {textOnly.advertiserName || 'Advertiser Name'}
+                  </span>
+                </div>
+                <span
+                  className="text-[10px] font-mono px-2 py-0.5 rounded border border-current/25 uppercase tracking-wide"
+                  style={{ color: textOnly.accentColor }}
+                >
+                  Commercial Text-Only
+                </span>
+              </div>
+
+              <div
+                className={`my-auto flex flex-col justify-center gap-2.5 z-10 ${
+                  qrToken
+                    ? textOnly.qrPlacement === 'bottom_left'
+                      ? 'pl-[23%]'
+                      : 'pr-[23%]'
+                    : ''
+                }`}
+              >
+                <h4 className="text-lg sm:text-2xl font-bold leading-tight tracking-tight">
+                  {textOnly.headline || 'Commercial Headline'}
+                </h4>
+                <p className="text-xs sm:text-sm opacity-90 leading-relaxed">
+                  {textOnly.messageBody || 'Message body preview'}
+                </p>
+              </div>
+
+              <div
+                className={`flex items-end justify-between gap-4 z-10 ${
+                  qrToken && textOnly.qrPlacement === 'bottom_left' ? 'pl-[23%]' : ''
+                }`}
+              >
+                <p className="text-xs font-mono opacity-85 truncate">
+                  {textOnly.contactInfo || 'Contact info optional'}
+                </p>
+              </div>
+
+              {qrToken && (
+                <div
+                  className={`absolute bottom-[7%] ${
+                    textOnly.qrPlacement === 'bottom_left' ? 'left-[5.5%]' : 'right-[5.5%]'
+                  } bg-white text-slate-900 p-1.5 rounded-lg border border-slate-300 shadow-sm flex flex-col items-center w-[17%] z-20`}
+                >
+                  <QrCodePreview
+                    value={activeQrRedirectUrl}
+                    size={76}
+                    label={`Text-Only QR /r/${qrToken}`}
+                  />
+                  <span className="mt-0.5 text-[9px] font-mono font-semibold text-slate-800 truncate max-w-full">
+                    /r/{qrToken}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {(contrastWarnings.length > 0 || safeZoneWarnings.length > 0) && (
+              <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-950 space-y-1">
+                <p className="font-semibold inline-flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-700" />
+                  <span>Readability &amp; Safe-Zone Notices</span>
+                </p>
+                {contrastWarnings.map((w, i) => (
+                  <p key={`cw-${i}`}>• {w}</p>
+                ))}
+                {safeZoneWarnings.map((w, i) => (
+                  <p key={`sw-${i}`}>• {w}</p>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Persisted Ad Creatives Registry */}
       <div className="bg-white border border-slate-200 rounded-lg p-6 space-y-4">
         <div className="pb-3 border-b border-slate-200 flex items-center justify-between">
@@ -2346,7 +2729,13 @@ export function AdStudioView({
                       </p>
                     </td>
                     <td className="px-3.5 py-3 align-top font-mono tabular-nums text-slate-700">
-                      <p>{crt.mode === 'option_a_studio' ? 'Option A Studio' : 'Option B Upload'}</p>
+                      <p>
+                        {crt.mode === 'option_a_studio'
+                          ? 'Option A Studio'
+                          : crt.mode === 'option_b_upload'
+                          ? 'Option B Upload'
+                          : 'Text-Only Commercial'}
+                      </p>
                       <p className="text-slate-500">{crt.displayDurationSeconds}s spot</p>
                     </td>
                     <td className="px-3.5 py-3 align-top">

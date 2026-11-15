@@ -98,10 +98,12 @@ export interface AdvertiserProfile {
 
 export type CampaignContentCategory = 'commercial_advertising' | 'opportunity_promotion';
 
+export type PrimaryAdCategory = 'CHARITY' | 'COMMERCIAL';
+
 export type DaypartSlot = 'morning' | 'daytime' | 'primetime' | 'late_night' | 'all_day';
 
 export interface BillingEstimateSummary {
-  model: 'simulated_cpm_flat_rate';
+  model: 'simulated_cpm_flat_rate' | 'charity_free_zero_cost';
   currency: 'USD';
   estimatedSpots: number;
   estimatedRatePerSpotUsd: number;
@@ -109,6 +111,14 @@ export interface BillingEstimateSummary {
   paymentCollectionActive: false;
   disclaimer: string;
 }
+
+export type FinancialRevenueStream =
+  | 'charity_free'
+  | 'direct_commercial_paid'
+  | 'ad_network_estimated'
+  | 'ad_network_confirmed'
+  | 'actual_payment_received'
+  | 'refund_adjustment';
 
 export interface CampaignRecord {
   id: string;
@@ -157,7 +167,7 @@ export interface SupportTicketRecord {
 
 // --- Advertisement Creation Studio (Block 2.3) ---
 
-export type AdStudioMode = 'option_a_studio' | 'option_b_upload';
+export type AdStudioMode = 'option_a_studio' | 'option_b_upload' | 'text_only_commercial';
 
 export type StudioTemplateId =
   | 'commercial_offer'
@@ -247,6 +257,17 @@ export interface OptionBUploadSpec {
   validationErrors: string[];
 }
 
+export interface TextOnlyCommercialSpec {
+  advertiserName: string;
+  headline: string;
+  messageBody: string;
+  contactInfo: string;
+  backgroundColor: string;
+  accentColor: string;
+  textColor: string;
+  qrPlacement: 'bottom_right' | 'bottom_left';
+}
+
 export type AdCreativeStatus = 'draft' | 'ready_for_preview' | 'flagged_for_review';
 
 export interface AdCreativeRecord {
@@ -261,6 +282,7 @@ export interface AdCreativeRecord {
   contrastWarnings: string[];
   optionA: OptionAComposition | null;
   optionB: OptionBUploadSpec | null;
+  textOnly?: TextOnlyCommercialSpec | null;
   status: AdCreativeStatus;
   isPrototypeSeed: boolean;
   createdAt: string;
@@ -536,12 +558,22 @@ export interface EdisonStoreData {
   auditLogs: AuditLogRecord[];
 }
 
+export interface EdisonProgressMetrics {
+  aiStudioAssignmentPct: number;
+  softwareToStageP6Pct: number;
+  overallFullAppPct: number;
+  remainingUntilFullAppPct: number;
+  consentBlockedScopePct: number;
+  rubricSummary: string;
+}
+
 export interface LiveReportSnapshot {
   generatedAt: string;
   phase: string;
   stage: string;
   block: string;
   gateStatus: string;
+  progressMetrics?: EdisonProgressMetrics;
   latestAuditAt: string | null;
   latestAuditAction: string | null;
   campaignStatusBreakdown: Record<CampaignStatus, number>;

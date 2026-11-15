@@ -141,6 +141,101 @@ export function CreativeStage({
     );
   }
 
+  if (creative.mode === 'text_only_commercial' && creative.textOnly) {
+    const t = creative.textOnly;
+    return (
+      <div
+        className="relative w-full h-full overflow-hidden select-none flex flex-col justify-between p-[6%]"
+        style={{ backgroundColor: t.backgroundColor, color: t.textColor }}
+      >
+        {showSafeGuide && (
+          <div
+            aria-hidden="true"
+            className="absolute pointer-events-none border border-dashed border-amber-400/80 z-30"
+            style={{ left: '5%', top: '5%', width: '90%', height: '90%' }}
+          />
+        )}
+
+        <div className="flex items-center justify-between gap-4 z-10">
+          <div className="flex items-center gap-2.5">
+            <span
+              className="inline-block w-2 h-5 rounded-sm shrink-0"
+              style={{ backgroundColor: t.accentColor }}
+            />
+            <span className="text-[11px] sm:text-xs font-mono font-semibold uppercase tracking-wider opacity-90">
+              {t.advertiserName}
+            </span>
+          </div>
+          <span
+            className="text-[10px] font-mono px-2 py-0.5 rounded border border-current/25 uppercase tracking-wide"
+            style={{ color: t.accentColor }}
+          >
+            Commercial Text-Only
+          </span>
+        </div>
+
+        <div
+          className={`my-auto flex flex-col justify-center gap-2.5 z-10 ${
+            creative.qrToken
+              ? t.qrPlacement === 'bottom_left'
+                ? 'pl-[23%]'
+                : 'pr-[23%]'
+              : ''
+          }`}
+        >
+          <h3 className="text-base sm:text-2xl font-bold leading-tight tracking-tight">
+            {t.headline}
+          </h3>
+          <p className="text-xs sm:text-sm opacity-90 leading-relaxed">{t.messageBody}</p>
+        </div>
+
+        <div
+          className={`flex items-end justify-between gap-4 z-10 ${
+            creative.qrToken && t.qrPlacement === 'bottom_left' ? 'pl-[23%]' : ''
+          }`}
+        >
+          <p className="text-[11px] sm:text-xs font-mono opacity-85 truncate">
+            {t.contactInfo || 'Scan QR or visit destination link'}
+          </p>
+        </div>
+
+        {creative.qrToken && (
+          <div
+            className={`absolute bottom-[7%] ${
+              t.qrPlacement === 'bottom_left' ? 'left-[5.5%]' : 'right-[5.5%]'
+            } bg-white text-slate-900 p-1.5 rounded-lg border border-slate-300 shadow-sm flex flex-col items-center w-[17%] z-20`}
+          >
+            {qrDataUrl ? (
+              <img
+                src={qrDataUrl}
+                alt={`Scannable QR /r/${creative.qrToken}`}
+                className="w-full aspect-square object-contain"
+              />
+            ) : (
+              <QrCode className="w-6 h-6 text-slate-800" />
+            )}
+            <span className="mt-0.5 text-[8px] font-mono font-semibold text-slate-700 truncate max-w-full">
+              /r/{creative.qrToken}
+            </span>
+          </div>
+        )}
+
+        <div className="absolute bottom-0 inset-x-0 h-1 bg-black/30 z-30">
+          <div
+            className="h-full transition-all duration-200"
+            style={{ width: `${pct}%`, backgroundColor: t.accentColor }}
+          />
+        </div>
+
+        {!isPlaying && (
+          <div className="absolute top-3 left-3 px-2 py-1 rounded bg-slate-900/80 text-[11px] font-mono text-white z-30">
+            PAUSED · {formatClock(elapsedSeconds)} / {formatClock(total)}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const optA = creative.optionA;
   if (!optA) {
     return (
@@ -804,7 +899,13 @@ export function TvPreviewView({
                   ) : (
                     creatives.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.title} · {c.mode === 'option_a_studio' ? 'Option A' : 'Option B'} · {c.displayDurationSeconds}s ({c.status})
+                        {c.title} ·{' '}
+                        {c.mode === 'option_a_studio'
+                          ? 'Option A'
+                          : c.mode === 'option_b_upload'
+                          ? 'Option B'
+                          : 'Text-Only Commercial'}{' '}
+                        · {c.displayDurationSeconds}s ({c.status})
                       </option>
                     ))
                   )}
@@ -1049,7 +1150,7 @@ export function TvPreviewView({
                   <div className="w-full aspect-video rounded-lg border border-dashed border-red-300 bg-red-50 flex flex-col items-center justify-center p-6 text-center text-xs text-red-800 space-y-2">
                     <XCircle className="w-6 h-6 text-red-600" />
                     <p className="font-semibold">Blocking Error: No Advertisement Creative Attached</p>
-                    <p>Attach an Option A or Option B spot in Ad Creation Studio before submitting.</p>
+                    <p>Attach an Option A, Option B, or Text-Only Commercial spot in Ad Creation Studio before submitting.</p>
                   </div>
                 )}
 

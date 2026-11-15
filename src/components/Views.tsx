@@ -70,10 +70,23 @@ export function ReportsView() {
         <div className="bg-white border border-slate-200 rounded-lg p-5">
           <p className="text-xs font-medium text-slate-500">Current Stage (Live)</p>
           <p className="mt-1.5 text-lg font-semibold text-slate-900">
-            {liveSnapshot?.block ?? 'Phase 2 Committed · Phase 3 Handover Ready'}
+            {liveSnapshot?.block ?? 'Block P2-V2.1 · Non-Consent Track A'}
           </p>
           <p className="mt-1 text-xs text-emerald-700 font-medium">
-            {liveSnapshot?.gateStatus ?? 'HANDOVER READY · AWAITING OWNER COMMIT & COPILOT'}
+            {liveSnapshot?.gateStatus ?? 'SYNCING GATE STATUS'}
+          </p>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-lg p-5">
+          <p className="text-xs font-medium text-slate-500">Progress Until Full App</p>
+          <p className="mt-1.5 text-lg font-semibold text-slate-900 tabular-nums">
+            {liveSnapshot?.progressMetrics
+              ? `${liveSnapshot.progressMetrics.overallFullAppPct}% Full App · ${liveSnapshot.progressMetrics.aiStudioAssignmentPct}% AI Studio`
+              : '15.5% Full App · 62% AI Studio'}
+          </p>
+          <p className="mt-1 text-xs text-slate-600 tabular-nums">
+            {liveSnapshot?.progressMetrics
+              ? `${liveSnapshot.progressMetrics.softwareToStageP6Pct}% to Stage P6 · ${liveSnapshot.progressMetrics.remainingUntilFullAppPct}% remaining · ${liveSnapshot.progressMetrics.consentBlockedScopePct}% blocked (DEC-OPEN-01)`
+              : 'Calculating milestone progress...'}
           </p>
         </div>
         <div className="bg-white border border-slate-200 rounded-lg p-5">
@@ -86,15 +99,8 @@ export function ReportsView() {
           <p className="mt-1 text-xs text-slate-600 tabular-nums">
             {liveSnapshot
               ? `${liveSnapshot.summary.auditLogCount} audits · ${liveSnapshot.summary.qrCount} QR links`
-              : 'Phase 1 + Blocks 2.1–2.2 committed'}
+              : 'Connecting to /api/reports/live'}
           </p>
-        </div>
-        <div className="bg-white border border-slate-200 rounded-lg p-5">
-          <p className="text-xs font-medium text-slate-500">Last Live Server Sync</p>
-          <p className="mt-1.5 text-sm font-semibold font-mono tabular-nums text-slate-900 truncate">
-            {liveSnapshot?.generatedAt ?? 'Connecting...'}
-          </p>
-          <p className="mt-1 text-xs text-slate-600">Auto-refreshes from /api/reports/live</p>
         </div>
       </div>
 

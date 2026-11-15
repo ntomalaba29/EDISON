@@ -34,6 +34,7 @@ import type {
   QrLinkStatus,
   SupportTicketCategory,
   SupportTicketStatus,
+  TextOnlyCommercialSpec,
 } from './src/types/edison.ts';
 
 const PORT = Number(process.env.PORT || 3000);
@@ -174,11 +175,14 @@ async function startServer() {
 
   // Health & prototype status
   app.get('/api/health', (_req: Request, res: Response) => {
+    const live = edisonStore.getLiveReportSnapshot();
     res.json({
       ok: true,
       service: 'edison-prototype-server',
-      phase: 'Phase 2 Committed · Phase 3 Handover (TASK-P3-001 READY)',
-      summary: edisonStore.getFoundationSummary(),
+      phase: live.phase,
+      block: live.block,
+      progressMetrics: live.progressMetrics,
+      summary: live.summary,
     });
   });
 
@@ -587,8 +591,14 @@ async function startServer() {
   app.post('/api/ad-creatives', requireAuth, (req: AuthenticatedRequest, res: Response) => {
     const body = req.body ?? {};
     const mode = body.mode as AdStudioMode;
-    if (mode !== 'option_a_studio' && mode !== 'option_b_upload') {
-      res.status(400).json({ error: 'mode must be option_a_studio or option_b_upload.' });
+    if (
+      mode !== 'option_a_studio' &&
+      mode !== 'option_b_upload' &&
+      mode !== 'text_only_commercial'
+    ) {
+      res.status(400).json({
+        error: 'mode must be option_a_studio, option_b_upload, or text_only_commercial.',
+      });
       return;
     }
     try {
@@ -602,6 +612,8 @@ async function startServer() {
         contrastWarnings: Array.isArray(body.contrastWarnings) ? body.contrastWarnings.map(String) : [],
         optionA: mode === 'option_a_studio' ? (body.optionA as OptionAComposition) : null,
         optionB: mode === 'option_b_upload' ? (body.optionB as OptionBUploadSpec) : null,
+        textOnly:
+          mode === 'text_only_commercial' ? (body.textOnly as TextOnlyCommercialSpec) : null,
       });
       res.status(201).json({ item });
     } catch (err) {
@@ -613,8 +625,14 @@ async function startServer() {
   app.put('/api/ad-creatives/:id', requireAuth, (req: AuthenticatedRequest, res: Response) => {
     const body = req.body ?? {};
     const mode = body.mode as AdStudioMode;
-    if (mode !== 'option_a_studio' && mode !== 'option_b_upload') {
-      res.status(400).json({ error: 'mode must be option_a_studio or option_b_upload.' });
+    if (
+      mode !== 'option_a_studio' &&
+      mode !== 'option_b_upload' &&
+      mode !== 'text_only_commercial'
+    ) {
+      res.status(400).json({
+        error: 'mode must be option_a_studio, option_b_upload, or text_only_commercial.',
+      });
       return;
     }
     try {
@@ -629,6 +647,8 @@ async function startServer() {
         contrastWarnings: Array.isArray(body.contrastWarnings) ? body.contrastWarnings.map(String) : [],
         optionA: mode === 'option_a_studio' ? (body.optionA as OptionAComposition) : null,
         optionB: mode === 'option_b_upload' ? (body.optionB as OptionBUploadSpec) : null,
+        textOnly:
+          mode === 'text_only_commercial' ? (body.textOnly as TextOnlyCommercialSpec) : null,
       });
       res.json({ item });
     } catch (err) {

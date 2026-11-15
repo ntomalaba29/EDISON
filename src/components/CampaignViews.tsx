@@ -77,13 +77,14 @@ function defaultDateRange(): { start: string; end: string } {
 }
 
 function estimatePreviewTotal(
+  contentCategory: CampaignContentCategory,
   durationSeconds: number,
   dailyFrequencyCap: number,
   startDate: string,
   endDate: string,
   regionsText: string,
   dayparts: DaypartSlot[]
-): { spots: number; rate: number; total: number } {
+): { spots: number; rate: number; total: number; isCharityFree: boolean } {
   const startMs = Date.parse(startDate);
   const endMs = Date.parse(endDate);
   const days =
@@ -96,11 +97,14 @@ function estimatePreviewTotal(
     .filter(Boolean);
   const regionCount = Math.max(1, regions.length);
   const spots = days * Math.max(1, dailyFrequencyCap) * regionCount;
+  if (contentCategory === 'opportunity_promotion') {
+    return { spots, rate: 0, total: 0, isCharityFree: true };
+  }
   const durationMultiplier = Math.max(0.5, durationSeconds / 15);
   const primetimeMultiplier =
     dayparts.includes('primetime') || dayparts.includes('all_day') ? 1.35 : 1.0;
   const rate = Number((4.5 * durationMultiplier * primetimeMultiplier).toFixed(2));
-  return { spots, rate, total: Number((spots * rate).toFixed(2)) };
+  return { spots, rate, total: Number((spots * rate).toFixed(2)), isCharityFree: false };
 }
 
 interface ProfileProps {
@@ -1081,6 +1085,7 @@ export function CampaignsView({
   const liveEstimate = useMemo(
     () =>
       estimatePreviewTotal(
+        contentCategory,
         durationSeconds,
         dailyFrequencyCap,
         startDate,
@@ -1088,7 +1093,7 @@ export function CampaignsView({
         targetRegionsText,
         dayparts
       ),
-    [durationSeconds, dailyFrequencyCap, startDate, endDate, targetRegionsText, dayparts]
+    [contentCategory, durationSeconds, dailyFrequencyCap, startDate, endDate, targetRegionsText, dayparts]
   );
 
   const filteredCampaigns = useMemo(() => {
@@ -1267,15 +1272,19 @@ export function CampaignsView({
 
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Content Pillar
+                  Primary Advertising Category
                 </label>
                 <select
                   value={contentCategory}
                   onChange={(e) => setContentCategory(e.target.value as CampaignContentCategory)}
                   className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg"
                 >
-                  <option value="commercial_advertising">Commercial Advertising</option>
-                  <option value="opportunity_promotion">Employment / Opportunity Promotion</option>
+                  <option value="commercial_advertising">
+                    COMMERCIAL ADS (Paid Promotion · Simulated Rate Card)
+                  </option>
+                  <option value="opportunity_promotion">
+                    CHARITY ADS ($0.00 / FREE · Opportunities &amp; Job Listings)
+                  </option>
                 </select>
               </div>
             </div>
@@ -1401,10 +1410,17 @@ export function CampaignsView({
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3 border-t border-slate-200">
-              <p className="text-xs text-slate-700 font-mono tabular-nums">
-                Simulated Rate-Card Estimate: ~{liveEstimate.spots} spots × ${liveEstimate.rate.toFixed(2)} ={' '}
-                <strong>${liveEstimate.total.toFixed(2)} USD</strong> (No real billing)
-              </p>
+              {liveEstimate.isCharityFree ? (
+                <p className="text-xs text-emerald-800 font-mono tabular-nums">
+                  CHARITY ADS Permanent Zero-Cost Lock: ~{liveEstimate.spots} est. spots × $0.00 ={' '}
+                  <strong>$0.00 USD (FREE)</strong> — Opportunities &amp; job listings are never charged.
+                </p>
+              ) : (
+                <p className="text-xs text-slate-700 font-mono tabular-nums">
+                  COMMERCIAL ADS Simulated Estimate: ~{liveEstimate.spots} spots × ${liveEstimate.rate.toFixed(2)} ={' '}
+                  <strong>${liveEstimate.total.toFixed(2)} USD</strong> (No real billing)
+                </p>
+              )}
               <button
                 type="submit"
                 className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 cursor-pointer shrink-0"
@@ -1474,7 +1490,19 @@ export function CampaignsView({
                           <p className="font-semibold text-slate-900">{c.title}</p>
                           <p className="text-slate-600 mt-0.5 line-clamp-2">{c.summary}</p>
                           <p className="mt-1 text-[11px] font-mono text-slate-500">
-                            {c.id} · {c.contentCategory} · {c.durationSeconds}s · {c.dailyFrequencyCap}/day
+                            {c.id} ·{' '}
+                            <span
+                              className={
+                                c.contentCategory === 'opportunity_promotion'
+                                  ? 'text-emerald-700 font-semibold'
+                                  : 'text-blue-700 font-semibold'
+                              }
+                            >
+                              {c.contentCategory === 'opportunity_promotion'
+                                ? 'CHARITY ADS'
+                                : 'COMMERCIAL ADS'}
+                            </span>{' '}
+                            · {c.durationSeconds}s · {c.dailyFrequencyCap}/day
                           </p>
                           {c.rejectionReason && (
                             <p className="mt-1.5 text-red-700 font-medium">
@@ -1500,12 +1528,24 @@ export function CampaignsView({
                         </td>
 
                         <td className="px-3.5 py-3 align-top text-right font-mono tabular-nums whitespace-nowrap">
-                          <p className="text-slate-900 font-semibold">
-                            ${c.simulatedEstimate.estimatedTotalUsd.toFixed(2)}
-                          </p>
-                          <p className="text-[11px] text-slate-500">
-                            {c.simulatedEstimate.estimatedSpots} est. spots (Sim.)
-                          </p>
+                          {c.simulatedEstimate.model === 'charity_free_zero_cost' ||
+                          c.contentCategory === 'opportunity_promotion' ? (
+                            <>
+                              <p className="text-emerald-700 font-bold">FREE ($0.00)</p>
+                              <p className="text-[11px] text-emerald-700">
+                                {c.simulatedEstimate.estimatedSpots} spots · Permanent Charity Lock
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-slate-900 font-semibold">
+                                ${c.simulatedEstimate.estimatedTotalUsd.toFixed(2)}
+                              </p>
+                              <p className="text-[11px] text-slate-500">
+                                {c.simulatedEstimate.estimatedSpots} est. spots (Sim.)
+                              </p>
+                            </>
+                          )}
                         </td>
 
                         <td className="px-3.5 py-3 align-top whitespace-nowrap">

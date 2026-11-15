@@ -45,6 +45,7 @@ import type {
   SupportTicketCategory,
   SupportTicketRecord,
   SupportTicketStatus,
+  TextOnlyCommercialSpec,
   UserAccount,
   UserRole,
 } from '../types/edison.ts';
@@ -153,6 +154,7 @@ export function scanOpportunityRiskPhrases(fields: string[]): string[] {
 }
 
 export function computeSimulatedBillingEstimate(params: {
+  contentCategory?: CampaignContentCategory;
   durationSeconds: number;
   dailyFrequencyCap: number;
   startDate: string;
@@ -170,6 +172,19 @@ export function computeSimulatedBillingEstimate(params: {
   const regionFactor = Math.max(1, params.targetRegions.length);
   const spotsPerDay = Math.max(1, params.dailyFrequencyCap) * regionFactor;
   const estimatedSpots = days * spotsPerDay;
+
+  if (params.contentCategory === 'opportunity_promotion') {
+    return {
+      model: 'charity_free_zero_cost',
+      currency: 'USD',
+      estimatedSpots,
+      estimatedRatePerSpotUsd: 0,
+      estimatedTotalUsd: 0,
+      paymentCollectionActive: false,
+      disclaimer:
+        '$0.00 / FREE PERMANENT RULE — CHARITY ADS and free employer job listings never pay submission, verification, or broadcast fees.',
+    };
+  }
 
   const durationMultiplier = Math.max(0.5, params.durationSeconds / 15);
   const primetimeMultiplier = params.dayparts.includes('primetime') || params.dayparts.includes('all_day') ? 1.35 : 1.0;
@@ -311,6 +326,7 @@ function buildSeedCampaigns(now: string): CampaignRecord[] {
       rejectionReason: null,
       fixInstructions: null,
       simulatedEstimate: computeSimulatedBillingEstimate({
+        contentCategory: 'commercial_advertising',
         durationSeconds: 30,
         dailyFrequencyCap: 4,
         startDate: startActive,
@@ -340,6 +356,7 @@ function buildSeedCampaigns(now: string): CampaignRecord[] {
       rejectionReason: null,
       fixInstructions: null,
       simulatedEstimate: computeSimulatedBillingEstimate({
+        contentCategory: 'commercial_advertising',
         durationSeconds: 15,
         dailyFrequencyCap: 6,
         startDate: startFuture,
@@ -369,6 +386,7 @@ function buildSeedCampaigns(now: string): CampaignRecord[] {
       rejectionReason: null,
       fixInstructions: null,
       simulatedEstimate: computeSimulatedBillingEstimate({
+        contentCategory: 'opportunity_promotion',
         durationSeconds: 30,
         dailyFrequencyCap: 3,
         startDate: startFuture,
@@ -398,6 +416,7 @@ function buildSeedCampaigns(now: string): CampaignRecord[] {
       rejectionReason: null,
       fixInstructions: null,
       simulatedEstimate: computeSimulatedBillingEstimate({
+        contentCategory: 'commercial_advertising',
         durationSeconds: 20,
         dailyFrequencyCap: 2,
         startDate: startPast,
@@ -785,12 +804,34 @@ function normalizeStoreData(parsed: EdisonStoreData): EdisonStoreData {
     existingProfiles.length > 0 ? existingProfiles : buildSeedAdvertiserProfiles(now);
 
   const existingCampaigns = Array.isArray(parsed.campaigns) ? parsed.campaigns : [];
-  const campaigns =
+  const rawCampaigns =
     existingCampaigns.length > 0 ? existingCampaigns : buildSeedCampaigns(now);
+  const campaigns: CampaignRecord[] = rawCampaigns.map((c) =>
+    c.contentCategory === 'opportunity_promotion' &&
+    (c.simulatedEstimate?.model !== 'charity_free_zero_cost' ||
+      c.simulatedEstimate?.estimatedTotalUsd !== 0)
+      ? {
+          ...c,
+          simulatedEstimate: computeSimulatedBillingEstimate({
+            contentCategory: 'opportunity_promotion',
+            durationSeconds: c.durationSeconds,
+            dailyFrequencyCap: c.dailyFrequencyCap,
+            startDate: c.startDate,
+            endDate: c.endDate,
+            targetRegions: c.targetRegions,
+            dayparts: c.dayparts,
+          }),
+        }
+      : c
+  );
 
   const existingCreatives = Array.isArray(parsed.adCreatives) ? parsed.adCreatives : [];
-  const adCreatives =
+  const rawCreatives =
     existingCreatives.length > 0 ? existingCreatives : buildSeedAdCreatives(now);
+  const adCreatives: AdCreativeRecord[] = rawCreatives.map((cr) => ({
+    ...cr,
+    textOnly: cr.textOnly ?? null,
+  }));
 
   // Backfill adCreativeRef on seed campaigns if missing
   const hasSeed1 = adCreatives.some((cr) => cr.id === 'crt_seed_01');
@@ -819,7 +860,7 @@ function normalizeStoreData(parsed: EdisonStoreData): EdisonStoreData {
     : [];
 
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
     users: parsed.users || [],
     sessions: parsed.sessions || [],
     qrLinks: migratedLinks,
@@ -1624,6 +1665,7 @@ class EdisonPrototypeStore {
         rejectionReason: null,
         fixInstructions: null,
         simulatedEstimate: computeSimulatedBillingEstimate({
+          contentCategory: input.contentCategory,
           durationSeconds: Math.round(input.durationSeconds),
           dailyFrequencyCap: Math.round(input.dailyFrequencyCap),
           startDate: input.startDate,
@@ -1740,6 +1782,7 @@ class EdisonPrototypeStore {
       target.startDate = nextStart;
       target.endDate = nextEnd;
       target.simulatedEstimate = computeSimulatedBillingEstimate({
+        contentCategory: target.contentCategory,
         durationSeconds: target.durationSeconds,
         dailyFrequencyCap: target.dailyFrequencyCap,
         startDate: target.startDate,
@@ -2059,6 +2102,7 @@ class EdisonPrototypeStore {
       contrastWarnings: string[];
       optionA: OptionAComposition | null;
       optionB: OptionBUploadSpec | null;
+      textOnly?: TextOnlyCommercialSpec | null;
     }
   ): AdCreativeRecord {
     const title = input.title.trim();
@@ -2096,6 +2140,23 @@ class EdisonPrototypeStore {
       for (const col of colors) {
         if (!hexColorRegex.test(col)) {
           throw new Error('Option A colour values must be valid 6-digit hex codes.');
+        }
+      }
+    } else if (input.mode === 'text_only_commercial') {
+      const tSpec = input.textOnly;
+      if (!tSpec || tSpec.advertiserName.trim().length < 2) {
+        throw new Error('Text-Only commercial ad requires an advertiser/business name.');
+      }
+      if (!tSpec.headline.trim() || tSpec.headline.trim().length < 3) {
+        throw new Error('Text-Only commercial ad requires a TV headline (at least 3 characters).');
+      }
+      if (!tSpec.messageBody.trim() || tSpec.messageBody.trim().length < 8) {
+        throw new Error('Text-Only commercial ad requires a promotional message body (at least 8 characters).');
+      }
+      const colors = [tSpec.backgroundColor, tSpec.accentColor, tSpec.textColor];
+      for (const col of colors) {
+        if (!hexColorRegex.test(col)) {
+          throw new Error('Text-Only commercial colour values must be valid 6-digit hex codes.');
         }
       }
     } else {
@@ -2154,9 +2215,26 @@ class EdisonPrototypeStore {
 
       const status: AdCreativeStatus = requiresReview
         ? 'flagged_for_review'
-        : input.qrToken || (input.optionB && input.optionB.qrInspectionStatus === 'decoded_matched')
+        : input.mode === 'text_only_commercial' ||
+          input.qrToken ||
+          (input.optionB && input.optionB.qrInspectionStatus === 'decoded_matched')
         ? 'ready_for_preview'
         : 'draft';
+
+      const sanitizedTextOnly: TextOnlyCommercialSpec | null =
+        input.mode === 'text_only_commercial' && input.textOnly
+          ? {
+              advertiserName: input.textOnly.advertiserName.trim(),
+              headline: input.textOnly.headline.trim(),
+              messageBody: input.textOnly.messageBody.trim(),
+              contactInfo: (input.textOnly.contactInfo || '').trim(),
+              backgroundColor: input.textOnly.backgroundColor,
+              accentColor: input.textOnly.accentColor,
+              textColor: input.textOnly.textColor,
+              qrPlacement:
+                input.textOnly.qrPlacement === 'bottom_left' ? 'bottom_left' : 'bottom_right',
+            }
+          : null;
 
       const now = new Date().toISOString();
 
@@ -2181,6 +2259,7 @@ class EdisonPrototypeStore {
           input.mode === 'option_b_upload' && input.optionB
             ? { ...input.optionB, requiresAdminReviewFlag: requiresReview }
             : null;
+        existing.textOnly = sanitizedTextOnly;
         existing.status = status;
         existing.isPrototypeSeed = false;
         existing.updatedAt = now;
@@ -2217,6 +2296,7 @@ class EdisonPrototypeStore {
           input.mode === 'option_b_upload' && input.optionB
             ? { ...input.optionB, requiresAdminReviewFlag: requiresReview }
             : null,
+        textOnly: sanitizedTextOnly,
         status,
         isPrototypeSeed: false,
         createdAt: now,
@@ -2429,6 +2509,26 @@ class EdisonPrototypeStore {
           label: '16:9 Advertisement Creative & Media Compatibility',
           status: 'pass',
           detail: `Option A Studio (${optA.templateId}) · ${creative.displayDurationSeconds}s`,
+        });
+      }
+    } else if (creative.mode === 'text_only_commercial') {
+      const tOnly = creative.textOnly;
+      if (!tOnly || !tOnly.advertiserName.trim() || !tOnly.headline.trim() || !tOnly.messageBody.trim()) {
+        blockingErrors.push(
+          'Text-Only commercial spot requires advertiser name, headline, and promotional message body.'
+        );
+        checklist.push({
+          id: 'creative',
+          label: '16:9 Text-Only Commercial Creative',
+          status: 'fail',
+          detail: 'Missing required written copy fields.',
+        });
+      } else {
+        checklist.push({
+          id: 'creative',
+          label: '16:9 Text-Only Commercial Creative',
+          status: 'pass',
+          detail: `Text-Only Commercial (${tOnly.advertiserName}) · ${creative.displayDurationSeconds}s`,
         });
       }
     } else {
@@ -3756,6 +3856,21 @@ class EdisonPrototypeStore {
         detail: `Stage 7 verified destination opens=${summary.verifiedDestinationOpens} (never fabricated from HTTP 302 redirects).`,
       },
       {
+        id: 'qa_v21_charity_zero_lock',
+        block: 'Block P2-V2.1',
+        label: 'CHARITY ADS ($0.00 / FREE permanent lock on all opportunity campaigns)',
+        status: this.data.campaigns.some(
+          (c) =>
+            c.contentCategory === 'opportunity_promotion' &&
+            (c.simulatedEstimate.estimatedTotalUsd !== 0 ||
+              c.simulatedEstimate.model !== 'charity_free_zero_cost')
+        )
+          ? 'fail'
+          : 'pass',
+        scope: 'automated_invariant',
+        detail: `${this.data.campaigns.filter((c) => c.contentCategory === 'opportunity_promotion').length} CHARITY ADS campaign(s) enforced at $0.00 / FREE.`,
+      },
+      {
         id: 'qa_27_physical_qr_scan',
         block: 'Block 2.7',
         label: 'Physical smartphone camera scan verification on real mobile device',
@@ -3773,8 +3888,8 @@ class EdisonPrototypeStore {
 
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 2 — AI Studio Functional Prototype',
-      block: 'Block 2.7 (Verified)',
+      phase: 'Phase 2 — AI Studio Functional Prototype (Track A Active)',
+      block: 'Block P2-V2.1 (Track A Non-Consent Core Part 1)',
       automatedInvariantsPassed,
       automatedInvariantsTotal: autoChecks.length,
       physicalQrScanStatus:
@@ -3885,10 +4000,19 @@ class EdisonPrototypeStore {
     const latestAudit = this.data.auditLogs[0] ?? null;
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 3 — VS Code Engineering Hardening (Handover Ready)',
-      stage: 'Stage 3.1 — PostgreSQL Migration & Persistence Hardening (TASK-P3-001 READY)',
-      block: 'Phase 2 Committed · Phase 3 Handover Ready',
-      gateStatus: 'HANDOVER READY · AWAITING OWNER COMMIT & COPILOT',
+      phase: 'Phase 2 — AI Studio Functional Prototype (Track A Active)',
+      stage: 'P2-V2 Track A (Non-Consent Core) · Phase 3 TASK-P3-001 Held in DRAFT',
+      block: 'Block P2-V2.1 ($0 Charity Lock & Commercial Text-Only Format)',
+      gateStatus: 'IN PROGRESS (VERIFICATION PENDING) · DEC-OPEN-01 TRACK B BLOCKED',
+      progressMetrics: {
+        aiStudioAssignmentPct: 62,
+        softwareToStageP6Pct: 25,
+        overallFullAppPct: 15.5,
+        remainingUntilFullAppPct: 84.5,
+        consentBlockedScopePct: 15,
+        rubricSummary:
+          'Phase 1 Specs (6%) + Phase 2 Blocks 2.1-2.7 & P2-V2.1 (9.5%) = 15.5% of 15-Phase Full Commercial App (62% of AI Studio Prototype).',
+      },
       latestAuditAt: latestAudit?.createdAt ?? null,
       latestAuditAction: latestAudit?.action ?? null,
       campaignStatusBreakdown: breakdown,
