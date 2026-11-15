@@ -13,70 +13,106 @@ import {
 } from './mediaSecurity.ts';
 import { validateQrDestination } from './qrValidator.ts';
 import { getGovernanceDocById, listGovernanceDocs } from './docsRegistry.ts';
+import {
+  CSRF_COOKIE_NAME,
+  CSRF_HEADER_NAME,
+  InMemoryRateLimiter,
+  SESSION_COOKIE_NAME,
+  buildClearCookieOptions,
+  buildHardenedCookieOptions,
+  generateCsrfToken,
+  isSameOriginRequest,
+  parseCookies,
+  securityHeadersMiddleware,
+  timingSafeMatch,
+} from './security.ts';
+import {
+  adCreativeAttachSchema,
+  adCreativeSaveSchema,
+  adminAppealResolveSchema,
+  adminClearQrFlagSchema,
+  adminComplaintUpdateSchema,
+  adminQrModerateSchema,
+  adminVerifyProfileSchema,
+  adminVerifyTiersSchema,
+  advertiserProfilePutSchema,
+  appealCreateSchema,
+  auditLogQuerySchema,
+  campaignCreateSchema,
+  campaignQuerySchema,
+  campaignTransitionSchema,
+  campaignUpdateSchema,
+  complaintCreateSchema,
+  loginSchema,
+  mediaUploadSchema,
+  opportunityCreateSchema,
+  parseWithZod,
+  physicalQrTestCreateSchema,
+  qrCreateSchema,
+  qrStatusPatchSchema,
+  qrValidateSchema,
+  registerSchema,
+  sharedIntelActionSchema,
+  sharedIntelObservationSchema,
+  simulatorBreakScheduleSchema,
+  simulatorEventSchema,
+  supportTicketCreateSchema,
+  supportTicketStatusSchema,
+} from './validationSchemas.ts';
 import type {
-  AccountVerificationStatus,
-  AdStudioMode,
-  AdvertiserEntityType,
-  CampaignContentCategory,
-  CampaignStatus,
-  DaypartSlot,
   OptionAComposition,
   OptionBUploadSpec,
-  OpportunityAppealStatus,
-  OpportunityCategory,
-  OpportunityComplaintReason,
-  OpportunityComplaintStatus,
-  OpportunityProviderType,
-  OpportunityStatus,
-  OpportunityTierStatus,
-  PrimaryAdCategory,
   PublicUser,
   QrDestinationType,
-  QrLinkStatus,
-  SharedIntelSignalType,
-  SupportTicketCategory,
-  SupportTicketStatus,
+  SessionRecord,
   TextOnlyCommercialSpec,
 } from '../types/edison.ts';
 
-const SESSION_COOKIE_NAME = 'edison_proto_session';
+const SEVEN_DAYS_MS = 1000 * 60 * 60 * 24 * 7;
 
 interface AuthenticatedRequest extends Request {
   currentUser?: PublicUser | null;
+  currentSession?: SessionRecord | null;
   sessionToken?: string;
+  authTransport?: 'bearer' | 'cookie' | 'none';
 }
 
-function parseCookies(cookieHeader: string | undefined): Record<string, string> {
-  if (!cookieHeader) return {};
-  const result: Record<string, string> = {};
-  for (const part of cookieHeader.split(';')) {
-    const idx = part.indexOf('=');
-    if (idx === -1) continue;
-    const key = part.slice(0, idx).trim();
-    const val = part.slice(idx + 1).trim();
-    if (key) {
-      result[key] = decodeURIComponent(val);
-    }
-  }
-  return result;
+export interface EdisonRateLimitOptions {
+  authMax?: number;
+  authWindowMs?: number;
+  redirectMax?: number;
+  redirectWindowMs?: number;
+  mutationMax?: number;
+  mutationWindowMs?: number;
+  uploadMax?: number;
+  uploadWindowMs?: number;
 }
 
-function extractSessionToken(req: Request): string | undefined {
+function extractSessionToken(req: Request): {
+  token: string | undefined;
+  transport: 'bearer' | 'cookie' | 'none';
+} {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
-    return authHeader.slice(7).trim();
+    const bearer = authHeader.slice(7).trim();
+    return { token: bearer || undefined, transport: bearer ? 'bearer' : 'none' };
   }
   const cookies = parseCookies(req.headers.cookie);
-  return cookies[SESSION_COOKIE_NAME];
+  const cookieToken = cookies[SESSION_COOKIE_NAME];
+  return { token: cookieToken || undefined, transport: cookieToken ? 'cookie' : 'none' };
 }
 
-function setSessionCookie(res: Response, token: string): void {
-  res.cookie(SESSION_COOKIE_NAME, token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 1000 * 60 * 60 * 24 * 7,
-  });
+function setAuthCookies(req: Request, res: Response, rawToken: string, csrfToken: string): void {
+  res.cookie(
+    SESSION_COOKIE_NAME,
+    rawToken,
+    buildHardenedCookieOptions(req, { httpOnly: true, maxAgeMs: SEVEN_DAYS_MS })
+  );
+  res.cookie(
+    CSRF_COOKIE_NAME,
+    csrfToken,
+    buildHardenedCookieOptions(req, { httpOnly: false, maxAgeMs: SEVEN_DAYS_MS })
+  );
 }
 
 function escapeHtml(value: string): string {
@@ -95,23 +131,79 @@ function mapErrorStatus(err: unknown, defaultCode = 400): { code: number; messag
   return { code: defaultCode, message };
 }
 
+function sendValidationError(
+  res: Response,
+  parsed: { ok: false; error: string; validationIssues: Array<{ path: string; message: string }> }
+): void {
+  res.status(400).json({
+    error: parsed.error,
+    validationIssues: parsed.validationIssues,
+  });
+}
+
 export function createEdisonApp(
   store: EdisonPrototypeStore = edisonStore,
-  options?: { uploadsDir?: string }
+  options?: { uploadsDir?: string; rateLimits?: EdisonRateLimitOptions }
 ): Express {
   const uploadsDir = options?.uploadsDir ?? UPLOADS_DIR;
   const app = express();
   app.set('trust proxy', true);
+  app.disable('x-powered-by');
+
+  const limiter = new InMemoryRateLimiter();
+  const rl = options?.rateLimits ?? {};
+
+  const authRateMiddleware = limiter.middleware(
+    {
+      name: 'auth',
+      windowMs: rl.authWindowMs ?? 15 * 60 * 1000,
+      maxRequests: rl.authMax ?? 25,
+    },
+    (req) => req.ip || 'unknown'
+  );
+
+  const uploadRateMiddleware = limiter.middleware(
+    {
+      name: 'media-upload',
+      windowMs: rl.uploadWindowMs ?? 60 * 1000,
+      maxRequests: rl.uploadMax ?? 30,
+    },
+    (req: AuthenticatedRequest) => req.currentUser?.id || req.ip || 'unknown'
+  );
+
+  const redirectRateMiddleware = limiter.middleware(
+    {
+      name: 'qr-redirect',
+      windowMs: rl.redirectWindowMs ?? 60 * 1000,
+      maxRequests: rl.redirectMax ?? 200,
+    },
+    (req) => req.ip || 'unknown'
+  );
+
+  const mutationRateMiddleware = limiter.middleware(
+    {
+      name: 'api-mutation',
+      windowMs: rl.mutationWindowMs ?? 60 * 1000,
+      maxRequests: rl.mutationMax ?? 240,
+    },
+    (req: AuthenticatedRequest) => req.currentUser?.id || req.ip || 'unknown'
+  );
 
   function attachSession(req: AuthenticatedRequest, _res: Response, next: NextFunction): void {
-    const token = extractSessionToken(req);
+    const { token, transport } = extractSessionToken(req);
     req.sessionToken = token;
-    req.currentUser = store.getUserBySessionToken(token);
+    req.authTransport = transport;
+    const resolved = store.getSessionByToken(token);
+    req.currentUser = resolved?.user ?? null;
+    req.currentSession = resolved?.session ?? null;
+    if (resolved && token) {
+      store.touchSessionActivity(token);
+    }
     next();
   }
 
   function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-    if (!req.currentUser) {
+    if (!req.currentUser || !req.currentSession) {
       res.status(401).json({ error: 'Authentication required. Please sign in.' });
       return;
     }
@@ -119,7 +211,7 @@ export function createEdisonApp(
   }
 
   function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-    if (!req.currentUser) {
+    if (!req.currentUser || !req.currentSession) {
       res.status(401).json({ error: 'Authentication required.' });
       return;
     }
@@ -132,27 +224,115 @@ export function createEdisonApp(
     next();
   }
 
-  app.use(attachSession);
+  const CSRF_PUBLIC_BOOTSTRAP_PATHS = new Set([
+    '/api/auth/login',
+    '/api/auth/register',
+    '/api/qr/validate',
+  ]);
 
-  // Validated media upload endpoint (route-scoped 26MB JSON limit, auth required first)
+  function requireCsrfAndSameOrigin(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): void {
+    const method = req.method.toUpperCase();
+    if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') {
+      next();
+      return;
+    }
+
+    const fullPath = req.originalUrl.split('?')[0];
+
+    if (!isSameOriginRequest(req)) {
+      store.recordSecurityAudit(
+        req.currentUser ?? null,
+        'SECURITY_CROSS_ORIGIN_REJECTED',
+        fullPath,
+        `Rejected cross-origin ${method} to ${fullPath} (origin=${req.get('origin') || 'none'}).`
+      );
+      res.status(403).json({
+        error: 'Cross-origin state-changing request rejected by same-origin policy.',
+      });
+      return;
+    }
+
+    if (CSRF_PUBLIC_BOOTSTRAP_PATHS.has(fullPath)) {
+      next();
+      return;
+    }
+
+    // Explicit Authorization: Bearer clients do not send ambient cookies
+    if (req.authTransport === 'bearer') {
+      next();
+      return;
+    }
+
+    // Idempotent logout when no valid session cookie is present
+    if (fullPath === '/api/auth/logout' && !req.currentSession) {
+      next();
+      return;
+    }
+
+    const cookies = parseCookies(req.headers.cookie);
+    const cookieCsrf = cookies[CSRF_COOKIE_NAME];
+    const headerCsrf = req.get(CSRF_HEADER_NAME);
+    const sessionBoundOk = req.currentSession
+      ? timingSafeMatch(req.currentSession.csrfToken, headerCsrf)
+      : true;
+
+    if (!cookieCsrf || !headerCsrf || !timingSafeMatch(cookieCsrf, headerCsrf) || !sessionBoundOk) {
+      store.recordSecurityAudit(
+        req.currentUser ?? null,
+        'SECURITY_CSRF_REJECTED',
+        fullPath,
+        `CSRF token missing or mismatched on ${method} ${fullPath}.`
+      );
+      res.status(403).json({
+        error: 'CSRF validation failed. Refresh security token and retry.',
+      });
+      return;
+    }
+
+    next();
+  }
+
+  app.use(securityHeadersMiddleware);
+  app.use(attachSession);
+  app.use('/api', requireCsrfAndSameOrigin);
+  app.use('/api', (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    const method = req.method.toUpperCase();
+    if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') {
+      next();
+      return;
+    }
+    if (
+      req.path === '/auth/login' ||
+      req.path === '/auth/register' ||
+      req.path === '/media/upload' ||
+      req.path === '/qr/validate'
+    ) {
+      next();
+      return;
+    }
+    mutationRateMiddleware(req, res, next);
+  });
+
+  // Validated media upload endpoint (auth + CSRF + upload rate limit before parsing 26MB JSON)
   app.post(
     '/api/media/upload',
     requireAuth,
+    uploadRateMiddleware,
     express.json({ limit: '26mb' }),
     (req: AuthenticatedRequest, res: Response) => {
-      const { dataBase64, declaredKind } = req.body ?? {};
-      if (typeof dataBase64 !== 'string' || !dataBase64.trim()) {
-        res.status(400).json({ error: 'dataBase64 payload is required.' });
+      const parsed = parseWithZod(mediaUploadSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
         return;
       }
-      const kind =
-        declaredKind === 'image' || declaredKind === 'video' || declaredKind === 'any'
-          ? declaredKind
-          : 'any';
       try {
         const result = saveValidatedMediaUpload({
-          dataBase64,
-          declaredKind: kind,
+          dataBase64: parsed.data.dataBase64,
+          declaredKind: parsed.data.declaredKind,
           uploadsDir,
         });
         store.recordMediaUploadAudit(
@@ -226,46 +406,52 @@ export function createEdisonApp(
     }
   });
 
-  // Auth & RBAC endpoints
+  // Auth, CSRF Bootstrap & RBAC endpoints
+  app.get('/api/auth/csrf', (req: AuthenticatedRequest, res: Response) => {
+    const cookies = parseCookies(req.headers.cookie);
+    const csrfToken =
+      req.currentSession?.csrfToken || cookies[CSRF_COOKIE_NAME] || generateCsrfToken();
+    res.cookie(
+      CSRF_COOKIE_NAME,
+      csrfToken,
+      buildHardenedCookieOptions(req, { httpOnly: false, maxAgeMs: SEVEN_DAYS_MS })
+    );
+    res.json({ csrfToken });
+  });
+
   app.get('/api/auth/me', (req: AuthenticatedRequest, res: Response) => {
+    if (req.currentSession?.csrfToken) {
+      const cookies = parseCookies(req.headers.cookie);
+      if (!timingSafeMatch(req.currentSession.csrfToken, cookies[CSRF_COOKIE_NAME])) {
+        res.cookie(
+          CSRF_COOKIE_NAME,
+          req.currentSession.csrfToken,
+          buildHardenedCookieOptions(req, { httpOnly: false, maxAgeMs: SEVEN_DAYS_MS })
+        );
+      }
+    }
     res.json({
       user: req.currentUser ?? null,
+      csrfToken: req.currentSession?.csrfToken ?? null,
       summary: store.getFoundationSummary(),
     });
   });
 
-  app.post('/api/auth/register', (req: Request, res: Response) => {
-    const { email, password, name, organisationName, role } = req.body ?? {};
-    if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      res.status(400).json({ error: 'Provide a valid email address.' });
-      return;
-    }
-    if (typeof password !== 'string' || password.length < 8) {
-      res.status(400).json({ error: 'Password must be at least 8 characters.' });
-      return;
-    }
-    if (typeof name !== 'string' || name.trim().length < 2) {
-      res.status(400).json({ error: 'Name must be at least 2 characters.' });
-      return;
-    }
-    if (role !== 'advertiser' && role !== 'opportunity_submitter') {
-      res.status(400).json({
-        error:
-          'Self-registration role must be "advertiser" or "opportunity_submitter". Admin accounts cannot be self-registered.',
-      });
+  app.post('/api/auth/register', authRateMiddleware, (req: AuthenticatedRequest, res: Response) => {
+    const parsed = parseWithZod(registerSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
       return;
     }
 
     try {
-      const { user, session } = store.registerUser({
-        email,
-        password,
-        name,
-        organisationName: typeof organisationName === 'string' ? organisationName : '',
-        role,
+      const { user, session } = store.registerUser(parsed.data, req.sessionToken);
+      setAuthCookies(req, res, session.token, session.csrfToken);
+      res.status(201).json({
+        user,
+        token: session.token,
+        csrfToken: session.csrfToken,
       });
-      setSessionCookie(res, session.token);
-      res.status(201).json({ user, token: session.token });
     } catch (err) {
       res.status(409).json({
         error: err instanceof Error ? err.message : 'Unable to register user.',
@@ -273,16 +459,25 @@ export function createEdisonApp(
     }
   });
 
-  app.post('/api/auth/login', (req: Request, res: Response) => {
-    const { email, password } = req.body ?? {};
-    if (typeof email !== 'string' || typeof password !== 'string') {
-      res.status(400).json({ error: 'Email and password are required.' });
+  app.post('/api/auth/login', authRateMiddleware, (req: AuthenticatedRequest, res: Response) => {
+    const parsed = parseWithZod(loginSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
       return;
     }
+
     try {
-      const { user, session } = store.loginUser(email, password);
-      setSessionCookie(res, session.token);
-      res.json({ user, token: session.token });
+      const { user, session } = store.loginUser(
+        parsed.data.email,
+        parsed.data.password,
+        req.sessionToken
+      );
+      setAuthCookies(req, res, session.token, session.csrfToken);
+      res.json({
+        user,
+        token: session.token,
+        csrfToken: session.csrfToken,
+      });
     } catch (err) {
       res.status(401).json({
         error: err instanceof Error ? err.message : 'Invalid credentials.',
@@ -292,20 +487,21 @@ export function createEdisonApp(
 
   app.post('/api/auth/logout', (req: AuthenticatedRequest, res: Response) => {
     store.logoutSession(req.sessionToken);
-    res.clearCookie(SESSION_COOKIE_NAME, { path: '/' });
+    res.clearCookie(SESSION_COOKIE_NAME, buildClearCookieOptions(req, true));
+    res.clearCookie(CSRF_COOKIE_NAME, buildClearCookieOptions(req, false));
     res.json({ ok: true });
   });
 
   // QR Destination Validation & Management
-  app.post('/api/qr/validate', (req: Request, res: Response) => {
-    const { rawInput, destinationType } = req.body ?? {};
-    if (typeof rawInput !== 'string') {
-      res.status(400).json({ error: 'rawInput string is required.' });
+  app.post('/api/qr/validate', redirectRateMiddleware, (req: Request, res: Response) => {
+    const parsed = parseWithZod(qrValidateSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
       return;
     }
     const result = validateQrDestination(
-      rawInput,
-      (destinationType as QrDestinationType) || 'website'
+      parsed.data.rawInput,
+      parsed.data.destinationType as QrDestinationType
     );
     res.json(result);
   });
@@ -318,17 +514,16 @@ export function createEdisonApp(
   });
 
   app.post('/api/qr', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const user = req.currentUser!;
-    const { label, destinationType, rawInput } = req.body ?? {};
-    if (typeof rawInput !== 'string') {
-      res.status(400).json({ error: 'rawInput is required.' });
+    const parsed = parseWithZod(qrCreateSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
       return;
     }
     try {
-      const record = store.createQrLink(user, {
-        label: typeof label === 'string' ? label : '',
-        destinationType: (destinationType as QrDestinationType) || 'website',
-        rawInput,
+      const record = store.createQrLink(req.currentUser!, {
+        label: parsed.data.label,
+        destinationType: parsed.data.destinationType as QrDestinationType,
+        rawInput: parsed.data.rawInput,
       });
       res.status(201).json({ item: record });
     } catch (err) {
@@ -339,15 +534,13 @@ export function createEdisonApp(
   });
 
   app.patch('/api/qr/:token/status', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const user = req.currentUser!;
-    const token = req.params.token;
-    const { status } = req.body ?? {};
-    if (status !== 'active' && status !== 'disabled' && status !== 'flagged') {
-      res.status(400).json({ error: 'Invalid status. Must be active, disabled, or flagged.' });
+    const parsed = parseWithZod(qrStatusPatchSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
       return;
     }
     try {
-      const updated = store.updateQrStatus(user, token, status as QrLinkStatus);
+      const updated = store.updateQrStatus(req.currentUser!, req.params.token, parsed.data.status);
       res.json({ item: updated });
     } catch (err) {
       const { code, message } = mapErrorStatus(err, 404);
@@ -362,37 +555,13 @@ export function createEdisonApp(
   });
 
   app.put('/api/advertiser/profile', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const body = req.body ?? {};
-    const entityType = body.entityType as AdvertiserEntityType;
-    if (
-      entityType !== 'registered_business' &&
-      entityType !== 'individual_sole_trader' &&
-      entityType !== 'public_ngo'
-    ) {
-      res.status(400).json({
-        error:
-          'Invalid entityType. Must be registered_business, individual_sole_trader, or public_ngo.',
-      });
+    const parsed = parseWithZod(advertiserProfilePutSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
       return;
     }
-
     try {
-      const profile = store.upsertAdvertiserProfile(req.currentUser!, {
-        entityType,
-        businessOrTradingName: String(body.businessOrTradingName ?? ''),
-        registrationOrTaxId: String(body.registrationOrTaxId ?? ''),
-        industryCategory: String(body.industryCategory ?? ''),
-        countryCode: String(body.countryCode ?? 'GB'),
-        cityRegion: String(body.cityRegion ?? ''),
-        physicalAddress: String(body.physicalAddress ?? ''),
-        primaryContactName: String(body.primaryContactName ?? ''),
-        primaryContactEmail: String(body.primaryContactEmail ?? ''),
-        primaryContactPhone: String(body.primaryContactPhone ?? ''),
-        billingContactName: String(body.billingContactName ?? ''),
-        billingContactEmail: String(body.billingContactEmail ?? ''),
-        websiteUrl: String(body.websiteUrl ?? ''),
-        requestVerification: Boolean(body.requestVerification),
-      });
+      const profile = store.upsertAdvertiserProfile(req.currentUser!, parsed.data);
       res.json({ profile });
     } catch (err) {
       const { code, message } = mapErrorStatus(err);
@@ -408,23 +577,17 @@ export function createEdisonApp(
     '/api/admin/advertiser-profiles/:userId/verification',
     requireAdmin,
     (req: AuthenticatedRequest, res: Response) => {
-      const { status, notes } = req.body ?? {};
-      const validStatuses: AccountVerificationStatus[] = [
-        'unverified',
-        'pending_review',
-        'verified',
-        'suspended',
-      ];
-      if (!validStatuses.includes(status)) {
-        res.status(400).json({ error: 'Invalid verification status.' });
+      const parsed = parseWithZod(adminVerifyProfileSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
         return;
       }
       try {
         const profile = store.adminUpdateAdvertiserVerification(
           req.currentUser!,
           req.params.userId,
-          status,
-          String(notes ?? '')
+          parsed.data.status,
+          parsed.data.notes
         );
         res.json({ profile });
       } catch (err) {
@@ -436,17 +599,14 @@ export function createEdisonApp(
 
   // --- Campaign Management Endpoints (Block 2.2) ---
   app.get('/api/campaigns', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const statusParam = typeof req.query.status === 'string' ? req.query.status : 'all';
-    const isAll = statusParam === 'all';
-    const isValidStatus = (ALL_CAMPAIGN_STATUSES as readonly string[]).includes(statusParam);
-    if (!isAll && !isValidStatus) {
-      res.status(400).json({ error: 'Invalid campaign status filter.' });
+    const parsedQuery = parseWithZod(campaignQuerySchema, {
+      status: typeof req.query.status === 'string' ? req.query.status : undefined,
+    });
+    if (!parsedQuery.ok) {
+      sendValidationError(res, parsedQuery);
       return;
     }
-    const items = store.listCampaignsForUser(
-      req.currentUser!,
-      isAll ? 'all' : (statusParam as CampaignStatus)
-    );
+    const items = store.listCampaignsForUser(req.currentUser!, parsedQuery.data.status);
     res.json({
       items,
       statuses: ALL_CAMPAIGN_STATUSES,
@@ -455,33 +615,26 @@ export function createEdisonApp(
   });
 
   app.post('/api/campaigns', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const body = req.body ?? {};
-    const category = body.contentCategory as CampaignContentCategory;
-    if (category !== 'commercial_advertising' && category !== 'opportunity_promotion') {
-      res.status(400).json({
-        error: 'contentCategory must be commercial_advertising or opportunity_promotion.',
-      });
+    const parsed = parseWithZod(campaignCreateSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
       return;
     }
-
+    const d = parsed.data;
     try {
       const item = store.createCampaign(req.currentUser!, {
-        title: String(body.title ?? ''),
-        contentCategory: category,
-        summary: String(body.summary ?? ''),
-        qrToken: typeof body.qrToken === 'string' && body.qrToken.trim() ? body.qrToken.trim() : null,
-        durationSeconds: Number(body.durationSeconds ?? 30),
-        dailyFrequencyCap: Number(body.dailyFrequencyCap ?? 4),
-        targetRegions: Array.isArray(body.targetRegions)
-          ? body.targetRegions.map(String)
-          : typeof body.targetRegions === 'string'
-          ? body.targetRegions.split(',')
-          : ['United Kingdom · National'],
-        dayparts: Array.isArray(body.dayparts)
-          ? (body.dayparts as DaypartSlot[])
-          : ['daytime'],
-        startDate: String(body.startDate ?? ''),
-        endDate: String(body.endDate ?? ''),
+        title: d.title,
+        contentCategory: d.contentCategory,
+        summary: d.summary,
+        qrToken: d.qrToken && d.qrToken.trim() ? d.qrToken.trim() : null,
+        durationSeconds: d.durationSeconds,
+        dailyFrequencyCap: d.dailyFrequencyCap,
+        targetRegions: Array.isArray(d.targetRegions)
+          ? d.targetRegions
+          : d.targetRegions.split(','),
+        dayparts: d.dayparts,
+        startDate: d.startDate,
+        endDate: d.endDate,
       });
       res.status(201).json({ item });
     } catch (err) {
@@ -491,29 +644,29 @@ export function createEdisonApp(
   });
 
   app.patch('/api/campaigns/:id', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const body = req.body ?? {};
+    const parsed = parseWithZod(campaignUpdateSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
+      return;
+    }
+    const d = parsed.data;
     try {
       const item = store.updateCampaign(req.currentUser!, req.params.id, {
-        title: typeof body.title === 'string' ? body.title : undefined,
-        contentCategory:
-          body.contentCategory === 'commercial_advertising' ||
-          body.contentCategory === 'opportunity_promotion'
-            ? body.contentCategory
-            : undefined,
-        summary: typeof body.summary === 'string' ? body.summary : undefined,
-        qrToken: body.qrToken !== undefined ? (body.qrToken ? String(body.qrToken) : null) : undefined,
-        durationSeconds:
-          body.durationSeconds !== undefined ? Number(body.durationSeconds) : undefined,
-        dailyFrequencyCap:
-          body.dailyFrequencyCap !== undefined ? Number(body.dailyFrequencyCap) : undefined,
-        targetRegions: Array.isArray(body.targetRegions)
-          ? body.targetRegions.map(String)
-          : typeof body.targetRegions === 'string'
-          ? body.targetRegions.split(',')
-          : undefined,
-        dayparts: Array.isArray(body.dayparts) ? (body.dayparts as DaypartSlot[]) : undefined,
-        startDate: typeof body.startDate === 'string' ? body.startDate : undefined,
-        endDate: typeof body.endDate === 'string' ? body.endDate : undefined,
+        title: d.title,
+        contentCategory: d.contentCategory,
+        summary: d.summary,
+        qrToken: d.qrToken !== undefined ? (d.qrToken && d.qrToken.trim() ? d.qrToken.trim() : null) : undefined,
+        durationSeconds: d.durationSeconds,
+        dailyFrequencyCap: d.dailyFrequencyCap,
+        targetRegions:
+          d.targetRegions === undefined
+            ? undefined
+            : Array.isArray(d.targetRegions)
+            ? d.targetRegions
+            : d.targetRegions.split(','),
+        dayparts: d.dayparts,
+        startDate: d.startDate,
+        endDate: d.endDate,
       });
       res.json({ item });
     } catch (err) {
@@ -533,19 +686,19 @@ export function createEdisonApp(
   });
 
   app.post('/api/campaigns/:id/transition', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const { targetStatus, rejectionReason, fixInstructions } = req.body ?? {};
-    if (!(ALL_CAMPAIGN_STATUSES as readonly string[]).includes(String(targetStatus))) {
-      res.status(400).json({ error: 'Invalid targetStatus.' });
+    const parsed = parseWithZod(campaignTransitionSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
       return;
     }
     try {
       const item = store.transitionCampaignStatus(
         req.currentUser!,
         req.params.id,
-        targetStatus as CampaignStatus,
+        parsed.data.targetStatus,
         {
-          rejectionReason: typeof rejectionReason === 'string' ? rejectionReason : undefined,
-          fixInstructions: typeof fixInstructions === 'string' ? fixInstructions : undefined,
+          rejectionReason: parsed.data.rejectionReason,
+          fixInstructions: parsed.data.fixInstructions,
         }
       );
       res.json({ item });
@@ -581,22 +734,15 @@ export function createEdisonApp(
   );
 
   app.post('/api/simulator/events', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const { campaignId, qrToken, eventType } = req.body ?? {};
-    const allowedEvents = [
-      'ad_requested',
-      'ad_delivered',
-      'ad_played',
-      'ad_viewable',
-      'ad_network_backfill_simulated',
-    ];
-    if (!allowedEvents.includes(eventType)) {
-      res.status(400).json({ error: 'Invalid simulated eventType.' });
+    const parsed = parseWithZod(simulatorEventSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
       return;
     }
     const event = store.recordSimulatedPlaybackEvent(req.currentUser!, {
-      campaignId: typeof campaignId === 'string' && campaignId ? campaignId : null,
-      qrToken: typeof qrToken === 'string' && qrToken ? qrToken : null,
-      eventType,
+      campaignId: parsed.data.campaignId && parsed.data.campaignId.trim() ? parsed.data.campaignId.trim() : null,
+      qrToken: parsed.data.qrToken && parsed.data.qrToken.trim() ? parsed.data.qrToken.trim() : null,
+      eventType: parsed.data.eventType,
     });
     res.status(201).json({ event });
   });
@@ -605,21 +751,12 @@ export function createEdisonApp(
     '/api/simulator/schedule-break',
     requireAuth,
     (req: AuthenticatedRequest, res: Response) => {
-      const body = req.body ?? {};
-      const pointer: PrimaryAdCategory =
-        body.alternatingPointerStart === 'COMMERCIAL' ? 'COMMERCIAL' : 'CHARITY';
-      const plan = store.planSimulatedBreak(req.currentUser!, {
-        requestedBreakDurationSeconds:
-          typeof body.requestedBreakDurationSeconds === 'number'
-            ? body.requestedBreakDurationSeconds
-            : undefined,
-        safetyBufferSeconds:
-          typeof body.safetyBufferSeconds === 'number' ? body.safetyBufferSeconds : undefined,
-        requestedSlotCount:
-          typeof body.requestedSlotCount === 'number' ? body.requestedSlotCount : undefined,
-        alternatingPointerStart: pointer,
-        allowMockBackfill: body.allowMockBackfill !== false,
-      });
+      const parsed = parseWithZod(simulatorBreakScheduleSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const plan = store.planSimulatedBreak(req.currentUser!, parsed.data);
       res.json({ plan });
     }
   );
@@ -630,31 +767,27 @@ export function createEdisonApp(
   });
 
   app.post('/api/ad-creatives', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const body = req.body ?? {};
-    const mode = body.mode as AdStudioMode;
-    if (
-      mode !== 'option_a_studio' &&
-      mode !== 'option_b_upload' &&
-      mode !== 'text_only_commercial'
-    ) {
-      res.status(400).json({
-        error: 'mode must be option_a_studio, option_b_upload, or text_only_commercial.',
-      });
+    const parsed = parseWithZod(adCreativeSaveSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
       return;
     }
+    const d = parsed.data;
     try {
       const item = store.saveAdCreative(req.currentUser!, {
-        campaignId: typeof body.campaignId === 'string' && body.campaignId ? body.campaignId : null,
-        qrToken: typeof body.qrToken === 'string' && body.qrToken ? body.qrToken : null,
-        title: String(body.title ?? ''),
-        mode,
-        displayDurationSeconds: Number(body.displayDurationSeconds ?? 15),
-        safeZoneWarnings: Array.isArray(body.safeZoneWarnings) ? body.safeZoneWarnings.map(String) : [],
-        contrastWarnings: Array.isArray(body.contrastWarnings) ? body.contrastWarnings.map(String) : [],
-        optionA: mode === 'option_a_studio' ? (body.optionA as OptionAComposition) : null,
-        optionB: mode === 'option_b_upload' ? (body.optionB as OptionBUploadSpec) : null,
+        campaignId: d.campaignId && d.campaignId.trim() ? d.campaignId.trim() : null,
+        qrToken: d.qrToken && d.qrToken.trim() ? d.qrToken.trim() : null,
+        title: d.title,
+        mode: d.mode,
+        displayDurationSeconds: d.displayDurationSeconds,
+        safeZoneWarnings: d.safeZoneWarnings,
+        contrastWarnings: d.contrastWarnings,
+        optionA: d.mode === 'option_a_studio' ? (d.optionA as unknown as OptionAComposition) : null,
+        optionB: d.mode === 'option_b_upload' ? (d.optionB as unknown as OptionBUploadSpec) : null,
         textOnly:
-          mode === 'text_only_commercial' ? (body.textOnly as TextOnlyCommercialSpec) : null,
+          d.mode === 'text_only_commercial'
+            ? (d.textOnly as unknown as TextOnlyCommercialSpec)
+            : null,
       });
       res.status(201).json({ item });
     } catch (err) {
@@ -664,32 +797,28 @@ export function createEdisonApp(
   });
 
   app.put('/api/ad-creatives/:id', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const body = req.body ?? {};
-    const mode = body.mode as AdStudioMode;
-    if (
-      mode !== 'option_a_studio' &&
-      mode !== 'option_b_upload' &&
-      mode !== 'text_only_commercial'
-    ) {
-      res.status(400).json({
-        error: 'mode must be option_a_studio, option_b_upload, or text_only_commercial.',
-      });
+    const parsed = parseWithZod(adCreativeSaveSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
       return;
     }
+    const d = parsed.data;
     try {
       const item = store.saveAdCreative(req.currentUser!, {
         id: req.params.id,
-        campaignId: typeof body.campaignId === 'string' && body.campaignId ? body.campaignId : null,
-        qrToken: typeof body.qrToken === 'string' && body.qrToken ? body.qrToken : null,
-        title: String(body.title ?? ''),
-        mode,
-        displayDurationSeconds: Number(body.displayDurationSeconds ?? 15),
-        safeZoneWarnings: Array.isArray(body.safeZoneWarnings) ? body.safeZoneWarnings.map(String) : [],
-        contrastWarnings: Array.isArray(body.contrastWarnings) ? body.contrastWarnings.map(String) : [],
-        optionA: mode === 'option_a_studio' ? (body.optionA as OptionAComposition) : null,
-        optionB: mode === 'option_b_upload' ? (body.optionB as OptionBUploadSpec) : null,
+        campaignId: d.campaignId && d.campaignId.trim() ? d.campaignId.trim() : null,
+        qrToken: d.qrToken && d.qrToken.trim() ? d.qrToken.trim() : null,
+        title: d.title,
+        mode: d.mode,
+        displayDurationSeconds: d.displayDurationSeconds,
+        safeZoneWarnings: d.safeZoneWarnings,
+        contrastWarnings: d.contrastWarnings,
+        optionA: d.mode === 'option_a_studio' ? (d.optionA as unknown as OptionAComposition) : null,
+        optionB: d.mode === 'option_b_upload' ? (d.optionB as unknown as OptionBUploadSpec) : null,
         textOnly:
-          mode === 'text_only_commercial' ? (body.textOnly as TextOnlyCommercialSpec) : null,
+          d.mode === 'text_only_commercial'
+            ? (d.textOnly as unknown as TextOnlyCommercialSpec)
+            : null,
       });
       res.json({ item });
     } catch (err) {
@@ -699,16 +828,16 @@ export function createEdisonApp(
   });
 
   app.post('/api/ad-creatives/:id/attach', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const { campaignId } = req.body ?? {};
-    if (typeof campaignId !== 'string' || !campaignId.trim()) {
-      res.status(400).json({ error: 'campaignId string is required.' });
+    const parsed = parseWithZod(adCreativeAttachSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
       return;
     }
     try {
       const result = store.attachAdCreativeToCampaign(
         req.currentUser!,
         req.params.id,
-        campaignId.trim()
+        parsed.data.campaignId
       );
       res.json(result);
     } catch (err) {
@@ -733,24 +862,18 @@ export function createEdisonApp(
   });
 
   app.post('/api/support-tickets', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const body = req.body ?? {};
-    const validCategories: SupportTicketCategory[] = [
-      'campaign_review',
-      'verification_enquiry',
-      'qr_technical',
-      'billing_dispute',
-      'policy_appeal',
-    ];
-    if (!validCategories.includes(body.category)) {
-      res.status(400).json({ error: 'Invalid support ticket category.' });
+    const parsed = parseWithZod(supportTicketCreateSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
       return;
     }
+    const d = parsed.data;
     try {
       const item = store.createSupportTicket(req.currentUser!, {
-        campaignId: typeof body.campaignId === 'string' && body.campaignId ? body.campaignId : null,
-        category: body.category,
-        subject: String(body.subject ?? ''),
-        message: String(body.message ?? ''),
+        campaignId: d.campaignId && d.campaignId.trim() ? d.campaignId.trim() : null,
+        category: d.category,
+        subject: d.subject,
+        message: d.message,
       });
       res.status(201).json({ item });
     } catch (err) {
@@ -763,18 +886,17 @@ export function createEdisonApp(
     '/api/support-tickets/:id/status',
     requireAuth,
     (req: AuthenticatedRequest, res: Response) => {
-      const { status, adminResponse } = req.body ?? {};
-      const validStatuses: SupportTicketStatus[] = ['open', 'in_review', 'resolved', 'closed'];
-      if (!validStatuses.includes(status)) {
-        res.status(400).json({ error: 'Invalid ticket status.' });
+      const parsed = parseWithZod(supportTicketStatusSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
         return;
       }
       try {
         const item = store.updateSupportTicketStatus(
           req.currentUser!,
           req.params.id,
-          status,
-          typeof adminResponse === 'string' ? adminResponse : undefined
+          parsed.data.status,
+          parsed.data.adminResponse
         );
         res.json({ item });
       } catch (err) {
@@ -793,40 +915,33 @@ export function createEdisonApp(
   });
 
   app.post('/api/opportunities', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const body = req.body ?? {};
-    const providerType: OpportunityProviderType =
-      body.providerType === 'individual_informal_employer'
-        ? 'individual_informal_employer'
-        : 'registered_organisation';
-    const category = body.category as OpportunityCategory;
-    if (!(ALL_OPPORTUNITY_CATEGORIES as readonly string[]).includes(String(category))) {
-      res.status(400).json({ error: 'Invalid opportunity category.' });
+    const parsed = parseWithZod(opportunityCreateSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
       return;
     }
-
+    const d = parsed.data;
     try {
       const item = store.createOpportunity(req.currentUser!, {
-        providerType,
-        providerName: String(body.providerName ?? ''),
-        category,
-        title: String(body.title ?? ''),
-        description: String(body.description ?? ''),
-        location: String(body.location ?? ''),
-        eligibilityRequirements: String(body.eligibilityRequirements ?? ''),
-        applicationMethod: String(body.applicationMethod ?? ''),
-        contactInfo: String(body.contactInfo ?? ''),
-        qrToken: typeof body.qrToken === 'string' && body.qrToken.trim() ? body.qrToken.trim() : null,
+        providerType: d.providerType,
+        providerName: d.providerName,
+        category: d.category,
+        title: d.title,
+        description: d.description,
+        location: d.location,
+        eligibilityRequirements: d.eligibilityRequirements,
+        applicationMethod: d.applicationMethod,
+        contactInfo: d.contactInfo,
+        qrToken: d.qrToken && d.qrToken.trim() ? d.qrToken.trim() : null,
         linkedCampaignId:
-          typeof body.linkedCampaignId === 'string' && body.linkedCampaignId.trim()
-            ? body.linkedCampaignId.trim()
-            : null,
-        closingDate: String(body.closingDate ?? ''),
-        expiryDate: String(body.expiryDate ?? ''),
-        identityEvidenceRef: String(body.identityEvidenceRef ?? ''),
-        organisationEvidenceRef: String(body.organisationEvidenceRef ?? ''),
-        specificOpportunityEvidenceRef: String(body.specificOpportunityEvidenceRef ?? ''),
-        applicationFeeFreeConfirmed: Boolean(body.applicationFeeFreeConfirmed),
-        noGuaranteeConfirmed: Boolean(body.noGuaranteeConfirmed),
+          d.linkedCampaignId && d.linkedCampaignId.trim() ? d.linkedCampaignId.trim() : null,
+        closingDate: d.closingDate,
+        expiryDate: d.expiryDate,
+        identityEvidenceRef: d.identityEvidenceRef,
+        organisationEvidenceRef: d.organisationEvidenceRef,
+        specificOpportunityEvidenceRef: d.specificOpportunityEvidenceRef,
+        applicationFeeFreeConfirmed: d.applicationFeeFreeConfirmed,
+        noGuaranteeConfirmed: d.noGuaranteeConfirmed,
       });
       res.status(201).json({ item });
     } catch (err) {
@@ -859,64 +974,16 @@ export function createEdisonApp(
     '/api/admin/opportunities/:id/verify-tiers',
     requireAdmin,
     (req: AuthenticatedRequest, res: Response) => {
-      const body = req.body ?? {};
-      const validTiers: OpportunityTierStatus[] = [
-        'unverified',
-        'pending_review',
-        'verified',
-        'not_applicable',
-        'rejected',
-      ];
-      const validStatuses: OpportunityStatus[] = [
-        'draft',
-        'submitted',
-        'under_review',
-        'verified_live',
-        'rejected',
-        'suspended',
-        'expired',
-        'revoked',
-      ];
-
-      if (body.identityStatus && !validTiers.includes(body.identityStatus)) {
-        res.status(400).json({ error: 'Invalid identityStatus.' });
+      const parsed = parseWithZod(adminVerifyTiersSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
         return;
       }
-      if (body.organisationStatus && !validTiers.includes(body.organisationStatus)) {
-        res.status(400).json({ error: 'Invalid organisationStatus.' });
-        return;
-      }
-      if (
-        body.specificOpportunityStatus &&
-        !validTiers.includes(body.specificOpportunityStatus)
-      ) {
-        res.status(400).json({ error: 'Invalid specificOpportunityStatus.' });
-        return;
-      }
-      if (body.targetStatus && !validStatuses.includes(body.targetStatus)) {
-        res.status(400).json({ error: 'Invalid targetStatus.' });
-        return;
-      }
-
       try {
         const item = store.adminUpdateOpportunityVerification(
           req.currentUser!,
           req.params.id,
-          {
-            identityStatus: body.identityStatus,
-            identityNotes: typeof body.identityNotes === 'string' ? body.identityNotes : undefined,
-            organisationStatus: body.organisationStatus,
-            organisationNotes:
-              typeof body.organisationNotes === 'string' ? body.organisationNotes : undefined,
-            specificOpportunityStatus: body.specificOpportunityStatus,
-            specificOpportunityNotes:
-              typeof body.specificOpportunityNotes === 'string'
-                ? body.specificOpportunityNotes
-                : undefined,
-            targetStatus: body.targetStatus,
-            rejectionReason:
-              typeof body.rejectionReason === 'string' ? body.rejectionReason : undefined,
-          }
+          parsed.data
         );
         res.json({ item });
       } catch (err) {
@@ -934,25 +1001,17 @@ export function createEdisonApp(
     '/api/opportunities/:id/complaints',
     requireAuth,
     (req: AuthenticatedRequest, res: Response) => {
-      const body = req.body ?? {};
-      const validReasons: OpportunityComplaintReason[] = [
-        'upfront_fee_scam',
-        'misleading_guarantee',
-        'expired_or_closed',
-        'broken_or_wrong_qr',
-        'fake_employer_or_listing',
-        'other',
-      ];
-      if (!validReasons.includes(body.reasonCategory)) {
-        res.status(400).json({ error: 'Invalid complaint reasonCategory.' });
+      const parsed = parseWithZod(complaintCreateSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
         return;
       }
       try {
-        const item = store.createOpportunityComplaint(req.currentUser!, req.params.id, {
-          reasonCategory: body.reasonCategory,
-          description: String(body.description ?? ''),
-          evidenceDetails: typeof body.evidenceDetails === 'string' ? body.evidenceDetails : '',
-        });
+        const item = store.createOpportunityComplaint(
+          req.currentUser!,
+          req.params.id,
+          parsed.data
+        );
         res.status(201).json({ item });
       } catch (err) {
         const { code, message } = mapErrorStatus(err);
@@ -965,26 +1024,16 @@ export function createEdisonApp(
     '/api/admin/opportunity-complaints/:complaintId',
     requireAdmin,
     (req: AuthenticatedRequest, res: Response) => {
-      const body = req.body ?? {};
-      const validStatuses: OpportunityComplaintStatus[] = [
-        'reported',
-        'under_investigation',
-        'cleared',
-        'suspended',
-        'revoked',
-      ];
-      if (!validStatuses.includes(body.status)) {
-        res.status(400).json({ error: 'Invalid complaint status.' });
+      const parsed = parseWithZod(adminComplaintUpdateSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
         return;
       }
       try {
         const result = store.adminUpdateComplaintStatus(
           req.currentUser!,
           req.params.complaintId,
-          {
-            status: body.status,
-            resolutionNotes: String(body.resolutionNotes ?? ''),
-          }
+          parsed.data
         );
         res.json(result);
       } catch (err) {
@@ -1002,12 +1051,13 @@ export function createEdisonApp(
     '/api/opportunities/:id/appeals',
     requireAuth,
     (req: AuthenticatedRequest, res: Response) => {
-      const body = req.body ?? {};
+      const parsed = parseWithZod(appealCreateSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
       try {
-        const item = store.createOpportunityAppeal(req.currentUser!, req.params.id, {
-          reason: String(body.reason ?? ''),
-          additionalEvidence: String(body.additionalEvidence ?? ''),
-        });
+        const item = store.createOpportunityAppeal(req.currentUser!, req.params.id, parsed.data);
         res.status(201).json({ item });
       } catch (err) {
         const { code, message } = mapErrorStatus(err);
@@ -1020,22 +1070,17 @@ export function createEdisonApp(
     '/api/admin/opportunity-appeals/:appealId',
     requireAdmin,
     (req: AuthenticatedRequest, res: Response) => {
-      const body = req.body ?? {};
-      const validStatuses: OpportunityAppealStatus[] = [
-        'submitted',
-        'under_review',
-        'upheld_reinstated',
-        'denied',
-      ];
-      if (!validStatuses.includes(body.status)) {
-        res.status(400).json({ error: 'Invalid appeal decision status.' });
+      const parsed = parseWithZod(adminAppealResolveSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
         return;
       }
       try {
-        const result = store.adminResolveAppeal(req.currentUser!, req.params.appealId, {
-          status: body.status,
-          adminNotes: String(body.adminNotes ?? ''),
-        });
+        const result = store.adminResolveAppeal(
+          req.currentUser!,
+          req.params.appealId,
+          parsed.data
+        );
         res.json(result);
       } catch (err) {
         const { code, message } = mapErrorStatus(err);
@@ -1062,17 +1107,17 @@ export function createEdisonApp(
     '/api/admin/qr/:token/moderate',
     requireAdmin,
     (req: AuthenticatedRequest, res: Response) => {
-      const { status, reason } = req.body ?? {};
-      if (status !== 'active' && status !== 'disabled' && status !== 'flagged') {
-        res.status(400).json({ error: 'status must be active, disabled, or flagged.' });
+      const parsed = parseWithZod(adminQrModerateSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
         return;
       }
       try {
         const item = store.adminModerateQrLink(
           req.currentUser!,
           req.params.token,
-          status,
-          String(reason ?? '')
+          parsed.data.status,
+          parsed.data.reason
         );
         res.json({ item });
       } catch (err) {
@@ -1086,12 +1131,16 @@ export function createEdisonApp(
     '/api/admin/creatives/:id/clear-qr-flag',
     requireAdmin,
     (req: AuthenticatedRequest, res: Response) => {
-      const { notes } = req.body ?? {};
+      const parsed = parseWithZod(adminClearQrFlagSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
       try {
         const item = store.adminClearCreativeQrFlag(
           req.currentUser!,
           req.params.id,
-          String(notes ?? '')
+          parsed.data.notes
         );
         res.json({ item });
       } catch (err) {
@@ -1127,7 +1176,7 @@ export function createEdisonApp(
     }
   );
 
-  // --- Physical Mobile QR Scan Testing & Final Prototype Readiness (Block 2.7) ---
+  // --- Physical Mobile QR Scan Testing & Final Prototype Readiness (Block 2.7 / Block P3-A) ---
   app.get(
     '/api/qa/prototype-readiness',
     requireAuth,
@@ -1155,23 +1204,13 @@ export function createEdisonApp(
   });
 
   app.post('/api/qa/physical-qr-tests', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const body = req.body ?? {};
-    const osPlatform =
-      body.osPlatform === 'iOS' || body.osPlatform === 'Android' ? body.osPlatform : 'Other Mobile';
-    const outcome = body.outcome === 'failed' ? 'failed' : 'passed';
+    const parsed = parseWithZod(physicalQrTestCreateSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
+      return;
+    }
     try {
-      const item = store.recordPhysicalQrScanTest(req.currentUser!, {
-        qrToken: String(body.qrToken ?? ''),
-        encodedRedirectUrl: String(body.encodedRedirectUrl ?? ''),
-        deviceModel: String(body.deviceModel ?? ''),
-        osPlatform,
-        cameraApp: String(body.cameraApp ?? ''),
-        outcome,
-        reachedRedirectEndpoint: Boolean(body.reachedRedirectEndpoint),
-        landedDestinationObserved: Boolean(body.landedDestinationObserved),
-        timeToScanSeconds: Number(body.timeToScanSeconds ?? 1.5),
-        notes: String(body.notes ?? ''),
-      });
+      const item = store.recordPhysicalQrScanTest(req.currentUser!, parsed.data);
       res.status(201).json({ item });
     } catch (err) {
       const { code, message } = mapErrorStatus(err);
@@ -1207,26 +1246,23 @@ export function createEdisonApp(
     '/api/shared-intelligence/observations',
     requireAuth,
     (req: AuthenticatedRequest, res: Response) => {
-      const body = (req.body ?? {}) as Record<string, unknown>;
-      const allowedSignals: SharedIntelSignalType[] = [
-        'scte35',
-        'hbbtv',
-        'av_pattern',
-        'channel_cadence',
-      ];
-      const signalType = allowedSignals.includes(body.signalType as SharedIntelSignalType)
-        ? (body.signalType as SharedIntelSignalType)
-        : 'scte35';
+      const rawBody = (req.body ?? {}) as Record<string, unknown>;
+      const parsed = parseWithZod(sharedIntelObservationSchema, rawBody);
+      if (!parsed.ok) {
+        if (parsed.error.includes('Zero-PII policy violation')) {
+          store.recordSharedIntelPiiRejection(
+            typeof rawBody.scopeId === 'string' ? rawBody.scopeId : undefined,
+            parsed.error
+          );
+        }
+        sendValidationError(res, parsed);
+        return;
+      }
 
       try {
         const result = store.submitSharedIntelPreviewObservation(req.currentUser!, {
-          tvDeviceId: String(body.tvDeviceId ?? ''),
-          scopeId: String(body.scopeId ?? ''),
-          signalType,
-          estimatedBreakDurationSec: Number(body.estimatedBreakDurationSec ?? 90),
-          transitionLatencyMs: Number(body.transitionLatencyMs ?? 400),
-          outlierAnomaly: Boolean(body.outlierAnomaly),
-          rawPayload: body,
+          ...parsed.data,
+          rawPayload: rawBody,
         });
         res.status(201).json(result);
       } catch (err) {
@@ -1240,25 +1276,13 @@ export function createEdisonApp(
     '/api/shared-intelligence/simulate-action',
     requireAuth,
     (req: AuthenticatedRequest, res: Response) => {
-      const body = req.body ?? {};
-      const validActions = [
-        'corroborate_quorum',
-        'inject_outlier_poison',
-        'toggle_offline',
-        'sync_cache',
-        'simulate_fpr_spike_rollback',
-        'reset_preview',
-      ];
-      if (!validActions.includes(body.action)) {
-        res.status(400).json({ error: 'Invalid simulation action.' });
+      const parsed = parseWithZod(sharedIntelActionSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
         return;
       }
       try {
-        const state = store.runSharedIntelPreviewAction(req.currentUser!, {
-          action: body.action,
-          scopeId: typeof body.scopeId === 'string' ? body.scopeId : undefined,
-          tvDeviceId: typeof body.tvDeviceId === 'string' ? body.tvDeviceId : undefined,
-        });
+        const state = store.runSharedIntelPreviewAction(req.currentUser!, parsed.data);
         res.json({ state });
       } catch (err) {
         const { code, message } = mapErrorStatus(err, 400);
@@ -1269,13 +1293,18 @@ export function createEdisonApp(
 
   // Admin-only Audit Log & Redirect Event Endpoints (RBAC Verification Targets)
   app.get('/api/admin/audit-logs', requireAdmin, (req: AuthenticatedRequest, res: Response) => {
-    const targetType =
-      typeof req.query.targetType === 'string' ? req.query.targetType.trim() : undefined;
-    const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined;
+    const parsedQuery = parseWithZod(auditLogQuerySchema, {
+      targetType: typeof req.query.targetType === 'string' ? req.query.targetType : undefined,
+      limit: typeof req.query.limit === 'string' ? req.query.limit : undefined,
+    });
+    if (!parsedQuery.ok) {
+      sendValidationError(res, parsedQuery);
+      return;
+    }
     res.json({
       items: store.listAuditLogs({
-        targetType,
-        limit: Number.isFinite(limit) ? limit : undefined,
+        targetType: parsedQuery.data.targetType,
+        limit: parsedQuery.data.limit,
       }),
     });
   });
@@ -1292,7 +1321,7 @@ export function createEdisonApp(
   // Real Direct-to-Destination QR Tracking Redirect (/r/:token)
   // Records `redirect_requested` on receipt and `redirect_issued` on HTTP 302.
   // Never emits `destination_opened` or claims confirmed human QR scans.
-  app.get('/r/:token', (req: Request, res: Response) => {
+  app.get('/r/:token', redirectRateMiddleware, (req: Request, res: Response) => {
     const token = req.params.token;
     const clientIp = req.ip || 'unknown';
     const userAgent = req.get('user-agent') || 'unknown';

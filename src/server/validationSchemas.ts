@@ -1,0 +1,470 @@
+import { z } from 'zod';
+import {
+  ALL_CAMPAIGN_STATUSES,
+  ALL_OPPORTUNITY_CATEGORIES,
+} from './store.ts';
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+export const registerSchema = z
+  .object({
+    email: z.string().trim().email('Provide a valid email address.').max(160),
+    password: z
+      .string()
+      .min(8, 'Password must be at least 8 characters.')
+      .max(128, 'Password must be at most 128 characters.'),
+    name: z
+      .string()
+      .trim()
+      .min(2, 'Name must be at least 2 characters.')
+      .max(120, 'Name must be at most 120 characters.'),
+    organisationName: z.string().trim().max(160).optional().default(''),
+    role: z.enum(['advertiser', 'opportunity_submitter'], {
+      message:
+        'Self-registration role must be "advertiser" or "opportunity_submitter". Admin accounts cannot be self-registered.',
+    }),
+  })
+  .strict();
+
+export const loginSchema = z
+  .object({
+    email: z.string().trim().email('Valid email is required.').max(160),
+    password: z.string().min(1, 'Email and password are required.').max(200),
+  })
+  .strict();
+
+export const mediaUploadSchema = z
+  .object({
+    dataBase64: z.string().trim().min(1, 'dataBase64 payload is required.'),
+    declaredKind: z.enum(['image', 'video', 'any']).optional().default('any'),
+  })
+  .strict();
+
+export const qrDestinationTypeEnum = z.enum([
+  'website',
+  'product',
+  'store',
+  'whatsapp',
+  'telephone',
+  'enquiry',
+  'job_application',
+  'scholarship',
+  'training',
+  'grant_tender',
+  'other',
+]);
+
+export const qrValidateSchema = z
+  .object({
+    rawInput: z.string({ message: 'rawInput string is required.' }).max(2048),
+    destinationType: qrDestinationTypeEnum.optional().default('website'),
+  })
+  .strict();
+
+export const qrCreateSchema = z
+  .object({
+    label: z.string().trim().max(120).optional().default(''),
+    destinationType: qrDestinationTypeEnum.optional().default('website'),
+    rawInput: z.string({ message: 'rawInput is required.' }).trim().min(1, 'rawInput is required.').max(2048),
+  })
+  .strict();
+
+export const qrStatusPatchSchema = z
+  .object({
+    status: z.enum(['active', 'disabled', 'flagged'], {
+      message: 'Invalid status. Must be active, disabled, or flagged.',
+    }),
+  })
+  .strict();
+
+export const advertiserProfilePutSchema = z
+  .object({
+    entityType: z.enum(['registered_business', 'individual_sole_trader', 'public_ngo'], {
+      message:
+        'Invalid entityType. Must be registered_business, individual_sole_trader, or public_ngo.',
+    }),
+    businessOrTradingName: z.string().trim().max(160).optional().default(''),
+    registrationOrTaxId: z.string().trim().max(80).optional().default(''),
+    industryCategory: z.string().trim().max(100).optional().default(''),
+    countryCode: z.string().trim().min(2).max(12).optional().default('GB'),
+    cityRegion: z.string().trim().max(120).optional().default(''),
+    physicalAddress: z.string().trim().max(300).optional().default(''),
+    primaryContactName: z.string().trim().max(120).optional().default(''),
+    primaryContactEmail: z.string().trim().max(160).optional().default(''),
+    primaryContactPhone: z.string().trim().max(60).optional().default(''),
+    billingContactName: z.string().trim().max(120).optional().default(''),
+    billingContactEmail: z.string().trim().max(160).optional().default(''),
+    websiteUrl: z.string().trim().max(300).optional().default(''),
+    requestVerification: z.boolean().optional().default(false),
+  })
+  .strict();
+
+export const adminVerifyProfileSchema = z
+  .object({
+    status: z.enum(['unverified', 'pending_review', 'verified', 'suspended'], {
+      message: 'Invalid verification status.',
+    }),
+    notes: z.string().trim().max(1000).optional().default(''),
+  })
+  .strict();
+
+export const daypartSlotEnum = z.enum(['morning', 'daytime', 'primetime', 'late_night', 'all_day']);
+
+export const campaignQuerySchema = z.object({
+  status: z
+    .union([z.literal('all'), z.enum(ALL_CAMPAIGN_STATUSES)])
+    .optional()
+    .default('all'),
+});
+
+export const campaignCreateSchema = z
+  .object({
+    title: z.string().trim().min(1, 'Campaign title is required.').max(180),
+    contentCategory: z.enum(['commercial_advertising', 'opportunity_promotion'], {
+      message: 'contentCategory must be commercial_advertising or opportunity_promotion.',
+    }),
+    summary: z.string().trim().max(1500).optional().default(''),
+    qrToken: z.string().trim().max(120).nullable().optional().default(null),
+    durationSeconds: z.coerce.number().int().min(5).max(120).optional().default(30),
+    dailyFrequencyCap: z.coerce.number().int().min(1).max(200).optional().default(4),
+    targetRegions: z
+      .union([z.array(z.string().trim().min(1).max(120)).min(1).max(50), z.string().trim().min(1).max(1000)])
+      .optional()
+      .default(['United Kingdom · National']),
+    dayparts: z.array(daypartSlotEnum).min(1).max(5).optional().default(['daytime']),
+    startDate: z.string().trim().regex(ISO_DATE_RE, 'startDate must be YYYY-MM-DD.').optional().default(''),
+    endDate: z.string().trim().regex(ISO_DATE_RE, 'endDate must be YYYY-MM-DD.').optional().default(''),
+  })
+  .strict();
+
+export const campaignUpdateSchema = z
+  .object({
+    title: z.string().trim().min(1).max(180).optional(),
+    contentCategory: z.enum(['commercial_advertising', 'opportunity_promotion']).optional(),
+    summary: z.string().trim().max(1500).optional(),
+    qrToken: z.string().trim().max(120).nullable().optional(),
+    durationSeconds: z.coerce.number().int().min(5).max(120).optional(),
+    dailyFrequencyCap: z.coerce.number().int().min(1).max(200).optional(),
+    targetRegions: z
+      .union([z.array(z.string().trim().min(1).max(120)).min(1).max(50), z.string().trim().min(1).max(1000)])
+      .optional(),
+    dayparts: z.array(daypartSlotEnum).min(1).max(5).optional(),
+    startDate: z.string().trim().regex(ISO_DATE_RE, 'startDate must be YYYY-MM-DD.').optional(),
+    endDate: z.string().trim().regex(ISO_DATE_RE, 'endDate must be YYYY-MM-DD.').optional(),
+  })
+  .strict();
+
+export const campaignTransitionSchema = z
+  .object({
+    targetStatus: z.enum(ALL_CAMPAIGN_STATUSES, { message: 'Invalid targetStatus.' }),
+    rejectionReason: z.string().trim().max(1000).optional(),
+    fixInstructions: z.string().trim().max(1000).optional(),
+  })
+  .strict();
+
+export const simulatorEventSchema = z
+  .object({
+    campaignId: z.string().trim().max(120).nullable().optional(),
+    qrToken: z.string().trim().max(120).nullable().optional(),
+    eventType: z.enum(
+      [
+        'ad_requested',
+        'ad_delivered',
+        'ad_played',
+        'ad_viewable',
+        'ad_network_backfill_simulated',
+      ],
+      { message: 'Invalid simulated eventType.' }
+    ),
+  })
+  .strict();
+
+export const simulatorBreakScheduleSchema = z
+  .object({
+    requestedBreakDurationSeconds: z.coerce.number().finite().min(0).max(600).optional(),
+    safetyBufferSeconds: z.coerce.number().finite().min(0).max(60).optional(),
+    requestedSlotCount: z.coerce.number().int().min(1).max(4).optional(),
+    alternatingPointerStart: z.enum(['CHARITY', 'COMMERCIAL']).optional().default('CHARITY'),
+    allowMockBackfill: z.boolean().optional().default(true),
+  })
+  .strict();
+
+const optionACompositionSchema = z.object({}).passthrough();
+const optionBUploadSpecSchema = z.object({}).passthrough();
+
+const textOnlyCommercialSpecSchema = z
+  .object({
+    advertiserName: z.string().trim().min(1).max(120),
+    headline: z.string().trim().min(1).max(160),
+    messageBody: z.string().trim().min(1).max(600),
+    contactInfo: z.string().trim().max(140).optional().default(''),
+    backgroundColor: z.string().trim().max(40).optional(),
+    accentColor: z.string().trim().max(40).optional(),
+    textColor: z.string().trim().max(40).optional(),
+    qrPlacement: z.enum(['bottom_right', 'bottom_left', 'top_right']).optional(),
+  })
+  .passthrough();
+
+export const adCreativeSaveSchema = z
+  .object({
+    campaignId: z.string().trim().max(120).nullable().optional(),
+    qrToken: z.string().trim().max(120).nullable().optional(),
+    title: z.string().trim().max(180).optional().default(''),
+    mode: z.enum(['option_a_studio', 'option_b_upload', 'text_only_commercial'], {
+      message: 'mode must be option_a_studio, option_b_upload, or text_only_commercial.',
+    }),
+    displayDurationSeconds: z.coerce.number().int().min(5).max(120).optional().default(15),
+    safeZoneWarnings: z.array(z.string().max(300)).max(20).optional().default([]),
+    contrastWarnings: z.array(z.string().max(300)).max(20).optional().default([]),
+    optionA: optionACompositionSchema.nullable().optional(),
+    optionB: optionBUploadSpecSchema.nullable().optional(),
+    textOnly: textOnlyCommercialSpecSchema.nullable().optional(),
+  })
+  .strict();
+
+export const adCreativeAttachSchema = z
+  .object({
+    campaignId: z.string({ message: 'campaignId string is required.' }).trim().min(1, 'campaignId string is required.').max(120),
+  })
+  .strict();
+
+export const supportTicketCreateSchema = z
+  .object({
+    campaignId: z.string().trim().max(120).nullable().optional(),
+    category: z.enum(
+      [
+        'campaign_review',
+        'verification_enquiry',
+        'qr_technical',
+        'billing_dispute',
+        'policy_appeal',
+      ],
+      { message: 'Invalid support ticket category.' }
+    ),
+    subject: z.string().trim().min(1, 'Subject is required.').max(200),
+    message: z.string().trim().min(1, 'Message is required.').max(4000),
+  })
+  .strict();
+
+export const supportTicketStatusSchema = z
+  .object({
+    status: z.enum(['open', 'in_review', 'resolved', 'closed'], {
+      message: 'Invalid ticket status.',
+    }),
+    adminResponse: z.string().trim().max(2000).optional(),
+  })
+  .strict();
+
+export const opportunityCreateSchema = z
+  .object({
+    providerType: z
+      .enum(['registered_organisation', 'individual_informal_employer'])
+      .optional()
+      .default('registered_organisation'),
+    providerName: z.string().trim().max(180).optional().default(''),
+    category: z.enum(ALL_OPPORTUNITY_CATEGORIES, {
+      message: 'Invalid opportunity category.',
+    }),
+    title: z.string().trim().max(200).optional().default(''),
+    description: z.string().trim().max(4000).optional().default(''),
+    location: z.string().trim().max(180).optional().default(''),
+    eligibilityRequirements: z.string().trim().max(2000).optional().default(''),
+    applicationMethod: z.string().trim().max(1000).optional().default(''),
+    contactInfo: z.string().trim().max(300).optional().default(''),
+    qrToken: z.string().trim().max(120).nullable().optional(),
+    linkedCampaignId: z.string().trim().max(120).nullable().optional(),
+    closingDate: z.string().trim().max(30).optional().default(''),
+    expiryDate: z.string().trim().max(30).optional().default(''),
+    identityEvidenceRef: z.string().trim().max(300).optional().default(''),
+    organisationEvidenceRef: z.string().trim().max(300).optional().default(''),
+    specificOpportunityEvidenceRef: z.string().trim().max(300).optional().default(''),
+    applicationFeeFreeConfirmed: z.boolean().optional().default(false),
+    noGuaranteeConfirmed: z.boolean().optional().default(false),
+  })
+  .strict();
+
+const tierStatusEnum = z.enum([
+  'unverified',
+  'pending_review',
+  'verified',
+  'not_applicable',
+  'rejected',
+]);
+
+const opportunityStatusEnum = z.enum([
+  'draft',
+  'submitted',
+  'under_review',
+  'verified_live',
+  'rejected',
+  'suspended',
+  'expired',
+  'revoked',
+]);
+
+export const adminVerifyTiersSchema = z
+  .object({
+    identityStatus: tierStatusEnum.optional(),
+    identityNotes: z.string().trim().max(1000).optional(),
+    organisationStatus: tierStatusEnum.optional(),
+    organisationNotes: z.string().trim().max(1000).optional(),
+    specificOpportunityStatus: tierStatusEnum.optional(),
+    specificOpportunityNotes: z.string().trim().max(1000).optional(),
+    targetStatus: opportunityStatusEnum.optional(),
+    rejectionReason: z.string().trim().max(1000).optional(),
+  })
+  .strict();
+
+export const complaintCreateSchema = z
+  .object({
+    reasonCategory: z.enum(
+      [
+        'upfront_fee_scam',
+        'misleading_guarantee',
+        'expired_or_closed',
+        'broken_or_wrong_qr',
+        'fake_employer_or_listing',
+        'other',
+      ],
+      { message: 'Invalid complaint reasonCategory.' }
+    ),
+    description: z.string().trim().max(3000).optional().default(''),
+    evidenceDetails: z.string().trim().max(2000).optional().default(''),
+  })
+  .strict();
+
+export const adminComplaintUpdateSchema = z
+  .object({
+    status: z.enum(['reported', 'under_investigation', 'cleared', 'suspended', 'revoked'], {
+      message: 'Invalid complaint status.',
+    }),
+    resolutionNotes: z.string().trim().max(2000).optional().default(''),
+  })
+  .strict();
+
+export const appealCreateSchema = z
+  .object({
+    reason: z.string().trim().max(3000).optional().default(''),
+    additionalEvidence: z.string().trim().max(2000).optional().default(''),
+  })
+  .strict();
+
+export const adminAppealResolveSchema = z
+  .object({
+    status: z.enum(['submitted', 'under_review', 'upheld_reinstated', 'denied'], {
+      message: 'Invalid appeal decision status.',
+    }),
+    adminNotes: z.string().trim().max(2000).optional().default(''),
+  })
+  .strict();
+
+export const adminQrModerateSchema = z
+  .object({
+    status: z.enum(['active', 'disabled', 'flagged'], {
+      message: 'status must be active, disabled, or flagged.',
+    }),
+    reason: z.string().trim().max(1000).optional().default(''),
+  })
+  .strict();
+
+export const adminClearQrFlagSchema = z
+  .object({
+    notes: z.string().trim().max(1000).optional().default(''),
+  })
+  .strict();
+
+export const auditLogQuerySchema = z.object({
+  targetType: z.string().trim().max(60).optional(),
+  limit: z.coerce.number().int().min(1).max(500).optional(),
+});
+
+export const physicalQrTestCreateSchema = z
+  .object({
+    qrToken: z.string().trim().max(120).optional().default(''),
+    encodedRedirectUrl: z.string().trim().max(1024).optional().default(''),
+    deviceModel: z.string().trim().max(120).optional().default(''),
+    osPlatform: z.enum(['iOS', 'Android', 'Other Mobile']).optional().default('Other Mobile'),
+    cameraApp: z.string().trim().max(120).optional().default(''),
+    outcome: z.enum(['passed', 'failed']).optional().default('passed'),
+    reachedRedirectEndpoint: z.boolean().optional().default(false),
+    landedDestinationObserved: z.boolean().optional().default(false),
+    timeToScanSeconds: z.coerce.number().finite().min(0.1).max(120).optional().default(1.5),
+    notes: z.string().trim().max(1000).optional().default(''),
+  })
+  .strict();
+
+const FORBIDDEN_SHARED_INTEL_PII_KEYS = [
+  'householdId',
+  'profileId',
+  'viewerName',
+  'userName',
+  'email',
+  'phone',
+  'exactAddress',
+  'exactCoordinates',
+  'latitude',
+  'longitude',
+  'personalViewingHistory',
+];
+
+export const sharedIntelObservationSchema = z
+  .object({
+    tvDeviceId: z.string().trim().min(1).max(120),
+    scopeId: z.string().trim().min(1).max(160),
+    signalType: z.enum(['scte35', 'hbbtv', 'av_pattern', 'channel_cadence']).optional().default('scte35'),
+    estimatedBreakDurationSec: z.coerce.number().finite().min(5).max(600).optional().default(90),
+    transitionLatencyMs: z.coerce.number().finite().min(0).max(30000).optional().default(400),
+    outlierAnomaly: z.boolean().optional().default(false),
+  })
+  .passthrough()
+  .superRefine((val, ctx) => {
+    for (const key of FORBIDDEN_SHARED_INTEL_PII_KEYS) {
+      if (Object.prototype.hasOwnProperty.call(val, key)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: `Zero-PII policy violation: "${key}" is strictly forbidden in Shared Intelligence observations.`,
+        });
+      }
+    }
+  });
+
+export const sharedIntelActionSchema = z
+  .object({
+    action: z.enum(
+      [
+        'corroborate_quorum',
+        'inject_outlier_poison',
+        'toggle_offline',
+        'sync_cache',
+        'simulate_fpr_spike_rollback',
+        'reset_preview',
+      ],
+      { message: 'Invalid simulation action.' }
+    ),
+    scopeId: z.string().trim().max(160).optional(),
+    tvDeviceId: z.string().trim().max(120).optional(),
+  })
+  .strict();
+
+export function parseWithZod<T extends z.ZodTypeAny>(
+  schema: T,
+  payload: unknown
+):
+  | { ok: true; data: z.infer<T> }
+  | { ok: false; error: string; validationIssues: Array<{ path: string; message: string }> } {
+  const result = schema.safeParse(payload ?? {});
+  if (result.success) {
+    return { ok: true, data: result.data };
+  }
+  const validationIssues = result.error.issues.map((issue) => ({
+    path: issue.path.length > 0 ? issue.path.join('.') : 'body',
+    message: issue.message,
+  }));
+  const first = validationIssues[0];
+  const error =
+    validationIssues.length === 1
+      ? first.message
+      : `Validation failed (${validationIssues.length} issues): ${first.path}: ${first.message}`;
+  return { ok: false, error, validationIssues };
+}

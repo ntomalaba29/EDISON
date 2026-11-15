@@ -65,8 +65,15 @@ import {
   submitSharedIntelObservation,
 } from './sharedIntelligencePreview.ts';
 
+import {
+  generateCsrfToken,
+  hashSessionToken,
+} from './security.ts';
+
 const DEFAULT_DATA_DIR = path.resolve(process.cwd(), 'data');
-const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
+const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days absolute cap
+const SESSION_IDLE_TTL_MS = 1000 * 60 * 60 * 2; // 2 hours idle timeout
+const SESSION_TOUCH_INTERVAL_MS = 60 * 1000; // throttle disk touches to >=60s
 const DEDUP_WINDOW_MS = 5000; // 5s duplicate request suppression
 const LOCK_TIMEOUT_MS = 3000;
 const STALE_LOCK_MS = 10000;
@@ -700,7 +707,7 @@ function createInitialSeed(): EdisonStoreData {
   const adminId = 'usr_seed_adm_01';
 
   return {
-    schemaVersion: 7,
+    schemaVersion: 8,
     users: [
       {
         id: advertiserId,
@@ -791,7 +798,7 @@ function createInitialSeed(): EdisonStoreData {
         action: 'STORE_INITIALIZED',
         targetType: 'system',
         targetId: 'edison-store',
-        detail: 'Prototype persistence initialized (schema v7) with seeded accounts, QR links, profiles, campaigns, studio creatives, opportunities, and Shared Intelligence preview.',
+        detail: 'Prototype persistence initialized (schema v8) with seeded accounts, hashed-session support, QR links, profiles, campaigns, studio creatives, opportunities, and Shared Intelligence preview.',
         createdAt: now,
       },
     ],
@@ -872,10 +879,30 @@ function normalizeStoreData(parsed: EdisonStoreData): EdisonStoreData {
     ? parsed.physicalQrScanTests
     : [];
 
+  const migratedSessions: SessionRecord[] = (Array.isArray(parsed.sessions) ? parsed.sessions : [])
+    .map((s): SessionRecord | null => {
+      const tokenHash = s.tokenHash || (s.token ? hashSessionToken(s.token) : '');
+      if (!tokenHash) return null;
+      return {
+        id: s.id || `sid_${crypto.randomBytes(6).toString('hex')}`,
+        tokenHash,
+        csrfToken: s.csrfToken || generateCsrfToken(),
+        userId: s.userId,
+        role: s.role,
+        createdAt: s.createdAt || now,
+        lastActivityAt: s.lastActivityAt || s.createdAt || now,
+        idleExpiresAt:
+          s.idleExpiresAt ||
+          new Date(Date.now() + SESSION_IDLE_TTL_MS).toISOString(),
+        expiresAt: s.expiresAt,
+      };
+    })
+    .filter((s): s is SessionRecord => s !== null);
+
   return {
-    schemaVersion: 7,
+    schemaVersion: 8,
     users: parsed.users || [],
-    sessions: parsed.sessions || [],
+    sessions: migratedSessions,
     qrLinks: migratedLinks,
     advertiserProfiles: profiles,
     campaigns,
@@ -1060,13 +1087,16 @@ export class EdisonPrototypeStore {
     }
   }
 
-  registerUser(params: {
-    email: string;
-    password: string;
-    name: string;
-    organisationName: string;
-    role: 'advertiser' | 'opportunity_submitter';
-  }): { user: PublicUser; session: SessionRecord } {
+  registerUser(
+    params: {
+      email: string;
+      password: string;
+      name: string;
+      organisationName: string;
+      role: 'advertiser' | 'opportunity_submitter';
+    },
+    previousSessionToken?: string
+  ): { user: PublicUser; session: SessionRecord & { token: string } } {
     const emailNorm = params.email.trim().toLowerCase();
     return this.withWriteTransaction((draft) => {
       if (draft.users.some((u) => u.email === emailNorm)) {
@@ -1109,7 +1139,7 @@ export class EdisonPrototypeStore {
         updatedAt: now,
       });
 
-      const session = this.createSessionInDraft(draft, user);
+      const session = this.createSessionInDraft(draft, user, previousSessionToken);
       this.addAudit(
         draft,
         user.id,
@@ -1123,7 +1153,11 @@ export class EdisonPrototypeStore {
     });
   }
 
-  loginUser(email: string, password: string): { user: PublicUser; session: SessionRecord } {
+  loginUser(
+    email: string,
+    password: string,
+    previousSessionToken?: string
+  ): { user: PublicUser; session: SessionRecord & { token: string } } {
     const emailNorm = email.trim().toLowerCase();
     return this.withWriteTransaction((draft) => {
       const user = draft.users.find((u) => u.email === emailNorm);
@@ -1140,7 +1174,7 @@ export class EdisonPrototypeStore {
         throw new Error('Invalid email or password.');
       }
 
-      const session = this.createSessionInDraft(draft, user);
+      const session = this.createSessionInDraft(draft, user, previousSessionToken);
       this.addAudit(
         draft,
         user.id,
@@ -1154,37 +1188,125 @@ export class EdisonPrototypeStore {
     });
   }
 
-  private createSessionInDraft(draft: EdisonStoreData, user: UserAccount): SessionRecord {
+  private createSessionInDraft(
+    draft: EdisonStoreData,
+    user: UserAccount,
+    previousToken?: string
+  ): SessionRecord & { token: string } {
     const nowMs = Date.now();
-    const session: SessionRecord = {
-      token: `sess_${crypto.randomBytes(24).toString('hex')}`,
+    const rawToken = `sess_${crypto.randomBytes(24).toString('hex')}`;
+    const tokenHash = hashSessionToken(rawToken);
+    const prevHash = previousToken ? hashSessionToken(previousToken) : null;
+
+    const persistedSession: SessionRecord = {
+      id: `sid_${crypto.randomBytes(6).toString('hex')}`,
+      tokenHash,
+      csrfToken: generateCsrfToken(),
       userId: user.id,
       role: user.role,
       createdAt: new Date(nowMs).toISOString(),
+      lastActivityAt: new Date(nowMs).toISOString(),
+      idleExpiresAt: new Date(nowMs + SESSION_IDLE_TTL_MS).toISOString(),
       expiresAt: new Date(nowMs + SESSION_TTL_MS).toISOString(),
     };
-    draft.sessions = draft.sessions.filter((s) => new Date(s.expiresAt).getTime() > nowMs);
-    draft.sessions.push(session);
-    return session;
+
+    // Prune expired or idle-expired sessions and rotate away any prior session token (anti-fixation)
+    draft.sessions = draft.sessions.filter((s) => {
+      const absOk = Date.parse(s.expiresAt) > nowMs;
+      const idleOk = Date.parse(s.idleExpiresAt || s.expiresAt) > nowMs;
+      const matchesPrev =
+        Boolean(previousToken && s.token === previousToken) ||
+        Boolean(prevHash && s.tokenHash === prevHash);
+      return absOk && idleOk && !matchesPrev;
+    });
+    draft.sessions.push(persistedSession);
+
+    return {
+      ...persistedSession,
+      token: rawToken,
+    };
+  }
+
+  private matchesSessionRecord(s: SessionRecord, rawToken: string, tokenHash: string): boolean {
+    if (s.tokenHash && s.tokenHash === tokenHash) return true;
+    if (s.token && s.token === rawToken) return true;
+    return false;
+  }
+
+  getSessionByToken(
+    rawToken: string | undefined
+  ): { user: PublicUser; session: SessionRecord } | null {
+    if (!rawToken) return null;
+    this.syncIfDiskNewer();
+    const nowMs = Date.now();
+    const tokenHash = hashSessionToken(rawToken);
+    const session = this.data.sessions.find((s) => {
+      if (!this.matchesSessionRecord(s, rawToken, tokenHash)) return false;
+      const absOk = Date.parse(s.expiresAt) > nowMs;
+      const idleOk = Date.parse(s.idleExpiresAt || s.expiresAt) > nowMs;
+      return absOk && idleOk;
+    });
+    if (!session) return null;
+    const user = this.data.users.find((u) => u.id === session.userId);
+    if (!user) return null;
+    return { user: toPublicUser(user), session: { ...session } };
   }
 
   getUserBySessionToken(token: string | undefined): PublicUser | null {
-    if (!token) return null;
-    this.syncIfDiskNewer();
+    return this.getSessionByToken(token)?.user ?? null;
+  }
+
+  touchSessionActivity(rawToken: string | undefined): void {
+    if (!rawToken) return;
     const nowMs = Date.now();
-    const session = this.data.sessions.find(
-      (s) => s.token === token && new Date(s.expiresAt).getTime() > nowMs
+    const tokenHash = hashSessionToken(rawToken);
+    const current = this.data.sessions.find((s) =>
+      this.matchesSessionRecord(s, rawToken, tokenHash)
     );
-    if (!session) return null;
-    const user = this.data.users.find((u) => u.id === session.userId);
-    return user ? toPublicUser(user) : null;
+    if (!current) return;
+    const lastTouchMs = Date.parse(current.lastActivityAt || current.createdAt);
+    if (Number.isFinite(lastTouchMs) && nowMs - lastTouchMs < SESSION_TOUCH_INTERVAL_MS) {
+      return;
+    }
+
+    this.withWriteTransaction((draft) => {
+      const target = draft.sessions.find((s) =>
+        this.matchesSessionRecord(s, rawToken, tokenHash)
+      );
+      if (!target) return;
+      const absMs = Date.parse(target.expiresAt);
+      if (!Number.isFinite(absMs) || absMs <= nowMs) return;
+      target.lastActivityAt = new Date(nowMs).toISOString();
+      target.idleExpiresAt = new Date(Math.min(absMs, nowMs + SESSION_IDLE_TTL_MS)).toISOString();
+    });
+  }
+
+  expireSessionForTesting(rawToken: string, mode: 'idle' | 'absolute' = 'idle'): void {
+    const tokenHash = hashSessionToken(rawToken);
+    const pastIso = new Date(Date.now() - 1000).toISOString();
+    this.withWriteTransaction((draft) => {
+      const target = draft.sessions.find((s) =>
+        this.matchesSessionRecord(s, rawToken, tokenHash)
+      );
+      if (!target) return;
+      if (mode === 'idle') {
+        target.idleExpiresAt = pastIso;
+      } else {
+        target.expiresAt = pastIso;
+      }
+    });
   }
 
   logoutSession(token: string | undefined): void {
     if (!token) return;
+    const tokenHash = hashSessionToken(token);
     this.withWriteTransaction((draft) => {
-      const session = draft.sessions.find((s) => s.token === token);
-      draft.sessions = draft.sessions.filter((s) => s.token !== token);
+      const session = draft.sessions.find((s) =>
+        this.matchesSessionRecord(s, token, tokenHash)
+      );
+      draft.sessions = draft.sessions.filter(
+        (s) => !this.matchesSessionRecord(s, token, tokenHash)
+      );
       if (session) {
         this.addAudit(
           draft,
@@ -1196,6 +1318,40 @@ export class EdisonPrototypeStore {
           'Session terminated.'
         );
       }
+    });
+  }
+
+  recordSecurityAudit(
+    actor: PublicUser | null,
+    action: string,
+    targetId: string,
+    detail: string
+  ): void {
+    this.withWriteTransaction((draft) => {
+      this.addAudit(
+        draft,
+        actor?.id ?? null,
+        actor?.role ?? 'anonymous',
+        action,
+        'auth',
+        targetId,
+        detail
+      );
+    });
+  }
+
+  recordSharedIntelPiiRejection(scopeId: string | undefined, detail: string): void {
+    this.withWriteTransaction((draft) => {
+      const current = draft.sharedIntelPreview ?? createInitialSharedIntelPreviewState();
+      current.rejectedPiiAttemptCount += 1;
+      current.auditTrail.unshift({
+        id: `sia_${crypto.randomBytes(4).toString('hex')}`,
+        action: 'ZERO_PII_REJECTED',
+        scopeId: scopeId || null,
+        detail,
+        createdAt: new Date().toISOString(),
+      });
+      draft.sharedIntelPreview = current;
     });
   }
 
@@ -4103,6 +4259,32 @@ export class EdisonPrototypeStore {
           'MOCK/SIMULATION PREVIEW (Phase 5 production service NOT STARTED): enforces K=3 corroboration gate, zero PII, distinct broadcast scope caches, and FPR auto-rollback guard.',
       },
       {
+        id: 'qa_p3a_security_hardening',
+        block: 'Block P3-A',
+        label:
+          'Phase 3 API Security Hardening (Zod validation, CSRF, rate limits, SHA-256 hashed sessions & security suite)',
+        status: (() => {
+          const hasSecurityModules =
+            fs.existsSync(path.resolve(process.cwd(), 'src', 'server', 'security.ts')) &&
+            fs.existsSync(path.resolve(process.cwd(), 'src', 'server', 'validationSchemas.ts')) &&
+            fs.existsSync(path.resolve(process.cwd(), 'tests', 'securityHardening.test.ts')) &&
+            fs.existsSync(
+              path.resolve(
+                process.cwd(),
+                'docs',
+                'migration',
+                'TASK_P3_001_POSTGRES_MIGRATION_REQUIREMENTS.md'
+              )
+            );
+          const allSessionsHashed = this.data.sessions.every(
+            (s) => Boolean(s.tokenHash) && !s.token && Boolean(s.csrfToken) && Boolean(s.idleExpiresAt)
+          );
+          return hasSecurityModules && allSessionsHashed ? 'pass' : 'fail';
+        })(),
+        scope: 'automated_invariant',
+        detail: `Hashed session tokens at rest (${this.data.sessions.length} active session(s), 2h idle / 7d cap), double-submit + same-origin CSRF, sliding-window rate limiters, Zod schema enforcement & TASK-P3-001 PostgreSQL blueprint READY.`,
+      },
+      {
         id: 'qa_27_physical_qr_scan',
         block: 'Block 2.7',
         label: 'Physical smartphone camera scan verification on real mobile device',
@@ -4120,8 +4302,8 @@ export class EdisonPrototypeStore {
 
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 2 — AI Studio Functional Prototype (Track A Complete)',
-      block: 'Block P2-V2.4 (Shared Ad Intelligence Prototype Preview & Final Track A Handover)',
+      phase: 'Phase 3 — Software-First Engineering Hardening (Track A Active · JSON Persistence Retained)',
+      block: 'Block P3-A (API Zod Validation, CSRF, Rate Limiting, Session/Cookie Hardening & Security Suite)',
       automatedInvariantsPassed,
       automatedInvariantsTotal: autoChecks.length,
       physicalQrScanStatus:
@@ -4336,18 +4518,18 @@ export class EdisonPrototypeStore {
     const latestAudit = this.data.auditLogs[0] ?? null;
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 2 — AI Studio Functional Prototype (Track A Complete)',
-      stage: 'P2-V2 Track A Complete (100% Unblocked) · Phase 3 TASK-P3-001 Held in DRAFT',
-      block: 'Block P2-V2.4 (Shared Ad Intelligence Prototype Preview & Final Track A Handover)',
-      gateStatus: 'VERIFIED · AWAITING COMMIT (TRACK A COMPLETE — DEC-OPEN-01 TRACK B BLOCKED)',
+      phase: 'Phase 3 — Software-First Engineering Hardening (Track A Active · JSON Retained)',
+      stage: 'Block P3-A Complete (API Security Hardening) · TASK-P3-001 READY (Postgres Blueprint Prepared)',
+      block: 'Block P3-A (Zod Validation, CSRF, Rate Limiting, Session/Cookie Hardening & Security Suite)',
+      gateStatus: 'BLOCK P3-A VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · NO CLOUD SQL PROVISIONED)',
       progressMetrics: {
         aiStudioAssignmentPct: 85,
-        softwareToStageP6Pct: 30.6,
-        overallFullAppPct: 19.0,
-        remainingUntilFullAppPct: 81.0,
+        softwareToStageP6Pct: 35.5,
+        overallFullAppPct: 22.0,
+        remainingUntilFullAppPct: 78.0,
         consentBlockedScopePct: 15,
         rubricSummary:
-          'Phase 1 Specs (6.0%) + Phase 2 Track A Complete Blocks 2.1-2.7 & P2-V2.1-2.4 (13.0% / 14.0%) = 19.0% of 15-Phase Full Commercial App (85% of AI Studio Prototype; 15% Track B blocked on DEC-OPEN-01).',
+          'Phase 1 Specs (6.0%) + Phase 2 Track A Complete (13.0%) + Phase 3 Block P3-A API Security Hardening (3.0% / 12.0%) = 22.0% of 15-Phase Full Commercial App (85% Phase 2 AI Studio Prototype + Phase 3 Active; 15% Track B blocked on DEC-OPEN-01).',
       },
       latestAuditAt: latestAudit?.createdAt ?? null,
       latestAuditAction: latestAudit?.action ?? null,

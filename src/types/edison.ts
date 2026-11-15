@@ -21,10 +21,15 @@ export interface UserAccount {
 export type PublicUser = Omit<UserAccount, 'passwordHash'>;
 
 export interface SessionRecord {
-  token: string;
+  id?: string;
+  token?: string;
+  tokenHash?: string;
+  csrfToken: string;
   userId: string;
   role: UserRole;
   createdAt: string;
+  lastActivityAt: string;
+  idleExpiresAt: string;
   expiresAt: string;
 }
 

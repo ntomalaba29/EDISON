@@ -1,9 +1,9 @@
 # EDISON — Complete VS Code Engineering Handover Package (Phase 2 Track A → Phase 3)
 
 **Repository**: `Malaba29/EDISON-International-Smart-TV-Advertising-Network-`  
-**Reconciled Date**: 2026-11-15 (`Block P2-V2.4` — Track A Complete at `85.0%` AI Studio Assignment Scope)  
+**Reconciled Date**: 2026-11-15 (`Phase 3 Activated — Block P3-A Complete / Awaiting Commit · TASK-P3-001 READY`)  
 **Authority**: `VSCODE_HANDOVER_PLAN.md` (11-Point Phase 2 Exit Checklist)  
-**Triggering Coordination File**: `coordination/EDISON_COMMAND_CENTER.md` (`TASK-P3-001`: **`DRAFT`** — independent of `DEC-OPEN-01`; prerequisites to move to `READY`: Owner commit of `P2-V2.4` + explicit Owner Phase 3 activation)
+**Triggering Coordination File**: `coordination/EDISON_COMMAND_CENTER.md` (`TASK-P3-001`: **`READY`** — `docs/migration/TASK_P3_001_POSTGRES_MIGRATION_REQUIREMENTS.md` prepared; JSON retained in AI Studio without paid Cloud SQL)
 
 ---
 
@@ -14,9 +14,9 @@
   - `createEdisonApp(store, { uploadsDir })` decouples Express middleware/route creation from listening on port `3000` so Supertest integration suites run hermetically against temporary directories.
   - Development (`npm run dev` / `tsx server.ts`): Mounts `vite.middlewares` in SPA middleware mode alongside `/api/*`, `/uploads/*`, and `/r/:token` on port `3000`.
   - Production (`npm start` / `node server.ts`): Serves `dist/` static assets + SPA fallback alongside `/api/*`, `/uploads/*`, and `/r/:token` on port `3000`.
-- **Prototype Persistence (`src/server/store.ts` → `data/edison-store.json`, `schemaVersion: 7`)**:
-  - Parameterised `{ dataDir }` + exclusive `O_CREAT | O_EXCL` advisory lockfile (`data/edison-store.lock`), `fsyncSync`, and atomic `renameSync` writes.
-  - **Phase 3 Requirement (`TASK-P3-001`)**: Migrate single-host JSON persistence to PostgreSQL, schema migrations, and transactional audit logging.
+- **Prototype Persistence (`src/server/store.ts` → `data/edison-store.json`, `schemaVersion: 8`)**:
+  - Parameterised `{ dataDir }` + exclusive `O_CREAT | O_EXCL` advisory lockfile (`data/edison-store.lock`), `fsyncSync`, and atomic `renameSync` writes, now persisting SHA-256 `tokenHash`, session-bound `csrfToken`, and `idleExpiresAt` (`Block P3-A`).
+  - **Phase 3 Requirement (`TASK-P3-001` — `READY`)**: Full PostgreSQL 16+ schema & backfill requirements documented in `docs/migration/TASK_P3_001_POSTGRES_MIGRATION_REQUIREMENTS.md` (JSON retained in AI Studio without provisioning paid infrastructure).
 - **QR Security & Redirect Engine (`src/server/qrValidator.ts` + `GET /r/:token`)**:
   - Normalises and validates `https://`, `http://`, `tel:`, and WhatsApp numbers; blocks `javascript:`, `data:`, `vbscript:`, IP literals, and opaque third-party URL shorteners.
   - `GET /r/:token` records `redirect_requested` and `redirect_issued` (`measurementSource: 'real_measured'`), applies User-Agent/prefetch bot filtering + 5s deduplication, and returns HTTP `302` straight to destination (`ADR-002`).
@@ -35,19 +35,19 @@
 ## 2. Technology Stack & Commands
 
 - **Runtime & Frameworks**: Node.js 22+, TypeScript (`typescript ^7.0.2`), Express `4.21.2`, React `19.0.1`, Vite `8.3.0`, Tailwind CSS `4.3.3`, `tsx 4.21.0`.
-- **Key & Testing Libraries**: `qrcode`, `jsqr`, `lucide-react`, `dotenv`, `vitest (^5.1.0)`, `supertest (^7.3.2)`.
+- **Key & Testing Libraries**: `zod`, `qrcode`, `jsqr`, `lucide-react`, `dotenv`, `vitest (^5.1.0)`, `supertest (^7.3.2)`.
 - **Verification Commands**:
-  - `npm test` → `vitest run` (`tests/qrValidator.test.ts`, `tests/breakScheduler.test.ts`, `tests/sharedIntelligence.test.ts`, `tests/apiRegression.test.ts`)
+  - `npm test` → `vitest run` (`tests/qrValidator.test.ts`, `tests/breakScheduler.test.ts`, `tests/sharedIntelligence.test.ts`, `tests/apiRegression.test.ts`, `tests/securityHardening.test.ts` — 23/23 passing)
   - `npm run lint` → `tsc --noEmit` (must exit `0`)
   - `npm run build` → `vite build` (must exit `0`)
   - `npm run dev` / `npm start` → `tsx server.ts` / `node server.ts` on `http://0.0.0.0:3000`
 
 ---
 
-## 3. Data Model (`src/types/edison.ts`, Schema Version 7 — 14 Collections)
+## 3. Data Model (`src/types/edison.ts`, Schema Version 8 — 14 Collections)
 
 1. `users`: `UserAccount` (salted `scrypt` `passwordHash`, roles `advertiser | opportunity_submitter | admin`).
-2. `sessions`: `SessionRecord` (7-day HTTP-only cookie + Bearer tokens).
+2. `sessions`: `SessionRecord` (SHA-256 `tokenHash` at rest, session-bound `csrfToken`, 2h idle / 7d cap, HTTP-only `SameSite=Lax` cookie + Bearer).
 3. `advertiserProfiles`: `AdvertiserProfile` (`registered_business | individual_sole_trader | public_ngo`, KYC state).
 4. `campaigns`: `CampaignRecord` (10-state lifecycle, `paymentCollectionActive: false`, permanent `$0.00` Charity lock).
 5. `adCreatives`: `AdCreativeRecord` (`option_a_studio`, `option_b_upload` + `jsQR`, and `text_only_commercial`).
@@ -65,8 +65,8 @@
 
 ## 4. Automated Test & Verification Evidence
 
-- **`npm test` (`vitest run`)**: Automated unit & Supertest HTTP integration suite across 4 test files (`qrValidator.test.ts`, `breakScheduler.test.ts`, `sharedIntelligence.test.ts`, `apiRegression.test.ts`).
-- **Automated Store Readiness (`GET /api/qa/prototype-readiness`)**: `11 / 11` automated invariants passing across Blocks `2.1`–`2.7` + `P2-V2.1`–`P2-V2.4`.
+- **`npm test` (`vitest run`)**: Automated unit & Supertest HTTP integration suite across 5 test files (`qrValidator.test.ts`, `breakScheduler.test.ts`, `sharedIntelligence.test.ts`, `apiRegression.test.ts`, `securityHardening.test.ts` — 23/23 tests).
+- **Automated Store Readiness (`GET /api/qa/prototype-readiness`)**: `12 / 12` automated invariants passing across Blocks `2.1`–`2.7`, `P2-V2.1`–`P2-V2.4`, and `Block P3-A`.
 - **Pending Owner Physical Phone Scan**: Live runtime store records `0` owner physical smartphone scan logs (`PENDING_OWNER_DEVICE_TEST`).
 - **Pending Browser Playwright E2E**: AI Studio container has no Chromium binary; full Playwright E2E is queued in `TASK-P3-003`.
 
@@ -81,14 +81,15 @@
 
 ---
 
-## 6. Ordered Phase 3 VS Code Copilot Engineering Tasks (Currently Held `DRAFT`)
+## 6. Ordered Phase 3 Engineering Tasks (`TASK-P3-001` Now `READY` · `Block P3-A` Complete)
 
 **Prerequisites to transition `TASK-P3-001` from `DRAFT` → `READY`** *(Independent of `DEC-OPEN-01`)*:
-1. Project Owner reviews and manually commits `Block P2-V2.4` (closing 100% of unblocked Track A).
-2. Project Owner explicitly authorises Phase 3 activation (`TASK-P3-001 -> READY`) in `coordination/EDISON_COMMAND_CENTER.md`.
+1. Project Owner reviews and manually commits `Block P2-V2.4`: **MET (`2026-11-15`)**.
+2. Project Owner explicitly authorises Phase 3 activation: **MET (`2026-11-15`)**.
 
 **Ordered Task Queue**:
-1. **`TASK-P3-001` (`Status: DRAFT` — awaits `P2-V2.4` commit & explicit Owner Phase 3 activation)**: Migrate `EdisonPrototypeStore` (Track A baseline schema) to PostgreSQL with migrations and transactional audit logging. *(Keep Track B tables out of scope while `DEC-OPEN-01` remains unresolved.)*
-2. **`TASK-P3-002`**: Harden authentication/session cookies, CSRF protection, rate limiting, and Zod validation schemas.
-3. **`TASK-P3-003`**: Add Playwright browser E2E suite in CI covering desktop & mobile responsive UI alongside existing Vitest + Supertest tests.
-4. **`TASK-P3-004`**: Build background media worker pipeline (FFmpeg 1080p/720p transcode, EBU R128 loudness normalisation, multi-frame QR extraction).
+1. **`Block P3-A` / former `TASK-P3-002` (`Status: VERIFIED · AWAITING COMMIT` in AI Studio)**: API Zod validation schemas, cookie/header CSRF & same-origin enforcement, rate limiting (`429`), hashed/rotated sessions (`schemaVersion: 8`), security headers, and `tests/securityHardening.test.ts`.
+2. **`TASK-P3-001` (`Status: READY` — Blueprint Prepared, Execution Deferred Pending DB Provisioning Decision)**: Migrate `EdisonPrototypeStore` (Track A baseline schema) to PostgreSQL 16+ per `docs/migration/TASK_P3_001_POSTGRES_MIGRATION_REQUIREMENTS.md`. *(JSON retained in AI Studio without paid Cloud SQL; Track B excluded while `DEC-OPEN-01` unresolved.)*
+3. **`Block P3-B` (`Next Software-First AI Studio Block`)**: Extract `EdisonDataRepository` storage port interfaces, harden `/uploads/:filename` + CSP/DOM safety, and add request timeout/CI check hardening.
+4. **`TASK-P3-003`**: Add Playwright browser E2E suite in CI covering desktop & mobile responsive UI alongside existing Vitest + Supertest tests.
+5. **`TASK-P3-004`**: Build background media worker pipeline (FFmpeg 1080p/720p transcode, EBU R128 loudness normalisation, multi-frame QR extraction).
