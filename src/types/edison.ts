@@ -447,7 +447,8 @@ export type AnalyticsEventType =
   | 'redirect_issued'
   | 'qr_scanned'
   | 'destination_opened'
-  | 'verified_conversion';
+  | 'verified_conversion'
+  | 'ad_network_backfill_simulated';
 
 export interface AnalyticsEventRecord {
   id: string;
@@ -647,3 +648,72 @@ export interface AdminModerationOverview {
   openAppealsCount: number;
 }
 
+export type BreakSlotSource =
+  | 'direct_charity_free'
+  | 'direct_commercial_paid'
+  | 'mock_ad_network_backfill'
+  | 'unfilled';
+
+export interface ScheduledBreakSlot {
+  slotIndex: number;
+  primaryCategory: PrimaryAdCategory;
+  source: BreakSlotSource;
+  campaignId: string | null;
+  creativeId: string | null;
+  opportunityId: string | null;
+  title: string;
+  durationSeconds: number;
+  qrToken: string | null;
+  revenueStream: FinancialRevenueStream | null;
+  estimatedValueUsd: number;
+  fillNote: string;
+  isMockBackfill: boolean;
+}
+
+export interface BreakSchedulePlan {
+  generatedAt: string;
+  adapterId: 'simulation_tv_adapter';
+  adapterDisclaimer: string;
+  requestedBreakDurationSeconds: number;
+  safetyBufferSeconds: number;
+  usableBreakSeconds: number;
+  requestedSlotCount: number;
+  k1ShortBreakRuleApplied: boolean;
+  skipped: boolean;
+  skipReason: string | null;
+  alternatingPointerStart: PrimaryAdCategory;
+  nextAlternatingPointer: PrimaryAdCategory;
+  slots: ScheduledBreakSlot[];
+  totalScheduledDurationSeconds: number;
+}
+
+export interface RevenueStreamLedgerRow {
+  stream: FinancialRevenueStream;
+  label: string;
+  primaryCategory: PrimaryAdCategory | 'BOTH';
+  amountUsd: number;
+  spotOrRecordCount: number;
+  certaintyStatus:
+    | 'permanent_zero'
+    | 'simulated_rate_card'
+    | 'mock_estimated'
+    | 'unconfirmed_zero'
+    | 'no_real_collection';
+  note: string;
+}
+
+export interface RevenueLedgerSnapshot {
+  generatedAt: string;
+  scope: 'network_wide' | 'user_owned';
+  paymentCollectionActive: false;
+  gamCtvAccountConfigured: false;
+  streams: RevenueStreamLedgerRow[];
+  totals: {
+    charityFreeSpots: number;
+    directCommercialSimulatedUsd: number;
+    adNetworkEstimatedMockUsd: number;
+    adNetworkConfirmedUsd: number;
+    actualCashReceivedUsd: number;
+    refundAdjustmentsUsd: number;
+  };
+}

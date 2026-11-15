@@ -23,10 +23,13 @@ import {
 import type {
   AdCreativeRecord,
   AdvertiserProfile,
+  BreakSchedulePlan,
   CampaignPreviewGateResult,
   CampaignRecord,
+  PrimaryAdCategory,
   PublicUser,
   QrLinkRecord,
+  ScheduledBreakSlot,
 } from '../types/edison';
 import { CopyReportFooter } from './CopyReportFooter';
 
@@ -443,6 +446,15 @@ export function TvPreviewView({
   const [simPhoneOpened, setSimPhoneOpened] = useState(false);
   const [simLogs, setSimLogs] = useState<string[]>([]);
 
+  // Block P2-V2.2 Alternating 4-Slot Break Scheduler state
+  const [breakDurationInput, setBreakDurationInput] = useState(75);
+  const [safetyBufferInput, setSafetyBufferInput] = useState(5);
+  const [alternatingStart, setAlternatingStart] = useState<PrimaryAdCategory>('CHARITY');
+  const [allowMockBackfill, setAllowMockBackfill] = useState(true);
+  const [breakPlan, setBreakPlan] = useState<BreakSchedulePlan | null>(null);
+  const [planningBreak, setPlanningBreak] = useState(false);
+  const [activeSlotCursor, setActiveSlotCursor] = useState(-1); // -1 = single spot, >=0 = multi-slot planned break
+
   const [qrDataUrl, setQrDataUrl] = useState('');
   const stageContainerRef = useRef<HTMLDivElement | null>(null);
   const playerVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -677,20 +689,58 @@ export function TvPreviewView({
     }
   };
 
+  const currentPlannedSlot: ScheduledBreakSlot | null = useMemo(() => {
+    if (!breakPlan || activeSlotCursor < 0 || activeSlotCursor >= breakPlan.slots.length) {
+      return null;
+    }
+    return breakPlan.slots[activeSlotCursor] ?? null;
+  }, [breakPlan, activeSlotCursor]);
+
+  const activeSimCreative = useMemo(() => {
+    if (currentPlannedSlot) {
+      if (currentPlannedSlot.creativeId) {
+        return creatives.find((c) => c.id === currentPlannedSlot.creativeId) ?? null;
+      }
+      return null;
+    }
+    return activeCreative;
+  }, [currentPlannedSlot, creatives, activeCreative]);
+
+  const activeSimQrLink = useMemo(() => {
+    const tok = currentPlannedSlot?.qrToken ?? activeSimCreative?.qrToken ?? null;
+    if (!tok) return null;
+    return qrLinks.find((q) => q.token === tok) ?? null;
+  }, [currentPlannedSlot, activeSimCreative, qrLinks]);
+
   // Simulator Telemetry helper
   const emitSimEvent = useCallback(
-    async (eventType: 'ad_requested' | 'ad_delivered' | 'ad_played' | 'ad_viewable', label: string) => {
+    async (
+      eventType:
+        | 'ad_requested'
+        | 'ad_delivered'
+        | 'ad_played'
+        | 'ad_viewable'
+        | 'ad_network_backfill_simulated',
+      label: string,
+      overrides?: { campaignId?: string | null; qrToken?: string | null }
+    ) => {
       setSimLogs((prev) => [
         `[${formatClock(liveBroadcastClock)} · SIMULATED] ${label}`,
-        ...prev.slice(0, 14),
+        ...prev.slice(0, 18),
       ]);
       try {
         await fetch('/api/simulator/events', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            campaignId: linkedCampaignForCreative?.id ?? null,
-            qrToken: activeCreative?.qrToken ?? null,
+            campaignId:
+              overrides && 'campaignId' in overrides
+                ? overrides.campaignId
+                : linkedCampaignForCreative?.id ?? null,
+            qrToken:
+              overrides && 'qrToken' in overrides
+                ? overrides.qrToken
+                : activeCreative?.qrToken ?? null,
             eventType,
           }),
         });
@@ -701,11 +751,45 @@ export function TvPreviewView({
     [liveBroadcastClock, linkedCampaignForCreative, activeCreative]
   );
 
+  // Plan Alternating 4-Slot Break via SimulationTvAdapter
+  const handlePlanBreak = async () => {
+    setPlanningBreak(true);
+    try {
+      const res = await fetch('/api/simulator/schedule-break', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestedBreakDurationSeconds: breakDurationInput,
+          safetyBufferSeconds: safetyBufferInput,
+          requestedSlotCount: 4,
+          alternatingPointerStart: alternatingStart,
+          allowMockBackfill,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const plan: BreakSchedulePlan = data.plan;
+        setBreakPlan(plan);
+        setSimLogs((prev) => [
+          plan.skipped
+            ? `[${formatClock(liveBroadcastClock)} · SCHEDULER] Break SKIPPED safely: ${plan.skipReason}`
+            : `[${formatClock(liveBroadcastClock)} · SCHEDULER] Planned ${plan.slots.length} alternating slots (${plan.slots.map((s) => s.primaryCategory).join(' -> ')}) · next=${plan.nextAlternatingPointer}`,
+          ...prev.slice(0, 18),
+        ]);
+      }
+    } finally {
+      setPlanningBreak(false);
+    }
+  };
+
   // Commercial-Break Simulator Engine
   // Live TV broadcast clock continues advancing even during ad breaks so Return to TV lands at current live point.
   useEffect(() => {
     if (!simRunning) return;
-    const adDuration = Math.max(5, activeCreative?.displayDurationSeconds ?? 15);
+    const adDuration = currentPlannedSlot
+      ? Math.max(5, currentPlannedSlot.durationSeconds)
+      : Math.max(5, activeCreative?.displayDurationSeconds ?? 15);
+
     const tick = window.setInterval(() => {
       setLiveBroadcastClock((t) => t + 1);
 
@@ -714,8 +798,38 @@ export function TvPreviewView({
           if (c <= 1) {
             setSimPhase('ad_playing');
             setSimAdElapsed(0);
-            emitSimEvent('ad_delivered', `Break safety buffer passed -> Playing "${activeCreative?.title ?? 'EDISON Spot'}"`);
-            emitSimEvent('ad_played', 'EDISON 16:9 ad started inside simulated TV frame');
+            if (currentPlannedSlot) {
+              if (currentPlannedSlot.isMockBackfill) {
+                emitSimEvent(
+                  'ad_network_backfill_simulated',
+                  `Slot #${currentPlannedSlot.slotIndex} [${currentPlannedSlot.primaryCategory}] -> ${currentPlannedSlot.title} [MOCK AD NETWORK]`,
+                  { campaignId: null, qrToken: null }
+                );
+              } else {
+                emitSimEvent(
+                  'ad_delivered',
+                  `Slot #${currentPlannedSlot.slotIndex} [${currentPlannedSlot.primaryCategory}] -> "${currentPlannedSlot.title}" ($${currentPlannedSlot.estimatedValueUsd.toFixed(2)})`,
+                  {
+                    campaignId: currentPlannedSlot.campaignId,
+                    qrToken: currentPlannedSlot.qrToken,
+                  }
+                );
+                emitSimEvent(
+                  'ad_played',
+                  `Playing Slot #${currentPlannedSlot.slotIndex} (${currentPlannedSlot.source})`,
+                  {
+                    campaignId: currentPlannedSlot.campaignId,
+                    qrToken: currentPlannedSlot.qrToken,
+                  }
+                );
+              }
+            } else {
+              emitSimEvent(
+                'ad_delivered',
+                `Break safety buffer passed -> Playing "${activeCreative?.title ?? 'EDISON Spot'}"`
+              );
+              emitSimEvent('ad_played', 'EDISON 16:9 ad started inside simulated TV frame');
+            }
             return 0;
           }
           return c - 1;
@@ -723,14 +837,48 @@ export function TvPreviewView({
       } else if (simPhase === 'ad_playing') {
         setSimAdElapsed((e) => {
           const next = e + 1;
-          if (next === 2) {
-            emitSimEvent('ad_viewable', '2s continuous playback threshold reached [SIMULATED]');
+          if (next === 2 && (!currentPlannedSlot || !currentPlannedSlot.isMockBackfill)) {
+            emitSimEvent(
+              'ad_viewable',
+              '2s continuous playback threshold reached [SIMULATED]',
+              currentPlannedSlot
+                ? { campaignId: currentPlannedSlot.campaignId, qrToken: currentPlannedSlot.qrToken }
+                : undefined
+            );
           }
           if (next >= adDuration) {
+            if (breakPlan && activeSlotCursor >= 0 && activeSlotCursor + 1 < breakPlan.slots.length) {
+              const nextCursor = activeSlotCursor + 1;
+              const nextSlot = breakPlan.slots[nextCursor];
+              setActiveSlotCursor(nextCursor);
+              if (nextSlot.isMockBackfill) {
+                emitSimEvent(
+                  'ad_network_backfill_simulated',
+                  `Slot #${nextSlot.slotIndex} [${nextSlot.primaryCategory}] -> ${nextSlot.title} [MOCK AD NETWORK]`,
+                  { campaignId: null, qrToken: null }
+                );
+              } else {
+                emitSimEvent(
+                  'ad_delivered',
+                  `Slot #${nextSlot.slotIndex} [${nextSlot.primaryCategory}] -> "${nextSlot.title}" ($${nextSlot.estimatedValueUsd.toFixed(2)})`,
+                  { campaignId: nextSlot.campaignId, qrToken: nextSlot.qrToken }
+                );
+                emitSimEvent(
+                  'ad_played',
+                  `Playing Slot #${nextSlot.slotIndex} (${nextSlot.source})`,
+                  { campaignId: nextSlot.campaignId, qrToken: nextSlot.qrToken }
+                );
+              }
+              return 0;
+            }
             setSimPhase('live_tv');
+            setActiveSlotCursor(-1);
+            if (breakPlan) {
+              setAlternatingStart(breakPlan.nextAlternatingPointer);
+            }
             setSimLogs((prev) => [
-              `[SIMULATED] Ad ended (${adDuration}s) -> Automatically returned to Live TV at advancing broadcast clock`,
-              ...prev.slice(0, 14),
+              `[SIMULATED] Break ended (${adDuration}s final spot) -> Returned to Live TV at advancing broadcast clock`,
+              ...prev.slice(0, 18),
             ]);
             return adDuration;
           }
@@ -740,7 +888,7 @@ export function TvPreviewView({
     }, 1000);
 
     return () => window.clearInterval(tick);
-  }, [simRunning, simPhase, activeCreative, emitSimEvent]);
+  }, [simRunning, simPhase, activeCreative, breakPlan, activeSlotCursor, currentPlannedSlot, emitSimEvent]);
 
   useEffect(() => {
     const vid = simVideoRef.current;
@@ -753,6 +901,7 @@ export function TvPreviewView({
   }, [simRunning, simPhase]);
 
   const triggerSimulatedBreak = () => {
+    setActiveSlotCursor(-1);
     setSimRunning(true);
     setSimPhase('break_countdown');
     setBreakCountdown(3);
@@ -761,12 +910,31 @@ export function TvPreviewView({
     emitSimEvent('ad_requested', 'Break marker simulated -> Checking duration & safety buffer (3s)');
   };
 
+  const triggerPlannedBreakSequence = () => {
+    if (!breakPlan || breakPlan.skipped || breakPlan.slots.length === 0) return;
+    setActiveSlotCursor(0);
+    setSimRunning(true);
+    setSimPhase('break_countdown');
+    setBreakCountdown(2);
+    setSimAdElapsed(0);
+    setSimPhoneOpened(false);
+    emitSimEvent(
+      'ad_requested',
+      `Planned ${breakPlan.slots.length}-slot alternating sequence triggered (${breakPlan.slots.map((s) => s.primaryCategory).join(' -> ')})`,
+      {
+        campaignId: breakPlan.slots[0]?.campaignId ?? null,
+        qrToken: breakPlan.slots[0]?.qrToken ?? null,
+      }
+    );
+  };
+
   const handleManualReturnToTv = () => {
     setSimPhase('live_tv');
     setSimAdElapsed(0);
+    setActiveSlotCursor(-1);
     setSimLogs((prev) => [
       `[${formatClock(liveBroadcastClock)} · SIMULATED] Immediate Manual Return pressed -> Restored live channel stream`,
-      ...prev.slice(0, 14),
+      ...prev.slice(0, 18),
     ]);
   };
 
@@ -775,6 +943,7 @@ export function TvPreviewView({
     setSimPhase('live_tv');
     setBreakCountdown(3);
     setSimAdElapsed(0);
+    setActiveSlotCursor(-1);
     setSimPhoneOpened(false);
     setSimLogs([]);
   };
@@ -1262,20 +1431,80 @@ export function TvPreviewView({
               </div>
 
               <div className="relative w-full aspect-video rounded-lg overflow-hidden border border-slate-700 bg-slate-900">
-                {simPhase === 'ad_playing' && activeCreative ? (
+                {simPhase === 'ad_playing' && (activeSimCreative || currentPlannedSlot) ? (
                   <>
-                    <CreativeStage
-                      creative={activeCreative}
-                      qrLink={activeQrLink}
-                      qrDataUrl={qrDataUrl}
-                      isPlaying={simRunning}
-                      showSafeGuide={false}
-                      elapsedSeconds={simAdElapsed}
-                      videoRef={simVideoRef}
-                    />
+                    {activeSimCreative ? (
+                      <CreativeStage
+                        creative={activeSimCreative}
+                        qrLink={activeSimQrLink}
+                        qrDataUrl={qrDataUrl}
+                        isPlaying={simRunning}
+                        showSafeGuide={false}
+                        elapsedSeconds={simAdElapsed}
+                        videoRef={simVideoRef}
+                      />
+                    ) : (
+                      <div
+                        className={`w-full h-full flex flex-col justify-between p-6 sm:p-8 text-white ${
+                          currentPlannedSlot?.primaryCategory === 'CHARITY'
+                            ? 'bg-gradient-to-br from-emerald-950 via-slate-900 to-teal-950'
+                            : currentPlannedSlot?.isMockBackfill
+                            ? 'bg-gradient-to-br from-amber-950 via-slate-900 to-slate-950'
+                            : 'bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 text-xs font-mono">
+                          <span className="px-2.5 py-1 rounded bg-white/15 font-semibold">
+                            {currentPlannedSlot?.primaryCategory} · {currentPlannedSlot?.source}
+                          </span>
+                          <span className="px-2.5 py-1 rounded bg-white/10">
+                            {currentPlannedSlot?.isMockBackfill
+                              ? 'MOCK AD NETWORK ESTIMATE'
+                              : currentPlannedSlot?.primaryCategory === 'CHARITY'
+                              ? '$0.00 / FREE OPPORTUNITY'
+                              : `DIRECT COMMERCIAL ($${currentPlannedSlot?.estimatedValueUsd.toFixed(2)})`}
+                          </span>
+                        </div>
+                        <div className="my-auto space-y-2 max-w-2xl">
+                          <h3 className="text-xl sm:text-2xl font-bold leading-snug">
+                            {currentPlannedSlot?.title}
+                          </h3>
+                          <p className="text-xs sm:text-sm text-slate-200">
+                            {currentPlannedSlot?.fillNote}
+                          </p>
+                          {currentPlannedSlot?.qrToken && (
+                            <p className="font-mono text-xs text-emerald-300">
+                              Scan QR Target: {window.location.origin}/r/{currentPlannedSlot.qrToken}
+                            </p>
+                          )}
+                        </div>
+                        <div className="w-full h-1.5 bg-white/15 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-white transition-all"
+                            style={{
+                              width: `${Math.min(
+                                100,
+                                Math.round(
+                                  (simAdElapsed /
+                                    Math.max(5, currentPlannedSlot?.durationSeconds ?? 15)) *
+                                    100
+                                )
+                              )}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
                     <div className="absolute top-3 left-3 px-2.5 py-1 rounded bg-slate-900/85 text-white text-[11px] font-mono z-40">
-                      EDISON BREAK SPOT · {formatClock(simAdElapsed)} /{' '}
-                      {formatClock(activeCreative.displayDurationSeconds)}
+                      {currentPlannedSlot
+                        ? `SLOT #${currentPlannedSlot.slotIndex}/${breakPlan?.slots.length ?? 1} [${currentPlannedSlot.primaryCategory}] · `
+                        : 'EDISON BREAK SPOT · '}
+                      {formatClock(simAdElapsed)} /{' '}
+                      {formatClock(
+                        currentPlannedSlot?.durationSeconds ??
+                          activeSimCreative?.displayDurationSeconds ??
+                          15
+                      )}
                     </div>
                     <button
                       type="button"
@@ -1310,7 +1539,11 @@ export function TvPreviewView({
 
                     {simPhase === 'break_countdown' && (
                       <div className="p-3 bg-blue-600/90 rounded-lg text-center text-xs font-semibold">
-                        Simulated Break Triggered · Safety Buffer Verified · Displaying EDISON Spot in {breakCountdown}s...
+                        Simulated Break Triggered · Safety Buffer Verified · Displaying{' '}
+                        {currentPlannedSlot
+                          ? `Planned Slot #1 (${currentPlannedSlot.primaryCategory})`
+                          : 'EDISON Spot'}{' '}
+                        in {breakCountdown}s...
                       </div>
                     )}
                   </div>
@@ -1336,8 +1569,20 @@ export function TvPreviewView({
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 font-semibold bg-amber-600 hover:bg-amber-700 disabled:opacity-40 rounded-lg cursor-pointer"
                   >
                     <FastForward className="w-3.5 h-3.5" />
-                    <span>Trigger Break</span>
+                    <span>Trigger Single Spot</span>
                   </button>
+
+                  {breakPlan && !breakPlan.skipped && breakPlan.slots.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={triggerPlannedBreakSequence}
+                      disabled={simPhase !== 'live_tv'}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 font-semibold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 rounded-lg cursor-pointer"
+                    >
+                      <Play className="w-3.5 h-3.5" />
+                      <span>Play {breakPlan.slots.length}-Slot Alternating Break</span>
+                    </button>
+                  )}
 
                   {simPhase === 'ad_playing' && (
                     <button
@@ -1386,10 +1631,16 @@ export function TvPreviewView({
 
                 <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg space-y-2 text-xs">
                   <p className="font-mono text-slate-700 break-all">
-                    QR Token: {activeCreative?.qrToken ? `/r/${activeCreative.qrToken}` : 'None'}
+                    QR Token:{' '}
+                    {(currentPlannedSlot?.qrToken ?? activeCreative?.qrToken)
+                      ? `/r/${currentPlannedSlot?.qrToken ?? activeCreative?.qrToken}`
+                      : 'None'}
                   </p>
                   <p className="font-mono text-slate-600 break-all">
-                    Target: {activeQrLink?.resolvedUrl ?? 'https://example.org/edison-demo'}
+                    Target:{' '}
+                    {activeSimQrLink?.resolvedUrl ??
+                      activeQrLink?.resolvedUrl ??
+                      'https://example.org/edison-demo'}
                   </p>
                   <button
                     type="button"
@@ -1413,7 +1664,7 @@ export function TvPreviewView({
                 <div className="max-h-48 overflow-y-auto space-y-1.5 text-[11px] font-mono text-slate-700">
                   {simLogs.length === 0 ? (
                     <p className="text-slate-400">
-                      Press Start or Trigger Break to observe simulated break transitions.
+                      Press Start, Trigger Single Spot, or Plan Alternating Break below.
                     </p>
                   ) : (
                     simLogs.map((line, idx) => (
@@ -1425,6 +1676,189 @@ export function TvPreviewView({
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Block P2-V2.2: Alternating 4-Slot Break Scheduler & Direct Priority vs Mock AdNetworkAdapter */}
+          <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-4">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 pb-3 border-b border-slate-200">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Alternating 4-Slot Break Scheduler (SimulationTvAdapter · Block P2-V2.2)
+                </h3>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Enforces strict <strong>CHARITY -&gt; COMMERCIAL -&gt; CHARITY -&gt; COMMERCIAL</strong> alternation, direct-paid commercial priority before{' '}
+                  <span className="font-mono">MockAdNetworkBackfillAdapter</span> (GAM CTV unresolved <span className="font-mono">DEC-OPEN-03</span>), and safety-buffer break skipping (&lt;10s usable).
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handlePlanBreak}
+                disabled={planningBreak}
+                className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg cursor-pointer whitespace-nowrap disabled:opacity-50"
+              >
+                {planningBreak ? 'Planning Break...' : 'Plan Alternating Break'}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">
+                  Break Duration (seconds)
+                </label>
+                <input
+                  type="number"
+                  min={5}
+                  max={180}
+                  value={breakDurationInput}
+                  onChange={(e) => setBreakDurationInput(Number(e.target.value) || 0)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono tabular-nums"
+                />
+              </div>
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">
+                  Safety Buffer (seconds)
+                </label>
+                <input
+                  type="number"
+                  min={2}
+                  max={15}
+                  value={safetyBufferInput}
+                  onChange={(e) => setSafetyBufferInput(Number(e.target.value) || 5)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono tabular-nums"
+                />
+              </div>
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">
+                  Alternating Pointer Start
+                </label>
+                <select
+                  value={alternatingStart}
+                  onChange={(e) => setAlternatingStart(e.target.value as PrimaryAdCategory)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white font-mono"
+                >
+                  <option value="CHARITY">CHARITY (Charity -&gt; Commercial...)</option>
+                  <option value="COMMERCIAL">COMMERCIAL (Commercial -&gt; Charity...)</option>
+                </select>
+              </div>
+              <div className="flex items-end pb-1">
+                <label className="inline-flex items-center gap-2 px-3 py-2 w-full bg-slate-50 border border-slate-200 rounded-lg cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={allowMockBackfill}
+                    onChange={(e) => setAllowMockBackfill(e.target.checked)}
+                  />
+                  <span className="text-slate-700 font-medium">
+                    Allow Mock Ad Network Backfill
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {breakPlan && (
+              <div className="space-y-3 pt-2">
+                <div
+                  className={`p-3.5 rounded-lg border text-xs flex flex-wrap items-center justify-between gap-2 ${
+                    breakPlan.skipped
+                      ? 'bg-red-50 border-red-200 text-red-900'
+                      : 'bg-slate-50 border-slate-200 text-slate-800'
+                  }`}
+                >
+                  <div className="space-y-0.5">
+                    <p className="font-semibold font-mono">
+                      {breakPlan.skipped
+                        ? 'BREAK SKIPPED BY SAFETY BUFFER GUARDRAIL'
+                        : `PLANNED ${breakPlan.slots.length} SLOTS (${breakPlan.totalScheduledDurationSeconds}s of ${breakPlan.usableBreakSeconds}s usable) · Next Pointer: ${breakPlan.nextAlternatingPointer}`}
+                    </p>
+                    <p>{breakPlan.skipReason ?? breakPlan.adapterDisclaimer}</p>
+                  </div>
+                  {breakPlan.k1ShortBreakRuleApplied && (
+                    <span className="px-2.5 py-1 bg-amber-100 border border-amber-300 text-amber-900 rounded font-mono font-semibold">
+                      k=1 Short-Break Alternation Applied (DEC-OPEN-02)
+                    </span>
+                  )}
+                </div>
+
+                {breakPlan.slots.length > 0 && (
+                  <div className="overflow-x-auto border border-slate-200 rounded-lg">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                        <tr>
+                          <th className="py-2 px-3 font-semibold">Slot</th>
+                          <th className="py-2 px-3 font-semibold">Primary Category</th>
+                          <th className="py-2 px-3 font-semibold">Inventory Source</th>
+                          <th className="py-2 px-3 font-semibold">Selected Creative / Listing</th>
+                          <th className="py-2 px-3 font-semibold text-right">Duration</th>
+                          <th className="py-2 px-3 font-semibold text-right">Ledger Estimate</th>
+                          <th className="py-2 px-3 font-semibold">Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                        {breakPlan.slots.map((sl) => (
+                          <tr
+                            key={sl.slotIndex}
+                            className={
+                              activeSlotCursor >= 0 &&
+                              breakPlan.slots[activeSlotCursor]?.slotIndex === sl.slotIndex
+                                ? 'bg-blue-50'
+                                : 'hover:bg-slate-50/70'
+                            }
+                          >
+                            <td className="py-2.5 px-3 font-mono font-semibold text-slate-900">
+                              #{sl.slotIndex}
+                            </td>
+                            <td className="py-2.5 px-3 font-mono font-semibold">
+                              <span
+                                className={
+                                  sl.primaryCategory === 'CHARITY'
+                                    ? 'text-emerald-700'
+                                    : 'text-blue-700'
+                                }
+                              >
+                                {sl.primaryCategory}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 font-mono text-slate-700">
+                              {sl.isMockBackfill ? (
+                                <span className="text-amber-700 font-semibold">
+                                  mock_ad_network_backfill [MOCK]
+                                </span>
+                              ) : (
+                                sl.source
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 font-medium text-slate-900">
+                              {sl.title}
+                              {sl.qrToken && (
+                                <span className="block font-mono text-[11px] text-slate-500">
+                                  /r/{sl.qrToken}
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-800">
+                              {sl.durationSeconds}s
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-mono tabular-nums font-semibold">
+                              {sl.primaryCategory === 'CHARITY' ? (
+                                <span className="text-emerald-700">$0.00 FREE</span>
+                              ) : sl.isMockBackfill ? (
+                                <span className="text-amber-700">
+                                  ~${sl.estimatedValueUsd.toFixed(2)} MOCK
+                                </span>
+                              ) : (
+                                <span className="text-slate-900">
+                                  ${sl.estimatedValueUsd.toFixed(2)} SIM
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-600">{sl.fillNote}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

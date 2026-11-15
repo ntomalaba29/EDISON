@@ -29,6 +29,7 @@ import type {
   OpportunityProviderType,
   OpportunityStatus,
   OpportunityTierStatus,
+  PrimaryAdCategory,
   PublicUser,
   QrDestinationType,
   QrLinkStatus,
@@ -570,7 +571,13 @@ async function startServer() {
 
   app.post('/api/simulator/events', requireAuth, (req: AuthenticatedRequest, res: Response) => {
     const { campaignId, qrToken, eventType } = req.body ?? {};
-    const allowedEvents = ['ad_requested', 'ad_delivered', 'ad_played', 'ad_viewable'];
+    const allowedEvents = [
+      'ad_requested',
+      'ad_delivered',
+      'ad_played',
+      'ad_viewable',
+      'ad_network_backfill_simulated',
+    ];
     if (!allowedEvents.includes(eventType)) {
       res.status(400).json({ error: 'Invalid simulated eventType.' });
       return;
@@ -582,6 +589,29 @@ async function startServer() {
     });
     res.status(201).json({ event });
   });
+
+  app.post(
+    '/api/simulator/schedule-break',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const body = req.body ?? {};
+      const pointer: PrimaryAdCategory =
+        body.alternatingPointerStart === 'COMMERCIAL' ? 'COMMERCIAL' : 'CHARITY';
+      const plan = edisonStore.planSimulatedBreak(req.currentUser!, {
+        requestedBreakDurationSeconds:
+          typeof body.requestedBreakDurationSeconds === 'number'
+            ? body.requestedBreakDurationSeconds
+            : undefined,
+        safetyBufferSeconds:
+          typeof body.safetyBufferSeconds === 'number' ? body.safetyBufferSeconds : undefined,
+        requestedSlotCount:
+          typeof body.requestedSlotCount === 'number' ? body.requestedSlotCount : undefined,
+        alternatingPointerStart: pointer,
+        allowMockBackfill: body.allowMockBackfill !== false,
+      });
+      res.json({ plan });
+    }
+  );
 
   // --- Advertisement Creation Studio Endpoints (Block 2.3) ---
   app.get('/api/ad-creatives', requireAuth, (req: AuthenticatedRequest, res: Response) => {
@@ -1072,6 +1102,19 @@ async function startServer() {
       res.status(code).json({ error: message });
     }
   });
+
+  app.get(
+    '/api/analytics/revenue-ledger',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        res.json({ ledger: edisonStore.getRevenueLedgerSnapshot(req.currentUser!) });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
 
   // --- Physical Mobile QR Scan Testing & Final Prototype Readiness (Block 2.7) ---
   app.get(

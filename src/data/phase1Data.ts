@@ -246,7 +246,7 @@ export function generateFormalReport(
   const pm = liveSnapshot?.progressMetrics;
   const pctBlock = pm
     ? `${pm.overallFullAppPct}% of Full 15-Phase App (${pm.remainingUntilFullAppPct}% remaining) · ${pm.softwareToStageP6Pct}% of Software-to-Stage-P6 Milestone · ${pm.aiStudioAssignmentPct}% of AI Studio Assignment (${pm.consentBlockedScopePct}% blocked on DEC-OPEN-01)`
-    : '15.5% of Full 15-Phase App (84.5% remaining) · 25% of Software-to-Stage-P6 · 62% of AI Studio Assignment';
+    : '17.0% of Full 15-Phase App (83.0% remaining) · 27.4% of Software-to-Stage-P6 · 69% of AI Studio Assignment';
 
   if (command === 'STATUS') {
     return {
@@ -257,7 +257,7 @@ export function generateFormalReport(
         `Generated: ${generatedAt}`,
         `Current Phase: ${liveSnapshot?.phase ?? 'Phase 2 — AI Studio Functional Prototype (Track A Active)'}`,
         `Current Stage: ${liveSnapshot?.stage ?? 'P2-V2 Track A (Non-Consent Core) · Phase 3 TASK-P3-001 Held in DRAFT'}`,
-        `Current Block: ${liveSnapshot?.block ?? 'Block P2-V2.1 ($0 Charity Lock & Commercial Text-Only Format)'}`,
+        `Current Block: ${liveSnapshot?.block ?? 'Block P2-V2.2 (Alternating 4-Slot Break Scheduler, Direct Priority vs Mock AdNetworkAdapter & Separated Financial Ledger)'}`,
         `Commit Gate: ${liveSnapshot?.gateStatus ?? 'AWAITING OWNER REVIEW & COMMIT'}`,
         '',
         `PROGRESS UNTIL FULL APP: ${pctBlock}`,
@@ -265,21 +265,21 @@ export function generateFormalReport(
         'AI STUDIO ASSIGNMENT PROGRESS:',
         '- Phase 1 + Blueprint v2.1 Reconciliation + v2.2 Shared Ad Intelligence Specs: COMMITTED (10%)',
         '- Phase 2 Baseline Blocks 2.1–2.7 + P2-FIX.1–6: COMMITTED (45%)',
-        '- Block P2-V2.1 ($0 Charity Lock + Commercial Text-Only Ad + Ledger Types + Progress Metrics): ACTIVE (7%)',
-        '- Block P2-V2.2 (Alternating 4-Slot Scheduler + Direct Priority + Mock AdNetworkAdapter + 7-Stream Analytics): NEXT UNBLOCKED (7%)',
-        '- Block P2-V2.3 (Vitest + Supertest Automated Regression Suite): QUEUED (6%)',
+        '- Block P2-V2.1 ($0 Charity Lock + Commercial Text-Only Ad + Ledger Types + Progress Metrics): COMMITTED (7%)',
+        '- Block P2-V2.2 (Alternating 4-Slot Scheduler + Direct Priority + Mock AdNetworkAdapter + Separated Financial Ledger): ACTIVE (7%)',
+        '- Block P2-V2.3 (Vitest + Supertest Automated Regression Suite): NEXT UNBLOCKED (6%)',
         '- Track B (Consent / Household Geo / Multi-Profile / Epoch 403): BLOCKED ON DEC-OPEN-01 (15%)',
         '- Shared Ad Intelligence Prototype Preview & Final Handover Sign-Off: QUEUED (10%)',
         '',
         'OVERALL EDISON PROJECT PROGRESS:',
-        `- ${pm?.rubricSummary ?? 'Phase 1 Specs (6%) + Phase 2 Blocks 2.1-2.7 & P2-V2.1 (9.5%) = 15.5% of Full 15-Phase Commercial App (84.5% remaining).'}`,
+        `- ${pm?.rubricSummary ?? 'Phase 1 Specs (6%) + Phase 2 Blocks 2.1-2.7 & P2-V2.1–P2-V2.2 (11.0%) = 17.0% of Full 15-Phase Commercial App (83.0% remaining).'}`,
         '- Phase 3 (TASK-P3-001) held in DRAFT; Phases 4–15 NOT STARTED; single Stage P6 physical TV test deferred until app completion.',
         '',
         'LIVE STORE COUNTS:',
         countsLine,
         '',
         'NEXT AUTHORISED ACTION:',
-        'Review & commit Block P2-V2.1, then proceed to Block P2-V2.2 (Alternating Break Scheduler + Direct Priority + Mock AdNetworkAdapter). Resolve DEC-OPEN-01 when ready to unlock Track B.',
+        'Review & commit Block P2-V2.2, then proceed to Block P2-V2.3 (Vitest + Supertest Automated Regression Suite). Resolve DEC-OPEN-01 when ready to unlock Track B.',
       ].join('\n'),
     };
   }
@@ -291,7 +291,7 @@ export function generateFormalReport(
       body: [
         'EDISON — VERIFICATION & GATE CHECK',
         `Generated: ${generatedAt}`,
-        `Active Block: ${liveSnapshot?.block ?? 'Block P2-V2.1 ($0 Charity Lock & Commercial Text-Only Format)'}`,
+        `Active Block: ${liveSnapshot?.block ?? 'Block P2-V2.2 (Alternating 4-Slot Break Scheduler, Direct Priority vs Mock AdNetworkAdapter & Separated Financial Ledger)'}`,
         `Progress Metrics: ${pctBlock}`,
         `Live Store Telemetry: ${countsLine}`,
         `QR Telemetry: Redirect Requests=${s?.redirectRequestsTotal ?? 0} | Redirects Issued=${s?.redirectIssuedTotal ?? 0} | Suspected Bots=${s?.suspectedBotRedirects ?? 0} | Verified Destination Opens=${s?.verifiedDestinationOpens ?? 0} | Verified Conversions=${s?.verifiedConversionsTotal ?? 0}`,
@@ -303,7 +303,8 @@ export function generateFormalReport(
         '- Real QR destination validation & /r/:token redirect telemetry',
         '- Advertiser profile, 10-state campaigns & permanent $0.00 / FREE CHARITY ADS lock (paymentCollectionActive: false)',
         '- Option A Studio, Option B External Upload/jsQR, and zero-media Commercial Text-Only Ad format',
-        '- Playable 16:9 TV Preview, Pre-Submission Approval Gate & Commercial-Break Simulator',
+        '- Playable 16:9 TV Preview, Pre-Submission Approval Gate & Alternating 4-Slot Break Scheduler (SimulationTvAdapter)',
+        '- Direct-Paid Commercial Priority vs MockAdNetworkBackfillAdapter (DEC-OPEN-03) & Separated 6-Stream Financial Ledger (ADR-012)',
         '- Opportunity Submission, Non-Transitive 3-Tier Verification, Expiry, Complaints & Appeals',
         '- Admin Moderation Console & 7-Stage Funnel Analytics',
         '',
@@ -326,11 +327,12 @@ export function generateFormalReport(
         `Progress Until Full App: ${pctBlock}`,
         '',
         'GATE STATUS:',
-        'Prior P2-FIX.6 + Blueprint v2.1/v2.2 commit confirmed. Block P2-V2.1 is implemented and requires Owner review & commit before unlocking Block P2-V2.2.',
+        'Prior Block P2-V2.1 commit confirmed. Block P2-V2.2 is implemented and requires Owner review & commit before unlocking Block P2-V2.3.',
         '',
         'OWNER DECISIONS PENDING:',
         '- DEC-OPEN-01: Select Option A (Account-Free Contextual), Option B (Full Household + Multi-Profile + Epoch 403), or Option C (Hybrid Opt-In).',
         '- DEC-OPEN-02: Confirm k=1 short-break alternating rule.',
+        '- DEC-OPEN-03: Google Ad Manager CTV account / format confirmation (mock adapter active until resolved).',
       ].join('\n'),
     };
   }
@@ -338,15 +340,15 @@ export function generateFormalReport(
   if (command === 'COMMIT') {
     return {
       title: 'EDISON — COMMIT CHECKPOINT',
-      subtitle: 'Block P2-V2.1 files for manual owner commit',
+      subtitle: 'Block P2-V2.2 files for manual owner commit',
       body: [
-        'EDISON — COMMIT CHECKPOINT (BLOCK P2-V2.1)',
+        'EDISON — COMMIT CHECKPOINT (BLOCK P2-V2.2)',
         `Generated: ${generatedAt}`,
         `Progress Metrics: ${pctBlock}`,
         `Live Store Telemetry: ${countsLine}`,
         '',
         'STATUS: AWAITING MANUAL OWNER COMMIT',
-        'KEY FILES: src/types/edison.ts, src/server/store.ts, server.ts, src/components/CampaignViews.tsx, src/components/AdStudioView.tsx, src/components/TvPreviewView.tsx, PROGRESS_TRACKER.md, coordination/EDISON_COMMAND_CENTER.md',
+        'KEY FILES: src/types/edison.ts, src/server/breakScheduler.ts, src/server/store.ts, server.ts, src/components/TvPreviewView.tsx, src/components/AdminAnalyticsView.tsx, src/data/phase1Data.ts, PROGRESS_TRACKER.md, coordination/EDISON_COMMAND_CENTER.md, KNOWN_LIMITATIONS.md',
         'REMINDER: Do not stage .env or runtime /data/edison-store.json secrets.',
       ].join('\n'),
     };
@@ -361,18 +363,18 @@ export function generateFormalReport(
       'Project: EDISON — International Smart TV Advertising & Opportunities Network',
       `Production Phase: ${liveSnapshot?.phase ?? 'Phase 2 — AI Studio Functional Prototype (Track A Active)'}`,
       `Stage: ${liveSnapshot?.stage ?? 'P2-V2 Track A (Non-Consent Core) · Phase 3 TASK-P3-001 Held in DRAFT'}`,
-      `Implementation Block: ${liveSnapshot?.block ?? 'Block P2-V2.1 ($0 Charity Lock & Commercial Text-Only Format)'}`,
+      `Implementation Block: ${liveSnapshot?.block ?? 'Block P2-V2.2 (Alternating 4-Slot Break Scheduler, Direct Priority vs Mock AdNetworkAdapter & Separated Financial Ledger)'}`,
       `Status: ${liveSnapshot?.gateStatus ?? 'AWAITING OWNER REVIEW & COMMIT'}`,
       '',
-      `AI STUDIO ASSIGNMENT PROGRESS: ${pm?.aiStudioAssignmentPct ?? 62}%`,
-      `OVERALL EDISON PROJECT PROGRESS: ${pm?.overallFullAppPct ?? 15.5}% of Full 15-Phase App (${pm?.remainingUntilFullAppPct ?? 84.5}% remaining) · ${pm?.softwareToStageP6Pct ?? 25}% of Software-to-Stage-P6 Milestone`,
+      `AI STUDIO ASSIGNMENT PROGRESS: ${pm?.aiStudioAssignmentPct ?? 69}%`,
+      `OVERALL EDISON PROJECT PROGRESS: ${pm?.overallFullAppPct ?? 17.0}% of Full 15-Phase App (${pm?.remainingUntilFullAppPct ?? 83.0}% remaining) · ${pm?.softwareToStageP6Pct ?? 27.4}% of Software-to-Stage-P6 Milestone`,
       '',
       'LIVE STORE TELEMETRY:',
       countsLine,
       `Latest Audit: ${liveSnapshot?.latestAuditAction ?? 'N/A'} (${liveSnapshot?.latestAuditAt ?? 'N/A'})`,
       '',
       'REQUIRED USER ACTION:',
-      'Review and commit Block P2-V2.1 before proceeding to Block P2-V2.2.',
+      'Review and commit Block P2-V2.2 before proceeding to Block P2-V2.3.',
       '',
       'PRODUCTION GATE:',
       'LOCKED UNTIL COMMIT CONFIRMATION.',

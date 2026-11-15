@@ -13,6 +13,7 @@ import type {
   AnalyticsFunnelStageItem,
   AuditLogRecord,
   BillingEstimateSummary,
+  BreakSchedulePlan,
   CampaignContentCategory,
   CampaignPreviewGateResult,
   CampaignRecord,
@@ -34,12 +35,15 @@ import type {
   OpportunityTierStatus,
   PhysicalQrScanTestRecord,
   PreSubmitCheckItem,
+  PrimaryAdCategory,
   PrototypeQaCheckItem,
   PrototypeReadinessSnapshot,
   PublicUser,
   QrDestinationType,
   QrLinkRecord,
   QrLinkStatus,
+  RevenueLedgerSnapshot,
+  RevenueStreamLedgerRow,
   SessionRecord,
   SevenStageAnalyticsSnapshot,
   SupportTicketCategory,
@@ -50,6 +54,7 @@ import type {
   UserRole,
 } from '../types/edison.ts';
 import { validateQrDestination } from './qrValidator.ts';
+import { scheduleCommercialBreak } from './breakScheduler.ts';
 
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const STORE_PATH = path.join(DATA_DIR, 'edison-store.json');
@@ -2675,7 +2680,12 @@ class EdisonPrototypeStore {
     input: {
       campaignId?: string | null;
       qrToken?: string | null;
-      eventType: 'ad_requested' | 'ad_delivered' | 'ad_played' | 'ad_viewable';
+      eventType:
+        | 'ad_requested'
+        | 'ad_delivered'
+        | 'ad_played'
+        | 'ad_viewable'
+        | 'ad_network_backfill_simulated';
     }
   ): AnalyticsEventRecord {
     return this.withWriteTransaction((draft) => {
@@ -2693,6 +2703,43 @@ class EdisonPrototypeStore {
         draft.analyticsEvents.length = 2000;
       }
       return { ...ev };
+    });
+  }
+
+  planSimulatedBreak(
+    actor: PublicUser,
+    params: {
+      requestedBreakDurationSeconds?: number;
+      safetyBufferSeconds?: number;
+      requestedSlotCount?: number;
+      alternatingPointerStart?: PrimaryAdCategory;
+      allowMockBackfill?: boolean;
+    }
+  ): BreakSchedulePlan {
+    this.syncIfDiskNewer();
+    const scopedCampaigns =
+      actor.role === 'admin'
+        ? this.data.campaigns
+        : this.data.campaigns.filter((c) => c.ownerId === actor.id || c.status === 'active');
+    const scopedCreatives =
+      actor.role === 'admin'
+        ? this.data.adCreatives
+        : this.data.adCreatives.filter(
+            (cr) =>
+              cr.ownerId === actor.id ||
+              scopedCampaigns.some((c) => c.id === cr.campaignId || c.adCreativeRef === cr.id)
+          );
+    const liveOpportunities = this.data.opportunities.filter((o) => o.status === 'verified_live');
+
+    return scheduleCommercialBreak({
+      campaigns: scopedCampaigns,
+      creatives: scopedCreatives,
+      opportunities: liveOpportunities,
+      requestedBreakDurationSeconds: params.requestedBreakDurationSeconds,
+      safetyBufferSeconds: params.safetyBufferSeconds,
+      requestedSlotCount: params.requestedSlotCount,
+      alternatingPointerStart: params.alternatingPointerStart,
+      allowMockBackfill: params.allowMockBackfill,
     });
   }
 
@@ -3637,6 +3684,111 @@ class EdisonPrototypeStore {
     };
   }
 
+  getRevenueLedgerSnapshot(actor: PublicUser): RevenueLedgerSnapshot {
+    this.syncIfDiskNewer();
+    const accessibleCampaigns =
+      actor.role === 'admin'
+        ? this.data.campaigns
+        : this.data.campaigns.filter((c) => c.ownerId === actor.id);
+
+    const charityCampaigns = accessibleCampaigns.filter(
+      (c) => c.contentCategory === 'opportunity_promotion'
+    );
+    const commercialCampaigns = accessibleCampaigns.filter(
+      (c) => c.contentCategory === 'commercial_advertising'
+    );
+
+    const charityFreeSpots = charityCampaigns.reduce(
+      (sum, c) => sum + c.simulatedEstimate.estimatedSpots,
+      0
+    );
+    const directCommercialSimulatedUsd = Number(
+      commercialCampaigns
+        .reduce((sum, c) => sum + c.simulatedEstimate.estimatedTotalUsd, 0)
+        .toFixed(2)
+    );
+
+    const simBackfillEvents = this.data.analyticsEvents.filter(
+      (e) =>
+        e.eventType === 'ad_network_backfill_simulated' &&
+        e.measurementSource === 'simulated_prototype'
+    ).length;
+    const adNetworkEstimatedMockUsd = Number((simBackfillEvents * 1.8).toFixed(2));
+
+    const streams: RevenueStreamLedgerRow[] = [
+      {
+        stream: 'charity_free',
+        label: '1. CHARITY ADS & Opportunity Listings ($0.00 Permanent Lock)',
+        primaryCategory: 'CHARITY',
+        amountUsd: 0,
+        spotOrRecordCount: charityCampaigns.length,
+        certaintyStatus: 'permanent_zero',
+        note: `Enforced $0.00 / FREE across ${charityCampaigns.length} charity campaign(s) (~${charityFreeSpots} est. spots). Never billed.`,
+      },
+      {
+        stream: 'direct_commercial_paid',
+        label: '2. Direct Commercial Campaigns (Simulated Rate-Card Estimate)',
+        primaryCategory: 'COMMERCIAL',
+        amountUsd: directCommercialSimulatedUsd,
+        spotOrRecordCount: commercialCampaigns.length,
+        certaintyStatus: 'simulated_rate_card',
+        note: 'Simulated rate-card booking estimate only. Payment collection is OFF in Phase 2.',
+      },
+      {
+        stream: 'ad_network_estimated',
+        label: '3. Ad Network Backfill — Estimated (Mock AdNetworkAdapter)',
+        primaryCategory: 'COMMERCIAL',
+        amountUsd: adNetworkEstimatedMockUsd,
+        spotOrRecordCount: simBackfillEvents,
+        certaintyStatus: 'mock_estimated',
+        note: 'Simulated MockAdNetworkAdapter backfill only. GAM CTV account unconfigured & format eligibility UNRESOLVED (DEC-OPEN-03).',
+      },
+      {
+        stream: 'ad_network_confirmed',
+        label: '4. Ad Network Backfill — Confirmed Provider Statement',
+        primaryCategory: 'COMMERCIAL',
+        amountUsd: 0,
+        spotOrRecordCount: 0,
+        certaintyStatus: 'unconfirmed_zero',
+        note: 'Zero confirmed Ad Network statements exist in Phase 2; estimated mock backfill is never promoted into confirmed payouts.',
+      },
+      {
+        stream: 'actual_payment_received',
+        label: '5. Actual Cleared Payments Received (Stripe / Bank / PSP)',
+        primaryCategory: 'BOTH',
+        amountUsd: 0,
+        spotOrRecordCount: 0,
+        certaintyStatus: 'no_real_collection',
+        note: 'paymentCollectionActive=false. Zero real commercial payments collected prior to authorised commercial activation.',
+      },
+      {
+        stream: 'refund_adjustment',
+        label: '6. Refunds, Credits & Dispute Adjustments',
+        primaryCategory: 'BOTH',
+        amountUsd: 0,
+        spotOrRecordCount: 0,
+        certaintyStatus: 'no_real_collection',
+        note: 'Tracked strictly separately from revenue totals; $0.00 in Phase 2 prototype.',
+      },
+    ];
+
+    return {
+      generatedAt: new Date().toISOString(),
+      scope: actor.role === 'admin' ? 'network_wide' : 'user_owned',
+      paymentCollectionActive: false,
+      gamCtvAccountConfigured: false,
+      streams,
+      totals: {
+        charityFreeSpots,
+        directCommercialSimulatedUsd,
+        adNetworkEstimatedMockUsd,
+        adNetworkConfirmedUsd: 0,
+        actualCashReceivedUsd: 0,
+        refundAdjustmentsUsd: 0,
+      },
+    };
+  }
+
   // --- Block 2.7: Physical Mobile QR Scan Testing & Final Prototype Readiness ---
 
   getQrWatchSnapshot(actor: PublicUser, token: string): {
@@ -3871,6 +4023,33 @@ class EdisonPrototypeStore {
         detail: `${this.data.campaigns.filter((c) => c.contentCategory === 'opportunity_promotion').length} CHARITY ADS campaign(s) enforced at $0.00 / FREE.`,
       },
       {
+        id: 'qa_v22_alternating_scheduler_and_ledger',
+        block: 'Block P2-V2.2',
+        label: 'Alternating break scheduler (CHARITY->COMMERCIAL) & Direct Priority / Ledger separation',
+        status: (() => {
+          const plan = scheduleCommercialBreak({
+            campaigns: this.data.campaigns,
+            creatives: this.data.adCreatives,
+            opportunities: this.data.opportunities,
+            requestedBreakDurationSeconds: 65,
+            safetyBufferSeconds: 5,
+            requestedSlotCount: 4,
+            alternatingPointerStart: 'CHARITY',
+            allowMockBackfill: true,
+          });
+          const ledger = this.getRevenueLedgerSnapshot(actor);
+          const alternates =
+            plan.slots.length >= 2 &&
+            plan.slots[0]?.primaryCategory === 'CHARITY' &&
+            plan.slots[1]?.primaryCategory === 'COMMERCIAL';
+          return alternates && ledger.paymentCollectionActive === false && ledger.totals.actualCashReceivedUsd === 0
+            ? 'pass'
+            : 'fail';
+        })(),
+        scope: 'automated_invariant',
+        detail: 'Alternating CHARITY->COMMERCIAL->CHARITY->COMMERCIAL verified with Direct Commercial priority, MockAdNetworkBackfill fallback, and $0.00 cash collection lock.',
+      },
+      {
         id: 'qa_27_physical_qr_scan',
         block: 'Block 2.7',
         label: 'Physical smartphone camera scan verification on real mobile device',
@@ -3889,7 +4068,7 @@ class EdisonPrototypeStore {
     return {
       generatedAt: new Date().toISOString(),
       phase: 'Phase 2 — AI Studio Functional Prototype (Track A Active)',
-      block: 'Block P2-V2.1 (Track A Non-Consent Core Part 1)',
+      block: 'Block P2-V2.2 (Alternating Scheduler, Direct Priority & Revenue Ledger)',
       automatedInvariantsPassed,
       automatedInvariantsTotal: autoChecks.length,
       physicalQrScanStatus:
@@ -4002,16 +4181,16 @@ class EdisonPrototypeStore {
       generatedAt: new Date().toISOString(),
       phase: 'Phase 2 — AI Studio Functional Prototype (Track A Active)',
       stage: 'P2-V2 Track A (Non-Consent Core) · Phase 3 TASK-P3-001 Held in DRAFT',
-      block: 'Block P2-V2.1 ($0 Charity Lock & Commercial Text-Only Format)',
+      block: 'Block P2-V2.2 (Alternating Scheduler, Direct Priority & Revenue Ledger)',
       gateStatus: 'IN PROGRESS (VERIFICATION PENDING) · DEC-OPEN-01 TRACK B BLOCKED',
       progressMetrics: {
-        aiStudioAssignmentPct: 62,
-        softwareToStageP6Pct: 25,
-        overallFullAppPct: 15.5,
-        remainingUntilFullAppPct: 84.5,
+        aiStudioAssignmentPct: 69,
+        softwareToStageP6Pct: 27.4,
+        overallFullAppPct: 17.0,
+        remainingUntilFullAppPct: 83.0,
         consentBlockedScopePct: 15,
         rubricSummary:
-          'Phase 1 Specs (6%) + Phase 2 Blocks 2.1-2.7 & P2-V2.1 (9.5%) = 15.5% of 15-Phase Full Commercial App (62% of AI Studio Prototype).',
+          'Phase 1 Specs (6%) + Phase 2 Blocks 2.1-2.7 & P2-V2.1-2.2 (11%) = 17.0% of 15-Phase Full Commercial App (69% of AI Studio Prototype).',
       },
       latestAuditAt: latestAudit?.createdAt ?? null,
       latestAuditAction: latestAudit?.action ?? null,

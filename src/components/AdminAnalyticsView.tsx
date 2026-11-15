@@ -26,6 +26,7 @@ import type {
   PublicUser,
   QrLinkRecord,
   QrLinkStatus,
+  RevenueLedgerSnapshot,
   SevenStageAnalyticsSnapshot,
   SupportTicketStatus,
 } from '../types/edison';
@@ -75,6 +76,7 @@ export function AdminAnalyticsView({
 
   // Analytics State
   const [funnel, setFunnel] = useState<SevenStageAnalyticsSnapshot | null>(null);
+  const [revenueLedger, setRevenueLedger] = useState<RevenueLedgerSnapshot | null>(null);
   const [campaignFilterId, setCampaignFilterId] = useState<string>('');
 
   // Admin Moderation State
@@ -112,6 +114,7 @@ export function AdminAnalyticsView({
   const loadData = useCallback(async () => {
     if (!currentUser) {
       setFunnel(null);
+      setRevenueLedger(null);
       setOverview(null);
       setCreatives([]);
       setAllCampaigns([]);
@@ -124,7 +127,10 @@ export function AdminAnalyticsView({
       const funnelUrl = campaignFilterId
         ? `/api/analytics/funnel?campaignId=${encodeURIComponent(campaignFilterId)}`
         : '/api/analytics/funnel';
-      const promises: Promise<Response>[] = [fetch(funnelUrl)];
+      const promises: Promise<Response>[] = [
+        fetch(funnelUrl),
+        fetch('/api/analytics/revenue-ledger'),
+      ];
       if (isAdmin) {
         promises.push(fetch('/api/admin/moderation-overview'));
         promises.push(fetch('/api/ad-creatives'));
@@ -137,11 +143,15 @@ export function AdminAnalyticsView({
       if (results[0].ok) {
         setFunnel(await results[0].json());
       }
-      if (isAdmin && results.length >= 5) {
-        if (results[1].ok) setOverview(await results[1].json());
-        if (results[2].ok) setCreatives(((await results[2].json()).items as AdCreativeRecord[]) || []);
-        if (results[3].ok) {
-          const cmps: CampaignRecord[] = (await results[3].json()).items || [];
+      if (results[1].ok) {
+        const ledgerJson = await results[1].json();
+        setRevenueLedger(ledgerJson.ledger ?? null);
+      }
+      if (isAdmin && results.length >= 6) {
+        if (results[2].ok) setOverview(await results[2].json());
+        if (results[3].ok) setCreatives(((await results[3].json()).items as AdCreativeRecord[]) || []);
+        if (results[4].ok) {
+          const cmps: CampaignRecord[] = (await results[4].json()).items || [];
           setAllCampaigns(cmps);
           setSelectedCampaignId((prev) => {
             if (prev && cmps.some((c) => c.id === prev)) return prev;
@@ -149,8 +159,8 @@ export function AdminAnalyticsView({
             return (pending ?? cmps[0])?.id ?? '';
           });
         }
-        if (results[4].ok) {
-          setAuditLogs(((await results[4].json()).items as AuditLogRecord[]) || []);
+        if (results[5].ok) {
+          setAuditLogs(((await results[5].json()).items as AuditLogRecord[]) || []);
         }
       }
     } finally {
@@ -482,6 +492,9 @@ export function AdminAnalyticsView({
     `Stage 5 Redirect Requests (Raw / Net Non-Bot / Bots): ${stage5?.rawCount ?? 0} / ${stage5?.deduplicatedCount ?? 0} / ${stage5?.suspectedBotExcluded ?? 0}`,
     `Stage 6 Redirects Issued (HTTP 302): ${stage6?.rawCount ?? 0} (Net Non-Bot: ${stage6?.deduplicatedCount ?? 0})`,
     `Stage 7 Verified Destination Opens / Conversions: ${stage7?.rawCount ?? 0} / ${stage7?.secondaryCount ?? 0} (Never inferred from HTTP 302)`,
+    revenueLedger
+      ? `Separated Revenue Ledger (ADR-012): Charity=$0.00 (${revenueLedger.totals.charityFreeSpots} spots) | Direct Sim=$${revenueLedger.totals.directCommercialSimulatedUsd.toFixed(2)} | Mock AdNetwork Est=$${revenueLedger.totals.adNetworkEstimatedMockUsd.toFixed(2)} | Real Collected Cash=$${revenueLedger.totals.actualCashReceivedUsd.toFixed(2)} (paymentCollectionActive=${revenueLedger.paymentCollectionActive})`
+      : 'Revenue Ledger connecting...',
     isAdmin
       ? `Moderation Queues -> Pending Campaigns: ${overview?.pendingCampaigns.length ?? 0} | Flagged Creatives: ${overview?.flaggedCreatives.length ?? 0} | Audit Logs: ${auditLogs.length}`
       : 'Admin queues restricted to admin role (RBAC verified).',
@@ -659,6 +672,84 @@ export function AdminAnalyticsView({
                     })}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+
+          {/* Separated 6-Stream Financial Revenue & Charity Ledger (ADR-012) */}
+          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Separated Financial Revenue &amp; Charity Ledger (ADR-012 · Block P2-V2.2)
+                </h3>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Strictly isolates permanent <span className="font-mono">$0.00</span> Charity inventory, simulated Direct Commercial rate-card estimates, mock Ad Network backfill estimates, and actual collected cash (<span className="font-mono">$0.00</span>).
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono">
+                <span className="px-2 py-1 rounded bg-slate-100 border border-slate-200 text-slate-700">
+                  paymentCollectionActive: {revenueLedger ? String(revenueLedger.paymentCollectionActive) : 'false'}
+                </span>
+                <span className="px-2 py-1 rounded bg-amber-50 border border-amber-200 text-amber-900">
+                  gamCtvConfigured: {revenueLedger ? String(revenueLedger.gamCtvAccountConfigured) : 'false'} (DEC-OPEN-03)
+                </span>
+              </div>
+            </div>
+
+            {revenueLedger ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                    <tr>
+                      <th className="py-2.5 px-4 font-semibold">Ledger Stream</th>
+                      <th className="py-2.5 px-4 font-semibold">Category</th>
+                      <th className="py-2.5 px-4 font-semibold">Certainty Status</th>
+                      <th className="py-2.5 px-4 font-semibold text-right">Records</th>
+                      <th className="py-2.5 px-4 font-semibold text-right">Amount (USD)</th>
+                      <th className="py-2.5 px-4 font-semibold">Governance &amp; Separation Note</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {revenueLedger.streams.map((row) => (
+                      <tr key={row.stream} className="hover:bg-slate-50/70 align-top">
+                        <td className="py-3 px-4 font-medium text-slate-900">
+                          {row.label}
+                          <div className="font-mono text-[11px] text-slate-500">{row.stream}</div>
+                        </td>
+                        <td className="py-3 px-4 font-mono text-slate-700 whitespace-nowrap">
+                          {row.primaryCategory}
+                        </td>
+                        <td className="py-3 px-4 font-mono whitespace-nowrap">
+                          <span
+                            className={
+                              row.certaintyStatus === 'permanent_zero'
+                                ? 'text-emerald-700 font-semibold'
+                                : row.certaintyStatus === 'mock_estimated'
+                                ? 'text-amber-700 font-semibold'
+                                : row.certaintyStatus === 'simulated_rate_card'
+                                ? 'text-blue-700 font-semibold'
+                                : 'text-slate-600'
+                            }
+                          >
+                            {row.certaintyStatus}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono tabular-nums text-slate-800">
+                          {row.spotOrRecordCount}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono tabular-nums font-semibold text-slate-900">
+                          ${row.amountUsd.toFixed(2)}
+                        </td>
+                        <td className="py-3 px-4 text-slate-600 max-w-md">{row.note}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="p-5 text-xs text-slate-500">
+                Loading separated financial revenue ledger...
               </div>
             )}
           </div>
