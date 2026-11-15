@@ -12,6 +12,7 @@ import {
   saveValidatedMediaUpload,
 } from './src/server/mediaSecurity.ts';
 import { validateQrDestination } from './src/server/qrValidator.ts';
+import { getGovernanceDocById, listGovernanceDocs } from './src/server/docsRegistry.ts';
 import type {
   AccountVerificationStatus,
   AdStudioMode,
@@ -185,6 +186,30 @@ async function startServer() {
   app.get('/api/reports/live', (_req: Request, res: Response) => {
     res.setHeader('Cache-Control', 'no-store');
     res.json(edisonStore.getLiveReportSnapshot());
+  });
+
+  // Read-only governance & architecture documentation endpoints (strict allowlist of 25 Markdown files)
+  app.get('/api/docs', (_req: Request, res: Response) => {
+    try {
+      res.json({ items: listGovernanceDocs() });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err, 500);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.get('/api/docs/:id', (req: Request, res: Response) => {
+    try {
+      const doc = getGovernanceDocById(req.params.id);
+      if (!doc) {
+        res.status(404).json({ error: 'Governance document not found.' });
+        return;
+      }
+      res.json({ item: doc });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err, 500);
+      res.status(code).json({ error: message });
+    }
   });
 
   // Auth & RBAC endpoints

@@ -1,0 +1,768 @@
+EDISON — MASTER PROJECT RECOVERY, GITHUB REUSE RESEARCH, ARCHITECTURE REVIEW & UPDATED DEVELOPMENT PLAN
+
+Project: EDISON — International Smart TV Advertising & Opportunities Network
+Environment: Original Google AI Studio account and existing EDISON workspace
+Current known workspace: "/app/applet"
+Current known technology: React 19, TypeScript, Vite 8, Express 4, Node.js 22
+Current recorded milestone: Phase 2.3 — workspace documentation reports this milestone, but live GitHub status is unverified.
+
+0. MODE GATE — INSPECT AND PLAN ONLY
+
+Your immediate assignment is to recover the complete EDISON project, investigate the existing implementation and research reusable GitHub projects.
+
+DO NOT IMPLEMENT CODE YET.
+
+Do not modify, delete, create, rename, overwrite or refactor project files.
+
+Do not install dependencies, change configuration, commit, push, deploy or modify the GitHub repository.
+
+First establish:
+
+1. That you are working in the correct EDISON workspace.
+2. Which Google account is currently signed in, if the environment exposes that information.
+3. Which GitHub repository is connected.
+4. Whether the current workspace corresponds to the latest available repository state.
+5. Whether work previously performed under another Google account has been transferred.
+
+If GitHub access is unavailable, continue inspecting the accessible workspace and clearly disclose the limitation.
+
+Never invent repository information, previous conversations, implementation progress or test results.
+
+1. WHAT EDISON IS
+
+EDISON is an international Smart TV Advertising & Opportunities Network.
+
+It connects television advertising breaks with digital interactions through QR codes displayed on television screens.
+
+EDISON has two important content pillars:
+
+A. Commercial advertising
+
+A network through which advertisers can create and distribute television advertisements and receive measurable campaign performance information.
+
+B. Opportunities
+
+A network through which viewers can discover:
+
+- Employment opportunities.
+- Vacancies across all occupational levels.
+- Internships and apprenticeships.
+- Scholarships and grants.
+- Training opportunities.
+- Tenders and other relevant opportunities.
+
+EDISON should be capable of serving different countries and markets through a centralised technology platform and country-specific configurations.
+
+It is not intended to turn a viewer's phone into another EDISON advertising screen.
+
+2. THE CORE TELEVISION EXPERIENCE
+
+Recover and inspect the complete intended television workflow.
+
+The intended experience is:
+
+1. A viewer watches normal television.
+2. EDISON identifies or receives an appropriate commercial-break opportunity.
+3. EDISON presents an approved advertisement during that opportunity.
+4. A QR code appears on the television screen.
+5. The viewer scans the QR code using their phone.
+6. The phone opens the intended destination.
+7. The viewer interacts with the advertiser or opportunity.
+8. The television returns to normal viewing when the advertising interruption ends.
+
+The TV experience must prioritise reliability and safety.
+
+Investigate:
+
+- Commercial-break identification.
+- Break timing and duration.
+- Advertisement scheduling.
+- Advertisement selection.
+- 16:9 presentation.
+- QR placement.
+- Playback.
+- TV control.
+- Return-to-live-TV behaviour.
+- Recovery when a component fails.
+- Prevention of advertisements continuing into ordinary programming.
+
+Do not assume the system can control every television or broadcast platform.
+
+Identify the actual technical limitations of each supported platform.
+
+3. AURA AND EDISON CONTROL ARCHITECTURE
+
+Investigate all existing project documentation for the proposed AURA component and its relationship with EDISON.
+
+Do not invent or assume an approved AURA architecture if it is absent from the authoritative project documents.
+
+Where supported by the original specifications, investigate an architecture that separates:
+
+- Intelligent coordination and decision-making.
+- EDISON advertising and opportunity management.
+- Commercial-break detection.
+- Advertisement scheduling.
+- TV control.
+- Platform-specific adapters.
+- Monitoring and recovery.
+
+Determine which responsibilities belong in the central EDISON application and which belong in a local TV-control component or external device.
+
+The system must not depend on an AI model making uncontrolled decisions about television switching.
+
+Critical safety rules must be deterministic and independently enforceable.
+
+4. VIEWER EXPERIENCE, QR AND CONSENT
+
+Recover the original decisions concerning viewer accounts, QR redirects and advertising consent.
+
+There is a known architectural conflict that must be resolved.
+
+Earlier specifications describe direct QR-to-destination HTTP redirects without an intermediate EDISON mobile advertising feed and without requiring viewer accounts.
+
+The later inspection request identified viewer consent enforcement and asked about viewer registration.
+
+Do not automatically interpret that as approval to introduce viewer accounts or an intermediate mobile advertising feed.
+
+Investigate the original specifications and report:
+
+1. Whether viewer accounts were originally approved.
+2. Whether a viewer must register to scan a QR code.
+3. How advertising consent is obtained.
+4. How consent is associated with a viewer or device.
+5. How withdrawal is enforced.
+6. How QR redirects interact with consent.
+7. How opportunities become inaccessible after consent withdrawal.
+8. How the system prevents a viewer from bypassing consent through an old QR link.
+
+The following requirement is mandatory:
+
+If a viewer withdraws advertising consent, the EDISON application and its opportunities must become unavailable to that viewer.
+
+Normal television viewing must remain unaffected.
+
+Do not weaken this requirement.
+
+Present the conflicting architecture decisions and recommend a coherent solution for owner approval before implementation.
+
+5. OPPORTUNITY DISCOVERY AND DISTRIBUTION
+
+This is a major part of EDISON.
+
+The platform must support both employer-submitted vacancies and independently discovered public opportunities.
+
+5.1 Employer-submitted opportunities
+
+Employers should be able to submit job vacancies without paying an advertising fee for the job listing.
+
+Support opportunities for all occupational levels, including:
+
+- Domestic workers and house help.
+- Drivers.
+- Security personnel.
+- General workers.
+- Sales representatives.
+- Technicians.
+- Accountants.
+- Chartered accountants.
+- Engineers.
+- Professional and specialist positions.
+- Internships and apprenticeships.
+
+Inspect how employers can submit vacancies, provide evidence, add requirements, specify application methods and manage their submissions.
+
+The free job-advertising requirement must be separated from commercial advertising billing.
+
+Identify and report the existing conflict where the prototype applies simulated USD campaign pricing to opportunity promotions.
+
+5.2 Independent public opportunity discovery
+
+EDISON should independently discover publicly available opportunities from institutions and other legitimate public sources.
+
+The original institution must not need to register with EDISON for its publicly advertised vacancy to be discovered and distributed.
+
+Investigate the technical design for:
+
+1. Source discovery.
+2. Public-page ingestion.
+3. Document extraction.
+4. Vacancy and opportunity classification.
+5. Duplicate detection.
+6. Employer and institution identification.
+7. Verification of the actual opportunity.
+8. Closing-date detection.
+9. Expiry management.
+10. Television advertisement formatting.
+11. QR destination generation.
+12. Distribution and tracking.
+
+Distinguish source authenticity, organisation verification and verification of the specific opportunity.
+
+Do not treat a verified organisation as proof that every vacancy it publishes is genuine.
+
+Do not treat an online listing as verified merely because it was discovered automatically.
+
+Report how automated discovery can be performed reliably without bypassing access controls or collecting prohibited personal information.
+
+6. ADVERTISING AND AD TRACKING
+
+Inspect the existing campaign, advertisement creation, QR and analytics implementations.
+
+Investigate how EDISON can measure the complete advertising journey.
+
+The intended measurement stages should be considered separately:
+
+1. Advertisement requested.
+2. Advertisement delivered.
+3. Advertisement played.
+4. Advertisement viewable.
+5. QR scanned.
+6. Destination opened.
+7. Verified conversion.
+
+Do not report a QR redirect as proof that an advertisement was played or viewed.
+
+Do not report a destination opening as proof of a purchase or completed application.
+
+Identify existing tracking systems and missing event definitions.
+
+Investigate reusable open-source advertising analytics and tracking projects, including their suitability for EDISON's requirements.
+
+7. GITHUB REPOSITORY RESEARCH — IMPORTANT
+
+EDISON should not unnecessarily reinvent existing technology.
+
+Our development strategy is to investigate existing open-source projects, learn from their architectures and reuse suitable components where their licences and technical compatibility permit.
+
+Research existing GitHub repositories in these categories:
+
+7.1 Commercial-break detection
+
+Investigate the following candidate projects:
+
+- AdHush: https://github.com/socrtwo/adhush
+- HLS-SCTE35-monitoring: https://github.com/ggouzi/HLS-SCTE35-monitoring
+- audio-ad-detection: https://github.com/abdullaabdullazade/audio-ad-detection
+- tv-commercial-detector: https://github.com/hankehly/tv-commercial-detector
+
+These are research candidates, not automatically approved dependencies.
+
+Investigate additional relevant repositories where useful.
+
+Evaluate:
+
+- Audio-based detection.
+- Video-based detection.
+- Black-frame detection.
+- Silence and loudness detection.
+- Logo disappearance and reappearance.
+- Audio/video fingerprinting.
+- SCTE-35 markers.
+- HLS commercial-break signals.
+- Machine-learning-based detection.
+- Confidence scoring.
+- False-positive and false-negative handling.
+- Detection latency.
+- Break duration estimation.
+- Return-to-programme detection.
+- Offline operation.
+- Hardware requirements.
+
+Determine which methods are appropriate for EDISON.
+
+Do not assume one detection method is reliable enough by itself.
+
+Investigate whether combining independent detection signals would improve reliability.
+
+7.2 TV remote-control and TV integration repositories
+
+Investigate the TV remote-control repositories previously proposed in the project discussions.
+
+Previously supplied candidate links include:
+
+- https://github.com/levhakobyan/OpenTV-Remote
+- https://github.com/maxhayim/webmote
+- https://github.com/FlyingCow/remo
+- https://github.com/mazen-salah/Smart-TV-Remote-Control
+
+First verify that each repository exists, is accessible and actually contains the functionality its name suggests.
+
+If a candidate cannot be verified, mark it UNVERIFIED. Do not invent its features.
+
+Find additional maintained projects for:
+
+- Android TV and Google TV.
+- Samsung Tizen.
+- LG webOS.
+- Roku.
+- Sony Bravia.
+- Hisense VIDAA.
+- Philips televisions.
+- HDMI-CEC.
+- Infrared control.
+- Network-based television control.
+- Browser-based remote controls.
+- TV application integration.
+
+Investigate platform APIs, protocols, supported models and actual limitations.
+
+7.3 Advertising analytics and tracking repositories
+
+Find and assess open-source projects that can help with:
+
+- Advertising impression measurement.
+- Advertisement delivery tracking.
+- Campaign analytics.
+- QR interaction tracking.
+- Conversion measurement.
+- Event collection.
+- Reporting dashboards.
+- Fraud and duplicate-event prevention.
+- Advertiser performance reporting.
+
+Identify whether existing systems can be integrated into the current React, TypeScript and Express architecture.
+
+Do not introduce a large advertising analytics platform if a simpler component can satisfy the requirement.
+
+7.4 Repository evaluation requirements
+
+For every candidate repository, report:
+
+Field| Required information
+Repository| Exact GitHub URL
+Exists| Verified / Unverified
+Purpose| What it actually does
+Language| Actual implementation language
+Licence| Verified licence
+Maintenance| Last meaningful update and activity
+Architecture| Main technical components
+Dependencies| Important dependencies
+Reusability| What EDISON could reuse
+Compatibility| Compatibility with our architecture
+Limitations| Known shortcomings
+Recommendation| Reuse, adapt, study only or reject
+
+Check licence compatibility before recommending incorporation.
+
+Do not assume that a public repository is automatically safe to copy or commercially reuse.
+
+Inspect its code and documentation rather than relying only on its description.
+
+Do not clone, merge, install or integrate any repository yet.
+
+7.5 Repository integration strategy
+
+For every promising project, explain:
+
+- Which EDISON component it could support.
+- Whether its functionality should be adapted or independently reimplemented.
+- Whether it should run inside the existing application or as a separate service.
+- Whether it needs additional hardware.
+- Whether it introduces performance or security risks.
+- How it would be tested in software.
+
+Preserve the existing EDISON application unless there is a compelling technical reason to change its foundation.
+
+8. TV CONTROL AND SAFETY ARCHITECTURE
+
+Investigate whether EDISON can reliably perform the required TV operations.
+
+Potential control methods include:
+
+- Official platform APIs.
+- Network control.
+- Android TV debugging or control interfaces where supported and authorised.
+- HDMI-CEC.
+- Infrared.
+- Bluetooth HID.
+- Other manufacturer-supported interfaces.
+
+These are options to evaluate, not assumptions that all televisions support them.
+
+Important questions:
+
+1. Can EDISON identify the current viewing state?
+2. Can it switch to the intended advertising presentation?
+3. Can it display the advertisement without damaging normal viewing?
+4. Can it restore the previous channel or application?
+5. Can it recover from a failed switching operation?
+6. Can the viewer override or stop the interruption?
+7. What happens when network connectivity disappears?
+8. What happens when the advertisement player crashes?
+9. What happens when the commercial break ends unexpectedly?
+
+Prioritise fail-safe operation.
+
+If the system cannot establish that the break is appropriate, it must not interrupt normal programming.
+
+If restoration is uncertain, the system must prioritise returning control to the viewer and normal television operation.
+
+Do not assume that controlling volume or changing an HDMI input is equivalent to controlling a television's channel or application.
+
+9. OUR TESTING PHILOSOPHY — ONE PHYSICAL TEST
+
+This is an important development decision.
+
+We do not intend to conduct repeated physical television tests throughout development.
+
+The application must be developed and tested primarily through software.
+
+Use:
+
+- Unit tests.
+- Integration tests.
+- API tests.
+- Browser tests.
+- Simulated TV environments.
+- Recorded television footage.
+- Synthetic advertising breaks.
+- Mock remote-control devices.
+- Simulated network failures.
+- Simulated QR scans.
+- Automated consent tests.
+- Country configuration tests.
+- Automated regression tests.
+
+For commercial-break detection, use recorded material with labelled break start and end times.
+
+Measure detection precision, recall, false positives, false negatives and timing errors.
+
+For TV control, use software mocks and platform emulators where available. Clearly identify behaviours that cannot be established without actual hardware.
+
+For the integrated application, test all components together in a simulated environment.
+
+Final physical test
+
+There should be one planned physical TV integration test after the application is complete.
+
+That test should verify:
+
+1. TV connection and compatibility.
+2. Commercial-break handling.
+3. Advertisement presentation.
+4. QR visibility and smartphone scanning.
+5. Destination opening.
+6. Correct restoration of television viewing.
+7. Failure recovery.
+8. Viewer override.
+9. End-to-end operation.
+
+Do not request repeated physical testing during ordinary development.
+
+If a specific hardware limitation cannot be simulated, document it and defer physical verification to the final test.
+
+Do not claim hardware compatibility is physically verified before that final test.
+
+10. LEGAL AND COUNTRY RESEARCH APPROACH
+
+Our development workflow does not depend on hiring lawyers or arranging legal consultations.
+
+Use publicly available authoritative information to identify country-specific requirements and technical restrictions.
+
+Do not turn legal consultation into a mandatory development milestone.
+
+However, this does not mean ignoring applicable laws or pretending compliance has been established.
+
+For each country, distinguish:
+
+- Requirements identified in public authoritative sources.
+- Technical restrictions implemented.
+- Questions requiring further verification.
+- Unknown or unresolved regulatory matters.
+
+Do not invent legal rules.
+
+Do not label EDISON legally compliant merely because a feature has been technically disabled.
+
+The architecture must allow a feature prohibited in one country to be disabled in that country without unnecessarily disabling it in countries where it is permitted.
+
+11. INTERNATIONAL ARCHITECTURE
+
+Inspect the existing international design.
+
+EDISON should support:
+
+- Multiple countries.
+- Country-specific feature flags.
+- Localised interfaces.
+- Currency configuration.
+- Country-specific opportunity sources.
+- Country-specific advertising configurations.
+- Regional restrictions.
+- Country-specific service availability.
+
+Investigate whether the existing architecture can support international expansion without creating a completely separate application for each country.
+
+Identify the technical and operational requirements.
+
+12. CURRENT IMPLEMENTATION — RECOVERY FROM PHASE 2.3
+
+The latest inspection of the accessible AI Studio workspace reported the following:
+
+Existing prototype functionality
+
+- React 19 and TypeScript frontend.
+- Express backend.
+- Local JSON persistence.
+- Authentication and three account roles.
+- QR generation and destination validation.
+- Advertiser profiles.
+- Support tickets.
+- Campaign management.
+- Advertisement Creation Studio.
+- Two creative creation workflows.
+- Project documentation and governance console.
+
+Known incomplete areas
+
+- Viewer consent and its enforcement.
+- Physical TV integration architecture.
+- Actual TV advertising playback.
+- Commercial-break detection integration.
+- Commercial-break simulation.
+- Opportunity submission.
+- Opportunity verification.
+- Independent public opportunity discovery.
+- Complete advertising analytics.
+- International country restrictions.
+- Production database and storage.
+- Automated tests.
+- Production-grade security.
+
+Treat this list as an initial recovery reference. Reinspect the actual code and verify whether the findings remain accurate.
+
+Do not restart the project unnecessarily.
+
+Do not discard functioning prototype components.
+
+13. SECURITY AND TECHNICAL CONCERNS
+
+The previous inspection identified the following issues requiring investigation:
+
+1. Missing consent verification on QR redirects.
+2. Publicly accessible uploaded media.
+3. Server-side validation gaps for uploaded advertisement metadata.
+4. Client-side validation being trusted by the backend.
+5. Missing login rate limiting.
+6. Missing CSRF protection.
+7. Missing secure cookie configuration.
+8. In-memory QR redirect deduplication.
+9. Campaigns with no automatic expiry execution.
+10. Simulated billing applied to free opportunity promotions.
+11. Creative deletion leaving orphaned uploaded files.
+12. No automated test framework.
+13. Documentation containing contradictory milestone descriptions.
+
+Recheck each issue against the current workspace.
+
+Classify severity, evidence, consequences and recommended correction.
+
+Do not modify anything during this inspection.
+
+14. PROJECT DOCUMENTATION AND DECISION RECOVERY
+
+Inspect all existing documentation, including:
+
+- README.md.
+- PROJECT_MASTER_SPECIFICATION.md.
+- BUSINESS_MODEL.md.
+- PRODUCT_REQUIREMENTS.md.
+- SYSTEM_ARCHITECTURE.md.
+- TECHNICAL_REQUIREMENTS.md.
+- SMART_TV_COMPATIBILITY_RESEARCH.md.
+- COMMERCIAL_BREAK_DETECTION.md.
+- ADVERTISING_AND_QR_SYSTEM.md.
+- ADVERTISEMENT_CREATION_STUDIO.md.
+- TELEVISION_PREVIEW_EXPERIENCE.md.
+- OPPORTUNITY_MANAGEMENT.md.
+- ADVERTISER_MANAGEMENT.md.
+- PRIVACY_SECURITY_AND_COMPLIANCE.md.
+- COUNTRY_ACTIVATION_REGISTER.md.
+- RISK_REGISTER.md.
+- FAILURE_MODE_ANALYSIS.md.
+- COMPLETE_DEVELOPMENT_ROADMAP.md.
+- AI_STUDIO_WORKING_BOUNDARY.md.
+- VSCODE_HANDOVER_PLAN.md.
+- PROGRESS_TRACKER.md.
+- DECISIONS_LOG.md.
+- TESTING_STRATEGY.md.
+- KNOWN_LIMITATIONS.md.
+- coordination/EDISON_COMMAND_CENTER.md.
+
+Also inspect the supplied master PDF and previous project instruction documents.
+
+Recover the original approved decisions.
+
+Separate:
+
+- Approved requirements.
+- Implemented features.
+- Unimplemented approved requirements.
+- Proposed ideas.
+- Deferred features.
+- Rejected ideas.
+- Unresolved decisions.
+
+Do not convert suggestions into approved requirements.
+
+If previous AI Studio conversation history is inaccessible, disclose that limitation.
+
+15. REQUIRED ARCHITECTURAL CONCERNS TO RESOLVE
+
+Before development continues, produce recommendations on the following:
+
+A. QR and consent architecture
+
+Resolve the conflict between direct QR redirects, viewer identity and consent withdrawal.
+
+B. TV control
+
+Determine which TV operations can actually be performed by software and which require specific hardware or manufacturer support.
+
+C. Commercial-break detection
+
+Determine whether EDISON needs multiple detection signals and how false positives can be prevented.
+
+D. Advertising and opportunity billing
+
+Separate commercial advertiser billing from free employer vacancy listings.
+
+E. Opportunity verification
+
+Establish how independently discovered opportunities can be authenticated and how expired or fraudulent listings are handled.
+
+F. Repository reuse
+
+Identify the strongest existing open-source foundations and avoid unnecessary reinvention.
+
+G. Data architecture
+
+Evaluate whether local JSON storage is sufficient for the prototype and what is needed for international production.
+
+H. Security
+
+Identify security blockers that must be corrected before handling real viewers, advertisers and opportunities.
+
+I. Testing
+
+Establish a complete software-first test strategy, with one final physical television integration test.
+
+J. International operation
+
+Identify the architecture needed for country-specific restrictions and service availability.
+
+16. DEVELOPMENT ROADMAP
+
+After the inspection, propose an ordered development roadmap.
+
+Do not implement it yet.
+
+The roadmap should preserve existing working components and minimise unnecessary rewrites.
+
+Organise work into numbered phases and substages.
+
+Each substage should have:
+
+- Objective.
+- Scope.
+- Dependencies.
+- Expected deliverables.
+- Test requirements.
+- Completion criteria.
+
+Prefer small, verifiable implementation stages.
+
+Identify where existing GitHub repositories could reduce development time.
+
+Do not create duplicate functionality.
+
+Do not schedule the final physical television test until the application is ready for integrated testing.
+
+17. FINAL REPORT
+
+Produce a comprehensive report with these sections:
+
+1. Project identity and environment verification.
+2. GitHub repository and workspace status.
+3. Current development milestone.
+4. Existing technology stack.
+5. Current application architecture.
+6. Implemented features.
+7. Incomplete and missing features.
+8. Reconstructed original product vision.
+9. Approved decisions and unresolved conflicts.
+10. GitHub repository research inventory.
+11. Recommended reusable components.
+12. TV control architecture.
+13. Commercial-break detection architecture.
+14. Advertising analytics architecture.
+15. Opportunity discovery and verification architecture.
+16. Viewer consent and QR architecture.
+17. Security findings.
+18. International architecture.
+19. Software testing strategy.
+20. Final physical test requirements.
+21. Development roadmap.
+22. Estimated time for a working demonstration.
+23. Estimated time for a functional MVP.
+24. Estimated time for the complete agreed application.
+25. Questions requiring owner approval.
+
+Use evidence from actual files, source code, repository pages and executed tests.
+
+For every repository recommendation, include its exact URL, verified licence, activity and limitations.
+
+Clearly distinguish facts, estimates and proposals.
+
+18. SAFETY AND PRESERVATION
+
+- Inspect only.
+- No code changes.
+- No new files.
+- No file deletion.
+- No repository cloning into the project.
+- No dependency installation.
+- No branch changes.
+- No commits or pushes.
+- No deployments.
+- No production modifications.
+- No secrets or ".env" values.
+- No unauthorised network access.
+- No invented APIs.
+- No invented repository features.
+- No fabricated test results.
+- Preserve existing files and untracked work.
+
+19. COMPLETION CRITERIA
+
+The assignment is complete only when:
+
+1. The current project state is established.
+2. The original product vision is recovered as far as available evidence permits.
+3. Existing implementation is mapped against approved requirements.
+4. Relevant GitHub repositories have been investigated.
+5. Reuse opportunities and limitations have been documented.
+6. The TV-control and commercial-break detection architecture has been evaluated.
+7. The one-physical-test development strategy is incorporated.
+8. The legal research approach is documented without making lawyer consultation a development dependency.
+9. Security and architectural concerns have been identified.
+10. A coherent development roadmap has been produced.
+11. All unresolved decisions are clearly presented to the owner.
+
+20. FINAL OWNER INSTRUCTION
+
+I am returning to development through my original Google AI Studio account.
+
+The project was previously continued under another Google account. I need a complete recovery of the work and an accurate assessment of the current state before making further changes.
+
+Our strategy is to reuse suitable existing open-source technology wherever practical, build on the existing EDISON foundation, and avoid unnecessary development from scratch.
+
+We will use software testing throughout development and perform only one planned physical television integration test after the application is complete.
+
+Do not start implementing anything after this inspection.
+
+I will review the findings, introduce changes and correct the requirements.
+
+The next development phase must follow the corrected and approved master specification, not assumptions made during this inspection.
+
+Begin with the MODE GATE. Verify the workspace, inspect the project, investigate the GitHub candidates and prepare the complete report.
