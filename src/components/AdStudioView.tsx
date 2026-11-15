@@ -36,6 +36,7 @@ import type {
 } from '../types/edison';
 import { QrCodePreview } from './QrCodePreview';
 import { CopyReportFooter } from './CopyReportFooter';
+import { edisonFetch } from '../lib/csrfFetch';
 
 interface AdStudioProps {
   currentUser: PublicUser | null;
@@ -689,9 +690,9 @@ export function AdStudioView({
     setLoading(true);
     try {
       const [crtRes, cmpRes, qrRes] = await Promise.all([
-        fetch('/api/ad-creatives'),
-        fetch('/api/campaigns'),
-        fetch('/api/qr'),
+        edisonFetch('/api/ad-creatives'),
+        edisonFetch('/api/campaigns'),
+        edisonFetch('/api/qr'),
       ]);
       if (crtRes.ok) {
         const data = await crtRes.json();
@@ -883,7 +884,7 @@ export function AdStudioView({
     setSaveFeedback(null);
     try {
       const b64 = await readFileAsDataUrl(file);
-      const res = await fetch('/api/media/upload', {
+      const res = await edisonFetch('/api/media/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dataBase64: b64, declaredKind: 'image' }),
@@ -919,7 +920,7 @@ export function AdStudioView({
     setSaveFeedback(null);
     try {
       const b64 = await readFileAsDataUrl(file);
-      const uploadRes = await fetch('/api/media/upload', {
+      const uploadRes = await edisonFetch('/api/media/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dataBase64: b64, declaredKind: 'any' }),
@@ -1080,7 +1081,7 @@ export function AdStudioView({
     try {
       const endpoint = editingId ? `/api/ad-creatives/${editingId}` : '/api/ad-creatives';
       const method = editingId ? 'PUT' : 'POST';
-      const res = await fetch(endpoint, {
+      const res = await edisonFetch(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1156,7 +1157,7 @@ export function AdStudioView({
       setSaveFeedback({ type: 'err', text: 'Select a target campaign before attaching.' });
       return;
     }
-    const res = await fetch(`/api/ad-creatives/${crtId}/attach`, {
+    const res = await edisonFetch(`/api/ad-creatives/${crtId}/attach`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ campaignId: targetCmp }),
@@ -1175,7 +1176,7 @@ export function AdStudioView({
   };
 
   const handleDeleteCreative = async (crtId: string) => {
-    const res = await fetch(`/api/ad-creatives/${crtId}`, { method: 'DELETE' });
+    const res = await edisonFetch(`/api/ad-creatives/${crtId}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) {
       setSaveFeedback({ type: 'err', text: data.error || 'Delete failed.' });

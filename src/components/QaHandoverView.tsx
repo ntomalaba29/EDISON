@@ -25,6 +25,7 @@ import type {
 } from '../types/edison';
 import { QrCodePreview } from './QrCodePreview';
 import { CopyReportFooter, copyTextWithFallback } from './CopyReportFooter';
+import { edisonFetch } from '../lib/csrfFetch';
 
 interface QaHandoverViewProps {
   currentUser: PublicUser | null;
@@ -79,8 +80,8 @@ export function QaHandoverView({
     setErrorMsg('');
     try {
       const [readyRes, qrRes] = await Promise.all([
-        fetch('/api/qa/prototype-readiness', { cache: 'no-store' }),
-        fetch('/api/qr', { cache: 'no-store' }),
+        edisonFetch('/api/qa/prototype-readiness', { cache: 'no-store' }),
+        edisonFetch('/api/qr', { cache: 'no-store' }),
       ]);
       if (!readyRes.ok) {
         const d = await readyRes.json().catch(() => ({}));
@@ -107,7 +108,7 @@ export function QaHandoverView({
   const pollSelectedQrWatch = useCallback(async () => {
     if (!currentUser || !selectedToken) return;
     try {
-      const res = await fetch(`/api/qa/qr-watch/${encodeURIComponent(selectedToken)}`, {
+      const res = await edisonFetch(`/api/qa/qr-watch/${encodeURIComponent(selectedToken)}`, {
         cache: 'no-store',
       });
       if (res.ok) {
@@ -159,7 +160,7 @@ export function QaHandoverView({
     setActionMsg('');
     setSubmittingScan(true);
     try {
-      const res = await fetch('/api/qa/physical-qr-tests', {
+      const res = await edisonFetch('/api/qa/physical-qr-tests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -196,7 +197,7 @@ export function QaHandoverView({
     setErrorMsg('');
     setActionMsg('');
     try {
-      const res = await fetch(`/api/qa/physical-qr-tests/${encodeURIComponent(record.id)}`, {
+      const res = await edisonFetch(`/api/qa/physical-qr-tests/${encodeURIComponent(record.id)}`, {
         method: 'DELETE',
       });
       const data = await res.json().catch(() => ({}));

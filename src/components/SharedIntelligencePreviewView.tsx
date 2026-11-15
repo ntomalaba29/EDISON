@@ -18,6 +18,7 @@ import type {
   SharedIntelSignalType,
 } from '../types/edison';
 import { CopyReportFooter } from './CopyReportFooter';
+import { edisonFetch } from '../lib/csrfFetch';
 
 interface SharedIntelligencePreviewViewProps {
   currentUser: PublicUser | null;
@@ -65,7 +66,7 @@ export function SharedIntelligencePreviewView({
     setLoading(true);
     setErrorMsg('');
     try {
-      const res = await fetch('/api/shared-intelligence/preview', { cache: 'no-store' });
+      const res = await edisonFetch('/api/shared-intelligence/preview', { cache: 'no-store' });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
         throw new Error(d.error || 'Unable to load Shared Intelligence preview state.');
@@ -101,7 +102,7 @@ export function SharedIntelligencePreviewView({
         payload.householdId = 'hh_forbidden_test_01';
       }
 
-      const res = await fetch('/api/shared-intelligence/observations', {
+      const res = await edisonFetch('/api/shared-intelligence/observations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -135,7 +136,7 @@ export function SharedIntelligencePreviewView({
     setActionMsg('');
     setBusy(true);
     try {
-      const res = await fetch('/api/shared-intelligence/simulate-action', {
+      const res = await edisonFetch('/api/shared-intelligence/simulate-action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

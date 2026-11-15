@@ -19,6 +19,7 @@ import type {
 import type { QrValidationResult } from '../server/qrValidator';
 import { QrCodePreview } from './QrCodePreview';
 import { CopyReportFooter } from './CopyReportFooter';
+import { edisonFetch } from '../lib/csrfFetch';
 
 interface FoundationSummary {
   userCount: number;
@@ -72,7 +73,7 @@ export function AuthRbacView({ currentUser, summary, onAuthChange }: AuthSession
           ? { email, password }
           : { email, password, name, organisationName, role };
 
-      const res = await fetch(endpoint, {
+      const res = await edisonFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -103,7 +104,7 @@ export function AuthRbacView({ currentUser, summary, onAuthChange }: AuthSession
   };
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    await edisonFetch('/api/auth/logout', { method: 'POST' });
     setFeedback({ type: 'ok', text: 'Signed out. Session terminated.' });
     setRbacResult(null);
     await onAuthChange();
@@ -112,7 +113,7 @@ export function AuthRbacView({ currentUser, summary, onAuthChange }: AuthSession
   const testAdminEndpoint = async () => {
     setTestingRbac(true);
     try {
-      const res = await fetch('/api/admin/audit-logs');
+      const res = await edisonFetch('/api/admin/audit-logs');
       const data = await res.json();
       if (!res.ok) {
         setRbacResult({
@@ -508,7 +509,7 @@ export function QrEngineView({ currentUser, onSummaryRefresh }: QrEngineProps) {
     }
     setLoadingList(true);
     try {
-      const [qrRes, evtRes] = await Promise.all([fetch('/api/qr'), fetch('/api/qr/events')]);
+      const [qrRes, evtRes] = await Promise.all([edisonFetch('/api/qr'), edisonFetch('/api/qr/events')]);
       if (qrRes.ok) {
         const data = await qrRes.json();
         setQrLinks(data.items);
@@ -531,7 +532,7 @@ export function QrEngineView({ currentUser, onSummaryRefresh }: QrEngineProps) {
 
   const handleValidate = async (inputVal: string, typeVal: QrDestinationType) => {
     try {
-      const res = await fetch('/api/qr/validate', {
+      const res = await edisonFetch('/api/qr/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rawInput: inputVal, destinationType: typeVal }),
@@ -555,7 +556,7 @@ export function QrEngineView({ currentUser, onSummaryRefresh }: QrEngineProps) {
     setSubmitError('');
     setCreating(true);
     try {
-      const res = await fetch('/api/qr', {
+      const res = await edisonFetch('/api/qr', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ label, destinationType, rawInput }),
@@ -578,7 +579,7 @@ export function QrEngineView({ currentUser, onSummaryRefresh }: QrEngineProps) {
 
   const handleToggleStatus = async (item: QrLinkRecord) => {
     const nextStatus = item.status === 'active' ? 'disabled' : 'active';
-    const res = await fetch(`/api/qr/${item.token}/status`, {
+    const res = await edisonFetch(`/api/qr/${item.token}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: nextStatus }),

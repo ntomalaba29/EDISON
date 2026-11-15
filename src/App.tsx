@@ -38,6 +38,7 @@ import { QaHandoverView } from './components/QaHandoverView';
 import { SharedIntelligencePreviewView } from './components/SharedIntelligencePreviewView';
 import { COMMIT_AND_NEXT_MESSAGE, copyTextWithFallback } from './components/CopyReportFooter';
 import { EDISON_DOCUMENTS } from './data/documents';
+import { edisonFetch } from './lib/csrfFetch';
 import type { PublicUser } from './types/edison';
 
 type NavTab =
@@ -119,7 +120,7 @@ export default function App() {
 
   const refreshAuthState = useCallback(async () => {
     try {
-      const res = await fetch('/api/auth/me');
+      const res = await edisonFetch('/api/auth/me');
       if (res.ok) {
         const data = await res.json();
         setCurrentUser(data.user ?? null);

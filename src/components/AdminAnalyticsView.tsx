@@ -32,6 +32,7 @@ import type {
 } from '../types/edison';
 import { CreativeStage } from './TvPreviewView';
 import { CopyReportFooter } from './CopyReportFooter';
+import { edisonFetch } from '../lib/csrfFetch';
 
 interface AdminAnalyticsViewProps {
   currentUser: PublicUser | null;
@@ -128,15 +129,15 @@ export function AdminAnalyticsView({
         ? `/api/analytics/funnel?campaignId=${encodeURIComponent(campaignFilterId)}`
         : '/api/analytics/funnel';
       const promises: Promise<Response>[] = [
-        fetch(funnelUrl),
-        fetch('/api/analytics/revenue-ledger'),
+        edisonFetch(funnelUrl),
+        edisonFetch('/api/analytics/revenue-ledger'),
       ];
       if (isAdmin) {
-        promises.push(fetch('/api/admin/moderation-overview'));
-        promises.push(fetch('/api/ad-creatives'));
-        promises.push(fetch('/api/campaigns'));
+        promises.push(edisonFetch('/api/admin/moderation-overview'));
+        promises.push(edisonFetch('/api/ad-creatives'));
+        promises.push(edisonFetch('/api/campaigns'));
         promises.push(
-          fetch(`/api/admin/audit-logs?targetType=${encodeURIComponent(auditTargetFilter)}&limit=150`)
+          edisonFetch(`/api/admin/audit-logs?targetType=${encodeURIComponent(auditTargetFilter)}&limit=150`)
         );
       }
       const results = await Promise.all(promises);
@@ -289,7 +290,7 @@ export function AdminAnalyticsView({
   ) => {
     if (!selectedCampaign) return;
     setFeedback(null);
-    const res = await fetch(`/api/campaigns/${selectedCampaign.id}/transition`, {
+    const res = await edisonFetch(`/api/campaigns/${selectedCampaign.id}/transition`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -317,7 +318,7 @@ export function AdminAnalyticsView({
 
   const handleClearCreativeFlag = async (creativeId: string) => {
     setFeedback(null);
-    const res = await fetch(`/api/admin/creatives/${creativeId}/clear-qr-flag`, {
+    const res = await edisonFetch(`/api/admin/creatives/${creativeId}/clear-qr-flag`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ notes: flagClearNotes }),
@@ -340,7 +341,7 @@ export function AdminAnalyticsView({
     const notes =
       (profileNotesMap[userId] ?? '').trim() || `Administrator marked profile ${status}.`;
     setFeedback(null);
-    const res = await fetch(`/api/admin/advertiser-profiles/${userId}/verification`, {
+    const res = await edisonFetch(`/api/admin/advertiser-profiles/${userId}/verification`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status, notes }),
@@ -362,7 +363,7 @@ export function AdminAnalyticsView({
     const reason =
       (qrReasonMap[qr.token] ?? '').trim() || `Moderator set /r/${qr.token} to ${status}.`;
     setFeedback(null);
-    const res = await fetch(`/api/admin/qr/${encodeURIComponent(qr.token)}/moderate`, {
+    const res = await edisonFetch(`/api/admin/qr/${encodeURIComponent(qr.token)}/moderate`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status, reason }),
@@ -384,7 +385,7 @@ export function AdminAnalyticsView({
     const adminResponse =
       (ticketResponseMap[ticketId] ?? '').trim() || `Admin updated ticket status to ${status}.`;
     setFeedback(null);
-    const res = await fetch(`/api/support-tickets/${ticketId}/status`, {
+    const res = await edisonFetch(`/api/support-tickets/${ticketId}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status, adminResponse }),

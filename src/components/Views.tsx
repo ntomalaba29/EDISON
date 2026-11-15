@@ -19,6 +19,7 @@ import {
 import type { LiveReportSnapshot } from '../types/edison';
 import { CopyReportFooter } from './CopyReportFooter';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { edisonFetch } from '../lib/csrfFetch';
 
 export function ReportsView() {
   const [selectedCommand, setSelectedCommand] = useState<ReportCommandType>('PHASE_1_COMPLETION');
@@ -28,7 +29,7 @@ export function ReportsView() {
   const fetchLiveReport = useCallback(async () => {
     setLoadingLive(true);
     try {
-      const res = await fetch('/api/reports/live', { cache: 'no-store' });
+      const res = await edisonFetch('/api/reports/live', { cache: 'no-store' });
       if (res.ok) {
         const data = (await res.json()) as LiveReportSnapshot;
         setLiveSnapshot(data);

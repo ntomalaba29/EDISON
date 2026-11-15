@@ -31,6 +31,7 @@ import type {
   SupportTicketStatus,
 } from '../types/edison';
 import { CopyReportFooter } from './CopyReportFooter';
+import { edisonFetch } from '../lib/csrfFetch';
 
 const STATUS_TABS: { id: CampaignStatus | 'all'; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -169,12 +170,12 @@ export function AdvertiserProfileView({
     setLoading(true);
     try {
       const requests: Promise<Response>[] = [
-        fetch('/api/advertiser/profile'),
-        fetch('/api/support-tickets'),
-        fetch('/api/campaigns'),
+        edisonFetch('/api/advertiser/profile'),
+        edisonFetch('/api/support-tickets'),
+        edisonFetch('/api/campaigns'),
       ];
       if (currentUser.role === 'admin') {
-        requests.push(fetch('/api/admin/advertiser-profiles'));
+        requests.push(edisonFetch('/api/admin/advertiser-profiles'));
       }
       const [profRes, tktRes, cmpRes, admRes] = await Promise.all(requests);
       if (profRes.ok) {
@@ -224,7 +225,7 @@ export function AdvertiserProfileView({
     setSavingProfile(true);
     setSaveFeedback(null);
     try {
-      const res = await fetch('/api/advertiser/profile', {
+      const res = await edisonFetch('/api/advertiser/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -272,7 +273,7 @@ export function AdvertiserProfileView({
   const handleAdminVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setVerifyFeedback('');
-    const res = await fetch(`/api/admin/advertiser-profiles/${verifyUserId}/verification`, {
+    const res = await edisonFetch(`/api/admin/advertiser-profiles/${verifyUserId}/verification`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: verifyStatus, notes: verifyNotes }),
@@ -291,7 +292,7 @@ export function AdvertiserProfileView({
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
     setTicketFeedback(null);
-    const res = await fetch('/api/support-tickets', {
+    const res = await edisonFetch('/api/support-tickets', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -318,7 +319,7 @@ export function AdvertiserProfileView({
       currentUser?.role === 'admin' && status === 'resolved'
         ? 'Resolved by EDISON Moderation Operations.'
         : undefined;
-    const res = await fetch(`/api/support-tickets/${ticketId}/status`, {
+    const res = await edisonFetch(`/api/support-tickets/${ticketId}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status, adminResponse }),
@@ -917,7 +918,7 @@ export function CampaignsView({
     }
     setLoading(true);
     try {
-      const [cmpRes, qrRes] = await Promise.all([fetch('/api/campaigns'), fetch('/api/qr')]);
+      const [cmpRes, qrRes] = await Promise.all([edisonFetch('/api/campaigns'), edisonFetch('/api/qr')]);
       if (cmpRes.ok) {
         const data = await cmpRes.json();
         setCampaigns(data.items);
@@ -1004,7 +1005,7 @@ export function CampaignsView({
 
     const url = editingId ? `/api/campaigns/${editingId}` : '/api/campaigns';
     const method = editingId ? 'PATCH' : 'POST';
-    const res = await fetch(url, {
+    const res = await edisonFetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -1028,7 +1029,7 @@ export function CampaignsView({
   const handleClone = async (id: string) => {
     setActionError('');
     setActionSuccess('');
-    const res = await fetch(`/api/campaigns/${id}/clone`, { method: 'POST' });
+    const res = await edisonFetch(`/api/campaigns/${id}/clone`, { method: 'POST' });
     const data = await res.json();
     if (!res.ok) {
       setActionError(data.error || 'Clone failed.');
@@ -1042,7 +1043,7 @@ export function CampaignsView({
   const handleDelete = async (id: string) => {
     setActionError('');
     setActionSuccess('');
-    const res = await fetch(`/api/campaigns/${id}`, { method: 'DELETE' });
+    const res = await edisonFetch(`/api/campaigns/${id}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) {
       setActionError(data.error || 'Delete failed.');
@@ -1060,7 +1061,7 @@ export function CampaignsView({
   ) => {
     setActionError('');
     setActionSuccess('');
-    const res = await fetch(`/api/campaigns/${id}/transition`, {
+    const res = await edisonFetch(`/api/campaigns/${id}/transition`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

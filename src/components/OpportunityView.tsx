@@ -31,6 +31,7 @@ import type {
   QrLinkRecord,
 } from '../types/edison';
 import { CopyReportFooter } from './CopyReportFooter';
+import { edisonFetch } from '../lib/csrfFetch';
 
 interface OpportunityViewProps {
   currentUser: PublicUser | null;
@@ -172,11 +173,11 @@ export function OpportunityView({
     setLoading(true);
     try {
       const [oppRes, cmpnRes, aplRes, qrRes, cmpRes] = await Promise.all([
-        fetch('/api/opportunities'),
-        fetch('/api/opportunity-complaints'),
-        fetch('/api/opportunity-appeals'),
-        fetch('/api/qr'),
-        fetch('/api/campaigns'),
+        edisonFetch('/api/opportunities'),
+        edisonFetch('/api/opportunity-complaints'),
+        edisonFetch('/api/opportunity-appeals'),
+        edisonFetch('/api/qr'),
+        edisonFetch('/api/campaigns'),
       ]);
       if (oppRes.ok) {
         const d = await oppRes.json();
@@ -227,7 +228,7 @@ export function OpportunityView({
   const handleCreateOpportunity = async (e: React.FormEvent) => {
     e.preventDefault();
     setFeedback(null);
-    const res = await fetch('/api/opportunities', {
+    const res = await edisonFetch('/api/opportunities', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -272,7 +273,7 @@ export function OpportunityView({
 
   const handleSubmitOpportunity = async (id: string) => {
     setFeedback(null);
-    const res = await fetch(`/api/opportunities/${id}/submit`, { method: 'POST' });
+    const res = await edisonFetch(`/api/opportunities/${id}/submit`, { method: 'POST' });
     const data = await res.json();
     if (!res.ok) {
       setFeedback({ type: 'err', text: data.error || 'Submission failed.' });
@@ -289,7 +290,7 @@ export function OpportunityView({
 
   const handleDeleteOpportunity = async (id: string) => {
     setFeedback(null);
-    const res = await fetch(`/api/opportunities/${id}`, { method: 'DELETE' });
+    const res = await edisonFetch(`/api/opportunities/${id}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) {
       setFeedback({ type: 'err', text: data.error || 'Unable to delete opportunity.' });
@@ -304,7 +305,7 @@ export function OpportunityView({
     e.preventDefault();
     if (!reportingOppId) return;
     setFeedback(null);
-    const res = await fetch(`/api/opportunities/${reportingOppId}/complaints`, {
+    const res = await edisonFetch(`/api/opportunities/${reportingOppId}/complaints`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -333,7 +334,7 @@ export function OpportunityView({
     e.preventDefault();
     if (!appealingOppId) return;
     setFeedback(null);
-    const res = await fetch(`/api/opportunities/${appealingOppId}/appeals`, {
+    const res = await edisonFetch(`/api/opportunities/${appealingOppId}/appeals`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -361,7 +362,7 @@ export function OpportunityView({
     const edit = reviewEdits[oppId];
     if (!edit) return;
     setFeedback(null);
-    const res = await fetch(`/api/admin/opportunities/${oppId}/verify-tiers`, {
+    const res = await edisonFetch(`/api/admin/opportunities/${oppId}/verify-tiers`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(edit),
@@ -387,7 +388,7 @@ export function OpportunityView({
       (complaintNotesMap[complaintId] ?? '').trim() ||
       `Moderator investigation updated to ${status}.`;
     setFeedback(null);
-    const res = await fetch(`/api/admin/opportunity-complaints/${complaintId}`, {
+    const res = await edisonFetch(`/api/admin/opportunity-complaints/${complaintId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status, resolutionNotes: notes }),
@@ -409,7 +410,7 @@ export function OpportunityView({
     const adminNotes =
       (appealNotesMap[appealId] ?? '').trim() || `Appeal decision recorded as ${status}.`;
     setFeedback(null);
-    const res = await fetch(`/api/admin/opportunity-appeals/${appealId}`, {
+    const res = await edisonFetch(`/api/admin/opportunity-appeals/${appealId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status, adminNotes }),

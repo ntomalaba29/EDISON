@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import express from 'express';
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createEdisonApp } from '../src/server/app.ts';
 import {
   CSRF_COOKIE_NAME,
@@ -335,4 +335,87 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
     expect(spaRes.headers['x-frame-options']).toBeUndefined();
     expect(spaRes.headers['x-content-type-options']).toBe('nosniff');
   });
+
+  it('installEdisonCsrfFetch handles getter-only Window.fetch without throwing and edisonFetch attaches CSRF headers', async () => {
+    const capturedCalls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
+    const mockNativeFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      capturedCalls.push({ input, init });
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    });
+
+    const prevFetch = globalThis.fetch;
+    const prevWindow = (globalThis as { window?: unknown }).window;
+    const prevDocument = (globalThis as { document?: unknown }).document;
+
+    try {
+      vi.resetModules();
+      globalThis.fetch = mockNativeFetch as unknown as typeof fetch;
+
+      // Case 1: getter-only non-configurable window.fetch (strict preview iframe)
+      const lockedWin: Record<string, unknown> = {
+        location: { origin: 'https://preview.edison.local' },
+      };
+      Object.defineProperty(lockedWin, 'fetch', {
+        get: () => mockNativeFetch,
+        configurable: false,
+        enumerable: true,
+      });
+      (globalThis as { window?: unknown }).window = lockedWin;
+      (globalThis as { document?: unknown }).document = {
+        cookie: 'edison_csrf=csrf_test_token_123',
+      };
+
+      const mod1 = await import('../src/lib/csrfFetch.ts');
+      let firstResult: boolean | undefined;
+      expect(() => {
+        firstResult = mod1.installEdisonCsrfFetch();
+      }).not.toThrow();
+      expect(firstResult).toBe(false);
+      expect(mod1.installEdisonCsrfFetch()).toBe(false);
+
+      await mod1.edisonFetch('/api/campaigns', {
+        method: 'POST',
+        body: JSON.stringify({ title: 'Test' }),
+      });
+
+      expect(capturedCalls.length).toBe(1);
+      const sentHeaders = new Headers(capturedCalls[0].init?.headers);
+      expect(sentHeaders.get('X-CSRF-Token')).toBe('csrf_test_token_123');
+      expect(capturedCalls[0].init?.credentials).toBe('same-origin');
+
+      // Case 2: getter-only configurable window.fetch -> Object.defineProperty succeeds without throwing
+      vi.resetModules();
+      const configurableWin: Record<string, unknown> = {
+        location: { origin: 'https://preview.edison.local' },
+      };
+      Object.defineProperty(configurableWin, 'fetch', {
+        get: () => mockNativeFetch,
+        configurable: true,
+        enumerable: true,
+      });
+      (globalThis as { window?: unknown }).window = configurableWin;
+
+      const mod2 = await import('../src/lib/csrfFetch.ts');
+      let secondResult: boolean | undefined;
+      expect(() => {
+        secondResult = mod2.installEdisonCsrfFetch();
+      }).not.toThrow();
+      expect(secondResult).toBe(true);
+      expect(mod2.installEdisonCsrfFetch()).toBe(true);
+      expect(configurableWin.fetch).toBe(mod2.edisonFetch);
+    } finally {
+      globalThis.fetch = prevFetch;
+      if (prevWindow === undefined) {
+        delete (globalThis as { window?: unknown }).window;
+      } else {
+        (globalThis as { window?: unknown }).window = prevWindow;
+      }
+      if (prevDocument === undefined) {
+        delete (globalThis as { document?: unknown }).document;
+      } else {
+        (globalThis as { document?: unknown }).document = prevDocument;
+      }
+    }
+  });
 });
+

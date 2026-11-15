@@ -32,6 +32,7 @@ import type {
   ScheduledBreakSlot,
 } from '../types/edison';
 import { CopyReportFooter } from './CopyReportFooter';
+import { edisonFetch } from '../lib/csrfFetch';
 
 export type TvPreviewSubTab = 'player' | 'gate' | 'simulator';
 
@@ -483,10 +484,10 @@ export function TvPreviewView({
     setLoading(true);
     try {
       const [crtRes, cmpRes, qrRes, profRes] = await Promise.all([
-        fetch('/api/ad-creatives'),
-        fetch('/api/campaigns'),
-        fetch('/api/qr'),
-        fetch('/api/advertiser/profile'),
+        edisonFetch('/api/ad-creatives'),
+        edisonFetch('/api/campaigns'),
+        edisonFetch('/api/qr'),
+        edisonFetch('/api/advertiser/profile'),
       ]);
       if (crtRes.ok) {
         const d = await crtRes.json();
@@ -643,7 +644,7 @@ export function TvPreviewView({
     }
     setLoadingGate(true);
     try {
-      const res = await fetch(`/api/campaigns/${cmpId}/preview-gate`);
+      const res = await edisonFetch(`/api/campaigns/${cmpId}/preview-gate`);
       if (res.ok) {
         const data = await res.json();
         setGateResult(data.gate);
@@ -664,7 +665,7 @@ export function TvPreviewView({
     setSubmittingCampaign(true);
     setGateActionFeedback(null);
     try {
-      const res = await fetch(`/api/campaigns/${gateResult.campaign.id}/transition`, {
+      const res = await edisonFetch(`/api/campaigns/${gateResult.campaign.id}/transition`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ targetStatus: 'submitted' }),
@@ -729,7 +730,7 @@ export function TvPreviewView({
         ...prev.slice(0, 18),
       ]);
       try {
-        await fetch('/api/simulator/events', {
+        await edisonFetch('/api/simulator/events', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -755,7 +756,7 @@ export function TvPreviewView({
   const handlePlanBreak = async () => {
     setPlanningBreak(true);
     try {
-      const res = await fetch('/api/simulator/schedule-break', {
+      const res = await edisonFetch('/api/simulator/schedule-break', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
