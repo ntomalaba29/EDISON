@@ -78,6 +78,7 @@ function sniffMagicMime(buf: Buffer): { mime: string; ext: string; kind: 'image'
 export function saveValidatedMediaUpload(params: {
   dataBase64: string;
   declaredKind?: 'image' | 'video' | 'any';
+  uploadsDir?: string;
 }): ValidatedUploadResult {
   const cleanedB64 = params.dataBase64.includes(',')
     ? params.dataBase64.slice(params.dataBase64.indexOf(',') + 1)
@@ -112,13 +113,14 @@ export function saveValidatedMediaUpload(params: {
     );
   }
 
-  if (!fs.existsSync(UPLOADS_DIR)) {
-    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  const targetDir = params.uploadsDir ? path.resolve(params.uploadsDir) : UPLOADS_DIR;
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
   }
 
   const prefix = sniffed.kind === 'video' ? 'vid' : 'img';
   const storedFileName = `edison_${prefix}_${crypto.randomBytes(10).toString('hex')}.${sniffed.ext}`;
-  const fullPath = path.join(UPLOADS_DIR, storedFileName);
+  const fullPath = path.join(targetDir, storedFileName);
   fs.writeFileSync(fullPath, buffer, { mode: 0o600 });
 
   return {
@@ -130,7 +132,10 @@ export function saveValidatedMediaUpload(params: {
   };
 }
 
-export function resolveSafeUploadPath(requestedName: string): {
+export function resolveSafeUploadPath(
+  requestedName: string,
+  uploadsDir: string = UPLOADS_DIR
+): {
   fullPath: string;
   contentType: string;
 } | null {
@@ -138,7 +143,8 @@ export function resolveSafeUploadPath(requestedName: string): {
   if (!/^edison_(img|vid)_[a-f0-9]{20}\.(png|jpg|webp|mp4|webm)$/i.test(safeName)) {
     return null;
   }
-  const fullPath = path.join(UPLOADS_DIR, safeName);
+  const targetDir = path.resolve(uploadsDir);
+  const fullPath = path.join(targetDir, safeName);
   if (!fs.existsSync(fullPath)) {
     return null;
   }

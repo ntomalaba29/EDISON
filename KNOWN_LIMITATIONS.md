@@ -1,10 +1,10 @@
 # EDISON — Known Limitations
 
-**Honesty Standard**: Separates verified Phase 2 baseline + `Block P2-V2.1` + `Block P2-V2.2` code, approved `v2.2` Shared Ad Intelligence requirements (`NOT STARTED`), consent-blocked decisions (`DEC-OPEN-01`), unresolved external constraints, and physical testing restrictions. Overall completion stands at **17.0% of the full 15-phase international commercial app** (`83.0%` remaining), **27.4% of the software-to-`Stage-P6` milestone**, and **69.0% of the AI Studio prototype assignment**.
+**Honesty Standard**: Separates verified Phase 2 baseline + `Block P2-V2.1` + `Block P2-V2.2` + `Block P2-V2.3` code, approved `v2.2` Shared Ad Intelligence requirements (`NOT STARTED`), consent-blocked decisions (`DEC-OPEN-01`), unresolved external constraints, and physical testing restrictions. Overall completion stands at **18.0% of the full 15-phase international commercial app** (`82.0%` remaining), **29.0% of the software-to-`Stage-P6` milestone**, and **75.0% of the AI Studio prototype assignment**.
 
-1. **`[BLOCK P2-V2.2 VERIFIED ON DISK — AWAITING OWNER COMMIT]`**:
-   - Prior `Block P2-V2.1` batch was confirmed committed by the Project Owner (`"Committed, next"`).
-   - `Block P2-V2.2` (Alternating 4-Slot Break Scheduler `CHARITY -> COMMERCIAL` in `SimulationTvAdapter`, Direct Commercial Priority before `MockAdNetworkBackfillAdapter`, safety-buffer break skipping, `k=1` short-break pointer flip, and Separated 6-Stream Financial Revenue Ledger UI) is verified locally and **awaiting manual Owner commit** before unlocking `Block P2-V2.3`.
+1. **`[BLOCK P2-V2.3 VERIFIED ON DISK — AWAITING OWNER COMMIT]`**:
+   - Prior `Block P2-V2.2` batch was confirmed committed by the Project Owner (`"Committed, next"`).
+   - `Block P2-V2.3` (`Vitest` + `Supertest` Automated Non-Consent Regression Suite + testable `createEdisonApp` factory & isolated `EdisonPrototypeStore`) is verified locally and **awaiting manual Owner commit** before unlocking the Shared Intelligence Prototype Preview & Final Handover block.
    - `.git` metadata is absent inside `/app/applet`.
 
 2. **`[CONSENT ARCHITECTURE CONFLICT — UNRESOLVED OWNER DECISION DEC-OPEN-01]`**:
@@ -12,7 +12,7 @@
    - **No consent/profile/epoch-403 implementation is permitted or scheduled until the Project Owner resolves `DEC-OPEN-01`.**
 
 3. **`[REMAINING APPROVED CORE FEATURES — IMPLEMENTATION NOT STARTED]`**:
-   - **Remaining Unblocked Track A (`P2-V2.3`)**: `Vitest`/`Supertest` automated regression suite covering auth, RBAC, `/r/:token`, `$0.00` Charity lock, Text-Only Commercial format, Alternating Break Scheduler, and Separated 6-Stream Ledger.
+   - **Remaining Unblocked Track A (`10%`)**: Shared Intelligence Prototype Preview & Final AI Studio Handover Sign-Off (`P2-V2.4`).
    - **Network-Wide Shared Ad Intelligence (`v2.2`, `ADR-016` / `PRD-19`)**: Central Shared Intelligence Service, multi-TV corroboration threshold & anti-poisoning quarantine, background sync, offline-capable `Local Intelligence Cache`, rollback mechanics, and software verification scenarios `25`–`35` are **APPROVED CORE REQUIREMENTS** whose code implementation is **`NOT STARTED`** (targeted cleanly for software implementation in Phase 5).
    - **Blocked on `DEC-OPEN-01` (`15%` of AI Studio Assignment)**: Household 7-level geo accounts, multiple voluntary profiles per TV, matcher, named TV greetings, consent epochs, `HTTP 403` post-withdrawal QR enforcement, and multi-profile mobile Opportunity Card.
 

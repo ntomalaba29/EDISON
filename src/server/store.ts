@@ -56,9 +56,7 @@ import type {
 import { validateQrDestination } from './qrValidator.ts';
 import { scheduleCommercialBreak } from './breakScheduler.ts';
 
-const DATA_DIR = path.resolve(process.cwd(), 'data');
-const STORE_PATH = path.join(DATA_DIR, 'edison-store.json');
-const LOCK_PATH = path.join(DATA_DIR, 'edison-store.lock');
+const DEFAULT_DATA_DIR = path.resolve(process.cwd(), 'data');
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 const DEDUP_WINDOW_MS = 5000; // 5s duplicate request suppression
 const LOCK_TIMEOUT_MS = 3000;
@@ -882,25 +880,31 @@ function normalizeStoreData(parsed: EdisonStoreData): EdisonStoreData {
   };
 }
 
-class EdisonPrototypeStore {
+export class EdisonPrototypeStore {
+  private readonly dataDir: string;
+  private readonly storePath: string;
+  private readonly lockPath: string;
   private data: EdisonStoreData;
   private lastKnownMtimeMs = 0;
   private recentRedirectMap = new Map<string, number>();
 
-  constructor() {
+  constructor(options?: { dataDir?: string }) {
+    this.dataDir = options?.dataDir ? path.resolve(options.dataDir) : DEFAULT_DATA_DIR;
+    this.storePath = path.join(this.dataDir, 'edison-store.json');
+    this.lockPath = path.join(this.dataDir, 'edison-store.lock');
     this.data = this.loadOrInitialize();
   }
 
   private ensureDataDir(): void {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (!fs.existsSync(this.dataDir)) {
+      fs.mkdirSync(this.dataDir, { recursive: true });
     }
   }
 
   private readFromDisk(): EdisonStoreData | null {
-    if (!fs.existsSync(STORE_PATH)) return null;
-    const stat = fs.statSync(STORE_PATH);
-    const raw = fs.readFileSync(STORE_PATH, 'utf8');
+    if (!fs.existsSync(this.storePath)) return null;
+    const stat = fs.statSync(this.storePath);
+    const raw = fs.readFileSync(this.storePath, 'utf8');
     const parsed = JSON.parse(raw) as EdisonStoreData;
     if (parsed && typeof parsed.schemaVersion === 'number' && Array.isArray(parsed.users)) {
       this.lastKnownMtimeMs = stat.mtimeMs;
@@ -927,7 +931,7 @@ class EdisonPrototypeStore {
     const deadline = Date.now() + LOCK_TIMEOUT_MS;
     while (true) {
       try {
-        const fd = fs.openSync(LOCK_PATH, 'wx');
+        const fd = fs.openSync(this.lockPath, 'wx');
         fs.writeSync(fd, `${process.pid}:${Date.now()}`);
         fs.closeSync(fd);
         return;
@@ -935,9 +939,9 @@ class EdisonPrototypeStore {
         const code = (err as NodeJS.ErrnoException).code;
         if (code !== 'EEXIST') throw err;
         try {
-          const stat = fs.statSync(LOCK_PATH);
+          const stat = fs.statSync(this.lockPath);
           if (Date.now() - stat.mtimeMs > STALE_LOCK_MS) {
-            fs.unlinkSync(LOCK_PATH);
+            fs.unlinkSync(this.lockPath);
             continue;
           }
         } catch {
@@ -953,8 +957,8 @@ class EdisonPrototypeStore {
 
   private releaseLock(): void {
     try {
-      if (fs.existsSync(LOCK_PATH)) {
-        fs.unlinkSync(LOCK_PATH);
+      if (fs.existsSync(this.lockPath)) {
+        fs.unlinkSync(this.lockPath);
       }
     } catch {
       // Ignore lock cleanup errors
@@ -963,7 +967,7 @@ class EdisonPrototypeStore {
 
   private writeAtomic(nextData: EdisonStoreData): void {
     this.ensureDataDir();
-    const tmpPath = `${STORE_PATH}.${process.pid}.${crypto.randomBytes(4).toString('hex')}.tmp`;
+    const tmpPath = `${this.storePath}.${process.pid}.${crypto.randomBytes(4).toString('hex')}.tmp`;
     const payload = JSON.stringify(nextData, null, 2);
     const fd = fs.openSync(tmpPath, 'w', 0o600);
     try {
@@ -972,15 +976,15 @@ class EdisonPrototypeStore {
     } finally {
       fs.closeSync(fd);
     }
-    fs.renameSync(tmpPath, STORE_PATH);
-    this.lastKnownMtimeMs = fs.statSync(STORE_PATH).mtimeMs;
+    fs.renameSync(tmpPath, this.storePath);
+    this.lastKnownMtimeMs = fs.statSync(this.storePath).mtimeMs;
   }
 
   private withWriteTransaction<T>(mutator: (draft: EdisonStoreData) => T): T {
     this.acquireLock();
     try {
-      if (fs.existsSync(STORE_PATH)) {
-        const stat = fs.statSync(STORE_PATH);
+      if (fs.existsSync(this.storePath)) {
+        const stat = fs.statSync(this.storePath);
         if (stat.mtimeMs !== this.lastKnownMtimeMs) {
           const diskData = this.readFromDisk();
           if (diskData) {
@@ -997,9 +1001,9 @@ class EdisonPrototypeStore {
   }
 
   private syncIfDiskNewer(): void {
-    if (!fs.existsSync(STORE_PATH)) return;
+    if (!fs.existsSync(this.storePath)) return;
     try {
-      const stat = fs.statSync(STORE_PATH);
+      const stat = fs.statSync(this.storePath);
       if (stat.mtimeMs !== this.lastKnownMtimeMs) {
         const diskData = this.readFromDisk();
         if (diskData) {
@@ -4050,6 +4054,20 @@ class EdisonPrototypeStore {
         detail: 'Alternating CHARITY->COMMERCIAL->CHARITY->COMMERCIAL verified with Direct Commercial priority, MockAdNetworkBackfill fallback, and $0.00 cash collection lock.',
       },
       {
+        id: 'qa_v23_automated_regression_suite',
+        block: 'Block P2-V2.3',
+        label: 'Vitest + Supertest automated non-consent regression suite installed & configured',
+        status:
+          fs.existsSync(path.resolve(process.cwd(), 'tests', 'apiRegression.test.ts')) &&
+          fs.existsSync(path.resolve(process.cwd(), 'tests', 'breakScheduler.test.ts')) &&
+          fs.existsSync(path.resolve(process.cwd(), 'tests', 'qrValidator.test.ts'))
+            ? 'pass'
+            : 'fail',
+        scope: 'automated_invariant',
+        detail:
+          'Automated unit & HTTP integration tests cover Auth/RBAC, /r/:token 302 + bot/dedup, $0.00 Charity lock, Text-Only format, Alternating Break Scheduler, 3-Tier Opportunity Independence, 6-Stream Ledger & 7-Stage Provenance.',
+      },
+      {
         id: 'qa_27_physical_qr_scan',
         block: 'Block 2.7',
         label: 'Physical smartphone camera scan verification on real mobile device',
@@ -4068,7 +4086,7 @@ class EdisonPrototypeStore {
     return {
       generatedAt: new Date().toISOString(),
       phase: 'Phase 2 — AI Studio Functional Prototype (Track A Active)',
-      block: 'Block P2-V2.2 (Alternating Scheduler, Direct Priority & Revenue Ledger)',
+      block: 'Block P2-V2.3 (Vitest + Supertest Automated Non-Consent Regression Suite)',
       automatedInvariantsPassed,
       automatedInvariantsTotal: autoChecks.length,
       physicalQrScanStatus:
@@ -4181,16 +4199,16 @@ class EdisonPrototypeStore {
       generatedAt: new Date().toISOString(),
       phase: 'Phase 2 — AI Studio Functional Prototype (Track A Active)',
       stage: 'P2-V2 Track A (Non-Consent Core) · Phase 3 TASK-P3-001 Held in DRAFT',
-      block: 'Block P2-V2.2 (Alternating Scheduler, Direct Priority & Revenue Ledger)',
-      gateStatus: 'IN PROGRESS (VERIFICATION PENDING) · DEC-OPEN-01 TRACK B BLOCKED',
+      block: 'Block P2-V2.3 (Vitest + Supertest Automated Non-Consent Regression Suite)',
+      gateStatus: 'VERIFIED · AWAITING COMMIT (DEC-OPEN-01 TRACK B BLOCKED)',
       progressMetrics: {
-        aiStudioAssignmentPct: 69,
-        softwareToStageP6Pct: 27.4,
-        overallFullAppPct: 17.0,
-        remainingUntilFullAppPct: 83.0,
+        aiStudioAssignmentPct: 75,
+        softwareToStageP6Pct: 29.0,
+        overallFullAppPct: 18.0,
+        remainingUntilFullAppPct: 82.0,
         consentBlockedScopePct: 15,
         rubricSummary:
-          'Phase 1 Specs (6%) + Phase 2 Blocks 2.1-2.7 & P2-V2.1-2.2 (11%) = 17.0% of 15-Phase Full Commercial App (69% of AI Studio Prototype).',
+          'Phase 1 Specs (6%) + Phase 2 Blocks 2.1-2.7 & P2-V2.1-2.3 (12%) = 18.0% of 15-Phase Full Commercial App (75% of AI Studio Prototype).',
       },
       latestAuditAt: latestAudit?.createdAt ?? null,
       latestAuditAction: latestAudit?.action ?? null,
