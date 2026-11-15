@@ -1,26 +1,67 @@
 # EDISON — Testing Strategy
 
-**Document Status**: Phase 1 Strategy Baseline
+**Document Status**: Updated Authoritative QA & Verification Strategy (`v2.2` — Enforces Software-First Development Verification, Single Final Physical TV Test at `Stage P6`, and Software Test Scenarios `25`–`35` for Network-Wide Shared Ad Intelligence)
 
 ---
 
-## 1. Verification Tiers
+## 1. Core Testing Governance Rule (Software-First, Single Final Hardware Check)
 
-### Tier 1: Static & Build Verification (Every Block)
-- TypeScript type-check (`npm run lint` / `tsc --noEmit`) — zero errors.
-- Production bundle build (`npm run build`) — exit code `0`.
+1. **Software-First Development Testing**: Throughout development (Phase 2 prototype through Phase 3 hardening and Phases 4–5 software integrations), EDISON verifies all logic, scheduling, UI, privacy boundaries, ad formats, QR routing, shared network intelligence, and failure recovery using **automated tests, browser automation, recorded video/stream fixtures, commercial-break simulations, and mock TV adapters (`SimulationTvAdapter`)**.
+2. **NO Repeated Physical Smart TV Testing During Development**: Engineers and automated workflows must **not** require or conduct repeated physical television device test cycles during software development.
+3. **ONE Final Integrated Physical Test (`Stage P6`)**: Exactly **one planned physical television & smartphone integration test** is executed at the very end after the complete software application is built and passes all software suites.
+4. **Honesty Prohibition**: Never claim Smart TV hardware compatibility, tuner switching, or physical break detection is physically verified prior to that single final `Stage P6` test.
 
-### Tier 2: Functional Unit & API Integration Tests (Phase 2 -> Phase 3)
-- **QR Validation**: Verify rejection of `javascript:`, `data:`, malformed URLs, IP literals; verify valid `https:`, `tel:`, `wa.me` normalisation and `302` redirect execution.
-- **Campaign State Machine**: Verify invalid transitions (e.g., `draft` -> `active` bypassing `approved`) are rejected server-side.
-- **Opportunity Verification Rules**: Verify Tier 2 (`organisation_verified`) never auto-sets Tier 3 (`specific_opportunity_verified`), and expired opportunities are excluded from active playback pools.
-- **Analytics Deduplication**: Verify rapid replay of identical event payloads does not inflate counts and `[SIMULATED]` events are strictly tagged.
+---
 
-### Tier 3: Physical & Browser UI Verification (Phase 2)
-- **Copy Report Button**: Click in live preview, verify full report text copied to clipboard and `"Copied"` state displayed.
-- **16:9 TV Preview**: Verify real video playback, timed image playback, play/pause/restart/fullscreen, and return-to-editor.
-- **Physical Mobile Phone QR Scan Test**: Scan the live QR code rendered on screen using a physical smartphone camera; verify it reaches `/r/:token` and lands on the intended destination. (Must be logged as an actual verified test before claiming completion.)
+## 2. Verification Tiers
 
-### Tier 4: Hardware, Break-Detection & Chaos Testing (Phase 4 / 5 / 11)
-- Physical Samsung Tizen, LG webOS, Android TV, and HDMI-CEC/HDCP latency benchmarking.
-- Fault-injection testing across all 18 failure modes in `FAILURE_MODE_ANALYSIS.md`.
+### Tier 1: Static & Build Verification (Every Change)
+- TypeScript check (`npm run lint` / `tsc --noEmit`) — exit code `0`.
+- Production bundle build (`npm run build` / `vite build`) — exit code `0`.
+
+### Tier 2: Mandatory Automated Functional, Integration & Security Regression Suite (`Vitest` + `Supertest`)
+All core and shared-intelligence test scenarios must be automated in software before final completion (`#10–#17` depend on resolving Owner Decision `DEC-OPEN-01`):
+
+1. **Alternating Sequence Invariant**: Verify `CHARITY -> COMMERCIAL -> CHARITY -> COMMERCIAL` ordering and zero consecutive same-category ads even when one pool is larger.
+2. **Four-Advertisement Scheduling**: Verify 4-ad break schedules cleanly when remaining break time covers all 4 slots + switching + safety margin.
+3. **Short-Break Adaptation**: Verify graceful adaptation (`4 -> 2 -> 1 -> 0`) preserving alternating category rules without cutting into live programme resumption.
+4. **No-Inventory Scenarios**: Verify empty Charity or Commercial slots remain skipped/unused rather than looping or violating alternation.
+5. **Direct-Paid Commercial Priority**: Verify approved Direct-Paid campaign always wins over higher-eCPM network inventory.
+6. **Network Inventory Fallback**: Verify modular `AdNetworkAdapter` fills an unused Commercial slot only when Direct-Paid inventory yields zero matches (and never occupies Charity slots).
+7. **Banner / Image Advertisements**: Verify Option A & Option B 16:9 image/banner validation, safe zones, and playback.
+8. **Video Advertisements**: Verify MP4/WebM magic-byte/aspect/duration validation and preload readiness check.
+9. **Text-Only Commercial Advertisements**: Verify creation, moderation, preview, and delivery of written-only commercial ads without image/video uploads.
+10. **Multiple Profiles per TV** *(`Conditional on DEC-OPEN-01`)*: Verify CRUD for multiple voluntary profiles under the approved household model.
+11. **Single-Person Opportunity Matching** *(`Conditional on DEC-OPEN-01`)*: Verify Required/Preferred/Optional scoring matches one eligible member without rejecting on optional gaps.
+12. **Multiple-Person Household Matching** *(`Conditional on DEC-OPEN-01`)*: Verify matching several household members produces plural personalisation safely.
+13. **No-Match Scenarios**: Verify zero-match `CHARITY ADS` or unmatching profiles do not falsely claim a match.
+14. **Personalised Display Names** *(`Conditional on DEC-OPEN-01`)*: Verify preferred display names render cleanly on TV without showing qualifications, employment history, or contacts.
+15. **Personalisation Consent Disabled / Opt-Out** *(`Conditional on DEC-OPEN-01`)*: Verify neutral non-personalised display when individual consent is false or shared-TV privacy opt-out is set.
+16. **Consent Withdrawal Behaviour** *(`Conditional on DEC-OPEN-01`)*: Verify exact approved withdrawal behavior leaves ordinary TV unaffected.
+17. **Profile Updates & Deletion** *(`Conditional on DEC-OPEN-01`)*: Verify profile edits re-evaluate matches and deletion purges personalisation access immediately.
+18. **Geographic Eligibility**: Verify regional/geo matching works accurately for Charity/Commercial targeting while blocking exact household coordinate/address leakage to advertisers.
+19. **QR Access & Expiry**: Verify expired/revoked opportunities and campaigns reject `/r/:token` immediately (`HTTP 410 / 404` or `403` per approved rule) and cannot schedule.
+20. **Advertiser Privacy Restrictions**: Verify advertisers cannot browse household profiles, coordinates, or member PII (`403` / sanitized aggregate metrics only).
+21. **Revenue-Report Separation**: Verify separate reporting for Charity (`$0`), Direct-Paid, Network Estimated, Network Confirmed, Actual Received, and Refunds.
+22. **Network-Provider Failures**: Verify `AdNetworkAdapter` timeout/error leaves Commercial slot unused cleanly with zero TV disruption.
+23. **Duplicate Delivery Prevention**: Verify persistent idempotency and bot/prefetch filtering on delivery & QR events.
+24. **Playback Failure & Safe Return to Television**: Verify watchdog timeout and simulated player crash restore ordinary TV immediately (`SimulationTvAdapter` + mock emulator fault injection).
+
+#### Network-Wide Shared Ad Intelligence Software Tests (`v2.2` — Scenarios `25`–`35`, `NOT STARTED`)
+25. **Multiple Simulated TVs Submitting Observations**: Verify concurrent simulated `SimulationTvAdapter` devices submit signed, scoped break-detection observations independently.
+26. **Central Aggregation & Validation**: Verify schema checks, channel/broadcaster/country/platform validation, and single-device quarantine (**a single TV's observation MUST NEVER automatically become trusted network-wide intelligence**).
+27. **Confidence Scoring & Corroboration**: Verify multi-TV agreement increments confidence across threshold (`K >= N` devices) before publishing a new versioned intelligence record.
+28. **Conflicting Observations**: Verify disagreeing observations split/reduce confidence or quarantine outliers instead of silently overwriting trusted channel patterns.
+29. **Automatic Background Synchronisation**: Verify simulated TVs pull compatible delta updates seamlessly without interrupting or pausing simulated live TV playback.
+30. **Offline Cache Operation**: Verify a disconnected simulated TV operates cleanly from its `Local Intelligence Cache` and runs local detection independently with zero crashes.
+31. **Reconnection & Update Delivery**: Verify queued observations upload on reconnect and validated newer intelligence versions download cleanly with idempotency.
+32. **Invalid or Malicious Observations**: Verify spoofed device signatures, impossible durations, mismatched channels, and flooding rates are rejected (`401`/`400`/`429`) and audited.
+33. **Version Compatibility Enforcement**: Verify updates tagged for `platform=Tizen` or `country=ZA` are never applied by an `Android TV / UK` simulator (no universal compatibility assumptions).
+34. **Rollback Verification**: Verify both corrupted-checksum rejection and post-activation false-positive degradation automatically roll the `Local Intelligence Cache` (and central pointer) back to the prior known-good version.
+35. **Privacy Isolation Audit**: Verify observation submissions, central records, and distributed intelligence bundles contain **zero** household IDs, individual profiles, precise locations, personal viewing histories, or private ad/opportunity interactions.
+
+### Tier 3: Browser E2E, Recorded Media & Emulator Verification (`Playwright`)
+- End-to-end browser verification across commercial text/banner/video creation, pre-submit 16:9 preview, break simulator, admin moderation, QR scan inspection, and recorded stream fixtures — no repeated physical hardware cycles required.
+
+### Tier 4: Single Final Integrated Physical Test (`Stage P6`)
+- Executed **exactly once after application completion** on one explicitly supported Smart TV device + smartphones to confirm real playback, remote Return-to-TV, physical QR scanning, watchdog recovery, local intelligence cache persistence, and approved consent behavior.

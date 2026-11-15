@@ -3,7 +3,7 @@
 **Verification Standard**: Every technical claim below explicitly distinguishes:
 1. **Technically Possible** | 2. **Officially Documented & Supported** | 3. **Permitted by Manufacturer / Platform** | 4. **Tested on Actual Hardware** | 5. **Suitable for Production**
 
-**Notice**: All Smart TV findings in Phase 1 are **`[PRELIMINARY RESEARCH — NOT YET TESTED ON ACTUAL HARDWARE]`**. No APIs or permissions have been fabricated.
+**Notice**: All Smart TV findings are **`[PRELIMINARY RESEARCH — NOT YET TESTED ON ACTUAL HARDWARE]`**. No APIs or permissions have been fabricated. Consistent with `TESTING_STRATEGY.md`, hardware verification is deferred to **one single integrated physical test at the end after application completion (`Stage P6`)** — zero repeated physical TV testing is conducted during development.
 
 ---
 
@@ -15,7 +15,7 @@
   - `TvInputService` allows an app to act as a virtual or physical TV input source (IPTV, HLS/DASH linear channels, or custom tuner hardware) and publish its own channels via `WRITE_EPG_DATA` + `BIND_TV_INPUT`.
   - **Critical Restriction**: `com.android.providers.tv.permission.READ_EPG_DATA` was deprecated in Android M (API 23) and is **strictly restricted to system/signature apps**. A third-party Play Store app **cannot** read the global EPG or monitor what channel another tuner/HDMI input is playing.
 - **Overlay & Window Restrictions**:
-  - Inside a `TvInputService.Session` *owned by EDISON*, `setOverlayViewEnabled(true)` and `onCreateOverlayView()` officially allow rendering UI overlays above that session's video surface (adapting via `onOverlayViewSizeChanged()` for PiP).
+  - Inside a `TvInputService.Session` *owned by EDISON*, `setOverlayViewEnabled(true)` and `onCreateOverlayView()` officially allow rendering UI overlays above that session's video surface.
   - **Critical Restriction**: Drawing overlays *on top of other apps or system TV tuners* via `SYSTEM_ALERT_WINDOW` (`TYPE_APPLICATION_OVERLAY`) is heavily restricted/blocked on modern Android TV builds and Google Play TV app policies.
 - **App Lifecycle & Source Switching**:
   - Third-party apps cannot hijack `com.android.tv.TvActivity` or arbitrarily switch away from HDMI/broadcast tuners belonging to other system inputs without system-level privileges (`TV_INPUT` / OEM signature).
@@ -24,39 +24,51 @@
 
 ### 1.2 Samsung Tizen Smart TV
 - **Relevant APIs**: `tizen.tvwindow`, `tizen.systeminfo` (`VIDEOSOURCE`), `tizen.application` (`org.tizen.tv-viewer`).
-- **Capabilities**:
-  - With `<tizen:privilege name="http://tizen.org/privilege/tv.window"/>` and `tv.audio`, a foreground Tizen web app can display live TV/HDMI inside its own window (`tizen.tvwindow.show(..., 'BEHIND')`) and switch sources via `tizen.tvwindow.setSource()`, or close back to native TV via `tizen.application.launch("org.tizen.tv-viewer")`.
-- **Critical Restrictions**:
-  - **No Background Execution**: On Samsung Smart TVs (2015 onward), `<tizen:setting background-support="enable"/>` is **prohibited/disabled** for UI web apps. The moment the user switches to native TV, HDMI, or Home, the Tizen app is **paused**; JavaScript execution and timers halt.
-  - **Certification & Partner Gates**: Public Samsung Apps TV certification prohibits hidden background loops or unauthorized interference with native broadcast playback. Deep tuner/ACR integration requires direct Samsung partner/B2B agreements.
+- **Capabilities**: Within a foreground Tizen web app with `tv.window` + `tv.audio` privileges, live TV/HDMI can render inside the app's own window (`tizen.tvwindow.show`) or return via `tizen.application.launch("org.tizen.tv-viewer")`.
+- **Critical Restrictions**: Background execution (`background-support="enable"`) is prohibited for UI web apps (2015+ models pause immediately on switching to native TV/HDMI/Home). Partner B2B contracts are required for deep tuner/ACR hooks.
 
 ### 1.3 LG webOS Smart TV
 - **Relevant APIs**: Luna Service IPC (`luna://com.webos.service.applicationmanager`, `com.webos.service.eim`).
-- **Capabilities**:
-  - System services control input launching (`com.webos.app.hdmi1`, etc.). Commercial/hospitality displays (IDCAP/Signage) expose specialized external input tags (`ext://hdmi:1`), whereas consumer TVs separate web apps from native broadcast layers.
-- **Critical Restrictions**:
-  - **App Store Sandbox**: Standard LG Content Store web apps cannot invoke restricted system Luna services without Access Control Groups (ACGs) and LG partner signing.
-  - **Suspension on Focus Loss**: Unfocused web apps are suspended/hibernated. Third-party consumer store apps **cannot** run persistent background daemons to monitor live TV or trigger automatic HDMI/source switches.
+- **Critical Restrictions**: Consumer Content Store web apps cannot invoke restricted system Luna services without LG partner Access Control Groups (ACGs), and unfocused web apps are suspended on blur.
 
 ---
 
-## 2. Five-Level Verification Matrix
+## 2. Empirical Audit of Named TV Remote-Control GitHub Candidates (`DEFERRED`)
+
+Full table recorded in `docs/research/EDISON_OPEN_SOURCE_REPOSITORY_RESEARCH_PLAN.md`:
+
+| Repository | Existence | Observed Functionality | Licence | Maintenance | EDISON Compatibility & Limitations |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **`levhakobyan/OpenTV-Remote`** | Verified Exists | Kotlin/Compose (Android) & SwiftUI (iOS) capability-aware LAN remote UI. | **MIT Licence** | Actively maintained | Manual phone remote UI only; **does NOT** provide broadcast break detection or TV-side restoration. |
+| **`maxhayim/webmote`** | Verified Exists | Java Android TV/Google TV app + PWA browser remote via PIN pairing & Accessibility/local HTTP. | **MIT Licence** | Actively maintained | Useful Phase 4 study of Android TV PIN pairing & Accessibility constraints; **does NOT** monitor live TV breaks. |
+| **`mazen-salah/Smart-TV-Remote-Control`** | Verified Exists | Flutter universal remote targeting Samsung Tizen & LG webOS via UPnP/mDNS/SSDP + Wake-on-LAN. | **MIT Licence** | Actively maintained (`v0.4.1+`) | Useful LAN Tizen/webOS key-injection protocol study only; **cannot** guarantee source restoration or DRM state safety. |
+| **`FlyingCow/remo`** | **`[INACCESSIBLE / UNVERIFIED]`** | Zero public TV-remote repository exists at `https://github.com/FlyingCow/remo`. | `[UNVERIFIED]` | `[UNVERIFIED]` | Removed from shortlist reliance until owner supplies a verified URL. |
+
+---
+
+## 3. Five-Level Verification Matrix
 
 | Platform / Architecture | 1. Technically Possible | 2. Officially Documented | 3. Permitted by Platform (3P Store) | 4. Hardware Tested | 5. Production Suitable |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **3P Store App doing silent background channel monitoring + forced takeover (Android TV / Tizen / webOS)** | Partially (with root/system sig) | **NO** (explicitly restricted) | **NO** (violates store & OS security) | Not Tested | **NO — REJECTED** |
-| **Arch A: Permitted Linear / TIF / HbbTV App (EDISON operates as or inside a linear TV channel / HbbTV stream)** | YES | YES (`TvInputService`, HbbTV, `tizen.tvwindow`) | YES (within own channel/app session) | Not Tested | Candidate (Phase 4/12) |
+| **Arch A: Permitted Linear / TIF / HbbTV App (EDISON operates as or inside a linear TV channel / HbbTV stream)** | YES | YES (`TvInputService`, HbbTV, `tizen.tvwindow`) | YES (within own channel/app session) | Not Tested (`Stage P6` Single Final Test) | Candidate (Phase 4/12) |
 | **Arch B: OEM / Pay-TV Operator Partnership (pre-installed privileged service / Tizen/webOS partner / Operator STB)** | YES | Partner-gated SDKs | Requires formal OEM/Operator contract | Not Tested | Long-term Target (Phase 4/12+) |
-| **Arch C: External HDMI Companion Hardware / STB (pass-through/CEC/prompted switch)** | YES (with HDCP compliance hurdles) | HDMI-CEC & HDCP specs exist | Hardware-dependent; **must never strip/bypass HDCP** | Not Tested | Candidate Pilot Option (Phase 4/12) |
-| **Opt-in Viewer Prompt Pilot (App/Channel notifies or viewer accepts break switch)** | YES | YES | YES (explicit user action) | Not Tested | Recommended Initial Pilot |
+| **Arch C: External HDMI Companion Hardware / STB (pass-through/CEC/prompted switch)** | YES (with HDCP compliance hurdles) | HDMI-CEC & HDCP specs exist | Hardware-dependent; **must never strip/bypass HDCP** | Not Tested | Candidate Pilot Option |
+| **Opt-in Viewer Prompt Pilot (App/Channel notifies or viewer accepts break switch)** | YES | YES | YES (explicit user action) | Not Tested (`Stage P6` Single Final Test) | Recommended Initial Pilot |
 
 ---
 
-## 3. Preliminary Architectural Conclusion
+## 4. Development & Verification Discipline
 
-1. **Do not build Phase 4+ around an assumption that a standard Play Store / Content Store app can silently watch live HDMI/broadcast TV in the background and forcibly hijack the screen.** All three major Smart TV OSes (Android TV, Tizen, webOS) explicitly block background execution, cross-app EPG reading, or unprivileged system overlays.
-2. **Viable Production Paths**:
-   - **Path 1 (Arch A)**: Deliver EDISON inside a permitted linear streaming / Android TV TIF / HbbTV / ATSC 3.0 application environment where EDISON controls its own playback session legally.
-   - **Path 2 (Arch B)**: OEM (Samsung/LG/Google TV OEM) or MVPD/Broadcaster/Operator partnerships granting privileged system permissions and native ACR/SCTE-35 hooks.
-   - **Path 3 (Arch C)**: Dedicated EDISON-compatible external HDMI/STB hardware (strictly respecting HDCP 2.2/2.3 repeater rules and HDMI-CEC timing) or an initial opt-in viewer-prompted pilot.
-3. **Next Research Step (Phase 4)**: Acquire physical test devices (Android TV box/TV, Samsung Tizen TV, LG webOS TV) to empirically measure source-switch latency, `tvwindow` / `TvInputService` behavior, and HDCP handshake stability.
+- During software development and Phases 2–5, all Smart TV playback and failure behavior is exercised exclusively via `SimulationTvAdapter`, Android TV/webOS emulators, and recorded media streams—**no repeated physical Smart TV testing during development**.
+- **Single Final Hardware Integration Check (`Stage P6`)**: Executed once after the complete application is finished to validate physical playback, remote Return-to-TV, and phone QR scan end-to-end.
+
+---
+
+## 5. Platform Adapters & Local Intelligence Cache Role (`v2.2` Approved Requirement — `NOT STARTED`)
+
+- **No Universal Compatibility Assumption**: Shared Ad Intelligence observations and updates must always carry explicit `(country, broadcaster, channel, platform, broadcastConfig)` compatibility scopes. A detection signal or switch-latency profile verified on Android TV TIF cannot be assumed valid on Samsung Tizen or LG webOS without platform-specific corroboration.
+- **TV Platform Adapter Obligations**:
+  - Report **platform & decoder compatibility metadata** (`osName`, `osVersion`, `adapterType`, observed `T_switch_in` / `T_switch_out`, decoder warmup latency, audio-focus quirks) strictly without PII.
+  - Persist verified updates in the local **Local Intelligence Cache** with atomic swap, offline execution capability, background sync without viewing interruption, and immediate rollback to the prior cached version on false-positive spikes or checksum failure.
+  - Respect hardware/DRM limits identically: shared A/V detection fingerprints never rely on bypassing HDCP or scraping secure `MediaDrm` surfaces.

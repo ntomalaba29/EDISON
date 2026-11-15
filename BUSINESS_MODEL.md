@@ -1,49 +1,47 @@
 # EDISON — Business Model
 
-**Document Status**: Phase 1 Baseline (`[ASSUMPTION]` markers indicate commercial hypotheses requiring market & legal validation)
+**Document Status**: Updated Specification (`v2.1` — Distinguishes Free `CHARITY ADS` / Free Job Listings, Paid `COMMERCIAL ADS`, Direct-Paid Priority, Modular Network Backfill & `[UNRESOLVED]` GAM CTV Format Limits)
 
 ---
 
-## 1. Value Proposition
+## 1. Two-Category Commercial & Public-Benefit Separation
 
-### For Viewers
-- Zero-cost access to relevant commercial offers and verified employment, scholarship, grant, and training opportunities directly while watching TV.
-- Instant mobile handoff via QR code—no typing long URLs, no downloading mobile apps, no secondary ad clutter on the phone.
-- Full control: informed withdrawable consent and instant manual return to TV.
+### 1.1 `CHARITY ADS` & Free Employer Job Listings (`$0.00 / FREE` Permanent Rule)
+- **Zero Fees Forever**: Formal & verified informal job listings, apprenticeships, internships, scholarships, school/university admissions, training, conferences, grants, tenders, and approved community programmes are **always `$0.00 / FREE`** to submit, verify, broadcast, scan, and apply.
+- **No Commercial Purchase Tying**: Employers and opportunity providers are never required to purchase `COMMERCIAL ADS` to list or broadcast verified opportunities.
+- **Verification Independence**: Advertising spend never influences Tier 1, Tier 2, or Tier 3 verification.
 
-### For Commercial Advertisers (SMBs, Brands, Retailers, Event Organisers)
-- Television-scale visual presence without traditional broadcast production or national network buy minimums.
-- Self-serve Ad Creation Studio (Option A) removes graphic-design barriers; Upload workflow (Option B) supports agencies.
-- Measurable QR scan and destination-open attribution alongside honest delivery/playback telemetry.
-
-### For Opportunity Providers (Employers, Universities, NGOs, Training Centres, Informal Employers)
-- Reach households that may not actively browse desktop job boards or LinkedIn.
-- Trusted verification badge architecture increases applicant confidence while protecting providers from impersonation.
+### 1.2 `COMMERCIAL ADS` (Paid Inventory — Direct Priority + Network Backfill)
+Businesses, brands, shops, supermarkets, restaurants, manufacturers, and service providers fund EDISON through paid commercial inventory across three formats (**Image/Banner**, **Video**, **Text-Only Commercial Ads**):
+1. **Priority 1 — Direct-Paid Commercial Campaigns**: Always scheduled before any third-party ad-network fill whenever an approved, in-schedule, geo-matching campaign has available budget/caps.
+2. **Priority 2 — Modular Advertising-Network Backfill (Unused Commercial Slots Only)**: Fills leftover `COMMERCIAL` break slots (`Position 2` or `Position 4`) only when zero Direct-Paid campaigns qualify. Network yield must never displace Direct-Paid bookings, and network ads must never occupy `CHARITY` slots.
 
 ---
 
-## 2. Revenue Streams (`[ASSUMPTION — NO PAYMENTS IN PROTOTYPE]`)
+## 2. Advertising-Network Provider & Format Uncertainty (`[UNRESOLVED]`)
 
-1. **Commercial Campaign Placements**:
-   - Tiered pricing by geography/market, duration (e.g., 15s / 30s), daypart, or verified playback volume (CPV / CPM on *delivered & played* impressions, never unverified "views").
-2. **Opportunity Listing Fees (Strictly Decoupled from Verification)**:
-   - `[ASSUMPTION]`: Standard/enterprise employers may pay a campaign distribution fee to broadcast verified opportunity spots, while public-interest, micro-employer, or scholarship listings may use subsidised/sponsored or free tiers.
-   - **Hard Governance Rule**: Paying a fee **never** accelerates, buys, or guarantees verification approval. Rejected opportunities receive full policy transparency and refund rules (defined in Phase 13 commercial readiness).
-3. **Value-Added Creative / Studio Tiers (Future)**:
-   - `[ASSUMPTION]`: Basic Ad Studio templates remain included in campaign setup; premium motion/video rendering or agency multi-seat workspaces may be tiered in Phase 7/8.
+- `[VERIFIED FROM OFFICIAL GOOGLE DOCS]`: Standard **Google AdSense** (Content) and **AdSense for Video (AFV)** are ineligible/unsuitable for native Smart TV apps. Compliant Google CTV monetization uses **Google Ad Manager (GAM)** + **Google IMA SDK** (`Android TV` native; `Tizen/webOS` HTML5/DAI).
+- **`[UNRESOLVED — GAM CTV ACCOUNT & FORMAT ELIGIBILITY]`**:
+  1. EDISON has **not** yet applied for or received an approved Google Ad Manager CTV publisher account.
+  2. Standard CTV VAST video players typically **ignore HTML/companion display banners** and **do not natively support text-only third-party network ads** without custom VAST rendering wrappers. Therefore, whether external network backfill supports Banner/Image or Text-Only formats—or is limited strictly to VAST video backfill—remains **`UNRESOLVED`**.
 
 ---
 
-## 3. Cost Structure (`[PRELIMINARY]`)
+## 3. Financial Reporting Separation Rules (`[NO REAL PAYMENTS ACTIVE IN PHASE 2]`)
 
-- Cloud video/image transcoding, CDN egress, and edge ad preloading infrastructure.
-- Human & automated moderation/verification operations (critical cost driver for Opportunity Verification).
-- Smart TV SDK engineering, hardware test lab across Samsung/LG/Android TV models, and OEM/operator revenue-share or certification fees (`[UNRESOLVED QUESTION]`).
-- Country-by-country legal, tax, and broadcast compliance advisory.
+Analytics and financial ledgers must separate seven streams strictly (never counting estimated network earnings as settled cash):
+1. **Charity Advertisement Delivery** (`$0.00` public-benefit inventory count)
+2. **Direct-Paid Commercial Delivery** & **Direct Advertiser Invoices / Bookings**
+3. **Advertising-Network Delivery** (backfill impression count)
+4. **Estimated Advertising-Network Earnings** (provisional network estimate only)
+5. **Confirmed Network Earnings** (post-reconciliation statement)
+6. **Actual Payments Received** (settled cash receipts)
+7. **Refunds & Adjustments**
 
 ---
 
-## 4. Prototype Billing Boundary
+## 4. Prototype Operational Boundaries
 
-- **Phase 1 & Phase 2 Rule**: Do **not** integrate real payment processors (Stripe, Paystack, Adyen, etc.), collect real bank/card details, or contact real advertisers.
-- The Phase 2 prototype will model **billing structure metadata** (rate card estimates, campaign budget fields, simulated invoice previews clearly labelled `[SIMULATED PROTOTYPE BILLING]`) without executing financial transactions.
+- `paymentCollectionActive: false` throughout Phase 2.
+- Commercial business discovery and automated email outreach remain **STRICTLY PAUSED AND LOCKED**.
+- Any household/profile targeting tier (`DEC-OPEN-01`) remains **paused pending owner consent-model selection**.

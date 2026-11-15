@@ -1,68 +1,66 @@
 # EDISON — AI Studio & VS Code Copilot Command Centre
 
-**Coordination Protocol**: Manual owner-triggered handoff only. No automatic polling, no background watchers, no scheduled synchronisation, no direct AI-to-AI communication.
+**Coordination Protocol**: Manual owner-triggered handoff only. No automatic polling, no background watchers, no scheduled synchronisation, no direct AI-to-AI communication.  
+**Git Verification Note**: `.git` metadata is absent inside `/app/applet`; commits and pushes are performed manually by the Project Owner.
 
 ---
 
 ## 1. PROJECT OWNER MESSAGE
 
-> Block 2.7 committed to GitHub (`Next` per ADR-010). Phase 2 (AI Studio Functional Prototype, Blocks 2.1–2.7) is committed. Transitioning Phase 3 Engineering Hardening (`TASK-P3-001`) to `READY` for VS Code Copilot execution.
+> **Combined Uncommitted Documentation + Cleanup Batch (`P2-FIX.6` + `v2.1` Pre-Commit Corrections + `v2.2` Shared Ad Intelligence Addendum)**: Added **Network-Wide Shared Ad Intelligence** (`LEARN ONCE. DISTRIBUTE EVERYWHERE. UPDATE CONTINUOUSLY.`) as a mandatory approved core capability (`ADR-016` / `PRD-19`, **implementation `NOT STARTED`**) across architecture, break detection, TV adapters, technical requirements, roadmap, and Scenarios `25`–`35` software tests—preserving all `P2-FIX.6` edits, `v2.1` reconciliations (`DEC-OPEN-01..04`, verified 9-repo GitHub audit, single `Stage P6` final physical TV test, no-lawyer dependency), and strictly **zero application code changes**.
 
 ---
 
 ## 2. AI STUDIO INSTRUCTIONS
 
-1. Phase 1 (`28` docs including `VSCODE_HANDOVER_PACKAGE.md`) and Phase 2 (Blocks `2.1` through `2.7`) are **COMMITTED** in GitHub.
-2. Per `AI_STUDIO_WORKING_BOUNDARY.md`, Phase 3 production refactoring (`PostgreSQL`, Vitest/Playwright E2E suite, FFmpeg media pipeline) executes in **VS Code Copilot** against the local repository rather than inside AI Studio.
-3. Enforce strict boundaries: no real payments (`paymentCollectionActive: false`), no real advertiser/employer outreach, no fake Smart TV integration, and keep physical smartphone QR scan verification honestly tracked (`PENDING_OWNER_DEVICE_TEST` until logged on real hardware).
-4. Keep the one-click **`Commit & Next`** clipboard shortcut visible in the persistent header (`src/App.tsx`) and report footers (`src/components/CopyReportFooter.tsx`), copying `"Committed to GitHub. Please proceed to the next block."`.
-5. Maintain `EDISON_PERMANENT_SYSTEM_INSTRUCTIONS.md` and `SESSION_CONTINUITY_LOG.md` in GitHub so any Google account importing `Malaba29/EDISON-International-Smart-TV-Advertising-Network-` retains full rules, project path, and session history.
+1. Preserve all existing Blocks 2.1–2.7 code (`server.ts`, `src/**`) and uncommitted `P2-FIX.6` edits (`package.json`, `.env.example`) untouched during documentation work.
+2. **Do NOT implement consent epochs, `HTTP 403` QR revocation, household TV accounts, or individual personalisation profiles** until the Project Owner explicitly resolves `DEC-OPEN-01` (`Option A`, `B`, or `C`).
+3. Keep `Network-Wide Shared Ad Intelligence` (`ADR-016` / `PRD-19`) clearly marked **APPROVED CORE REQUIREMENT — IMPLEMENTATION `NOT STARTED`** until scheduled cleanly in Phase 5 software engineering.
+4. Keep `TASK-P3-001` (`Phase 3` PostgreSQL handover) in **`DRAFT`** status until Phase 2 domain work stabilizes.
+5. Enforce software-first testing with **strictly one planned final physical TV test at app completion (`Stage P6`)**, `$0.00 / FREE` Charity & employer job listings, locked commercial business outreach, deferred AURA, and independent public statutory research without lawyer dependency.
 
 ---
 
 ## 3. PENDING COPILOT TASK
 
-- **Task ID**: `TASK-P3-001`
-- **Date and Time**: `2026-11-14T13:16:00-08:00`
-- **Sender**: `AI Studio (Chief Engineer / Architect)`
-- **Recipient**: `VS Code Copilot (Implementation Engineer)`
-- **Phase, Stage, and Substage**: `Phase 3 / Stage 3.1 / PostgreSQL Migration & Production Persistence Hardening`
-- **Objective**: Migrate EDISON prototype persistence (`src/server/store.ts` -> `data/edison-store.json`, schemaVersion 6) to PostgreSQL with versioned schema migrations, strict transactional audit logging, and foreign-key integrity across all 13 collections while preserving all Phase 2 RBAC, QR security, 3-tier opportunity decoupling, and 7-stage analytics provenance invariants.
-- **Context**: Phase 1 and Phase 2 (Blocks 2.1–2.7) are committed to GitHub. Full architecture, schema contracts, flows, ADRs, and limitations are documented in `VSCODE_HANDOVER_PACKAGE.md` and `VSCODE_HANDOVER_PLAN.md`. Physical mobile QR scan testing (`physicalQrScanTests`) has 0 real device logs yet and remains `PENDING_OWNER_DEVICE_TEST`.
-- **Required Action**: **EXECUTE `TASK-P3-001`.** Read `VSCODE_HANDOVER_PACKAGE.md`, inspect the existing TypeScript types (`src/types/edison.ts`) and `src/server/store.ts`, implement the PostgreSQL persistence layer + migrations behind clean repository/store interfaces, keep local/test seed setup repeatable, and verify all API routes + RBAC + analytics invariants pass.
-- **Relevant Files and Dependencies**:
-  - `server.ts`, `src/server/store.ts`, `src/server/qrValidator.ts`, `src/server/mediaSecurity.ts`, `src/types/edison.ts`, `VSCODE_HANDOVER_PACKAGE.md`, `VSCODE_HANDOVER_PLAN.md`, `KNOWN_LIMITATIONS.md`, `DECISIONS_LOG.md`, `package.json`.
-- **Acceptance Criteria**:
-  1. Relational PostgreSQL schema and repeatable migration scripts cover all 13 collections (`users`, `sessions`, `advertiserProfiles`, `campaigns`, `adCreatives`, `qrLinks`, `opportunities`, `opportunityComplaints`, `opportunityAppeals`, `supportTickets`, `analyticsEvents`, `physicalQrScanTests`, `auditLogs`).
-  2. Zero regression in scrypt/session RBAC, Option B `decoded_mismatch` blocking, non-transitive 3-tier opportunity verification (`advertisingFeeInfluencesVerification: false`), `paymentCollectionActive: false`, `/r/:token` 302 bot/dedup separation, or Stage 7 (`destination_opened`) strict independence from HTTP 302.
-  3. All API routes pass automated integration tests; `tsc --noEmit` and `npm run build` exit `0`.
-- **Safety Restrictions**:
-  - Preserve `paymentCollectionActive: false`, `advertisingFeeInfluencesVerification: false`, and zero Smart TV hardware claims.
-  - Never commit `.env` or production database credentials; document required env vars in `.env.example`.
-  - Do not run destructive git commands or overwrite unrelated files (`docs/research/EDISON_OPEN_SOURCE_REPOSITORY_RESEARCH_PLAN.md`).
-- **Status**: `READY`
-- **Expected Report**: Complete Section 4 (`COPILOT EXECUTION REPORT`) with exact files created/modified, migration commands, test commands/outputs/exit codes, and remaining limitations/blockers, and set status to `AWAITING REVIEW` for AI Studio inspection.
+- **Task ID**: `TASK-P3-001` *(Held in **`DRAFT`**)*
+- **Date and Time**: `2026-11-15T10:45:00-08:00`
+- **Sender**: `AI Studio (Chief Software Architect)`
+- **Recipient**: `VS Code Copilot (Standby — Do Not Execute While DRAFT)`
+- **Phase, Stage, and Substage**: `Phase 3 / Stage 3.1 / PostgreSQL Migration & Production Hardening`
+- **Objective**: Migrate persistence, media storage/FFmpeg, hardened auth, and Shared Intelligence tables to PostgreSQL **only after** Phase 2 domain extensions (and `DEC-OPEN-01` resolution if Option B/C is chosen) are completed and verified.
+- **Status**: **`DRAFT`**
+- **Expected Report**: Copilot must report `"No READY task available"` while status is `DRAFT`.
 
 ---
 
 ## 4. COPILOT EXECUTION REPORT
 
-*Awaiting VS Code Copilot execution of `TASK-P3-001`.*
+*No VS Code Copilot tasks have been executed.*
 
 ---
 
 ## 5. AI STUDIO REVIEW
 
 - **Reviewed By**: AI Studio
-- **Assessment**: Phase 1 (`28` docs) and Phase 2 (Blocks 2.1–2.7) are verified and confirmed committed by Project Owner (`Next` per ADR-010). `VSCODE_HANDOVER_PACKAGE.md` authored and `TASK-P3-001` transitioned to **`READY`**. Note that `physicalQrTestsCount` remains `0` (`PENDING_OWNER_DEVICE_TEST`) until the Project Owner logs a physical smartphone camera test via the live preview or Phase 3 QA.
+- **Blueprint `v2.2` Shared Ad Intelligence Addendum (`TASK-SPEC-V2-2`)**:
+  - Updated all 13 specified documentation files (`PROJECT_MASTER_SPECIFICATION.md`, `SYSTEM_ARCHITECTURE.md`, `TECHNICAL_REQUIREMENTS.md`, `PRODUCT_REQUIREMENTS.md`, `COMMERCIAL_BREAK_DETECTION.md`, `SMART_TV_COMPATIBILITY_RESEARCH.md`, `TESTING_STRATEGY.md`, `DECISIONS_LOG.md`, `COMPLETE_DEVELOPMENT_ROADMAP.md`, `PROGRESS_TRACKER.md`, `KNOWN_LIMITATIONS.md`, `coordination/EDISON_COMMAND_CENTER.md`, `README.md`).
+  - Preserved all uncommitted `P2-FIX.6` edits (`package.json`, `.env.example`) and `v2.1` reconciliations (`9` GitHub repos, `DEC-OPEN-01`..`04`, `no lawyer dependency`, `one final Stage P6 test`, `GAM CTV UNRESOLVED`).
+  - Zero application source files, package installs, repository clones, commits, or deployments occurred.
 
 ---
 
 ## 6. NEXT ACTION
 
-1. **Project Owner**: Commit this Phase 3 Handover Activation update (`coordination/EDISON_COMMAND_CENTER.md`, `VSCODE_HANDOVER_PACKAGE.md`, updated progress docs) to GitHub.
-2. **Project Owner -> VS Code Copilot**: Pull from GitHub locally and instruct VS Code Copilot to read `coordination/EDISON_COMMAND_CENTER.md` and execute **`TASK-P3-001`** (`Status: READY`).
-3. **Optional Mobile Verification**: Test scanning any active QR code in `QR QA & VS Code Handover` with a real smartphone camera against the hosted preview URL and log the result.
+1. **Owner Combined Commit Checkpoint**: Review and commit **one combined batch** covering:
+   - `P2-FIX.6` (`package.json`, `.env.example`)
+   - Blueprint `v2.1` Pre-Commit Specification Corrections
+   - Blueprint `v2.2` Network-Wide Shared Ad Intelligence Addendum (all 13 updated `.md` documents)
+2. **Owner Decisions Needed Before Consent-Dependent Track B Can Be Scheduled**:
+   - **`DEC-OPEN-01`**: Choose Consent & Profile Architecture (`Option A`: Pure Account-Free Contextual `ADR-002` vs `Option B`: Full Household + Multi-Profile + Epoch `403` vs `Option C`: Hybrid Opt-In) + clarify withdrawal effect on unpersonalised contextual `CHARITY ADS`.
+   - **`DEC-OPEN-02`**: Confirm `k = 1` short-break alternating pointer vs pair-only slot rule.
+3. **Unblocked Implementation Scope Eligible Post-Commit**:
+   - **`P2-V2` Track A (Non-Consent Core)**: Explicit `CHARITY ADS` (`$0.00 / FREE` Charity/employer job billing lock) vs `COMMERCIAL ADS`, Commercial `Text-Only` format in Studio/Preview/Moderation, Core Alternating Break Scheduler (`CHARITY -> COMMERCIAL`) + Direct-Paid Priority + mock `AdNetworkAdapter` (`SimulationTvAdapter`), 7-stream revenue separation, and Vitest/Supertest suite. *(Network-Wide Shared Ad Intelligence `ADR-016` stays `NOT STARTED` for dedicated Phase 5 software implementation unless explicitly sequenced earlier; Track B consent/profiles remain blocked until `DEC-OPEN-01` is resolved.)*
 
 ---
 
@@ -70,12 +68,8 @@
 
 | Task ID | Date | Sender -> Recipient | Phase / Stage | Status | Summary |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `TASK-000-PHASE1-BOOTSTRAP` | 2026-11-14 | AI Studio -> Owner / Standby | Phase 1 / Stage 1.1 | `COMPLETE` | 25 docs, Smart TV preliminary research, Command Centre & Copy Report console committed to GitHub. |
-| `TASK-001-PHASE2-PROTOTYPE-IN-PROGRESS` | 2026-11-14 | AI Studio -> Owner | Phase 2 / Block 2.1 | `COMPLETE` | Express + Vite server, scrypt auth/RBAC, lockfile+fsync atomic JSON store, QR validator & `/r/:token` redirect engine committed. |
-| `TASK-002-PHASE2-BLOCK22-PROTOTYPE` | 2026-11-14 | AI Studio -> Owner | Phase 2 / Block 2.2 | `COMPLETE` | Advertiser profiles, verification submission, support tickets, simulated billing estimate, and 10-state campaign management committed. |
-| `TASK-003-PHASE2-BLOCK23-PROTOTYPE` | 2026-11-14 | AI Studio -> Owner | Phase 2 / Block 2.3 | `COMPLETE` | Advertisement Creation Studio (Option A & Option B) + cross-account governance continuity committed. |
-| `TASK-004-PHASE2-BLOCK24-PROTOTYPE` | 2026-11-14 | AI Studio -> Owner | Phase 2 / Block 2.4 | `COMPLETE` | Full 16:9 TV Preview, Pre-Submission Approval Gate, Commercial-Break Simulator & Deferred Repo Research Plan committed. |
-| `TASK-005-PHASE2-BLOCK25-PROTOTYPE` | 2026-11-14 | AI Studio -> Owner | Phase 2 / Block 2.5 | `COMPLETE` | Opportunity Submission, Independent 3-Tier Verification, Expiry, Complaints & Appeals committed. |
-| `TASK-006-PHASE2-BLOCK26-PROTOTYPE` | 2026-11-14 | AI Studio -> Owner | Phase 2 / Block 2.6 | `COMPLETE` | Admin Moderation Console (Playable 16:9 Preview) & 7-Stage Trustworthy Analytics committed. |
-| `TASK-007-PHASE2-BLOCK27-PROTOTYPE` | 2026-11-14 | AI Studio -> Owner | Phase 2 / Block 2.7 | `COMPLETE` | Physical Mobile QR Scan Lab, Prototype Readiness Audit & 11-Point VS Code Handover Package committed (`ADR-010`). |
-| `TASK-P3-001` | 2026-11-14 | AI Studio -> VS Code Copilot | Phase 3 / Stage 3.1 | `READY` | PostgreSQL Migration & Production Persistence Hardening queued for VS Code Copilot execution. |
+| `TASK-000`–`TASK-007` | 2026-11-14 | AI Studio -> Owner | Phase 1 & Phase 2 (Blocks 2.1–2.7) | `COMPLETE` | Baseline specs + Auth/RBAC/QR, Profiles/Campaigns, Option A/B Ad Studio, 16:9 TV Preview/Sim, Opportunities/3-Tier QA, Moderation/7-Stage Analytics & Handover Package. |
+| `TASK-P2FIX-6` | 2026-11-15 | AI Studio -> Owner | Stage P2-FIX / P2-FIX.6 | `VERIFIED (UNCOMMITTED)` | Cleaned `package.json` (`edison-smart-tv-network`), removed `@google/genai`, cleaned `.env.example`. |
+| `TASK-SPEC-V2-FIX` | 2026-11-15 | AI Studio -> Owner | Pre-Commit Correction (`v2.1`) | `VERIFIED (UNCOMMITTED)` | Audited 9 GitHub repos, isolated `DEC-OPEN-01..04`, flagged GAM CTV uncertainty, removed lawyer dependency, enforced single final `Stage P6` test. |
+| `TASK-SPEC-V2-2` | 2026-11-15 | AI Studio -> Owner | Blueprint `v2.2` Addendum | **`READY FOR COMBINED COMMIT`** | Added mandatory Network-Wide Shared Ad Intelligence (`ADR-016` / `PRD-19`) across 13 docs as `APPROVED REQUIREMENT / NOT STARTED`, with 11 software-only test scenarios (`25`–`35`). |
+| `TASK-P3-001` | 2026-11-14 (Paused 2026-11-15) | AI Studio -> VS Code Copilot | Phase 3 / Stage 3.1 | **`DRAFT`** | Held until Phase 2 extensions & `DEC-OPEN-01` resolution settle. |

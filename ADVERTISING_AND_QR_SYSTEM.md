@@ -1,6 +1,6 @@
 # EDISON — Advertising & QR Code System
 
-**Document Status**: Phase 1 Specification (QR system must be real and physically scannable in Phase 2 prototype)
+**Document Status**: Updated Specification (`v2.1` — Preserves Verified Phase 1/2 Direct `302` QR Baseline `ADR-002`; Flags Epoch-Bound `403` Revocation & Multi-Profile Mobile Card as **`[PENDING DEC-OPEN-01]`**)
 
 ---
 
@@ -12,28 +12,31 @@
 4. WhatsApp Conversation (`https://wa.me/<e164>?text=...`)
 5. Telephone Number (`tel:+<e164>`)
 6. Enquiry Form (`https://...`)
-7. Job Application (`https://...` or validated EDISON opportunity detail link if provider lacks external ATS)
-8. Scholarship Application (`https://...`)
-9. Training Programme Application (`https://...`)
-10. Grant / Tender Application (`https://...`)
+7. Job Application (Formal or Verified Informal Employer Contact/Form)
+8. Scholarship / School / University Admissions Page (`https://...`)
+9. Apprenticeship / Training / Professional Development / Conference Page (`https://...`)
+10. Community / Public-Benefit / Grant / Tender Page (`https://...`)
 11. Other Approved Legitimate Destinations
 
 ---
 
-## 2. Destination Validation & Anti-Abuse Controls
+## 2. Current Verified QR Behaviour (`ADR-002` — Implemented in Blocks 2.1–2.7)
 
-1. **Scheme Allowlist**: Permit only `https://`, `tel:`, and validated `wa.me` links (auto-upgrade or warn on `http://`; strictly reject `javascript:`, `data:`, `vbscript:`, `file:`).
-2. **Phishing & Misleading Domain Protection**:
-   - Validate domain syntax (reject IP-address URLs, punycode/homograph spoofing warnings, URL shortener chains like `bit.ly` that hide the true final host unless resolved & verified).
-   - Display the **exact resolved final domain** clearly in the Advertiser Preview, Pre-Submit Gate, and Admin Review screen.
-3. **Direct-to-Destination Rule**:
-   - When using an EDISON tracking redirect (`https://<edison-host>/r/<token>`), the server validates the token, records `redirect_requested` on receipt, evaluates bot/prefetch heuristics + 5-second deduplication, records `redirect_issued` when issuing the HTTP `302 Found` response, and routes directly to the verified destination.
-   - **Never** show an intermediate EDISON advertisement, app-install prompt, or interstitial page on the viewer's phone.
-   - **Never** emit `destination_opened` or claim a confirmed human QR scan solely from an HTTP `302` redirect request. Link previewers (WhatsApp, Slack, Facebook), search crawlers, CLI tools, and browser prefetches can trigger `/r/:token` without a human camera scan, and HTTP `302` does not verify that the external destination page finished loading.
+1. **Scheme & Anti-Phishing Validation**: Allow `https://`, `tel:`, and normalised `wa.me` (`http://` flagged/upgraded); reject `javascript:`, `data:`, `vbscript:`, `file:`, raw IP literals, and opaque shorteners unless resolved. Always display exact resolved domain in Pre-Submit and Admin Review.
+2. **Direct-to-Destination Routing (`/r/:token`)**: Validates campaign/opportunity active status, records `redirect_requested` and `redirect_issued` separately with bot/prefetch filtering & deduplication, and issues **`HTTP 302`** straight to the advertiser's or opportunity provider's official destination—**never an intermediate EDISON advertising feed**. Never conflates `302` with `destination_opened` or verified conversion.
+3. **Campaign/Opportunity Expiry Enforcement**: Expired or suspended campaigns/opportunities fail validation and stop redirecting (`HTTP 410 / 404`).
 
 ---
 
-## 3. Physical Scanning Readiness Standards
+## 3. Proposed Extensions Pending Consent Architecture Decision (`DEC-OPEN-01`)
 
-- **Live Prototype Requirement**: In Phase 2, QR codes rendered in the 16:9 TV Preview, Opportunity Preview, and Commercial-Break Simulator must encode real URLs pointing to the running server's `/r/:token` endpoint (or direct verified `tel:`/`wa.me:` URI) so a physical mobile phone camera can scan the screen and open the destination.
-- **Verification Discipline**: Physical mobile scanning must be **actually tested** with a real phone camera before marking Phase 2 QR criteria complete. Never claim physical scan verification without running the physical test.
+The following Blueprint `v2.0` proposals are **NOT YET APPROVED OR IMPLEMENTED** and depend on Owner selection in `PRIVACY_SECURITY_AND_COMPLIANCE.md` (`DEC-OPEN-01`):
+
+1. **Household, Consent-Epoch & Expiry Binding (Proposed Option B/C)**:
+   - If epoch-scoped QRs are approved under Option B or Option C, TV playback QR tokens will carry server-validated binding to `{ targetId, householdId, consentEpoch, expiresAt }`.
+   - Withdrawing household consent increments `consentEpoch`, causing `/r/:token` scans of saved/photographed QR codes from withdrawn epochs to return **`HTTP 403`**, cleanly distinct from expired/removed campaigns (`HTTP 410/404`).
+   - Under **Option A** (preserving pure account-free global QRs), `/r/:token` remains purely campaign/expiry-scoped (`302` vs `410/404`) without household accounts or per-household epochs.
+2. **Mobile Opportunity Handoff Mode (Direct `302` vs Pure Non-Ad Opportunity Card)**:
+   - **Commercial Ads**: Always direct `HTTP 302` to the advertiser's destination regardless of option.
+   - **Charity Opportunities**: Either direct `HTTP 302` to the official employer/provider link (**Option A**) OR an authenticated/profile-isolated non-commercial Opportunity Card showing eligibility criteria, verification tier badge, plain-language match summary (`Save` / `Dismiss`), and external Apply link without exposing other household members' data (**Option B/C**).
+3. **Absolute Privacy Boundary**: Even if multi-profile QRs are approved, private profile attributes, qualifications, names, and exact household coordinates must **never** appear in QR URLs, token strings, server URL logs, or advertiser reports.
