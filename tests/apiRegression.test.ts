@@ -527,7 +527,7 @@ describe('EDISON Non-Consent API & Domain Regression Suite (Block P2-V2.3)', () 
       .set('Authorization', `Bearer ${adminToken}`);
     expect(qaRes.status).toBe(200);
     expect(qaRes.body.automatedInvariantsPassed).toBe(qaRes.body.automatedInvariantsTotal);
-    expect(qaRes.body.automatedInvariantsTotal).toBeGreaterThanOrEqual(10);
+    expect(qaRes.body.automatedInvariantsTotal).toBeGreaterThanOrEqual(11);
     expect(qaRes.body.physicalQrScanStatus).toBe('PENDING_OWNER_DEVICE_TEST');
 
     // 5. Docs allowlist serves all 25 governance documents & blocks traversal
@@ -535,4 +535,61 @@ describe('EDISON Non-Consent API & Domain Regression Suite (Block P2-V2.3)', () 
     expect(docsRes.status).toBe(200);
     expect(docsRes.body.items).toHaveLength(25);
   });
+
+  it('serves Shared Ad Intelligence Prototype Preview API with Zero-PII enforcement, quorum gating, rollback & 85% progress', async () => {
+    const unauth = await request(app).get('/api/shared-intelligence/preview');
+    expect(unauth.status).toBe(401);
+
+    const previewGet = await request(app)
+      .get('/api/shared-intelligence/preview')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(previewGet.status).toBe(200);
+    expect(previewGet.body.isPrototypeSimulation).toBe(true);
+    expect(previewGet.body.zeroPiiEnforced).toBe(true);
+    expect(previewGet.body.bundles).toHaveLength(3);
+
+    // Reject PII payload cleanly with HTTP 400
+    const piiReject = await request(app)
+      .post('/api/shared-intelligence/observations')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        tvDeviceId: 'sim_tv_api_pii',
+        scopeId: previewGet.body.bundles[0].scope.scopeId,
+        signalType: 'scte35',
+        estimatedBreakDurationSec: 95,
+        transitionLatencyMs: 380,
+        householdId: 'forbidden_household_id',
+      });
+    expect(piiReject.status).toBe(400);
+
+    // Corroborate quorum (3/3) and verify automatic rollback on FPR spike
+    const promo = await request(app)
+      .post('/api/shared-intelligence/simulate-action')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        action: 'corroborate_quorum',
+        scopeId: previewGet.body.bundles[0].scope.scopeId,
+      });
+    expect(promo.status).toBe(200);
+    expect(promo.body.state.bundles[0].version).toBe(4);
+    expect(promo.body.state.rejectedPiiAttemptCount).toBe(1);
+
+    const rollback = await request(app)
+      .post('/api/shared-intelligence/simulate-action')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        action: 'simulate_fpr_spike_rollback',
+        scopeId: previewGet.body.bundles[0].scope.scopeId,
+      });
+    expect(rollback.status).toBe(200);
+    expect(rollback.body.state.bundles[0].status).toBe('rolled_back');
+    expect(rollback.body.state.bundles[0].version).toBe(3);
+
+    const liveReport = await request(app).get('/api/reports/live');
+    expect(liveReport.status).toBe(200);
+    expect(liveReport.body.progressMetrics.aiStudioAssignmentPct).toBe(85);
+    expect(liveReport.body.progressMetrics.overallFullAppPct).toBe(19);
+    expect(liveReport.body.progressMetrics.consentBlockedScopePct).toBe(15);
+  });
 });
+

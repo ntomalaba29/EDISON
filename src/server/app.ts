@@ -33,6 +33,7 @@ import type {
   PublicUser,
   QrDestinationType,
   QrLinkStatus,
+  SharedIntelSignalType,
   SupportTicketCategory,
   SupportTicketStatus,
   TextOnlyCommercialSpec,
@@ -1187,6 +1188,80 @@ export function createEdisonApp(
         res.json({ ok: true });
       } catch (err) {
         const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  // --- Shared Ad Intelligence Prototype Preview (Block P2-V2.4 / MOCK SIMULATION ONLY) ---
+  app.get(
+    '/api/shared-intelligence/preview',
+    requireAuth,
+    (_req: AuthenticatedRequest, res: Response) => {
+      res.setHeader('Cache-Control', 'no-store');
+      res.json(store.getSharedIntelPreviewState());
+    }
+  );
+
+  app.post(
+    '/api/shared-intelligence/observations',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const allowedSignals: SharedIntelSignalType[] = [
+        'scte35',
+        'hbbtv',
+        'av_pattern',
+        'channel_cadence',
+      ];
+      const signalType = allowedSignals.includes(body.signalType as SharedIntelSignalType)
+        ? (body.signalType as SharedIntelSignalType)
+        : 'scte35';
+
+      try {
+        const result = store.submitSharedIntelPreviewObservation(req.currentUser!, {
+          tvDeviceId: String(body.tvDeviceId ?? ''),
+          scopeId: String(body.scopeId ?? ''),
+          signalType,
+          estimatedBreakDurationSec: Number(body.estimatedBreakDurationSec ?? 90),
+          transitionLatencyMs: Number(body.transitionLatencyMs ?? 400),
+          outlierAnomaly: Boolean(body.outlierAnomaly),
+          rawPayload: body,
+        });
+        res.status(201).json(result);
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err, 400);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.post(
+    '/api/shared-intelligence/simulate-action',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const body = req.body ?? {};
+      const validActions = [
+        'corroborate_quorum',
+        'inject_outlier_poison',
+        'toggle_offline',
+        'sync_cache',
+        'simulate_fpr_spike_rollback',
+        'reset_preview',
+      ];
+      if (!validActions.includes(body.action)) {
+        res.status(400).json({ error: 'Invalid simulation action.' });
+        return;
+      }
+      try {
+        const state = store.runSharedIntelPreviewAction(req.currentUser!, {
+          action: body.action,
+          scopeId: typeof body.scopeId === 'string' ? body.scopeId : undefined,
+          tvDeviceId: typeof body.tvDeviceId === 'string' ? body.tvDeviceId : undefined,
+        });
+        res.json({ state });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err, 400);
         res.status(code).json({ error: message });
       }
     }

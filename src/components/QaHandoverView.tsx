@@ -224,34 +224,38 @@ export function QaHandoverView({
         : '- PENDING OWNER DEVICE TEST: No physical smartphone camera scan record has been logged yet. Test via QA Console -> Physical Mobile QR Scan Lab.';
 
     return [
-      '# EDISON — Phase 2 to Phase 3 VS Code Engineering Handover Package',
+      '# EDISON — Phase 2 Track A Complete to Phase 3 VS Code Engineering Handover Package',
       '',
       `Generated: ${readiness?.generatedAt ?? new Date().toISOString()}`,
       'Repository: `Malaba29/EDISON-International-Smart-TV-Advertising-Network-`',
-      'Phase 2 Prototype Status: Blocks 2.1–2.7 Committed (`ADR-010`) · Phase 3 Handover Activated (`TASK-P3-001: READY`)',
+      'Phase 2 Prototype Status: Baseline Blocks 2.1–2.7 + P2-V2 Track A (`P2-V2.1`–`P2-V2.4`, 85% AI Studio scope) Complete · Track B (15%) Blocked on `DEC-OPEN-01` · `TASK-P3-001: DRAFT`',
       '',
       '---',
       '',
       '## 1. Project Architecture',
       '- **Frontend**: React 19 + TypeScript SPA on Vite 8 (`src/App.tsx`, Tailwind CSS v4), bundled cleanly via `npm run build` into `dist/`.',
-      '- **Backend Server**: Single Express 4 server entry point (`server.ts`) mounting Vite middlewares in dev (`tsx server.ts`) and serving `dist/` + API routes on port `3000` in production (`node server.ts`).',
-      '- **Persistence Layer**: Atomic single-host JSON store (`src/server/store.ts` -> `data/edison-store.json`, `schemaVersion: 6`) protected by exclusive `O_CREAT | O_EXCL` lockfile + `fsyncSync` + temp-file `renameSync`. Strictly prototype-grade; migrate to PostgreSQL in `TASK-P3-001`.',
-      '- **QR Redirect Engine**: Server-side URL/phone normaliser (`src/server/qrValidator.ts`) + direct HTTP 302 router (`GET /r/:token`) with User-Agent/prefetch bot exclusion and 5-second duplicate window filtering. Never injects intermediate ad screens (`ADR-002`).',
-      '- **TV Boundary**: All 16:9 playback & commercial-break triggers use an explicit browser `SimulationTvAdapter` (`src/components/TvPreviewView.tsx`). Zero unprivileged Smart TV OS tuner hooks (`ADR-001`, `ADR-005`).',
+      '- **Backend Server**: Testable Express 4 app factory (`createEdisonApp` in `src/server/app.ts`) + single entry `server.ts` serving Vite middlewares in dev (`tsx server.ts`) and `dist/` in production (`node server.ts`).',
+      '- **Persistence Layer**: Atomic single-host JSON store (`src/server/store.ts` -> `data/edison-store.json`, `schemaVersion: 7`) protected by exclusive `O_CREAT | O_EXCL` lockfile + `fsyncSync` + temp-file `renameSync`. Migrate to PostgreSQL in `TASK-P3-001`.',
+      '- **QR Redirect Engine**: Server-side URL/phone normaliser (`src/server/qrValidator.ts`) + direct HTTP 302 router (`GET /r/:token`) with User-Agent/prefetch bot exclusion and 5-second duplicate window filtering (`ADR-002`).',
+      '- **Commercial Formats & Alternating Break Scheduler**: Supports Option A Studio, Option B External Upload/jsQR, and Commercial `Text-Only` ads; permanent `$0.00 / FREE` Charity lock (`paymentCollectionActive: false`); Alternating 4-slot scheduler (`CHARITY -> COMMERCIAL -> CHARITY -> COMMERCIAL`) + Direct Priority over `MockAdNetworkBackfillAdapter` + separated 6-Stream Revenue Ledger.',
+      '- **TV & Shared Intelligence Simulation Boundaries**: All 16:9 playback, break triggers, and `SharedIntelligencePreviewView` (ADR-016 / PRD-19) run explicitly as software simulations (`SimulationTvAdapter` / mock shared-intelligence cache). Zero unprivileged Smart TV OS tuner hooks (`ADR-001`, `ADR-005`).',
+      '- **Approved Core Capabilities Pending Implementation (Phases 4–5)**:',
+      '  - **Normal Everyday TV Remote Control (`ADR-017` / `PRD-20` — `NOT STARTED`)**: First-class core capability routing conventional remote commands (power, volume/mute, channel up/down, source/input select, D-pad/OK/back/home) via `AURA -> EDISON Control Engine -> platform adapters -> TV`, strictly separated from intelligent ad-break switching/restoration. Zero physical TV hardware compatibility claimed or tested until `Stage P6`.',
+      '  - **Network-Wide Shared Ad Intelligence (`ADR-016` / `PRD-19` — `PROTOTYPE SIMULATION PREVIEW ONLY`)**: Mock simulation in `SharedIntelligencePreviewView`; Phase 5 Central Shared Intelligence Service & OS Local Intelligence Cache remain `NOT STARTED`.',
       '',
       '## 2. Technology Stack & Commands',
-      '- Runtime: Node.js 22+, TypeScript, Express 4.21, React 19, Vite 8.3, Tailwind CSS 4.3, `qrcode`, `jsqr`, `lucide-react`, `tsx`',
-      '- Dev Server: `npm run dev` (`tsx server.ts` on `0.0.0.0:3000`)',
+      '- Runtime: Node.js 22+, TypeScript, Express 4.21, React 19, Vite 8.3, Tailwind CSS 4.3, `qrcode`, `jsqr`, `lucide-react`, `tsx`, `vitest`, `supertest`',
+      '- Unit & HTTP Regression Suite: `npm test` (`vitest run`)',
       '- Type-Check: `npm run lint` (`tsc --noEmit`)',
       '- Production Build: `npm run build` (`vite build`)',
-      '- Production Start: `npm start` (`node server.ts`)',
+      '- Dev / Prod Server: `npm run dev` / `npm start` on `0.0.0.0:3000`',
       '',
-      '## 3. Data Model (13 Persisted Collections — Schema v6)',
+      '## 3. Data Model (Persisted Collections — Schema v7)',
       `1. \`users\` (${s?.userCount ?? 0}) — scrypt salted credentials + roles (\`advertiser\`, \`opportunity_submitter\`, \`admin\`)`,
       '2. `sessions` — HTTP-only cookie + Bearer session tokens (7-day TTL)',
       `3. \`advertiserProfiles\` (${s?.profileCount ?? 0}) — entity type, tax/registration, KYC review state`,
-      `4. \`campaigns\` (${s?.campaignCount ?? 0}) — 10-state lifecycle, \`paymentCollectionActive: false\`, simulated rate-card estimate`,
-      `5. \`adCreatives\` (${s?.adCreativeCount ?? 0}) — Option A JSON layout + Option B external upload & jsQR validation spec`,
+      `4. \`campaigns\` (${s?.campaignCount ?? 0}) — 10-state lifecycle, \`paymentCollectionActive: false\`, permanent $0 Charity lock`,
+      `5. \`adCreatives\` (${s?.adCreativeCount ?? 0}) — Option A JSON + Option B upload/jsQR + Text-Only commercial spots`,
       `6. \`qrLinks\` (${s?.qrCount ?? 0}) — validated target URLs + direct redirect counters`,
       `7. \`opportunities\` (${s?.opportunityCount ?? 0}) — 14 categories, independent 3-tier verification (\`advertisingFeeInfluencesVerification: false\`)`,
       '8. `opportunityComplaints` — complaint triage, scam flags, auto/manual suspension',
@@ -259,61 +263,43 @@ export function QaHandoverView({
       '10. `supportTickets` — advertiser review/dispute tickets',
       `11. \`analyticsEvents\` (Sim: ${s?.simulatedEventsTotal ?? 0} | Real 302s: ${s?.redirectIssuedTotal ?? 0} | Bots: ${s?.suspectedBotRedirects ?? 0} | Verified Opens: ${s?.verifiedDestinationOpens ?? 0})`,
       `12. \`physicalQrScanTests\` (${readiness?.physicalQrTotalCount ?? 0}) — real mobile camera scan verification ledger`,
-      `13. \`auditLogs\` (${s?.auditLogCount ?? 0}) — immutable governance & security audit trail`,
+      '13. `sharedIntelPreview` — mock simulation state for Shared Intelligence Prototype Preview (3 scoped caches, K=3 quorum, zero PII)',
+      `14. \`auditLogs\` (${s?.auditLogCount ?? 0}) — immutable governance & security audit trail`,
       '',
       '## 4. Main Application End-to-End Flows',
       '1. Auth (`AuthRbacView`) -> Advertiser Profile & KYC Review (`AdvertiserProfileView`) -> 10-State Campaign (`CampaignsView`)',
-      '2. Creative Production (`AdStudioView`: Option A guided 16:9 templates or Option B upload with magic-byte + jsQR QR verification blocking `decoded_mismatch`)',
-      '3. 16:9 TV Preview & Pre-Submit Gate (`TvPreviewView`) -> Commercial-Break Simulator (`SIMULATION — NOT LIVE BROADCAST TUNER`)',
-      '4. Opportunities (`OpportunityView`: 14 categories, registered + individual employers, non-transitive 3-tier verification, expiry lockout, complaints & appeals)',
-      '5. Admin Moderation & 7-Stage Analytics (`AdminAnalyticsView`: Playable 16:9 preview inspection, mandatory moderation notes, simulated vs real vs unverified Stage 7 funnel)',
-      '6. Physical Mobile QR Scan Lab & Readiness Gate (`QaHandoverView`)',
+      '2. Creative Production (`AdStudioView`: Option A templates, Option B external upload/jsQR blocking `decoded_mismatch`, Text-Only Commercial cards)',
+      '3. 16:9 TV Preview, Pre-Submit Gate & Alternating 4-Slot Break Simulator (`TvPreviewView`)',
+      '4. Opportunities (`OpportunityView`: 14 categories, free `$0` employer jobs, non-transitive 3-tier verification, expiry lockout, complaints & appeals)',
+      '5. Admin Moderation, 7-Stage Funnel & 6-Stream Revenue Ledger (`AdminAnalyticsView`)',
+      '6. Shared Ad Intelligence Prototype Preview (`SharedIntelligencePreviewView` — Mock Simulation Only)',
+      '7. Physical Mobile QR Scan Lab & Readiness Gate (`QaHandoverView`)',
       '',
       '## 5. Key Architecture Decisions (`DECISIONS_LOG.md`)',
-      '- `ADR-001`: Reject unprivileged 3P Smart TV channel hijacking; target TIF/Linear/HbbTV, OEM partnerships, HDMI-CEC, or prompted pilot.',
-      '- `ADR-002`: Direct-to-destination QR routing via HTTP 302 `/r/:token` (no secondary phone ad screen).',
-      '- `ADR-003`: 3-tier opportunity verification strictly independent of advertising fees.',
-      '- `ADR-004`: Strict 7-stage analytics separation (`simulated_prototype` vs `real_measured` vs `unverified_in_prototype`).',
-      '- `ADR-005`: Fail-safe conservative break formula; return-to-TV fallback on any failure.',
-      '- `ADR-008` / `ADR-009` / `ADR-010`: Track `src/data/` in Git, store permanent governance in GitHub, owner `"Next"` confirms preceding block commit.',
+      '- `ADR-001`–`ADR-005`: No unprivileged 3P channel hijacking, direct HTTP 302 `/r/:token`, payment-decoupled 3-tier verification, strict analytics provenance, fail-safe break formula.',
+      '- `ADR-011`–`ADR-017`: Free `$0` Charity vs Paid Commercial + Text-Only format, Direct Priority & Mock `AdNetworkBackfillAdapter`, single `Stage P6` physical TV test, independent statutory research, Network-Wide Shared Ad Intelligence, and Normal Everyday TV Remote Control (`AURA -> EDISON Control Engine -> platform adapters -> TV`).',
+      '- **Unresolved Blocking Decisions (`DEC-OPEN-01` .. `DEC-OPEN-03`)**: `DEC-OPEN-01` blocks **ONLY Track B** consent/household/multi-profile/epoch-403 work (15% of AI Studio scope) — it does **not** block Phase 3 (`TASK-P3-001`) Track A engineering hardening.',
       '',
-      '## 6. Annotated Core File Inventory',
-      '- `server.ts` — Express server, auth/session middleware, media upload & `/uploads`, `/r/:token`, all Block 2.1–2.7 REST endpoints',
-      '- `src/server/store.ts` — Locked atomic JSON store, business rules, RBAC assertions, state machines, analytics & QA snapshots',
-      '- `src/server/qrValidator.ts` — URI/phone security validator & scheme normaliser',
-      '- `src/server/mediaSecurity.ts` — Magic-byte upload validation, filename sanitisation, path traversal prevention',
-      '- `src/types/edison.ts` — Shared TypeScript domain contracts',
-      '- `src/components/FoundationViews.tsx` — Auth/RBAC & QR Redirect Engine',
-      '- `src/components/CampaignViews.tsx` — Advertiser Profiles, Tickets & 10-State Campaigns',
-      '- `src/components/AdStudioView.tsx` — Option A Studio & Option B Upload/jsQR Inspector',
-      '- `src/components/TvPreviewView.tsx` — 16:9 TV Preview, Pre-Submit Gate & Break Simulator',
-      '- `src/components/OpportunityView.tsx` — Opportunities, 3-Tier Verification, Complaints & Appeals',
-      '- `src/components/AdminAnalyticsView.tsx` — Playable Admin Moderation & 7-Stage Analytics Funnel',
-      '- `src/components/QaHandoverView.tsx` — Physical QR Scan Lab, Prototype Readiness Audit & Handover Export',
-      '- `src/components/Views.tsx` + `src/data/documents.ts` + `src/data/phase1Data.ts` — Governance & Docs Console (28 files including `VSCODE_HANDOVER_PACKAGE.md`)',
-      '',
-      '## 7. Automated Verification & Physical Phone QR Scan Log',
-      `- Automated Invariants Passed: ${readiness?.automatedInvariantsPassed ?? 0} / ${readiness?.automatedInvariantsTotal ?? 8}`,
+      '## 6. Automated Verification & Physical Phone QR Scan Log',
+      `- Automated Invariants Passed: ${readiness?.automatedInvariantsPassed ?? 0} / ${readiness?.automatedInvariantsTotal ?? 11}`,
+      `- Vitest + Supertest Regression Suite: Installed (\`npm test\` covering QR validator, Break Scheduler, API RBAC, Charity Lock, Option B mismatch, Opportunities, Ledger & Shared Intelligence preview)`,
       `- Physical Phone QR Scan Gate Status: ${readiness?.physicalQrScanStatus ?? 'PENDING_OWNER_DEVICE_TEST'}`,
       scanSection,
       '',
-      '## 8. Outstanding Work & Known Technical Limitations (`KNOWN_LIMITATIONS.md`)',
-      '- Single-host JSON file persistence (`data/edison-store.json`) is unsuitable for multi-instance production.',
-      '- Browser E2E tests (Playwright/Vitest) & headless DOM visual checks were not present in AI Studio container.',
-      '- FFmpeg video transcoding/loudness normalisation is deferred to Phase 3 (`TASK-P3-004`).',
+      '## 7. Outstanding Work & Known Technical Limitations (`KNOWN_LIMITATIONS.md`)',
+      '- Single-host JSON file persistence (`data/edison-store.json`) must migrate to PostgreSQL in Phase 3 (`TASK-P3-001`).',
+      '- Track B (Consent epochs, Household TV geo, Multi-profile personalisation, `HTTP 403` revocation) remains BLOCKED on `DEC-OPEN-01`.',
+      '- Normal Everyday TV Remote Control (`AURA -> EDISON Control Engine -> platform adapters -> TV`) is `NOT STARTED` (Phase 4 software adapters; zero hardware compatibility claimed or tested); Shared Ad Intelligence preview is strictly prototype simulation (`NOT STARTED` for Phase 5 central service & OS cache).',
+      '- FFmpeg video transcoding/loudness normalisation is deferred to Phase 3; Chromium Playwright E2E requires desktop/CI Chromium.',
       '- Stage 7 `destination_opened` remains `0` without external webhook confirmation (never fabricated from HTTP 302).',
-      '- Zero Smart TV OS hardware integration or live broadcast break detection exists yet (Phases 4–5 / Phase 12).',
-      '- Zero real payments (`paymentCollectionActive: false`) and zero legal jurisdiction sign-offs (`COUNTRY_ACTIVATION_REGISTER.md`).',
+      '- Zero real payments (`paymentCollectionActive: false`), zero GAM CTV account (`DEC-OPEN-03`), and zero country legal sign-offs.',
       '',
-      '## 9. Ordered Phase 3 VS Code Copilot Engineering Tasks',
-      '1. `TASK-P3-001` (`READY` in Command Centre): Migrate `EdisonPrototypeStore` to PostgreSQL + migrations + transactional audit logging.',
-      '2. `TASK-P3-002` (queued after `TASK-P3-001`): Harden session/JWT/cookie security, CSRF protection, rate limiting, and structured input schemas (Zod).',
-      '3. `TASK-P3-003` (queued): Build automated Vitest + Playwright E2E suite covering RBAC, 10-state campaigns, Option B QR integrity, 3-tier opportunities, and 7-stage analytics.',
-      '4. `TASK-P3-004` (queued): Build background media worker pipeline (FFmpeg 1080p/720p transcode, EBU R128 loudness check, server-side frame QR verification).',
-      '',
-      '## 10. VS Code Command Centre Protocol',
-      '- Coordination file: `coordination/EDISON_COMMAND_CENTER.md`.',
-      '- Copilot must execute the newest `READY` task (`TASK-P3-001`) and report exact commands, files, and exit codes in Section 4 (`AWAITING REVIEW`).',
+      '## 8. Ordered Phase 3 VS Code Copilot Engineering Tasks (Currently Held DRAFT)',
+      'Prerequisites to transition `TASK-P3-001` from `DRAFT` -> `READY` (independent of `DEC-OPEN-01`): (1) Owner commit of `Block P2-V2.4`, and (2) explicit Owner Phase 3 activation in `coordination/EDISON_COMMAND_CENTER.md`.',
+      '1. `TASK-P3-001` (`DRAFT` until `P2-V2.4` commit & explicit Owner Phase 3 activation): Migrate `EdisonPrototypeStore` (Track A baseline) to PostgreSQL + migrations + transactional audit logging.',
+      '2. `TASK-P3-002` (queued): Harden session/JWT/cookie security, CSRF protection, rate limiting, and Zod schemas.',
+      '3. `TASK-P3-003` (queued): Extend `tests/` with browser Playwright E2E suite in CI.',
+      '4. `TASK-P3-004` (queued): Build background media worker pipeline (FFmpeg transcode, loudness check, frame QR verification).',
     ].join('\n');
   }, [readiness]);
 
@@ -341,15 +327,15 @@ export function QaHandoverView({
 
   const reportText = useMemo(() => {
     const passed = readiness?.automatedInvariantsPassed ?? 0;
-    const total = readiness?.automatedInvariantsTotal ?? 7;
+    const total = readiness?.automatedInvariantsTotal ?? 11;
     return [
-      'EDISON — BLOCK 2.7 PHYSICAL QR SCAN TESTING, FINAL QA & VS CODE HANDOVER REPORT',
+      'EDISON — BLOCK P2-V2.4 TRACK A COMPLETION, PHYSICAL QR QA & VS CODE HANDOVER REPORT',
       `Generated: ${readiness?.generatedAt ?? new Date().toISOString()}`,
       `Active Operator: ${currentUser ? `${currentUser.email} (${currentUser.role})` : 'Signed out'}`,
       `Automated Prototype Invariants: ${passed} / ${total} passed`,
       `Physical Phone Camera Scan Gate: ${readiness?.physicalQrScanStatus ?? 'PENDING_OWNER_DEVICE_TEST'} (${readiness?.physicalQrPassedCount ?? 0} passed / ${readiness?.physicalQrTotalCount ?? 0} logged)`,
       `Live Redirect Telemetry: Requests=${readiness?.summary.redirectRequestsTotal ?? 0} | 302 Issued=${readiness?.summary.redirectIssuedTotal ?? 0} | Bots Excluded=${readiness?.summary.suspectedBotRedirects ?? 0} | Verified Opens=${readiness?.summary.verifiedDestinationOpens ?? 0}`,
-      `Handover Package Status: Complete 11-item checklist activated for Phase 3 (VSCODE_HANDOVER_PACKAGE.md authored; TASK-P3-001 Status: READY).`,
+      `Handover Package Status: Track A (85% AI Studio scope) Complete & Reconciled (VSCODE_HANDOVER_PACKAGE.md; Track B 15% blocked on DEC-OPEN-01; TASK-P3-001 held in DRAFT).`,
     ].join('\n');
   }, [readiness, currentUser]);
 
@@ -366,7 +352,7 @@ export function QaHandoverView({
               ? 'Loading...'
               : 'Sign in to run'}
           </p>
-          <p className="mt-1 text-xs text-slate-600">Blocks 2.1–2.6 architectural &amp; RBAC rules</p>
+          <p className="mt-1 text-xs text-slate-600">Blocks 2.1–2.7 &amp; P2-V2.1–V2.4 rules</p>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-lg p-5">
@@ -399,8 +385,8 @@ export function QaHandoverView({
 
         <div className="bg-white border border-slate-200 rounded-lg p-5">
           <p className="text-xs font-medium text-slate-500">Phase 3 VS Code Handover</p>
-          <p className="mt-1.5 text-sm font-semibold text-slate-900">11-Point Package Ready</p>
-          <p className="mt-1 text-xs text-emerald-700 font-mono">TASK-P3-001: READY (Command Centre)</p>
+          <p className="mt-1.5 text-sm font-semibold text-slate-900">Track A Sign-Off Reconciled</p>
+          <p className="mt-1 text-xs text-amber-700 font-mono">TASK-P3-001: DRAFT (Awaits Commit &amp; P3 Unlock)</p>
         </div>
       </div>
 
@@ -924,7 +910,7 @@ export function QaHandoverView({
                 Phase 2 Prototype Invariant &amp; Readiness Checklist
               </h2>
               <p className="text-xs text-slate-600 mt-0.5">
-                Live verification across Blocks 2.1–2.7 separating automated data invariants from real owner smartphone camera testing.
+                Live verification across Blocks 2.1–2.7 &amp; Track A (`P2-V2.1`–`P2-V2.4`) separating automated invariants from real owner smartphone camera testing.
               </p>
             </div>
             <ShieldCheck className="w-5 h-5 text-slate-500 shrink-0" />
@@ -1005,10 +991,10 @@ export function QaHandoverView({
           <div className="pb-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-slate-900">
-                VS Code Copilot Engineering Handover Package (Phase 2 → Phase 3)
+                VS Code Copilot Engineering Handover Package (Phase 2 Track A → Phase 3)
               </h2>
               <p className="text-xs text-slate-600 mt-0.5">
-                Covers all 11 mandatory deliverables defined in <code className="font-mono">VSCODE_HANDOVER_PLAN.md</code>. <code className="font-mono">TASK-P3-001</code> is <code className="font-mono">READY</code> in <code className="font-mono">coordination/EDISON_COMMAND_CENTER.md</code>.
+                Covers all mandatory deliverables defined in <code className="font-mono">VSCODE_HANDOVER_PLAN.md</code>. <code className="font-mono">TASK-P3-001</code> stays <code className="font-mono">DRAFT</code> awaiting <code className="font-mono">P2-V2.4</code> commit &amp; explicit Phase 3 activation (independent of <code className="font-mono">DEC-OPEN-01</code>, which blocks Track B only).
               </p>
             </div>
 

@@ -46,6 +46,10 @@ import type {
   RevenueStreamLedgerRow,
   SessionRecord,
   SevenStageAnalyticsSnapshot,
+  SharedIntelBundleRecord,
+  SharedIntelObservationRecord,
+  SharedIntelPreviewState,
+  SharedIntelSignalType,
   SupportTicketCategory,
   SupportTicketRecord,
   SupportTicketStatus,
@@ -55,6 +59,11 @@ import type {
 } from '../types/edison.ts';
 import { validateQrDestination } from './qrValidator.ts';
 import { scheduleCommercialBreak } from './breakScheduler.ts';
+import {
+  createInitialSharedIntelPreviewState,
+  runSharedIntelSimulationAction,
+  submitSharedIntelObservation,
+} from './sharedIntelligencePreview.ts';
 
 const DEFAULT_DATA_DIR = path.resolve(process.cwd(), 'data');
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
@@ -691,7 +700,7 @@ function createInitialSeed(): EdisonStoreData {
   const adminId = 'usr_seed_adm_01';
 
   return {
-    schemaVersion: 5,
+    schemaVersion: 7,
     users: [
       {
         id: advertiserId,
@@ -773,6 +782,7 @@ function createInitialSeed(): EdisonStoreData {
     opportunityAppeals: [],
     analyticsEvents: [],
     physicalQrScanTests: [],
+    sharedIntelPreview: createInitialSharedIntelPreviewState(),
     auditLogs: [
       {
         id: `aud_${crypto.randomBytes(6).toString('hex')}`,
@@ -781,7 +791,7 @@ function createInitialSeed(): EdisonStoreData {
         action: 'STORE_INITIALIZED',
         targetType: 'system',
         targetId: 'edison-store',
-        detail: 'Prototype persistence initialized (schema v6) with seeded accounts, QR links, profiles, campaigns, studio creatives, and opportunities.',
+        detail: 'Prototype persistence initialized (schema v7) with seeded accounts, QR links, profiles, campaigns, studio creatives, opportunities, and Shared Intelligence preview.',
         createdAt: now,
       },
     ],
@@ -876,6 +886,10 @@ function normalizeStoreData(parsed: EdisonStoreData): EdisonStoreData {
     opportunityAppeals,
     analyticsEvents: parsed.analyticsEvents || [],
     physicalQrScanTests,
+    sharedIntelPreview:
+      parsed.sharedIntelPreview && Array.isArray(parsed.sharedIntelPreview.bundles)
+        ? parsed.sharedIntelPreview
+        : createInitialSharedIntelPreviewState(),
     auditLogs: parsed.auditLogs || [],
   };
 }
@@ -4068,6 +4082,27 @@ export class EdisonPrototypeStore {
           'Automated unit & HTTP integration tests cover Auth/RBAC, /r/:token 302 + bot/dedup, $0.00 Charity lock, Text-Only format, Alternating Break Scheduler, 3-Tier Opportunity Independence, 6-Stream Ledger & 7-Stage Provenance.',
       },
       {
+        id: 'qa_v24_shared_intel_preview_and_handover',
+        block: 'Block P2-V2.4',
+        label:
+          'Shared Ad Intelligence Prototype Preview (Zero PII, K=3 Corroboration, Scope Isolation & Auto-Rollback)',
+        status: (() => {
+          const preview = this.getSharedIntelPreviewState();
+          const hasQuorumRule = preview.quorumThreshold >= 3;
+          const zeroPii =
+            preview.zeroPiiEnforced === true &&
+            preview.observations.every((obs) => obs.containsPii === false);
+          const hasScopes = preview.bundles.length >= 3 && preview.deviceCaches.length >= 3;
+          const allDeviceScopesIsolated = preview.deviceCaches.every(
+            (dc) => dc.assignedScopeId === dc.cachedScopeId
+          );
+          return hasQuorumRule && zeroPii && hasScopes && allDeviceScopesIsolated ? 'pass' : 'fail';
+        })(),
+        scope: 'automated_invariant',
+        detail:
+          'MOCK/SIMULATION PREVIEW (Phase 5 production service NOT STARTED): enforces K=3 corroboration gate, zero PII, distinct broadcast scope caches, and FPR auto-rollback guard.',
+      },
+      {
         id: 'qa_27_physical_qr_scan',
         block: 'Block 2.7',
         label: 'Physical smartphone camera scan verification on real mobile device',
@@ -4085,8 +4120,8 @@ export class EdisonPrototypeStore {
 
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 2 — AI Studio Functional Prototype (Track A Active)',
-      block: 'Block P2-V2.3 (Vitest + Supertest Automated Non-Consent Regression Suite)',
+      phase: 'Phase 2 — AI Studio Functional Prototype (Track A Complete)',
+      block: 'Block P2-V2.4 (Shared Ad Intelligence Prototype Preview & Final Track A Handover)',
       automatedInvariantsPassed,
       automatedInvariantsTotal: autoChecks.length,
       physicalQrScanStatus:
@@ -4112,6 +4147,110 @@ export class EdisonPrototypeStore {
         auditLogCount: summary.auditLogCount,
       },
     };
+  }
+
+  // --- Network-Wide Shared Ad Intelligence Prototype Preview (Block P2-V2.4 / MOCK SIMULATION) ---
+
+  getSharedIntelPreviewState(): SharedIntelPreviewState {
+    this.syncIfDiskNewer();
+    const state = this.data.sharedIntelPreview ?? createInitialSharedIntelPreviewState();
+    return {
+      ...state,
+      bundles: state.bundles.map((b) => ({
+        ...b,
+        scope: { ...b.scope },
+        corroboratingDeviceIds: [...b.corroboratingDeviceIds],
+      })),
+      deviceCaches: state.deviceCaches.map((d) => ({ ...d })),
+      observations: state.observations.map((o) => ({ ...o })),
+      auditTrail: state.auditTrail.map((a) => ({ ...a })),
+    };
+  }
+
+  submitSharedIntelPreviewObservation(
+    actor: PublicUser,
+    input: {
+      tvDeviceId: string;
+      scopeId: string;
+      signalType: SharedIntelSignalType;
+      estimatedBreakDurationSec: number;
+      transitionLatencyMs: number;
+      outlierAnomaly?: boolean;
+      rawPayload?: Record<string, unknown>;
+    }
+  ): {
+    state: SharedIntelPreviewState;
+    observation: SharedIntelObservationRecord;
+    bundle: SharedIntelBundleRecord;
+  } {
+    try {
+      return this.withWriteTransaction((draft) => {
+        const current = draft.sharedIntelPreview ?? createInitialSharedIntelPreviewState();
+        const result = submitSharedIntelObservation(current, input);
+        draft.sharedIntelPreview = result.nextState;
+        this.addAudit(
+          draft,
+          actor.id,
+          actor.role,
+          'SHARED_INTEL_OBSERVATION_SIMULATED',
+          'system',
+          input.scopeId,
+          `Simulated ${result.observation.trustDecision} for ${input.tvDeviceId} (${input.scopeId}).`
+        );
+        return {
+          state: result.nextState,
+          observation: result.observation,
+          bundle: result.bundle,
+        };
+      });
+    } catch (err) {
+      if (err instanceof Error && err.message.startsWith('ZERO-PII GUARDRAIL:')) {
+        this.withWriteTransaction((draft) => {
+          const current = draft.sharedIntelPreview ?? createInitialSharedIntelPreviewState();
+          current.rejectedPiiAttemptCount += 1;
+          current.auditTrail.unshift({
+            id: `sia_${crypto.randomBytes(4).toString('hex')}`,
+            action: 'ZERO_PII_REJECTED',
+            scopeId: input.scopeId || null,
+            detail: err.message,
+            createdAt: new Date().toISOString(),
+          });
+          draft.sharedIntelPreview = current;
+        });
+      }
+      throw err;
+    }
+  }
+
+  runSharedIntelPreviewAction(
+    actor: PublicUser,
+    params: {
+      action:
+        | 'corroborate_quorum'
+        | 'inject_outlier_poison'
+        | 'toggle_offline'
+        | 'sync_cache'
+        | 'simulate_fpr_spike_rollback'
+        | 'reset_preview';
+      scopeId?: string;
+      tvDeviceId?: string;
+    }
+  ): SharedIntelPreviewState {
+    return this.withWriteTransaction((draft) => {
+      const current = draft.sharedIntelPreview ?? createInitialSharedIntelPreviewState();
+      const nextState = runSharedIntelSimulationAction(current, params);
+      draft.sharedIntelPreview = nextState;
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'SHARED_INTEL_PREVIEW_ACTION',
+        'system',
+        params.scopeId ?? params.tvDeviceId ?? 'preview',
+        `Executed Shared Intelligence preview action "${params.action}".`
+      );
+      return nextState;
+    });
   }
 
   listAuditLogs(filters: { targetType?: string; limit?: number } = {}): AuditLogRecord[] {
@@ -4197,18 +4336,18 @@ export class EdisonPrototypeStore {
     const latestAudit = this.data.auditLogs[0] ?? null;
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 2 — AI Studio Functional Prototype (Track A Active)',
-      stage: 'P2-V2 Track A (Non-Consent Core) · Phase 3 TASK-P3-001 Held in DRAFT',
-      block: 'Block P2-V2.3 (Vitest + Supertest Automated Non-Consent Regression Suite)',
-      gateStatus: 'VERIFIED · AWAITING COMMIT (DEC-OPEN-01 TRACK B BLOCKED)',
+      phase: 'Phase 2 — AI Studio Functional Prototype (Track A Complete)',
+      stage: 'P2-V2 Track A Complete (100% Unblocked) · Phase 3 TASK-P3-001 Held in DRAFT',
+      block: 'Block P2-V2.4 (Shared Ad Intelligence Prototype Preview & Final Track A Handover)',
+      gateStatus: 'VERIFIED · AWAITING COMMIT (TRACK A COMPLETE — DEC-OPEN-01 TRACK B BLOCKED)',
       progressMetrics: {
-        aiStudioAssignmentPct: 75,
-        softwareToStageP6Pct: 29.0,
-        overallFullAppPct: 18.0,
-        remainingUntilFullAppPct: 82.0,
+        aiStudioAssignmentPct: 85,
+        softwareToStageP6Pct: 30.6,
+        overallFullAppPct: 19.0,
+        remainingUntilFullAppPct: 81.0,
         consentBlockedScopePct: 15,
         rubricSummary:
-          'Phase 1 Specs (6%) + Phase 2 Blocks 2.1-2.7 & P2-V2.1-2.3 (12%) = 18.0% of 15-Phase Full Commercial App (75% of AI Studio Prototype).',
+          'Phase 1 Specs (6.0%) + Phase 2 Track A Complete Blocks 2.1-2.7 & P2-V2.1-2.4 (13.0% / 14.0%) = 19.0% of 15-Phase Full Commercial App (85% of AI Studio Prototype; 15% Track B blocked on DEC-OPEN-01).',
       },
       latestAuditAt: latestAudit?.createdAt ?? null,
       latestAuditAction: latestAudit?.action ?? null,

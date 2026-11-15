@@ -1,6 +1,6 @@
 # EDISON — International Smart TV Advertising & Opportunity Network
 
-**[STATUS: PHASE 2 BLOCKS 2.1–2.7 VERIFIED · `P2-FIX.6`, `v2.1` & `v2.2` DOCS UNCOMMITTED · `TASK-P3-001` PAUSED IN `DRAFT`]**  
+**[STATUS: PHASE 2 TRACK A (`P2-V2.1`–`P2-V2.3` COMMITTED · `P2-V2.4` VERIFIED AWAITING COMMIT) · `TASK-P3-001` IN `DRAFT`]**  
 **[REPOSITORY PATH: `Malaba29/EDISON-International-Smart-TV-Advertising-Network-`]**
 
 EDISON is an international television advertising and verified opportunity network designed to display QR-enabled advertisements on compatible Smart TVs during suitable commercial breaks, connecting television viewers directly to advertiser destinations and legitimate employment, education, training, grant, and tender opportunities via mobile QR scanning—and improving break detection across the network through **Network-Wide Shared Ad Intelligence (`v2.2`, implementation `NOT STARTED`)**.
@@ -21,7 +21,8 @@ EDISON is an international television advertising and verified opportunity netwo
 
 - **`CHARITY ADS` (`$0.00 / FREE` Permanent Rate Card)**: Formal and verified informal employment/free employer job listings, internships, apprenticeships, scholarships, school/university admissions, education, training, conferences, educational events, community development, grants, tenders, and approved public-benefit programmes—always free to submit, verify, broadcast, scan, and apply under strict anti-fraud and 3-tier non-transitive verification rules.
 - **`COMMERCIAL ADS` (Direct-Paid Priority + Modular CTV Network Backfill)**: Commercial promotions, shops, supermarkets, restaurants, brands, manufacturers, and service providers across **Image/Banner**, **Video**, and **Text-Only Commercial Ads**, alternating `CHARITY -> COMMERCIAL -> CHARITY -> COMMERCIAL` in eligible breaks.
-- **Network-Wide Shared Ad Intelligence (`v2.2` Approved Core Requirement — `NOT STARTED`)**: Participating TVs share corroborated, scoped (`country/broadcaster/channel/platform/config`), privacy-stripped commercial-break detection telemetry through a **Central Shared Intelligence Service** and offline-capable **Local Intelligence Cache** with versioned rollback protection (`LEARN ONCE. DISTRIBUTE EVERYWHERE. UPDATE CONTINUOUSLY.`).
+- **Network-Wide Shared Ad Intelligence (`v2.2` Approved Core Requirement — Prototype Preview Only; Phase 5 Service `NOT STARTED`)**: Participating TVs share corroborated, scoped (`country/broadcaster/channel/platform/config`), privacy-stripped commercial-break detection telemetry through a **Central Shared Intelligence Service** and offline-capable **Local Intelligence Cache** with versioned rollback protection (`LEARN ONCE. DISTRIBUTE EVERYWHERE. UPDATE CONTINUOUSLY.`).
+- **Normal Everyday TV Remote Control (`ADR-017` / `PRD-20` Approved Core Capability — `NOT STARTED`)**: Standard everyday TV controls (power, volume/mute, channel, input/source, D-pad/OK/back/home) via **`AURA → EDISON Control Engine → platform adapters → TV`**, strictly separate from intelligent commercial-break switching and programme restoration. Zero physical TV hardware compatibility claimed or tested prior to `Stage P6`.
 
 ---
 
@@ -33,8 +34,8 @@ Every document below is maintained as part of the permanent EDISON engineering r
 | :--- | :--- |
 | `PROJECT_MASTER_SPECIFICATION.md` | Master architectural and functional specification (`v2.2` incl. Shared Ad Intelligence) |
 | `BUSINESS_MODEL.md` | Revenue architecture, `$0` Charity separation, direct priority & ledger separation |
-| `PRODUCT_REQUIREMENTS.md` | End-to-end functional and non-functional requirements (`PRD-01`–`PRD-19`) |
-| `SYSTEM_ARCHITECTURE.md` | Modular 11-domain architecture, Shared Intelligence topology & CTV adapter boundary |
+| `PRODUCT_REQUIREMENTS.md` | End-to-end functional and non-functional requirements (`PRD-01`–`PRD-20`) |
+| `SYSTEM_ARCHITECTURE.md` | Modular 12-domain architecture, `AURA` remote plane, Shared Intelligence topology & CTV boundary |
 | `TECHNICAL_REQUIREMENTS.md` | Media & Text-Only specs, Shared Intelligence schema/corroboration/rollback & CTV limits |
 | `SMART_TV_COMPATIBILITY_RESEARCH.md` | Grounded analysis of Android TV, Tizen, webOS, Local Cache adapters & remote repo audit |
 | `COMMERCIAL_BREAK_DETECTION.md` | SCTE-35, HbbTV, ATSC 3.0, ACR, break-detection repo audit & Shared Ad Intelligence loop |
@@ -64,7 +65,7 @@ Every document below is maintained as part of the permanent EDISON engineering r
 
 ## 4. Current Project Boundary Notice
 
-- **[VERIFIED]**: Phase 1 governance baseline & Phase 2 Blocks 2.1–2.7 code (`server.ts`, `store.ts` v6, `AdStudioView`, `TvPreviewView`, `OpportunityView`, `AdminAnalyticsView`, `QaHandoverView`) compile and pass static/runtime health checks cleanly. **`P2-FIX.6`** (`package.json`, `.env.example`), reconciled **`v2.1`** specifications, and the **`v2.2` Network-Wide Shared Ad Intelligence Addendum** (`ADR-016` / `PRD-19`, **implementation `NOT STARTED`**) are **uncommitted locally** for one combined owner commit. **`TASK-P3-001` is paused in `DRAFT`**. Zero physical TV testing during development (`Stage P6` single final test only), zero real payments (`paymentCollectionActive: false`), commercial outreach strictly locked, AURA deferred, and zero legal compliance claimed.
+- **[VERIFIED]**: Phase 1 + Phase 2 Baseline Blocks `2.1`–`2.7` + `P2-V2.1`–`P2-V2.3` are committed; `Block P2-V2.4` (`SharedIntelligencePreviewView` mock preview & Final Track A Handover Sign-Off, `85.0%` AI Studio scope) is verified locally and awaiting Owner commit. `Track B` (`15.0%`) remains strictly blocked on `DEC-OPEN-01`. **`TASK-P3-001` is paused in `DRAFT`** awaiting `Block P2-V2.4` commit and explicit Owner Phase 3 activation *(independent of `DEC-OPEN-01`)*. Normal Everyday TV Remote Control (`AURA → EDISON Control Engine → platform adapters → TV`, `NOT STARTED`) and Network-Wide Shared Ad Intelligence (`PROTOTYPE SIMULATION PREVIEW ONLY`) are approved core capabilities with zero physical TV testing during development (`Stage P6` single final test only), zero real payments (`paymentCollectionActive: false`), commercial outreach strictly locked, and zero legal compliance claimed.
 - **[LIMITATION]**: The AI Studio runtime has no local `.git` repository or push credentials; saving changes to GitHub requires the Project Owner to review and commit via AI Studio GitHub export or local git.
 - **Governance Rule**: Development proceeds strictly sequentially through verified checkpoints. Unresolved Owner Decisions (`DEC-OPEN-01` consent/profile architecture) remain blocked from implementation until explicitly resolved by the Project Owner.
 

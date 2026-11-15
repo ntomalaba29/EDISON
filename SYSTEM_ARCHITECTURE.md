@@ -1,6 +1,6 @@
 # EDISON — System Architecture
 
-**Document Status**: Reconciled Architecture (`v2.2` — Adds Mandatory Core Network-Wide Shared Ad Intelligence Loop Alongside Existing `v2.1` Domains; Cleanly Separates Implemented Baseline, Unblocked Work & Consent-Blocked `DEC-OPEN-01` Proposals)
+**Document Status**: Reconciled Architecture (`v2.2` — Covers 12 Bounded Domains including Mandatory Core Network-Wide Shared Ad Intelligence and Normal Everyday TV Remote Control; Cleanly Separates Implemented Baseline, Unblocked Work & Consent-Blocked `DEC-OPEN-01` Proposals)
 
 ---
 
@@ -19,6 +19,7 @@
 | 9 | **Individual Profiles per TV** | Not yet implemented | **`BLOCKED — AWAITING DEC-OPEN-01`** |
 | 10 | **Personalised Opportunity Matching Engine** | Not yet implemented | **`BLOCKED — AWAITING DEC-OPEN-01`** |
 | 11 | **Dual-Layer Consent & Epoch `403` QR Gate** | Not yet implemented (`ADR-002` `302` active now) | **`BLOCKED — AWAITING DEC-OPEN-01`** |
+| 12 | **Normal Everyday TV Remote Control (`AURA → EDISON Control Engine → platform adapters → TV`)** | **NOT STARTED** (`PRD-20` / `ADR-017`) | **APPROVED CORE CAPABILITY / NOT STARTED** *(Phase 4 software adapters; single `Stage P6` HW test; separate from ad-break control; zero hardware compatibility claimed)* |
 
 ---
 
@@ -67,8 +68,22 @@
 2. **Central Shared Intelligence Service**: Corroborates independent device reports across the fleet, filters out bad actors/false positives, versions verified rules, and tracks decay/reliability.
 3. **Network Synchronisation**: Uploads queued non-PII observations and fetches compatible signed delta updates strictly in the background so playback never pauses or drops frames.
 4. **Local Intelligence Cache**: Persists versioned rules scoped strictly by `(country, broadcaster, channel, platform, broadcastConfig)`, serves offline breaks safely, and automatically rolls back to the prior verified version if post-update accuracy degrades or signatures fail.
-5. **EDISON Control Engine**: Evaluates break safety equations (`ADR-005`), invokes the Alternating Scheduler (`CHARITY -> COMMERCIAL`), and guarantees immediate return to live TV.
-6. **TV Platform Adapters**: Encapsulates platform-specific playback, switch latency reporting, and decoder capabilities (`SimulationTvAdapter` during software development; single `Stage P6` check on real hardware).
+5. **EDISON Control Engine**: Evaluates break safety equations (`ADR-005`), invokes the Alternating Scheduler (`CHARITY -> COMMERCIAL`), guarantees immediate return to live TV, and separately handles explicit everyday remote commands from `AURA`.
+6. **TV Platform Adapters**: Encapsulates platform-specific playback, conventional remote-command dispatch, switch latency reporting, and decoder capabilities (`SimulationTvAdapter` during software development; single `Stage P6` check on real hardware).
+
+### 2.1 Dual Control-Plane Separation (`Normal Remote` vs `Intelligent Ad-Break Control`)
+
+```text
+Path A — Normal Everyday TV Remote (User-Initiated, Always Separate, NOT STARTED):
+  [ AURA ] ---> [ EDISON Control Engine ] ---> [ TV Platform Adapters ] ---> [ TV ]
+  (power, volume/mute, channel +/-, input/source, D-pad, OK, back, home)
+
+Path B — Intelligent Advertising-Break Switching & Restoration (Phase 4/5 Software):
+  [ Local Break Intel + Local Intel Cache ] ---> [ EDISON Control Engine ] ---> [ TV Platform Adapters ] ---> [ TV ]
+  (break prediction, safety buffer math, 4-slot Charity/Commercial schedule, watchdog restoration)
+```
+
+- **Strict Boundary**: Normal remote commands (`Path A`) do **not** run break-detection heuristics or scheduler interruption, and never imply broadcaster source hijacking. Both native adapter paths remain **`NOT STARTED`** with zero physical hardware tested until `Stage P6`.
 
 ---
 

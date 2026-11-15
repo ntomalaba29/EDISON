@@ -35,6 +35,7 @@ import { TvPreviewView, type TvPreviewSubTab } from './components/TvPreviewView'
 import { OpportunityView } from './components/OpportunityView';
 import { AdminAnalyticsView } from './components/AdminAnalyticsView';
 import { QaHandoverView } from './components/QaHandoverView';
+import { SharedIntelligencePreviewView } from './components/SharedIntelligencePreviewView';
 import { COMMIT_AND_NEXT_MESSAGE, copyTextWithFallback } from './components/CopyReportFooter';
 import { EDISON_DOCUMENTS } from './data/documents';
 import type { PublicUser } from './types/edison';
@@ -47,6 +48,7 @@ type NavTab =
   | 'tv_preview'
   | 'opportunities'
   | 'admin_analytics'
+  | 'shared_intel'
   | 'qa_handover'
   | 'qr'
   | 'reports'
@@ -80,6 +82,7 @@ const PROTOTYPE_NAV: { id: NavTab; label: string; icon: typeof KeyRound }[] = [
   { id: 'tv_preview', label: 'TV Preview & Break Sim', icon: MonitorPlay },
   { id: 'opportunities', label: 'Opportunities & 3-Tier QA', icon: Briefcase },
   { id: 'admin_analytics', label: 'Moderation & Analytics', icon: BarChart3 },
+  { id: 'shared_intel', label: 'Shared Intel (Preview)', icon: Tv },
   { id: 'qa_handover', label: 'QR QA & VS Code Handover', icon: Smartphone },
   { id: 'qr', label: 'QR Redirect Engine', icon: QrCode },
 ];
@@ -165,7 +168,7 @@ export default function App() {
         <nav className="p-3 space-y-5" aria-label="EDISON navigation">
           <div>
             <p className="px-3 mb-1.5 text-xs font-semibold text-slate-500">
-              Phase 2 Prototype · Phase 3 Ready
+              Phase 2 Track A · Track B Blocked
             </p>
             <div className="space-y-1">
               {PROTOTYPE_NAV.map((item) => {
@@ -225,7 +228,7 @@ export default function App() {
         <div className="p-4 m-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-1">
           <p className="font-semibold text-slate-800">Prototype Boundary</p>
           <p className="leading-relaxed">
-            Phase 2 (Blocks 2.1–2.7) committed. Phase 3 TASK-P3-001 is READY in the Command Centre for VS Code Copilot. Zero real payments or Smart TV tuner hooks.
+            Phase 2 Track A (85%) implemented; Track B (15%) blocked on DEC-OPEN-01. TASK-P3-001 held in DRAFT. Zero real payments or Smart TV tuner hooks.
           </p>
         </div>
       </aside>
@@ -247,7 +250,7 @@ export default function App() {
               <span className="text-slate-500 whitespace-nowrap">EDISON</span>
               <span className="text-slate-300" aria-hidden="true">/</span>
               <span className="text-slate-500 whitespace-nowrap hidden sm:inline">
-                {isPrototypeTab ? 'Phase 2 Committed · Phase 3 Ready' : 'Governance'}
+                {isPrototypeTab ? 'Phase 2 Track A Complete' : 'Governance'}
               </span>
               <span className="text-slate-300 hidden sm:inline" aria-hidden="true">/</span>
               <h1 className="font-semibold text-slate-900 truncate">{currentItem.label}</h1>
@@ -355,6 +358,13 @@ export default function App() {
           )}
           {activeTab === 'admin_analytics' && (
             <AdminAnalyticsView
+              currentUser={currentUser}
+              onNavigateAuth={() => setActiveTab('auth')}
+              onSummaryRefresh={refreshAuthState}
+            />
+          )}
+          {activeTab === 'shared_intel' && (
+            <SharedIntelligencePreviewView
               currentUser={currentUser}
               onNavigateAuth={() => setActiveTab('auth')}
               onSummaryRefresh={refreshAuthState}

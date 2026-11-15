@@ -81,7 +81,7 @@ export function ReportsView() {
           <p className="mt-1.5 text-lg font-semibold text-slate-900 tabular-nums">
             {liveSnapshot?.progressMetrics
               ? `${liveSnapshot.progressMetrics.overallFullAppPct}% Full App · ${liveSnapshot.progressMetrics.aiStudioAssignmentPct}% AI Studio`
-              : '15.5% Full App · 62% AI Studio'}
+              : '19.0% Full App · 85% AI Studio'}
           </p>
           <p className="mt-1 text-xs text-slate-600 tabular-nums">
             {liveSnapshot?.progressMetrics
@@ -158,8 +158,8 @@ export function RoadmapView() {
   const reportText = useMemo(() => {
     const lines = [
       'EDISON — COMPLETE ROADMAP & ASSIGNMENT VERIFICATION REPORT',
-      'Current Gate: Phase 3 Handover Activated (TASK-P3-001 READY)',
-      'Committed Baseline: Phase 1 (28 Docs) + Phase 2 (Blocks 2.1–2.7)',
+      'Current Gate: Phase 2 Track A Complete (85% AI Studio) · Block P2-V2.4 Awaiting Commit · TASK-P3-001 Held DRAFT',
+      'Committed Baseline: Phase 1 + Blocks 2.1–2.7 + P2-V2.1–P2-V2.3',
       '',
       'PHASE 1 ASSIGNMENT CHECKLIST:',
       ...PHASE1_CHECKLIST.map((c) => `${c.id}. ${c.item} — [${c.status}]`),
@@ -516,8 +516,8 @@ export function CommandCentreView() {
               </p>
             </div>
           </div>
-          <span className="text-xs font-mono font-semibold text-emerald-700 whitespace-nowrap">
-            COPILOT TASK STATUS: READY (TASK-P3-001)
+          <span className="text-xs font-mono font-semibold text-amber-700 whitespace-nowrap">
+            COPILOT TASK STATUS: DRAFT (TASK-P3-001 HELD FOR P2 SIGN-OFF)
           </span>
         </div>
 

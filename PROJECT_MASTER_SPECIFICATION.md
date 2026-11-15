@@ -1,6 +1,6 @@
 # EDISON — Project Master Specification
 
-**Document Status**: Reconciled Authoritative Specification (`v2.2` — Incorporates `v2.1` Corrections + `v2.2` Mandatory Network-Wide Shared Ad Intelligence Capability; Distinguishes Approved Rules from `[UNRESOLVED OWNER DECISIONS]` & `[IMPLEMENTATION NOT STARTED]`)  
+**Document Status**: Reconciled Authoritative Specification (`v2.2` — Incorporates `v2.1` Corrections, `v2.2` Mandatory Network-Wide Shared Ad Intelligence Capability, and Normal Everyday TV Remote Capability; Distinguishes Approved Rules from `[UNRESOLVED OWNER DECISIONS]` & `[IMPLEMENTATION NOT STARTED]`)  
 **Evidence Standard**: `[VERIFIED]`, `[VERIFIED FROM OFFICIAL GOOGLE DOCS]`, `[UNVERIFIED / UNRESOLVED]`, `[INACCESSIBLE / UNVERIFIED]`, `[DEFERRED]`
 
 ---
@@ -15,9 +15,10 @@ EDISON is an international Smart TV advertising and verified opportunity network
 4. **Independence of Verification (`ADR-003`)**: Three verification tiers (`Identity`, `Organisation`, `Specific Opportunity`) are strictly non-transitive and completely independent of advertising payments.
 5. **No Unlawful Broadcaster Modification (`ADR-001`)**: Never modify, cover, crop, intercept, or rebroadcast broadcaster streams, nor bypass DRM or HDCP.
 6. **Network-Wide Shared Ad Intelligence (`ADR-016`, `v2.2` Core Requirement — `NOT STARTED`)**: Participating TVs collectively improve commercial-break detection (`LEARN ONCE. DISTRIBUTE EVERYWHERE. UPDATE CONTINUOUSLY.`) via a Central Shared Intelligence Service & Local Intelligence Cache with multi-TV corroboration, strict compatibility scoping, offline operation, rollback protection, and zero viewer PII.
-7. **Software-First Testing + Single Final Physical Test (`ADR-014`)**: Development testing uses automated tests, browser automation, recorded media, and `SimulationTvAdapter`—with zero repeated physical TV tests during development and **strictly one planned final integrated physical test at app completion (`Stage P6`)**.
-8. **Independent Public Legal Research (`ADR-015`, No Legal Counsel Dependency)**: Applicable country laws are researched independently from official public legislation/regulator sources without external lawyers as a development gate; technical controls never claim legal compliance (`ZERO LEGAL COMPLIANCE CLAIMED`).
-9. **Locked Out-of-Scope Boundaries**: Commercial business discovery and automated email outreach remain **STRICTLY PAUSED AND LOCKED**. AURA remains **DEFERRED**.
+7. **Normal Everyday TV Remote Control (`ADR-017` / `PRD-20` — `APPROVED CORE CAPABILITY / IMPLEMENTATION NOT STARTED`)**: EDISON includes standard, everyday television remote-control functionality via `AURA → EDISON Control Engine → platform adapters → TV`, strictly separated from intelligent commercial-break switching and programme restoration. Zero physical TV hardware compatibility is claimed or tested until `Stage P6`.
+8. **Software-First Testing + Single Final Physical Test (`ADR-014`)**: Development testing uses automated tests, browser automation, recorded media, and `SimulationTvAdapter`—with zero repeated physical TV tests during development and **strictly one planned final integrated physical test at app completion (`Stage P6`)**.
+9. **Independent Public Legal Research (`ADR-015`, No Legal Counsel Dependency)**: Applicable country laws are researched independently from official public legislation/regulator sources without external lawyers as a development gate; technical controls never claim legal compliance (`ZERO LEGAL COMPLIANCE CLAIMED`).
+10. **Locked Out-of-Scope Boundaries**: Commercial business discovery and automated email outreach remain **STRICTLY PAUSED AND LOCKED**. (AURA's everyday TV remote interface is active in architecture specification only as `NOT STARTED`; commercial outreach remains locked.)
 
 ---
 
@@ -67,3 +68,15 @@ Blueprint `v2.0` proposed household TV installations (`Country -> Province/Regio
 - **Central Shared Intelligence Service**: Receives authenticated technical observations from participating TVs, validates schemas & channel identity, detects conflicts/spam, requires multi-TV corroboration before trust promotion (**never trusting a single TV automatically**), computes confidence scores, maintains versioned intelligence records, distributes signed compatible updates, and tracks freshness/reliability.
 - **Local TV Intelligence & Cache**: Every compatible TV caches intelligence filtered strictly by `(country, broadcaster, channel, platform, broadcastConfig)`, runs offline autonomously, queues new observations until reconnect, applies validated updates silently without interrupting viewing, and rolls back cleanly if accuracy degrades or checksums fail.
 - **Privacy Mandate**: Strictly non-PII technical broadcast/detection telemetry only—never household identities, profiles, precise coordinates, personal viewing histories, or private ad/opportunity interactions.
+
+---
+
+## 6. Normal Everyday TV Remote Control (`APPROVED CORE CAPABILITY — IMPLEMENTATION NOT STARTED`)
+
+- **First-Class Core Product Capability**: Alongside EDISON's advertising and opportunity workflows, EDISON provides ordinary, everyday television remote-control functionality so a viewer can operate their television normally.
+- **TV-Control Architecture**: All everyday remote commands route cleanly through **`AURA → EDISON Control Engine → platform adapters → TV`**.
+- **Conventional Remote Commands**: Supports standard everyday controls including power toggle/standby, volume up/down, mute, channel up/down, source/input selection, directional navigation (up/down/left/right/OK), back, and home.
+- **Strict Separation from Intelligent Advertising Control**:
+  - **Ordinary Remote Path**: Explicit user-triggered conventional TV controls routed through `AURA → EDISON Control Engine → platform adapters → TV` without break-detection triggers, ad-slot scheduling, or forced programme interruption.
+  - **Intelligent Ad-Break Path**: Lawful break-detection, safety-buffer verification, alternating 4-slot commercial/charity playback, and fail-safe return to live television (`ADR-005`, `ADR-016`).
+- **Verification & Implementation Honesty**: Software implementation of native `AURA` and OS platform remote adapters is **`NOT STARTED`** (Phase 4 software/emulator adapter engineering; physical hardware compatibility verified **only** in the single planned `Stage P6` test—zero hardware compatibility claimed today).

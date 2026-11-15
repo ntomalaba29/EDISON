@@ -68,3 +68,14 @@ Every record ingested or distributed MUST bind to an explicit compatibility tupl
 - **10 Lifecycle Analytics Events** (`[SPECIFIED]`): `ad_requested`, `ad_selected`, `ad_delivered`, `ad_started`, `ad_played`, `ad_completed`, `ad_viewable`, `qr_request`, `destination_opened`, `verified_conversion`.
 - **Financial Attribution Separation**: `charity_free`, `direct_commercial_paid`, `ad_network_estimated`, `ad_network_confirmed`, `actual_payment_received`, `refund_adjustment`.
 - **7-Level Private Household Geo Schema (`[PENDING DEC-OPEN-01]`)**: `countryCode`, `provinceOrRegion`, `metropolitanArea?`, `cityOrTown`, `district?`, `suburbOrResidentialArea?`, `exactInstallationLocation`.
+
+---
+
+## 6. Normal Everyday TV Remote Control Technical Requirements (`APPROVED CORE CAPABILITY — NOT STARTED`)
+
+- **Required Control Pipeline**: **`AURA → EDISON Control Engine → platform adapters → TV`**.
+- **Conventional Command Set**: `power_toggle`, `volume_up`, `volume_down`, `mute_toggle`, `channel_up`, `channel_down`, `source_select`, `dpad_up`, `dpad_down`, `dpad_left`, `dpad_right`, `select_ok`, `back`, `home`.
+- **Execution Isolation**:
+  - Everyday remote commands bypass ad-break safety-buffer gating and alternating slot scheduling, executing deterministically on explicit user input with structured acknowledgement/error states and bounded command timeouts.
+  - Intelligent ad-break switching (`CHARITY -> COMMERCIAL`) and programme restoration remain a distinct engine path subject to `ADR-005` safety math and watchdog recovery.
+- **Adapter & Hardware Honesty**: `SimulationTvAdapter` covers UI preview only (`Block 2.4`) and does **not** implement physical remote control; OS-specific remote transport adapters (`Android TV`, `Samsung Tizen`, `LG webOS`) are **`NOT STARTED`** (Phase 4 software engineering; verified on physical hardware once at `Stage P6`, with zero compatibility claimed beforehand).

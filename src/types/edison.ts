@@ -557,6 +557,7 @@ export interface EdisonStoreData {
   analyticsEvents: AnalyticsEventRecord[];
   physicalQrScanTests: PhysicalQrScanTestRecord[];
   auditLogs: AuditLogRecord[];
+  sharedIntelPreview?: SharedIntelPreviewState;
 }
 
 export interface EdisonProgressMetrics {
@@ -717,3 +718,97 @@ export interface RevenueLedgerSnapshot {
     refundAdjustmentsUsd: number;
   };
 }
+
+// --- Network-Wide Shared Ad Intelligence Prototype Preview (Block P2-V2.4 / ADR-016) ---
+
+export type SharedIntelSignalType = 'scte35' | 'hbbtv' | 'av_pattern' | 'channel_cadence';
+
+export type SharedIntelBundleStatus =
+  | 'corroborated_published'
+  | 'quarantined_pending_corroboration'
+  | 'rolled_back'
+  | 'rejected_poison_outlier';
+
+export type SharedIntelTrustDecision =
+  | 'accepted_corroborated'
+  | 'quarantined_pending_quorum'
+  | 'rejected_outlier'
+  | 'queued_offline';
+
+export interface SharedIntelScopeKey {
+  scopeId: string;
+  country: string;
+  broadcaster: string;
+  channel: string;
+  platform: string;
+  broadcastConfig: string;
+  displayName: string;
+}
+
+export interface SharedIntelBundleRecord {
+  scope: SharedIntelScopeKey;
+  version: number;
+  previousGoodVersion: number;
+  status: SharedIntelBundleStatus;
+  corroboratingDeviceIds: string[];
+  pendingObservations: number;
+  quorumRequired: number;
+  confidenceScore: number;
+  p10BreakDurationSec: number;
+  p50BreakDurationSec: number;
+  switchingLatencyMs: number;
+  falsePositiveRatePct: number;
+  sha256Manifest: string;
+  rollbackReason: string | null;
+  updatedAt: string;
+}
+
+export interface SharedIntelObservationRecord {
+  id: string;
+  tvDeviceId: string;
+  scopeId: string;
+  signalType: SharedIntelSignalType;
+  estimatedBreakDurationSec: number;
+  transitionLatencyMs: number;
+  outlierAnomaly: boolean;
+  trustDecision: SharedIntelTrustDecision;
+  decisionReason: string;
+  containsPii: false;
+  createdAt: string;
+}
+
+export interface SharedIntelLocalDeviceCache {
+  tvDeviceId: string;
+  deviceLabel: string;
+  assignedScopeId: string;
+  cachedBundleVersion: number;
+  cachedScopeId: string;
+  cachedP10DurationSec: number;
+  cachedSha256: string;
+  offlineMode: boolean;
+  queuedObservationsCount: number;
+  lastSyncedAt: string;
+  fallbackStatus: 'online_synced' | 'offline_using_local_cache' | 'rollback_restored';
+}
+
+export interface SharedIntelAuditEntry {
+  id: string;
+  action: string;
+  scopeId: string | null;
+  detail: string;
+  createdAt: string;
+}
+
+export interface SharedIntelPreviewState {
+  isPrototypeSimulation: true;
+  implementationNote: string;
+  quorumThreshold: number;
+  fprRollbackThresholdPct: number;
+  zeroPiiEnforced: true;
+  rejectedPiiAttemptCount: number;
+  bundles: SharedIntelBundleRecord[];
+  deviceCaches: SharedIntelLocalDeviceCache[];
+  observations: SharedIntelObservationRecord[];
+  auditTrail: SharedIntelAuditEntry[];
+}
+
