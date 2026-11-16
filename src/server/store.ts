@@ -59,6 +59,7 @@ import type {
 } from '../types/edison.ts';
 import { validateQrDestination } from './qrValidator.ts';
 import { runDeliveryInfraVerificationSuite } from './adDeliveryInfra.ts';
+import { runAdvertiserOpsVerificationSuite } from './advertiserOps.ts';
 import { scheduleCommercialBreak } from './breakScheduler.ts';
 import {
   createInitialSharedIntelPreviewState,
@@ -4456,6 +4457,25 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
           '8/8 delivery invariants passed: SHA-256 manifests, $0.00 Charity isolation, coarse regional & active-QR gates, Tizen codec gating, daily N+1 frequency cap blocking, CDN outage failover & idempotent event deduplication (hardwareTested=false, Stage P6 deferred).',
       },
       {
+        id: 'qa_71_advertiser_ops_billing_boundary',
+        block: 'Block 7.1',
+        label:
+          'Phase 7 Block 7.1: Advertiser Operations (KYC Readiness Gates, Campaign Pacing, SLA Triage & Non-Transactional $0.00 Pro-Forma Blueprint)',
+        status: (() => {
+          const ops = runAdvertiserOpsVerificationSuite();
+          return ops.allPassed &&
+            ops.passedChecks === 8 &&
+            ops.paymentCollectionActive === false &&
+            !ops.hardwareTested &&
+            ops.stageP6Deferred
+            ? 'pass'
+            : 'fail';
+        })(),
+        scope: 'automated_invariant',
+        detail:
+          '8/8 advertiser ops invariants passed: KYC onboarding readiness gating, paymentCollectionActive=false lock, $0.00 Charity pro-forma isolation, SHA-256 blueprint integrity, pacing classification & SLA breach detection (hardwareTested=false, Stage P6 deferred).',
+      },
+      {
         id: 'qa_27_physical_qr_scan',
         block: 'Block 2.7',
         label: 'Physical smartphone camera scan verification on real mobile device',
@@ -4473,8 +4493,8 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
 
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 6 — Advertising Delivery Infrastructure (Software-First · JSON Retained)',
-      block: 'Block 6.1 (CDN Preload Manifests, Regional/Device Scheduling, Frequency Caps, Failover Recovery & Idempotent Ingestion)',
+      phase: 'Phase 7 — Advertiser and Campaign Operations (Software-First · Non-Transactional Billing)',
+      block: 'Block 7.1 (Advertiser Onboarding Gates, Campaign Pacing, Pro-Forma Invoice Blueprint & Support SLA Triage)',
       automatedInvariantsPassed,
       automatedInvariantsTotal: autoChecks.length,
       physicalQrScanStatus:
@@ -4689,18 +4709,18 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     const latestAudit = this.data.auditLogs[0] ?? null;
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 6 — Advertising Delivery Infrastructure (Software-First · JSON Retained)',
-      stage: 'Phases 1–5 Committed · Phase 6 Block 6.1 Software Delivery Verified · TASK-P3-001 READY',
-      block: 'Block 6.1 (CDN Preload Manifests, Frequency Caps, Edge Failover Recovery & Idempotent Event Ingestion)',
-      gateStatus: 'BLOCK 6.1 VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · STAGE P6 HARDWARE DEFERRED)',
+      phase: 'Phase 7 — Advertiser and Campaign Operations (Software-First · Non-Transactional Billing)',
+      stage: 'Phases 1–6 Committed · Phase 7 Block 7.1 Advertiser Ops & Pacing Verified · TASK-P3-001 READY',
+      block: 'Block 7.1 (Advertiser Onboarding Gates, Campaign Pacing, Pro-Forma Invoice Blueprint & Support SLA Triage)',
+      gateStatus: 'BLOCK 7.1 VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · STAGE P6 HARDWARE DEFERRED)',
       progressMetrics: {
         aiStudioAssignmentPct: 85,
         softwareToStageP6Pct: 80.3,
-        overallFullAppPct: 53.0,
-        remainingUntilFullAppPct: 47.0,
+        overallFullAppPct: 56.0,
+        remainingUntilFullAppPct: 44.0,
         consentBlockedScopePct: 15,
         rubricSummary:
-          'Phase 1 Specs (6.0%) + Phase 2 Track A Complete (13.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Complete Committed (12.0%) + Phase 6 Block 6.1 Delivery Infra Awaiting Commit (4.0%) = 53.0% of 15-Phase Full Commercial App (80.3% to Stage P6; 15% Track B blocked on DEC-OPEN-01).',
+          'Phase 1 Specs (6.0%) + Phase 2 Track A Complete (13.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Complete Committed (12.0%) + Phase 6 Delivery Infra Committed (4.0%) + Phase 7 Block 7.1 Advertiser Ops Awaiting Commit (3.0%) = 56.0% of 15-Phase Full Commercial App (80.3% to Stage P6; 15% Track B blocked on DEC-OPEN-01).',
       },
       latestAuditAt: latestAudit?.createdAt ?? null,
       latestAuditAction: latestAudit?.action ?? null,

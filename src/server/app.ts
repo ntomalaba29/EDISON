@@ -51,6 +51,11 @@ import {
   runDeliveryInfraVerificationSuite,
 } from './adDeliveryInfra.ts';
 import {
+  buildAdvertiserOpsOverview,
+  generateProFormaInvoiceBlueprint,
+  runAdvertiserOpsVerificationSuite,
+} from './advertiserOps.ts';
+import {
   adCreativeAttachSchema,
   adCreativeSaveSchema,
   adminAppealResolveSchema,
@@ -89,6 +94,7 @@ import {
   parseWithZod,
   phase4ExitSuiteSchema,
   physicalQrTestCreateSchema,
+  proFormaBlueprintRequestSchema,
   qrCreateSchema,
   qrStatusPatchSchema,
   qrValidateSchema,
@@ -1984,6 +1990,68 @@ export function createEdisonApp(
         'DELIVERY_INFRA_SUITE_RUN',
         'phase6_delivery_infra',
         `[${req.requestId ?? 'req'}] Phase 6 delivery suite: ${report.passedChecks}/${report.totalChecks} passed (hardwareTested=false).`
+      );
+      res.json(report);
+    }
+  );
+
+  // Phase 7 Block 7.1: Advertiser Operations, Pacing, Pro-Forma Blueprints & SLA Triage (Non-Transactional)
+  app.get(
+    '/api/advertiser-ops/overview',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const user = req.currentUser!;
+      const overview = buildAdvertiserOpsOverview({
+        profile: store.getAdvertiserProfile(user),
+        campaigns: store.listCampaignsForUser(user),
+        qrLinks: store.listQrLinksForUser(user),
+        tickets: store.listSupportTicketsForUser(user),
+        analyticsEvents: store.listAnalyticsEvents(250),
+      });
+      res.json(overview);
+    }
+  );
+
+  app.post(
+    '/api/advertiser-ops/pro-forma-blueprint',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(proFormaBlueprintRequestSchema, req.body ?? {});
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const user = req.currentUser!;
+      const blueprint = generateProFormaInvoiceBlueprint(
+        store.getAdvertiserProfile(user),
+        store.listCampaignsForUser(user),
+        parsed.data.billingPeriodLabel
+      );
+      store.recordSecurityAudit(
+        user,
+        'PROFORMA_BLUEPRINT_GENERATED',
+        blueprint.blueprintId,
+        `[${req.requestId ?? 'req'}] Generated non-transactional pro-forma blueprint ${blueprint.blueprintId} ($${blueprint.totalProjectedRateCardUsd.toFixed(2)} simulated; paymentCollectionActive=false).`
+      );
+      res.json(blueprint);
+    }
+  );
+
+  app.post(
+    '/api/advertiser-ops/verify-suite',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(emptyStrictSchema, req.body ?? {});
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const report = runAdvertiserOpsVerificationSuite();
+      store.recordSecurityAudit(
+        req.currentUser!,
+        'ADVERTISER_OPS_SUITE_RUN',
+        'phase7_advertiser_ops',
+        `[${req.requestId ?? 'req'}] Phase 7 advertiser ops suite: ${report.passedChecks}/${report.totalChecks} passed (paymentCollectionActive=false, hardwareTested=false).`
       );
       res.json(report);
     }

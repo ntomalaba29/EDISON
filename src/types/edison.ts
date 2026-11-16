@@ -1564,3 +1564,142 @@ export interface DeliveryInfraVerificationReport {
   checks: DeliveryInfraVerifyCheckItem[];
 }
 
+// --- Phase 7 Block 7.1: Advertiser Management, Commercial Operations & Non-Transactional Billing Boundaries ---
+
+export interface AdvertiserOnboardingReadiness {
+  userId: string;
+  businessOrTradingName: string;
+  entityType: AdvertiserEntityType;
+  verificationStatus: AccountVerificationStatus;
+  countryCode: string;
+  slaTier: 'standard_24h' | 'verified_priority_12h' | 'suspended_restricted';
+  onboardingReady: boolean;
+  commercialActivationAllowed: boolean;
+  gates: {
+    entityIdentityCompleted: boolean;
+    taxOrRegistrationProvided: boolean;
+    billingAndPrimaryContactsValid: boolean;
+    activeSafeQrLinked: boolean;
+    accountVerificationApproved: boolean;
+    noRealPaymentActivated: true;
+  };
+  missingChecklist: string[];
+  paymentCollectionActive: false;
+}
+
+export type CampaignPacingStatus =
+  | 'on_pace'
+  | 'under_pacing'
+  | 'over_capped'
+  | 'charity_free_unmetered'
+  | 'window_inactive';
+
+export interface CampaignPacingSnapshot {
+  campaignId: string;
+  title: string;
+  status: CampaignStatus;
+  primaryCategory: PrimaryAdCategory;
+  contentCategory: CampaignContentCategory;
+  pacingStatus: CampaignPacingStatus;
+  elapsedSchedulePct: number;
+  targetSpotsTotal: number;
+  deliveredSpotsSimulated: number;
+  remainingSpotsProjected: number;
+  dailyFrequencyCap: number;
+  recommendedSpotsPerDay: number;
+  projectedRateCardUsd: number;
+  charityZeroCostLocked: boolean;
+  paymentCollectionActive: false;
+}
+
+export interface ProFormaInvoiceLineItem {
+  campaignId: string;
+  title: string;
+  primaryCategory: PrimaryAdCategory;
+  status: CampaignStatus;
+  estimatedSpots: number;
+  estimatedRatePerSpotUsd: number;
+  projectedAmountUsd: number;
+  charityZeroCostLocked: boolean;
+  billingClassification: 'CHARITY_PERMANENT_ZERO' | 'SIMULATED_DIRECT_RATE_CARD';
+}
+
+export interface ProFormaInvoiceBlueprint {
+  blueprintId: string;
+  generatedAt: string;
+  billingPeriodLabel: string;
+  advertiserUserId: string;
+  businessOrTradingName: string;
+  billingContactName: string;
+  billingContactEmail: string;
+  currency: 'USD';
+  invoiceStatus: 'SIMULATED_PRO_FORMA_ONLY';
+  paymentCollectionActive: false;
+  realPaymentGatewayConnected: false;
+  actualCashChargedUsd: 0;
+  commercialSubtotalUsd: number;
+  charitySubtotalUsd: 0;
+  totalProjectedRateCardUsd: number;
+  blueprintSha256: string;
+  lineItems: ProFormaInvoiceLineItem[];
+  governanceNotice: string;
+}
+
+export type SupportSlaState = 'nominal' | 'approaching_sla' | 'sla_breached' | 'closed_resolved';
+
+export interface SupportSlaTicketSummary {
+  ticketId: string;
+  category: SupportTicketCategory;
+  subject: string;
+  status: SupportTicketStatus;
+  slaTargetHours: number;
+  elapsedHours: number;
+  slaState: SupportSlaState;
+}
+
+export interface AdvertiserOpsOverviewSnapshot {
+  generatedAt: string;
+  isSoftwareSimulationOnly: true;
+  paymentCollectionActive: false;
+  automatedOutreachBlocked: true;
+  hardwareTested: false;
+  stageP6Deferred: true;
+  onboarding: AdvertiserOnboardingReadiness;
+  pacingSummary: {
+    totalCampaigns: number;
+    activeCampaigns: number;
+    onPaceCount: number;
+    underPacingCount: number;
+    charityFreeCount: number;
+    totalProjectedRateCardUsd: number;
+    actualCashCollectedUsd: 0;
+  };
+  campaignPacing: CampaignPacingSnapshot[];
+  supportSla: {
+    openTicketsCount: number;
+    approachingSlaCount: number;
+    breachedSlaCount: number;
+    tickets: SupportSlaTicketSummary[];
+  };
+}
+
+export interface AdvertiserOpsVerifyCheckItem {
+  checkId: string;
+  label: string;
+  passed: boolean;
+  detail: string;
+}
+
+export interface AdvertiserOpsVerificationReport {
+  generatedAt: string;
+  isSoftwareSimulationOnly: true;
+  paymentCollectionActive: false;
+  hardwareTested: false;
+  stageP6Deferred: true;
+  totalChecks: number;
+  passedChecks: number;
+  allPassed: boolean;
+  checks: AdvertiserOpsVerifyCheckItem[];
+}
+
+

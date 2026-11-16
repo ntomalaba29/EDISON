@@ -444,8 +444,8 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
       .get('/api/qa/prototype-readiness')
       .set('Authorization', `Bearer ${adminLogin.body.token}`);
     expect(readinessRes.status).toBe(200);
-    expect(readinessRes.body.automatedInvariantsPassed).toBe(20);
-    expect(readinessRes.body.automatedInvariantsTotal).toBe(20);
+    expect(readinessRes.body.automatedInvariantsPassed).toBe(21);
+    expect(readinessRes.body.automatedInvariantsTotal).toBe(21);
   });
 
   it('hardens /api/media/upload against SVG/HTML polyglots & invalid base64 and locks down /uploads/* headers & symlinks', async () => {
@@ -913,8 +913,8 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
       .get('/api/qa/prototype-readiness')
       .set('Authorization', `Bearer ${adminToken}`);
     expect(qaRes.status).toBe(200);
-    expect(qaRes.body.automatedInvariantsPassed).toBe(20);
-    expect(qaRes.body.automatedInvariantsTotal).toBe(20);
+    expect(qaRes.body.automatedInvariantsPassed).toBe(21);
+    expect(qaRes.body.automatedInvariantsTotal).toBe(21);
   });
 
   it('Block 5.1: enforces Ed25519 signature verification (401), Zero-PII (400), strict Zod schemas, scoped compatibility (409), and 11/11 Scenarios 25–35', async () => {
@@ -1168,6 +1168,70 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
     expect(suiteRes.body.totalChecks).toBe(8);
     expect(suiteRes.body.passedChecks).toBe(8);
     expect(suiteRes.body.allPassed).toBe(true);
+    expect(suiteRes.body.hardwareTested).toBe(false);
+    expect(suiteRes.body.stageP6Deferred).toBe(true);
+  });
+
+  it('Block 7.1: secures /api/advertiser-ops/* with auth/CSRF/strict-Zod, enforces $0.00 non-transactional billing lock & passes 8/8 suite', async () => {
+    const unauthNoCsrf = await request(app).post('/api/advertiser-ops/pro-forma-blueprint').send({});
+    expect(unauthNoCsrf.status).toBe(403);
+
+    const invalidBearer = await request(app)
+      .post('/api/advertiser-ops/verify-suite')
+      .set('Authorization', 'Bearer bad_token_71')
+      .send({});
+    expect(invalidBearer.status).toBe(401);
+
+    const advLogin = await request(app).post('/api/auth/login').send({
+      email: 'advertiser@edison.demo',
+      password: 'EdisonProto!2026',
+    });
+    const advToken = advLogin.body.token as string;
+
+    // 1. Strict Zod rejects unknown field on pro-forma-blueprint
+    const strictFail = await request(app)
+      .post('/api/advertiser-ops/pro-forma-blueprint')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({
+        billingPeriodLabel: '2026-11',
+        chargeRealCardNow: true,
+      });
+    expect(strictFail.status).toBe(400);
+
+    // 2. Overview returns onboarding gates, pacing snapshot, SLA triage & $0.00 payment lock
+    const overviewRes = await request(app)
+      .get('/api/advertiser-ops/overview')
+      .set('Authorization', `Bearer ${advToken}`);
+    expect(overviewRes.status).toBe(200);
+    expect(overviewRes.body.paymentCollectionActive).toBe(false);
+    expect(overviewRes.body.automatedOutreachBlocked).toBe(true);
+    expect(overviewRes.body.hardwareTested).toBe(false);
+    expect(overviewRes.body.stageP6Deferred).toBe(true);
+    expect(overviewRes.body.pacingSummary.actualCashCollectedUsd).toBe(0);
+
+    // 3. Generate SHA-256 non-transactional pro-forma invoice blueprint
+    const bpRes = await request(app)
+      .post('/api/advertiser-ops/pro-forma-blueprint')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({ billingPeriodLabel: '2026-11' });
+    expect(bpRes.status).toBe(200);
+    expect(bpRes.body.invoiceStatus).toBe('SIMULATED_PRO_FORMA_ONLY');
+    expect(bpRes.body.paymentCollectionActive).toBe(false);
+    expect(bpRes.body.realPaymentGatewayConnected).toBe(false);
+    expect(bpRes.body.actualCashChargedUsd).toBe(0);
+    expect(bpRes.body.charitySubtotalUsd).toBe(0);
+    expect(bpRes.body.blueprintSha256).toHaveLength(64);
+
+    // 4. Execute 8-check ops verification suite
+    const suiteRes = await request(app)
+      .post('/api/advertiser-ops/verify-suite')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({});
+    expect(suiteRes.status).toBe(200);
+    expect(suiteRes.body.totalChecks).toBe(8);
+    expect(suiteRes.body.passedChecks).toBe(8);
+    expect(suiteRes.body.allPassed).toBe(true);
+    expect(suiteRes.body.paymentCollectionActive).toBe(false);
     expect(suiteRes.body.hardwareTested).toBe(false);
     expect(suiteRes.body.stageP6Deferred).toBe(true);
   });

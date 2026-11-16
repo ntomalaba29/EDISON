@@ -737,6 +737,12 @@ export const deliveryEventIngestBatchSchema = z
   })
   .strict();
 
+export const proFormaBlueprintRequestSchema = z
+  .object({
+    billingPeriodLabel: z.string().trim().min(4).max(32).default('2026-11'),
+  })
+  .strict();
+
 export const emptyStrictSchema = z.object({}).strict();
 
 

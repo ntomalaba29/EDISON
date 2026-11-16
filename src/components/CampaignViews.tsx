@@ -19,11 +19,14 @@ import {
 import type {
   AccountVerificationStatus,
   AdvertiserEntityType,
+  AdvertiserOpsOverviewSnapshot,
+  AdvertiserOpsVerificationReport,
   AdvertiserProfile,
   CampaignContentCategory,
   CampaignRecord,
   CampaignStatus,
   DaypartSlot,
+  ProFormaInvoiceBlueprint,
   PublicUser,
   QrLinkRecord,
   SupportTicketCategory,
@@ -160,11 +163,22 @@ export function AdvertiserProfileView({
     null
   );
 
+  // Phase 7 Block 7.1: Commercial Operations, Pacing, SLA & Pro-Forma Billing Blueprint
+  const [opsOverview, setOpsOverview] = useState<AdvertiserOpsOverviewSnapshot | null>(null);
+  const [proFormaBlueprint, setProFormaBlueprint] = useState<ProFormaInvoiceBlueprint | null>(null);
+  const [opsSuiteReport, setOpsSuiteReport] = useState<AdvertiserOpsVerificationReport | null>(null);
+  const [billingPeriodLabel, setBillingPeriodLabel] = useState('2026-11');
+  const [opsBusy, setOpsBusy] = useState(false);
+  const [opsError, setOpsError] = useState('');
+
   const loadData = useCallback(async () => {
     if (!currentUser) {
       setProfile(null);
       setTickets([]);
       setAdminProfiles([]);
+      setOpsOverview(null);
+      setProFormaBlueprint(null);
+      setOpsSuiteReport(null);
       return;
     }
     setLoading(true);
@@ -173,11 +187,12 @@ export function AdvertiserProfileView({
         edisonFetch('/api/advertiser/profile'),
         edisonFetch('/api/support-tickets'),
         edisonFetch('/api/campaigns'),
+        edisonFetch('/api/advertiser-ops/overview'),
       ];
       if (currentUser.role === 'admin') {
         requests.push(edisonFetch('/api/admin/advertiser-profiles'));
       }
-      const [profRes, tktRes, cmpRes, admRes] = await Promise.all(requests);
+      const [profRes, tktRes, cmpRes, opsRes, admRes] = await Promise.all(requests);
       if (profRes.ok) {
         const pData = await profRes.json();
         const p = pData.profile as AdvertiserProfile;
@@ -203,6 +218,10 @@ export function AdvertiserProfileView({
       if (cmpRes.ok) {
         const cData = await cmpRes.json();
         setCampaigns(cData.items);
+      }
+      if (opsRes && opsRes.ok) {
+        const oData = (await opsRes.json()) as AdvertiserOpsOverviewSnapshot;
+        setOpsOverview(oData);
       }
       if (admRes && admRes.ok) {
         const aData = await admRes.json();
@@ -330,6 +349,52 @@ export function AdvertiserProfileView({
     }
   };
 
+  const handleGenerateProForma = async () => {
+    setOpsBusy(true);
+    setOpsError('');
+    try {
+      const res = await edisonFetch('/api/advertiser-ops/pro-forma-blueprint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          billingPeriodLabel: billingPeriodLabel.trim() || '2026-11',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setOpsError(data.error || 'Failed to generate pro-forma blueprint.');
+      } else {
+        setProFormaBlueprint(data as ProFormaInvoiceBlueprint);
+      }
+    } catch (err) {
+      setOpsError(err instanceof Error ? err.message : 'Network error.');
+    } finally {
+      setOpsBusy(false);
+    }
+  };
+
+  const handleRunOpsSuite = async () => {
+    setOpsBusy(true);
+    setOpsError('');
+    try {
+      const res = await edisonFetch('/api/advertiser-ops/verify-suite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setOpsError(data.error || 'Failed to execute Block 7.1 suite.');
+      } else {
+        setOpsSuiteReport(data as AdvertiserOpsVerificationReport);
+      }
+    } catch (err) {
+      setOpsError(err instanceof Error ? err.message : 'Network error.');
+    } finally {
+      setOpsBusy(false);
+    }
+  };
+
   if (!currentUser) {
     return (
       <div className="bg-white border border-slate-200 rounded-lg p-8 text-center space-y-4">
@@ -361,6 +426,8 @@ export function AdvertiserProfileView({
     `Verification Status: ${profile?.verificationStatus ?? currentUser.verificationStatus}`,
     `Country / Region: ${profile?.countryCode ?? '—'} · ${profile?.cityRegion || 'Unspecified'}`,
     `Support Tickets Accessible: ${tickets.length}`,
+    `Onboarding Readiness (Block 7.1): ${opsOverview ? `${opsOverview.onboarding.onboardingReady ? 'READY' : 'INCOMPLETE'} / Commercial=${opsOverview.onboarding.commercialActivationAllowed ? 'ALLOWED' : 'BLOCKED'} (SLA=${opsOverview.onboarding.slaTier})` : 'Pending'}`,
+    `Non-Transactional Lock: paymentCollectionActive=false · actualCashCollectedUsd=$0.00 · automatedOutreachBlocked=true`,
     `Admin Profiles Queue Size: ${currentUser.role === 'admin' ? adminProfiles.length : 'N/A (Non-Admin)'}`,
   ].join('\n');
 
@@ -792,6 +859,404 @@ export function AdvertiserProfileView({
             )}
           </div>
         </div>
+      </div>
+
+      {/* Phase 7 Block 7.1 — Commercial Operations, Pacing, SLA Triage & Non-Transactional Billing Blueprint */}
+      <div className="bg-white border border-slate-200 rounded-lg p-6 space-y-5">
+        <div className="pb-4 border-b border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">
+              Phase 7 Block 7.1 · Commercial Operations, Pacing & Non-Transactional Billing Blueprint
+            </h2>
+            <p className="text-xs text-slate-600 mt-0.5">
+              6-gate KYC readiness, automated campaign pacing, SLA ticket triage, and SHA-256 Pro-Forma blueprints. Real payments and automated emailing remain strictly disabled.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              type="button"
+              disabled={opsBusy || loading}
+              onClick={loadData}
+              className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer disabled:opacity-50"
+            >
+              Refresh Operations Overview
+            </button>
+            <button
+              type="button"
+              disabled={opsBusy}
+              onClick={handleRunOpsSuite}
+              className="px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 cursor-pointer disabled:opacity-50"
+            >
+              Run 8-Check Ops Suite
+            </button>
+          </div>
+        </div>
+
+        {opsError && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+            {opsError}
+          </div>
+        )}
+
+        {opsOverview ? (
+          <div className="space-y-5">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg">
+                <p className="text-[11px] font-medium text-slate-500">Onboarding Readiness</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900 font-mono">
+                  {opsOverview.onboarding.onboardingReady ? 'READY' : 'INCOMPLETE'}
+                </p>
+                <p className="mt-0.5 text-[11px] text-slate-600 font-mono">
+                  SLA: {opsOverview.onboarding.slaTier}
+                </p>
+              </div>
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg">
+                <p className="text-[11px] font-medium text-slate-500">Real Cash Collected</p>
+                <p className="mt-1 text-sm font-semibold text-emerald-700 font-mono tabular-nums">
+                  ${opsOverview.pacingSummary.actualCashCollectedUsd.toFixed(2)} USD
+                </p>
+                <p className="mt-0.5 text-[11px] text-slate-600 font-mono">
+                  paymentCollectionActive=false
+                </p>
+              </div>
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg">
+                <p className="text-[11px] font-medium text-slate-500">Simulated Rate Card</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900 font-mono tabular-nums">
+                  ${opsOverview.pacingSummary.totalProjectedRateCardUsd.toFixed(2)}
+                </p>
+                <p className="mt-0.5 text-[11px] text-slate-600 tabular-nums">
+                  {opsOverview.pacingSummary.charityFreeCount} Charity ($0.00) ·{' '}
+                  {opsOverview.pacingSummary.underPacingCount} under-pacing
+                </p>
+              </div>
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg">
+                <p className="text-[11px] font-medium text-slate-500">Support SLA Queue</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900 font-mono tabular-nums">
+                  {opsOverview.supportSla.openTicketsCount} Open /{' '}
+                  {opsOverview.supportSla.breachedSlaCount} Breached
+                </p>
+                <p className="mt-0.5 text-[11px] text-slate-600 tabular-nums">
+                  {opsOverview.supportSla.approachingSlaCount} approaching · Outreach blocked
+                </p>
+              </div>
+            </div>
+
+            {/* 6 Onboarding Readiness Gates */}
+            <div className="border border-slate-200 rounded-lg p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                  6-Gate KYC & Compliance Readiness Matrix
+                </h3>
+                <span className="text-xs font-mono text-slate-700">
+                  Commercial Activation:{' '}
+                  {opsOverview.onboarding.commercialActivationAllowed ? 'ALLOWED (SIM)' : 'BLOCKED'}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs">
+                {[
+                  {
+                    label: '1. Entity Identity & Address',
+                    ok: opsOverview.onboarding.gates.entityIdentityCompleted,
+                  },
+                  {
+                    label: '2. Tax / Registration ID',
+                    ok: opsOverview.onboarding.gates.taxOrRegistrationProvided,
+                  },
+                  {
+                    label: '3. Primary & Billing Contacts',
+                    ok: opsOverview.onboarding.gates.billingAndPrimaryContactsValid,
+                  },
+                  {
+                    label: '4. Active Safe QR Destination',
+                    ok: opsOverview.onboarding.gates.activeSafeQrLinked,
+                  },
+                  {
+                    label: '5. Admin Account Verified',
+                    ok: opsOverview.onboarding.gates.accountVerificationApproved,
+                  },
+                  {
+                    label: '6. Payment Gateway Locked Off',
+                    ok: opsOverview.onboarding.gates.noRealPaymentActivated,
+                  },
+                ].map((g) => (
+                  <div
+                    key={g.label}
+                    className="flex items-center justify-between px-3 py-2 border border-slate-200 rounded bg-slate-50"
+                  >
+                    <span className="text-slate-700">{g.label}</span>
+                    <span
+                      className={`font-mono font-semibold ${
+                        g.ok ? 'text-emerald-700' : 'text-amber-700'
+                      }`}
+                    >
+                      {g.ok ? 'PASS' : 'PENDING'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {opsOverview.onboarding.missingChecklist.length > 0 && (
+                <ul className="list-disc pl-5 text-xs text-amber-800 space-y-1">
+                  {opsOverview.onboarding.missingChecklist.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* Campaign Pacing & Support SLA Tables */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              <div className="lg:col-span-7 border border-slate-200 rounded-lg overflow-hidden">
+                <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-800">
+                    Campaign Schedule Pacing
+                  </span>
+                  <span className="text-[11px] font-mono text-slate-500">
+                    {opsOverview.campaignPacing.length} campaign(s)
+                  </span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-white border-b border-slate-200 text-slate-500">
+                      <tr>
+                        <th className="py-2 px-3 font-medium">Campaign</th>
+                        <th className="py-2 px-3 font-medium">Pacing</th>
+                        <th className="py-2 px-3 font-medium">Spots</th>
+                        <th className="py-2 px-3 font-medium">Rate Card</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {opsOverview.campaignPacing.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="py-4 px-3 text-center text-slate-500">
+                            No campaigns assigned to this advertiser account yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        opsOverview.campaignPacing.slice(0, 8).map((p) => (
+                          <tr key={p.campaignId}>
+                            <td className="py-2 px-3">
+                              <p className="font-medium text-slate-900 truncate max-w-[180px]">
+                                {p.title}
+                              </p>
+                              <p className="text-[11px] font-mono text-slate-500">
+                                {p.primaryCategory} · {p.status}
+                              </p>
+                            </td>
+                            <td className="py-2 px-3 font-mono text-[11px] text-slate-700">
+                              {p.pacingStatus}
+                            </td>
+                            <td className="py-2 px-3 font-mono tabular-nums text-slate-700">
+                              {p.deliveredSpotsSimulated}/{p.targetSpotsTotal} (rec{' '}
+                              {p.recommendedSpotsPerDay}/d)
+                            </td>
+                            <td className="py-2 px-3 font-mono tabular-nums">
+                              {p.charityZeroCostLocked ? (
+                                <span className="text-emerald-700 font-semibold">$0.00 FREE</span>
+                              ) : (
+                                <span className="text-slate-900">
+                                  ${p.projectedRateCardUsd.toFixed(2)} sim
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="lg:col-span-5 border border-slate-200 rounded-lg overflow-hidden">
+                <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-800">
+                    Support SLA Triage Monitor
+                  </span>
+                  <span className="text-[11px] font-mono text-slate-500">
+                    {opsOverview.supportSla.tickets.length} ticket(s)
+                  </span>
+                </div>
+                <div className="divide-y divide-slate-100 max-h-60 overflow-y-auto">
+                  {opsOverview.supportSla.tickets.length === 0 ? (
+                    <p className="py-4 px-3 text-xs text-center text-slate-500">
+                      No support tickets evaluated.
+                    </p>
+                  ) : (
+                    opsOverview.supportSla.tickets.map((st) => (
+                      <div key={st.ticketId} className="px-3 py-2.5 text-xs flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-medium text-slate-900 truncate">{st.subject}</p>
+                          <p className="text-[11px] font-mono text-slate-500">
+                            {st.category} · {st.elapsedHours}h / {st.slaTargetHours}h target
+                          </p>
+                        </div>
+                        <span
+                          className={`font-mono text-[11px] font-semibold shrink-0 ${
+                            st.slaState === 'sla_breached'
+                              ? 'text-red-700'
+                              : st.slaState === 'approaching_sla'
+                              ? 'text-amber-700'
+                              : st.slaState === 'closed_resolved'
+                              ? 'text-slate-500'
+                              : 'text-emerald-700'
+                          }`}
+                        >
+                          {st.slaState}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Pro-Forma Invoice Blueprint Generator */}
+            <div className="border border-slate-200 rounded-lg p-4 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+                <div>
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                    Non-Transactional Pro-Forma Invoice Blueprint (SHA-256 Audited)
+                  </h3>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    Produces a deterministic simulation statement while enforcing realPaymentGatewayConnected=false and $0.00 Charity isolation.
+                  </p>
+                </div>
+                <div className="flex items-end gap-2 shrink-0">
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                      Billing Period
+                    </label>
+                    <input
+                      type="text"
+                      value={billingPeriodLabel}
+                      onChange={(e) => setBillingPeriodLabel(e.target.value)}
+                      placeholder="2026-11"
+                      className="w-28 px-2.5 py-1.5 text-xs font-mono border border-slate-200 rounded-lg"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    disabled={opsBusy}
+                    onClick={handleGenerateProForma}
+                    className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 cursor-pointer disabled:opacity-50"
+                  >
+                    Generate Pro-Forma Blueprint
+                  </button>
+                </div>
+              </div>
+
+              {proFormaBlueprint && (
+                <div className="pt-3 border-t border-slate-200 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs font-mono">
+                    <div className="p-2.5 bg-slate-50 border border-slate-200 rounded">
+                      <span className="block text-[10px] text-slate-500">BLUEPRINT ID</span>
+                      <span className="font-semibold text-slate-900">{proFormaBlueprint.blueprintId}</span>
+                    </div>
+                    <div className="p-2.5 bg-slate-50 border border-slate-200 rounded">
+                      <span className="block text-[10px] text-slate-500">ACTUAL CASH CHARGED</span>
+                      <span className="font-semibold text-emerald-700 tabular-nums">
+                        ${proFormaBlueprint.actualCashChargedUsd.toFixed(2)} USD
+                      </span>
+                    </div>
+                    <div className="p-2.5 bg-slate-50 border border-slate-200 rounded">
+                      <span className="block text-[10px] text-slate-500">CHARITY SUBTOTAL</span>
+                      <span className="font-semibold text-emerald-700 tabular-nums">
+                        ${proFormaBlueprint.charitySubtotalUsd.toFixed(2)} FREE
+                      </span>
+                    </div>
+                    <div className="p-2.5 bg-slate-50 border border-slate-200 rounded">
+                      <span className="block text-[10px] text-slate-500">SIMULATED COMMERCIAL</span>
+                      <span className="font-semibold text-slate-900 tabular-nums">
+                        ${proFormaBlueprint.commercialSubtotalUsd.toFixed(2)} USD
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] font-mono text-slate-600 break-all">
+                    SHA-256: {proFormaBlueprint.blueprintSha256} · {proFormaBlueprint.invoiceStatus}
+                  </p>
+
+                  {proFormaBlueprint.lineItems.length > 0 && (
+                    <div className="overflow-x-auto border border-slate-200 rounded">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-slate-500">
+                          <tr>
+                            <th className="py-1.5 px-3 font-medium">Campaign</th>
+                            <th className="py-1.5 px-3 font-medium">Classification</th>
+                            <th className="py-1.5 px-3 font-medium">Spots</th>
+                            <th className="py-1.5 px-3 font-medium">Projected Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {proFormaBlueprint.lineItems.map((li) => (
+                            <tr key={li.campaignId}>
+                              <td className="py-1.5 px-3 font-medium text-slate-900">{li.title}</td>
+                              <td className="py-1.5 px-3 font-mono text-[11px] text-slate-600">
+                                {li.billingClassification}
+                              </td>
+                              <td className="py-1.5 px-3 font-mono tabular-nums text-slate-700">
+                                {li.estimatedSpots}
+                              </td>
+                              <td className="py-1.5 px-3 font-mono tabular-nums">
+                                {li.charityZeroCostLocked ? (
+                                  <span className="text-emerald-700 font-semibold">$0.00</span>
+                                ) : (
+                                  <span>${li.projectedAmountUsd.toFixed(2)}</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  <p className="text-[11px] text-slate-600">{proFormaBlueprint.governanceNotice}</p>
+                </div>
+              )}
+            </div>
+
+            {/* 8-Check Suite Results */}
+            {opsSuiteReport && (
+              <div className="border border-slate-200 rounded-lg p-4 space-y-2.5 bg-slate-50">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <span className="font-semibold text-slate-900">
+                    Block 7.1 Automated Verification Suite ({opsSuiteReport.passedChecks}/
+                    {opsSuiteReport.totalChecks} Passed)
+                  </span>
+                  <span className="font-mono text-slate-600">
+                    paymentCollectionActive={String(opsSuiteReport.paymentCollectionActive)} ·
+                    hardwareTested={String(opsSuiteReport.hardwareTested)} · stageP6Deferred=
+                    {String(opsSuiteReport.stageP6Deferred)}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {opsSuiteReport.checks.map((chk) => (
+                    <div
+                      key={chk.checkId}
+                      className="p-2.5 bg-white border border-slate-200 rounded text-xs space-y-0.5"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono font-semibold text-slate-800">{chk.checkId}</span>
+                        <span
+                          className={`font-mono font-semibold ${
+                            chk.passed ? 'text-emerald-700' : 'text-red-700'
+                          }`}
+                        >
+                          {chk.passed ? 'PASS' : 'FAIL'}
+                        </span>
+                      </div>
+                      <p className="text-slate-700 font-medium">{chk.label}</p>
+                      <p className="text-[11px] text-slate-500">{chk.detail}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-slate-500">
+            Loading Advertiser Operations overview...
+          </p>
+        )}
       </div>
 
       {currentUser.role === 'admin' && (
