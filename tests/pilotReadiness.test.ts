@@ -218,16 +218,16 @@ describe('EDISON Phase 12 Block 12.1 — Controlled Pilot Readiness, Zero-PII Te
     expect(verifyRes.body.report.passedChecks).toBe(8);
     expect(verifyRes.body.report.allPassed).toBe(true);
 
-    // Prototype readiness (28/28) & live report (75.0% Full App / 25.0% remaining)
+    // Prototype readiness (29/29) & live report (78.0% Full App / 22.0% remaining)
     const qaRes = await adminAgent.get('/api/qa/prototype-readiness');
     expect(qaRes.status).toBe(200);
-    expect(qaRes.body.automatedInvariantsTotal).toBe(28);
-    expect(qaRes.body.automatedInvariantsPassed).toBe(28);
+    expect(qaRes.body.automatedInvariantsTotal).toBe(29);
+    expect(qaRes.body.automatedInvariantsPassed).toBe(29);
 
     const liveRes = await request(app).get('/api/reports/live');
     expect(liveRes.status).toBe(200);
-    expect(liveRes.body.progressMetrics.overallFullAppPct).toBe(75.0);
-    expect(liveRes.body.progressMetrics.remainingUntilFullAppPct).toBe(25.0);
+    expect(liveRes.body.progressMetrics.overallFullAppPct).toBe(78.0);
+    expect(liveRes.body.progressMetrics.remainingUntilFullAppPct).toBe(22.0);
     expect(liveRes.body.progressMetrics.softwareToStageP6Pct).toBe(81.8);
     expect(liveRes.body.progressMetrics.aiStudioAssignmentPct).toBe(100);
   });

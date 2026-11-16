@@ -25,3 +25,5 @@
 1. Identify applicable public statutes and official regulator publications for the target country.
 2. Map each statutory constraint to concrete software restrictions (`Privacy by Design`, `$0` Charity guarantees, direct QR routing, signal-integrity prohibition, fraud/scam filters).
 3. Record any remaining interpretive ambiguity transparently under **Unresolved Regulatory Uncertainty**—never mark a market compliant prematurely and never block software engineering waiting on external legal opinions.
+4. Enforce the **Phase 14 · Block 14.1 Country Launch Readiness Engine** (`src/server/countryLaunchEngine.ts`): all 6 ADR-015 baseline territories evaluate 4 automated software preflight gates (`*-SW-01..04`) plus 2 blocked external clearances (`*-EXT-01` `Stage P6` physical TV + mobile test, `*-EXT-02` external pen-test/regulator filing/commercial board authorization), enforce non-overridable safety locks (`jobFeeZeroLockEnforced: true`, `prohibitExternalSignalHijack: true`, `redactHouseholdGeoFromAdvertisers: true`), and reject premature market activation fail-closed (`HTTP 400 COUNTRY_LAUNCH_GATE_LOCKED`).
+

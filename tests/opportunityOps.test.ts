@@ -170,16 +170,16 @@ describe('Phase 9 Block 9.1 — Opportunity Verification Operations Hardening (S
     expect(suiteRes.body.report.allPassed).toBe(true);
     expect(suiteRes.body.report.externalKycVendorConnected).toBe(false);
 
-    // 4. QA readiness (28/28) and live report (75.0% Full App / 25.0% remaining)
+    // 4. QA readiness (29/29) and live report (78.0% Full App / 22.0% remaining)
     const qaRes = await adminAgent.get('/api/qa/prototype-readiness');
     expect(qaRes.status).toBe(200);
-    expect(qaRes.body.automatedInvariantsTotal).toBe(28);
-    expect(qaRes.body.automatedInvariantsPassed).toBe(28);
+    expect(qaRes.body.automatedInvariantsTotal).toBe(29);
+    expect(qaRes.body.automatedInvariantsPassed).toBe(29);
 
     const liveRes = await request(app).get('/api/reports/live');
     expect(liveRes.status).toBe(200);
-    expect(liveRes.body.progressMetrics.overallFullAppPct).toBe(75.0);
-    expect(liveRes.body.progressMetrics.remainingUntilFullAppPct).toBe(25.0);
+    expect(liveRes.body.progressMetrics.overallFullAppPct).toBe(78.0);
+    expect(liveRes.body.progressMetrics.remainingUntilFullAppPct).toBe(22.0);
     expect(liveRes.body.progressMetrics.trackBStatus).toBe('COMMITTED');
   });
 });

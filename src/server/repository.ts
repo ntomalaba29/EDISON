@@ -23,12 +23,16 @@ import type {
   CampaignRecord,
   CampaignStatus,
   ConsentAuditEventRecord,
+  CountryLaunchDecisionOutcome,
+  CountryLaunchDecisionRecord,
+  CountryLaunchOverview,
   DaypartSlot,
   HouseholdInstallationRecord,
   HouseholdLocation,
   HouseholdMemberProfile,
   HouseholdOpportunityMatchResult,
   HouseholdQrTokenRecord,
+  LaunchMarketCode,
   LiveReportSnapshot,
   OpportunityAppealRecord,
   OpportunityAppealStatus,
@@ -756,7 +760,35 @@ export interface EdisonDataRepository {
     decision: CommercialBoardDecisionRecord;
     overview: CommercialReadinessOverview;
   };
+
+  // --- Phase 14 Block 14.1: Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine ---
+  getCountryLaunchOverview(actor: PublicUser): CountryLaunchOverview;
+
+  updateCountryPolicyConfig(
+    actor: PublicUser,
+    input: {
+      countryCode: LaunchMarketCode;
+      consentBannerStrictMode: boolean;
+      requirePreBroadcastHumanModeration: boolean;
+      enforceVppsOrLocalPrivacyLock: boolean;
+      operatorTaxNoticeLabel: string;
+    }
+  ): CountryLaunchOverview;
+
+  submitCountryLaunchDecision(
+    actor: PublicUser,
+    input: {
+      countryCode: LaunchMarketCode;
+      decisionOutcome: CountryLaunchDecisionOutcome;
+      requestedCountryActivation: boolean;
+      summaryNote: string;
+    }
+  ): {
+    decision: CountryLaunchDecisionRecord;
+    overview: CountryLaunchOverview;
+  };
 }
+
 
 
 

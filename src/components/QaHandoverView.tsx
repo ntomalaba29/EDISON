@@ -26,6 +26,7 @@ import type {
 import { QrCodePreview } from './QrCodePreview';
 import { PilotReadinessPanel } from './PilotReadinessPanel';
 import { CommercialReadinessPanel } from './CommercialReadinessPanel';
+import { CountryLaunchPanel } from './CountryLaunchPanel';
 import { CopyReportFooter, copyTextWithFallback } from './CopyReportFooter';
 import { edisonFetch } from '../lib/csrfFetch';
 
@@ -35,7 +36,13 @@ interface QaHandoverViewProps {
   onSummaryRefresh: () => Promise<void>;
 }
 
-type QaSubTab = 'scan_lab' | 'qa_audit' | 'pilot_readiness' | 'commercial_readiness' | 'handover';
+type QaSubTab =
+  | 'scan_lab'
+  | 'qa_audit'
+  | 'pilot_readiness'
+  | 'commercial_readiness'
+  | 'country_launch'
+  | 'handover';
 
 export function QaHandoverView({
   currentUser,
@@ -357,7 +364,7 @@ export function QaHandoverView({
               ? 'Loading...'
               : 'Sign in to run'}
           </p>
-          <p className="mt-1 text-xs text-slate-600">Blocks 2.1–2.7 &amp; P2-V2.1–V2.4 rules</p>
+          <p className="mt-1 text-xs text-slate-600">Blocks 2.1–14.1 &amp; Track B rules</p>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-lg p-5">
@@ -390,8 +397,8 @@ export function QaHandoverView({
 
         <div className="bg-white border border-slate-200 rounded-lg p-5">
           <p className="text-xs font-medium text-slate-500">Phase 3 VS Code Handover</p>
-          <p className="mt-1.5 text-sm font-semibold text-slate-900">Track A Committed · Ready to Activate</p>
-          <p className="mt-1 text-xs text-amber-700 font-mono">TASK-P3-001: DRAFT (Awaits P3 Activation)</p>
+          <p className="mt-1.5 text-sm font-semibold text-slate-900">P3-A/B/C Committed · Track B Done</p>
+          <p className="mt-1 text-xs text-amber-700 font-mono">TASK-P3-001: READY (JSON retained)</p>
         </div>
       </div>
 
@@ -445,6 +452,18 @@ export function QaHandoverView({
           >
             <ClipboardCheck className="w-3.5 h-3.5 shrink-0" />
             <span>Phase 13 Commercial Readiness</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSubTab('country_launch')}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+              subTab === 'country_launch'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+            <span>Phase 14 Country Launch</span>
           </button>
           <button
             type="button"
@@ -1026,6 +1045,15 @@ export function QaHandoverView({
       {/* SUB-TAB 4: PHASE 13 COMMERCIAL READINESS BOARD GATE */}
       {subTab === 'commercial_readiness' && (
         <CommercialReadinessPanel
+          currentUser={currentUser}
+          onNavigateAuth={onNavigateAuth}
+          onSummaryRefresh={onSummaryRefresh}
+        />
+      )}
+
+      {/* SUB-TAB 5: PHASE 14 COUNTRY-BY-COUNTRY LAUNCH READINESS GATE */}
+      {subTab === 'country_launch' && (
+        <CountryLaunchPanel
           currentUser={currentUser}
           onNavigateAuth={onNavigateAuth}
           onSummaryRefresh={onSummaryRefresh}

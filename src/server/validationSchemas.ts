@@ -981,6 +981,30 @@ export const commercialBoardDecisionSchema = z
   })
   .strict();
 
+export const launchMarketCodeEnum = z.enum(['ZW', 'GB', 'EU', 'US', 'ZA', 'KE_NG']);
+
+export const countryPolicyUpdateSchema = z
+  .object({
+    countryCode: launchMarketCodeEnum,
+    consentBannerStrictMode: z.boolean(),
+    requirePreBroadcastHumanModeration: z.boolean(),
+    enforceVppsOrLocalPrivacyLock: z.boolean(),
+    operatorTaxNoticeLabel: z.string().trim().min(4).max(180),
+  })
+  .strict();
+
+export const countryLaunchDecisionSchema = z
+  .object({
+    countryCode: launchMarketCodeEnum,
+    decisionOutcome: z.enum([
+      'hold_country_unactivated_pending_clearances',
+      'stage_software_ready_for_stage_p6_and_filing',
+    ]),
+    requestedCountryActivation: z.boolean(),
+    summaryNote: z.string().trim().min(10).max(800),
+  })
+  .strict();
+
 export function parseWithZod<T extends z.ZodTypeAny>(
   schema: T,
   payload: unknown

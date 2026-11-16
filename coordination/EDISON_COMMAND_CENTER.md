@@ -7,12 +7,12 @@
 
 ## 1. PROJECT OWNER MESSAGE
 
-> **Phase 12 Block 12.1 COMMITTED · Phase 13 Block 13.1 Verified & Awaiting Commit (`75.0%` Full App · `TASK-P3-001` `READY`)**:
-> - Completed **Phase 13 · Stage 13.1 · Block 13.1: Commercial Readiness Board Gate, 7-SLA Matrix & Unit Economics (Software-First)**:
->   - **Commercial Readiness & Board Gate Engine (`src/server/commercialReadinessEngine.ts`)**: Evaluates all 10 Phase 13 commercial pillars cleanly separating software gates from blocked external dependencies, codifies 7 Production SLA thresholds (`FM-09 <=500ms`, `QR <=150ms P95`, `CDN Failover <=3s`, `Moderation <=24h`, `DSR <=24h`, `Fleet Rollback <=60s`, `Support <=4h`), models SHA-256 cloud/ops unit economics keeping `$0.00 / FREE` Charity isolation, and blocks premature commercial launch authorization fail-closed (`COMMERCIAL_GATE_LOCKED`).
->   - **API Routes, Commercial Board Panel & 28/28 QA Verification**: Mounted `GET /api/commercial-readiness/overview`, `PUT /api/commercial-readiness/cost-assumptions`, `POST /api/commercial-readiness/board-decision`, and `POST /api/commercial-readiness/verify-suite`, created `src/components/CommercialReadinessPanel.tsx` integrated into `QaHandoverView` (`Phase 13 Commercial Readiness`), added 28th QA invariant `qa_131_commercial_readiness_board_gate`, and verified `tests/commercialReadiness.test.ts` (`16/16` test files).
->   - **Software-First Boundaries Preserved**: `isSoftwareSimulationOnly: true`, `commercialLaunchAuthorized: false`, `paymentCollectionActive: false`, `countryActivated: false`, `hardwareTested: false`, `pilotHardwareExecuted: false`, `stageP6Deferred: true`, `externalKycVendorConnected: false`, `externalPenTestCompleted: false`, `legalComplianceClaimed: false`, and JSON persistence (`schemaVersion: 8`) retained without paid Cloud SQL. Remaining `1.0%` of Phase 13 is reserved for post-`Stage P6` live commercial authorization.
-> - Overall progress is now **`75.0%` of the 15-Phase Full App** (**`25.0%` remaining**, **`100.0%` of Phase 2 AI Studio scope**, **`81.8%` to `Stage P6`** — Phase 13 Block 13.1 **`VERIFIED · AWAITING COMMIT`**).
+> **Phase 13 Block 13.1 COMMITTED · Phase 14 Block 14.1 Verified & Awaiting Commit (`78.0%` Full App · `TASK-P3-001` `READY`)**:
+> - Completed **Phase 14 · Stage 14.1 · Block 14.1: Country-by-Country Launch Readiness Gate, Independent Statutory Controls & Jurisdiction Policy Engine (Software-First)**:
+>   - **Country Launch Gate & Policy Engine (`src/server/countryLaunchEngine.ts`)**: Evaluates all 6 baseline ADR-015 markets (`ZW` Initial Launch Market, `GB`, `EU`, `US`, `ZA`, `KE_NG`), separating 4 automated software preflight gates from 2 blocked external clearances (`Stage P6` physical TV + mobile test, and external pen-test/regulator filing/commercial board authorization), maintains editable jurisdiction policy profiles enforcing non-overridable `$0` Charity, signal-integrity, and household geo-redaction locks, and rejects premature market activation fail-closed (`COUNTRY_LAUNCH_GATE_LOCKED`, `HTTP 400`).
+>   - **API Routes, Country Launch Panel & 29/29 QA Verification**: Mounted `GET /api/country-launch/overview`, `PUT /api/country-launch/policy`, `POST /api/country-launch/decision`, and `POST /api/country-launch/verify-suite`, created `src/components/CountryLaunchPanel.tsx` integrated into `QaHandoverView` (`Phase 14 Country Launch`), added 29th QA invariant `qa_141_country_launch_readiness_gate`, and verified `tests/countryLaunch.test.ts` (`17/17` test files).
+>   - **Software-First Boundaries Preserved**: `isSoftwareSimulationOnly: true`, `countryActivated: false`, `activeLaunchedMarketsCount: 0`, `legalComplianceClaimed: false`, `noLawyerDependencyPolicy: true`, `commercialLaunchAuthorized: false`, `paymentCollectionActive: false`, `hardwareTested: false`, `pilotHardwareExecuted: false`, `stageP6Deferred: true`, `externalKycVendorConnected: false`, `externalPenTestCompleted: false`, and JSON persistence (`schemaVersion: 8`) retained without paid Cloud SQL. Remaining `2.0%` of Phase 14 is reserved for real regulator filings and post-`Stage P6` market activation.
+> - Overall progress is now **`78.0%` of the 15-Phase Full App** (**`22.0%` remaining**, **`100.0%` of Phase 2 AI Studio scope**, **`81.8%` to `Stage P6`** — Phase 14 Block 14.1 **`VERIFIED · AWAITING COMMIT`**).
 
 ---
 
@@ -20,7 +20,7 @@
 
 - **Phase 2 AI Studio Prototype Scope**: **`100.0%`** (**Track A `85.0%` + Track B `15.0%` `COMMITTED`**; `0.0%` consent-blocked)
 - **Software-to-`Stage-P6` Milestone (Phases 1–6 + Stage P6 Subtotal = `66.0%` of Full App)**: **`81.8%`** (`54.0% / 66.0%`)
-- **Overall EDISON Project Progress (Until Full 15-Phase International Commercial App = `100.0%`)**: **`75.0%`** (**`25.0%` remaining**)
+- **Overall EDISON Project Progress (Until Full 15-Phase International Commercial App = `100.0%`)**: **`78.0%`** (**`22.0%` remaining**)
   - Phase 1 Specs (`v1`–`v2.2`): `6.0% / 6.0%` (**Committed**)
   - Phase 2 Prototype (Track A + Track B under `DEC-OPEN-01`): `14.0% / 14.0%` (**Committed**)
   - Phase 3 Hardening: `9.0% / 12.0%` (`Blocks P3-A`, `P3-B` & `P3-C` **Committed** `9.0%`; `TASK-P3-001` **`READY`** `3.0%` with JSON retained in AI Studio)
@@ -33,8 +33,9 @@
   - Phase 10 Privacy, Security & Statutory Compliance Readiness (Software-First): `4.0% / 4.0%` (**`Block 10.1` `COMMITTED`**; `externalPenTestCompleted: false`, `legalComplianceClaimed: false`)
   - Phase 11 Reliability, Failure-Mode & Chaos Recovery Suite (Software-First): `4.0% / 4.0%` (**`Block 11.1` `COMMITTED`**; `hardwareTested: false`, `stageP6Deferred: true`)
   - Phase 12 Controlled Hardware & Viewer Pilot Readiness (Software-First): `2.0% / 4.0%` (**`Block 12.1` `COMMITTED`**; remaining `2.0%` deferred to physical `Stage P6` pilot)
-  - Phase 13 Commercial Readiness Board Gate, SLA Matrix & Unit Economics (Software-First): `3.0% / 4.0%` (**`Block 13.1` `VERIFIED · AWAITING COMMIT`**; remaining `1.0%` reserved for post-`Stage P6` live launch sign-off)
-  - `Stage P6` Single Final Integrated TV Test (`6%`), Phase 12 Physical Pilot (`2%`), Phase 13 Live Board Auth (`1%`), Phases 14–15 Launch/Expansion (`10%`): `0.0%` (**Not Started / Deferred**)
+  - Phase 13 Commercial Readiness Board Gate, SLA Matrix & Unit Economics (Software-First): `3.0% / 4.0%` (**`Block 13.1` `COMMITTED`**; remaining `1.0%` reserved for post-`Stage P6` live launch sign-off)
+  - Phase 14 Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine (Software-First): `3.0% / 5.0%` (**`Block 14.1` `VERIFIED · AWAITING COMMIT`**; remaining `2.0%` reserved for regulator filings & post-`Stage P6` market activation)
+  - `Stage P6` Single Final Integrated TV Test (`6%`), Phase 12 Physical Pilot (`2%`), Phase 13 Live Board Auth (`1%`), Phase 14 Market Activation (`2%`), Phase 15 International Scaling (`5%`): `0.0%` (**Not Started / Deferred**)
 
 ---
 
@@ -62,23 +63,23 @@
 
 ## 5. COPILOT EXECUTION REPORT
 
-*No VS Code Copilot tasks have been executed. Phases 1–12 `Block 12.1` (`Committed`) and Phase 13 `Block 13.1` (`Awaiting Commit`) were executed software-first inside AI Studio.*
+*No VS Code Copilot tasks have been executed. Phases 1–13 `Block 13.1` (`Committed`) and Phase 14 `Block 14.1` (`Awaiting Commit`) were executed software-first inside AI Studio.*
 
 ---
 
 ## 6. AI STUDIO REVIEW
 
 - **Reviewed By**: AI Studio
-- **Phase 12 · Block 12.1 (`COMMITTED`)**: Confirmed committed by Project Owner (`"Committed, next"`).
-- **Phase 13 · Block 13.1 (`VERIFIED · AWAITING COMMIT`)**: Implemented `src/server/commercialReadinessEngine.ts`, updated `edison.ts`, `repository.ts`, `validationSchemas.ts`, `store.ts`, `app.ts`, created `src/components/CommercialReadinessPanel.tsx` integrated into `QaHandoverView.tsx`, updated `phase1Data.ts`, and verified `tests/commercialReadiness.test.ts` (`8/8` checks, `10/10` pillars, `7/7` SLAs, fail-closed launch block, `28/28` QA invariants, `commercialLaunchAuthorized: false`, `paymentCollectionActive: false`, `countryActivated: false`, `hardwareTested: false`).
+- **Phase 13 · Block 13.1 (`COMMITTED`)**: Confirmed committed by Project Owner (`"Committed next"`).
+- **Phase 14 · Block 14.1 (`VERIFIED · AWAITING COMMIT`)**: Implemented `src/server/countryLaunchEngine.ts`, updated `edison.ts`, `repository.ts`, `validationSchemas.ts`, `store.ts`, `app.ts`, created `src/components/CountryLaunchPanel.tsx` integrated into `QaHandoverView.tsx`, updated `phase1Data.ts`, and verified `tests/countryLaunch.test.ts` (`8/8` checks, `6/6` ADR-015 markets, fail-closed market activation block `COUNTRY_LAUNCH_GATE_LOCKED`, `29/29` QA invariants, `countryActivated: false`, `legalComplianceClaimed: false`, `noLawyerDependencyPolicy: true`, `hardwareTested: false`).
 
 ---
 
 ## 7. NEXT ACTION
 
-1. **Completed Gate**: **`BLOCK 13.1 VERIFIED — AWAITING OWNER COMMIT`** (please review and manually commit all Phase 13 Block 13.1 changes).
+1. **Completed Gate**: **`BLOCK 14.1 VERIFIED — AWAITING OWNER COMMIT`** (please review and manually commit all Phase 14 Block 14.1 changes).
 2. **Next Authorised Options (After Owner Confirms Commit)**:
-   - **Phase 14 · Block 14.1 (Software-First)**: Initial Country Launch Readiness Gate & Jurisdiction Policy Activation Engine (`COUNTRY_ACTIVATION_REGISTER.md` software checklist, keeping `countryActivated: false` & `paymentCollectionActive: false` until explicit authorization & `Stage P6`).
+   - **Phase 15 · Block 15.1 (Software-First)**: International Multi-Region Expansion Blueprint, Localization & Scaling Readiness (`5.0%` weight; keeping real regional rollouts locked until `Stage P6` & Phase 14 activation).
    - **Or Execute `TASK-P3-001`** (`READY`): Authorise external PostgreSQL provisioning/migration when ready to move beyond single-host JSON persistence.
 
 ---
@@ -107,4 +108,5 @@
 | `TASK-P10-01` | 2026-11-16 | AI Studio -> Owner | Phase 10 / `Block 10.1` | **`COMMITTED`** | Privacy, Security & Statutory Compliance Readiness (`privacyComplianceEngine.ts`): Subject Access DSR JSON export (`pinHashesRedacted=true`, SHA-256), Right-to-Erasure cascade anonymisation + bundled `HTTP 403` QR revocation preserving ordinary TV, automated 2h-session/30d-QR retention purge, zero-PII analytics scanner, camera/mic hard disable & 6-country ADR-015 statutory matrix (`8/8` suite, `externalPenTestCompleted=false`, `legalComplianceClaimed=false`). Confirmed committed (`"Committed next"`). |
 | `TASK-P11-01` | 2026-11-16 | AI Studio -> Owner | Phase 11 / `Block 11.1` | **`COMMITTED`** | Reliability, Failure-Mode & Chaos Recovery Suite (`reliabilityChaosEngine.ts`): Deterministic fault injection across all 18 FMEA modes (`FM-01`..`FM-18`), `FM-09` return-to-TV watchdog across 4 TV adapters, network/CDN outage failover, Tizen WebM exclusion, KYC/Tier 2->3/Charity `$0` isolation, mid-break consent erasure `HTTP 403`, replay deduplication & Chaos Lab UI (`18/18` FMs, `8/8` checks, `hardwareTested=false`, `stageP6Deferred=true`). Confirmed committed (`"Committed, next"`). |
 | `TASK-P12-01` | 2026-11-16 | AI Studio -> Owner | Phase 12 / `Block 12.1` | **`COMMITTED`** | Controlled Hardware & Viewer Pilot Readiness Protocol (`pilotReadinessEngine.ts`): 6-gate Phase 4–11 pre-pilot software evaluation, Zero-PII & consent-epoch telemetry validator blocking personal leaks/forged hardware claims, unactivated closed cohort blueprints & 8-step single final `Stage P6` Smart TV + phone verification runbook (`8/8` suite, `27/27` QA invariants, `hardwareTested=false`, `pilotHardwareExecuted=false`, `countryActivated=false`). Confirmed committed (`"Committed, next"`). |
-| `TASK-P13-01` | 2026-11-16 | AI Studio -> Owner | Phase 13 / `Block 13.1` | **`AWAITING COMMIT`** | Commercial Readiness Board Gate, SLA Matrix & Unit Economics (`commercialReadinessEngine.ts`): 10-pillar commercial assessment, 7-domain Production SLA matrix, unit-economics cloud/ops OPEX/CPM model keeping `$0.00` Charity isolation, and fail-closed premature launch block (`8/8` suite, `28/28` QA invariants, `commercialLaunchAuthorized=false`, `paymentCollectionActive=false`, `countryActivated=false`, `hardwareTested=false`). |
+| `TASK-P13-01` | 2026-11-16 | AI Studio -> Owner | Phase 13 / `Block 13.1` | **`COMMITTED`** | Commercial Readiness Board Gate, SLA Matrix & Unit Economics (`commercialReadinessEngine.ts`): 10-pillar commercial assessment, 7-domain Production SLA matrix, unit-economics cloud/ops OPEX/CPM model keeping `$0.00` Charity isolation, and fail-closed premature launch block (`8/8` suite, `28/28` QA invariants, `commercialLaunchAuthorized=false`, `paymentCollectionActive=false`, `countryActivated=false`, `hardwareTested=false`). Confirmed committed (`"Committed next"`). |
+| `TASK-P14-01` | 2026-11-16 | AI Studio -> Owner | Phase 14 / `Block 14.1` | **`AWAITING COMMIT`** | Country-by-Country Launch Readiness Gate, Independent Statutory Controls & Jurisdiction Policy Engine (`countryLaunchEngine.ts`): 6 ADR-015 territories (`ZW`, `GB`, `EU`, `US`, `ZA`, `KE_NG`), 4 software preflight gates + 2 blocked external clearances (`Stage P6` + regulator/board sign-off), editable jurisdiction policy profiles enforcing `$0` Charity / signal-integrity / household geo-redaction locks, and fail-closed market activation block (`8/8` suite, `29/29` QA invariants, `countryActivated=false`, `legalComplianceClaimed=false`, `noLawyerDependencyPolicy=true`, `hardwareTested=false`). |

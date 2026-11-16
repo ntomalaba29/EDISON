@@ -583,6 +583,8 @@ export interface EdisonStoreData {
   stageP6PrepNotes?: Record<string, string>;
   commercialBoardDecisions?: CommercialBoardDecisionRecord[];
   commercialCostAssumptions?: CommercialCostAssumptionsInput;
+  countryPolicyProfiles?: Partial<Record<LaunchMarketCode, CountryJurisdictionPolicyConfig>>;
+  countryLaunchDecisions?: CountryLaunchDecisionRecord[];
 }
 
 export interface EdisonProgressMetrics {
@@ -2768,6 +2770,128 @@ export interface CommercialReadinessVerificationReport {
   allPassed: boolean;
   checks: CommercialReadinessVerifyCheckItem[];
 }
+
+// --- Phase 14 Block 14.1: Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine (Software-First) ---
+
+export type LaunchMarketCode = 'ZW' | 'GB' | 'EU' | 'US' | 'ZA' | 'KE_NG';
+
+export type CountryLaunchReadinessGateStatus =
+  | 'software_controls_verified_awaiting_external_clearances';
+
+export interface CountryLaunchPreflightItem {
+  gateId: string;
+  label: string;
+  scope: 'software_control' | 'external_hardware_or_statutory';
+  passed: boolean;
+  detail: string;
+}
+
+export interface CountryJurisdictionPolicyConfig {
+  countryCode: LaunchMarketCode;
+  consentBannerStrictMode: boolean;
+  requirePreBroadcastHumanModeration: boolean;
+  jobFeeZeroLockEnforced: true;
+  prohibitExternalSignalHijack: true;
+  redactHouseholdGeoFromAdvertisers: true;
+  enforceVppsOrLocalPrivacyLock: boolean;
+  operatorTaxNoticeLabel: string;
+  updatedAt: string;
+  updatedByEmail: string;
+}
+
+export interface CountryLaunchAssessment {
+  countryCode: LaunchMarketCode;
+  countryName: string;
+  isInitialLaunchMarket: boolean;
+  countryActivated: false;
+  legalComplianceClaimed: false;
+  noLawyerDependencyPolicy: true;
+  gateStatus: CountryLaunchReadinessGateStatus;
+  softwareGatesReadyCount: number;
+  softwareGatesTotalCount: number;
+  externalClearancesBlockedCount: number;
+  statutesResearched: string[];
+  unresolvedRegulatoryUncertainties: string[];
+  policyConfig: CountryJurisdictionPolicyConfig;
+  preflightChecks: CountryLaunchPreflightItem[];
+  liveSeedCoverage: {
+    householdsInMarket: number;
+    campaignsTargetingMarket: number;
+    verifiedLiveOpportunities: number;
+  };
+  activationBlockers: string[];
+  assessmentSha256: string;
+}
+
+export type CountryLaunchDecisionOutcome =
+  | 'hold_country_unactivated_pending_clearances'
+  | 'stage_software_ready_for_stage_p6_and_filing';
+
+export interface CountryLaunchDecisionRecord {
+  id: string;
+  countryCode: LaunchMarketCode;
+  reviewerEmail: string;
+  decisionOutcome: CountryLaunchDecisionOutcome;
+  summaryNote: string;
+  countryActivated: false;
+  commercialLaunchAuthorized: false;
+  paymentCollectionActive: false;
+  hardwareTested: false;
+  legalComplianceClaimed: false;
+  noLawyerDependencyPolicy: true;
+  decisionSha256: string;
+  createdAt: string;
+}
+
+export interface CountryLaunchOverview {
+  generatedAt: string;
+  initialLaunchMarket: 'ZW';
+  activeLaunchedMarketsCount: 0;
+  totalInventoriedMarketsCount: 6;
+  softwareReadyMarketsCount: number;
+  isSoftwareSimulationOnly: true;
+  countryActivated: false;
+  commercialLaunchAuthorized: false;
+  paymentCollectionActive: false;
+  hardwareTested: false;
+  pilotHardwareExecuted: false;
+  stageP6Deferred: true;
+  externalPenTestCompleted: false;
+  externalKycVendorConnected: false;
+  legalComplianceClaimed: false;
+  noLawyerDependencyPolicy: true;
+  charityListingFeeUsd: 0;
+  charityJobFeeLockEnforced: true;
+  countries: CountryLaunchAssessment[];
+  launchDecisions: CountryLaunchDecisionRecord[];
+  globalLaunchBlockers: string[];
+  manifestSha256: string;
+}
+
+export interface CountryLaunchVerifyCheckItem {
+  checkId: string;
+  label: string;
+  passed: boolean;
+  detail: string;
+}
+
+export interface CountryLaunchVerificationReport {
+  generatedAt: string;
+  isSoftwareSimulationOnly: true;
+  countryActivated: false;
+  activeLaunchedMarketsCount: 0;
+  commercialLaunchAuthorized: false;
+  paymentCollectionActive: false;
+  hardwareTested: false;
+  stageP6Deferred: true;
+  legalComplianceClaimed: false;
+  noLawyerDependencyPolicy: true;
+  totalChecks: number;
+  passedChecks: number;
+  allPassed: boolean;
+  checks: CountryLaunchVerifyCheckItem[];
+}
+
 
 
 

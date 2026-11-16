@@ -29,6 +29,9 @@ import type {
   CommercialReadinessOverview,
   ConsentAuditAction,
   ConsentAuditEventRecord,
+  CountryLaunchDecisionOutcome,
+  CountryLaunchDecisionRecord,
+  CountryLaunchOverview,
   DaypartSlot,
   EdisonStoreData,
   FailureModeId,
@@ -37,6 +40,7 @@ import type {
   HouseholdMemberProfile,
   HouseholdOpportunityMatchResult,
   HouseholdQrTokenRecord,
+  LaunchMarketCode,
   LiveReportSnapshot,
   OpportunityOpsOverview,
   OpportunityOpsSweepResult,
@@ -121,6 +125,12 @@ import {
   buildCommercialReadinessOverview,
   runCommercialReadinessVerificationSuite,
 } from './commercialReadinessEngine.ts';
+import {
+  buildCountryLaunchDecision,
+  buildCountryLaunchOverview,
+  buildUpdatedCountryPolicyConfig,
+  runCountryLaunchVerificationSuite,
+} from './countryLaunchEngine.ts';
 import { scheduleCommercialBreak } from './breakScheduler.ts';
 import {
   buildSafeTvPersonalisationDisplay,
@@ -1264,6 +1274,22 @@ function normalizeStoreData(parsed: EdisonStoreData): EdisonStoreData {
     householdQrTokens,
     consentAuditEvents,
     lastReliabilityChaosReport: parsed.lastReliabilityChaosReport ?? null,
+    pilotCohorts: Array.isArray(parsed.pilotCohorts) ? parsed.pilotCohorts : [],
+    stageP6PrepNotes:
+      parsed.stageP6PrepNotes && typeof parsed.stageP6PrepNotes === 'object'
+        ? parsed.stageP6PrepNotes
+        : {},
+    commercialBoardDecisions: Array.isArray(parsed.commercialBoardDecisions)
+      ? parsed.commercialBoardDecisions
+      : [],
+    commercialCostAssumptions: parsed.commercialCostAssumptions,
+    countryPolicyProfiles:
+      parsed.countryPolicyProfiles && typeof parsed.countryPolicyProfiles === 'object'
+        ? parsed.countryPolicyProfiles
+        : {},
+    countryLaunchDecisions: Array.isArray(parsed.countryLaunchDecisions)
+      ? parsed.countryLaunchDecisions
+      : [],
     auditLogs: parsed.auditLogs || [],
   };
 }
@@ -5160,6 +5186,30 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
           '8/8 Phase 13 commercial readiness invariants passed: 10-pillar board gate, 7-domain SLA thresholds, $0.00 Charity unit economics lock & fail-closed premature launch block (commercialLaunchAuthorized=false, paymentCollectionActive=false).',
       },
       {
+        id: 'qa_141_country_launch_readiness_gate',
+        block: 'Block 14.1',
+        label:
+          'Phase 14 Block 14.1: Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine (ZW Initial + 5 Expansion Markets)',
+        status: (() => {
+          const p14 = runCountryLaunchVerificationSuite();
+          return p14.allPassed &&
+            p14.passedChecks === 8 &&
+            p14.countryActivated === false &&
+            p14.activeLaunchedMarketsCount === 0 &&
+            p14.commercialLaunchAuthorized === false &&
+            p14.paymentCollectionActive === false &&
+            p14.hardwareTested === false &&
+            p14.stageP6Deferred &&
+            p14.legalComplianceClaimed === false &&
+            p14.noLawyerDependencyPolicy === true
+            ? 'pass'
+            : 'fail';
+        })(),
+        scope: 'automated_invariant',
+        detail:
+          '8/8 Phase 14 country launch readiness invariants passed: 6/6 ADR-015 markets inventoried (ZW Initial Launch Market), 4/4 software controls separated from 2 external clearances, fail-closed COUNTRY_LAUNCH_GATE_LOCKED on activation (countryActivated=false, legalComplianceClaimed=false).',
+      },
+      {
         id: 'qa_27_physical_qr_scan',
         block: 'Block 2.7',
         label: 'Physical smartphone camera scan verification on real mobile device',
@@ -5177,8 +5227,8 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
 
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 13 — Commercial Readiness Board Gate, SLA Matrix & Unit Economics (Software-First)',
-      block: 'Block 13.1 (10-Pillar Commercial Readiness Gate, 7-SLA Matrix, Unit Economics & Unactivated Pre-Launch Review)',
+      phase: 'Phase 14 — Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine (Software-First)',
+      block: 'Block 14.1 (6-Territory Statutory Gate Matrix, ZW Initial Market Software Preflight, Jurisdiction Policies & Fail-Closed Activation Lock)',
       automatedInvariantsPassed,
       automatedInvariantsTotal: autoChecks.length,
       physicalQrScanStatus:
@@ -5393,19 +5443,19 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     const latestAudit = this.data.auditLogs[0] ?? null;
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 13 — Commercial Readiness Board Gate, SLA Matrix & Unit Economics (Software-First)',
-      stage: 'Phases 1–12 Block 12.1 Committed (Inc. Track B DEC-OPEN-01) · Phase 13 Block 13.1 Verified & Awaiting Commit · Stage P6 Hardware & Launch Markets Deferred',
-      block: 'Block 13.1 (10-Pillar Commercial Readiness Gate, 7-SLA Matrix, Unit Economics & Unactivated Pre-Launch Review)',
-      gateStatus: 'BLOCK 13.1 VERIFIED — AWAITING OWNER COMMIT (COMMERCIAL LAUNCH, PAYMENTS & STAGE P6 DEFERRED)',
+      phase: 'Phase 14 — Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine (Software-First)',
+      stage: 'Phases 1–13 Block 13.1 Committed (Inc. Track B DEC-OPEN-01) · Phase 14 Block 14.1 Verified & Awaiting Commit · All Markets Unactivated & Stage P6 Deferred',
+      block: 'Block 14.1 (6-Territory Statutory Gate Matrix, ZW Initial Market Software Preflight, Jurisdiction Policies & Fail-Closed Activation Lock)',
+      gateStatus: 'BLOCK 14.1 VERIFIED — AWAITING OWNER COMMIT (ALL 6 MARKETS UNACTIVATED, STAGE P6 & COMMERCIAL LAUNCH DEFERRED)',
       progressMetrics: {
         aiStudioAssignmentPct: 100,
         softwareToStageP6Pct: 81.8,
-        overallFullAppPct: 75.0,
-        remainingUntilFullAppPct: 25.0,
+        overallFullAppPct: 78.0,
+        remainingUntilFullAppPct: 22.0,
         consentBlockedScopePct: 0,
         trackBStatus: 'COMMITTED',
         rubricSummary:
-          'Phase 1 Specs (6.0%) + Phase 2 Track A+B Committed (14.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Complete Committed (12.0%) + Phase 6 Delivery Infra Committed (4.0%) + Phase 7 Block 7.1 Committed (3.0%) + Phase 8 Block 8.1 Committed (3.0%) + Phase 9 Block 9.1 Committed (2.0%) + Phase 10 Block 10.1 Committed (4.0%) + Phase 11 Block 11.1 Committed (4.0%) + Phase 12 Block 12.1 Committed (2.0% / 4.0%) + Phase 13 Block 13.1 Software-First Commercial Readiness (3.0% / 4.0%) = 75.0% of 15-Phase Full Commercial App (81.8% to Stage P6; 100% of original Phase 2 AI Studio scope).',
+          'Phase 1 Specs (6.0%) + Phase 2 Track A+B Committed (14.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Complete Committed (12.0%) + Phase 6 Delivery Infra Committed (4.0%) + Phase 7 Block 7.1 Committed (3.0%) + Phase 8 Block 8.1 Committed (3.0%) + Phase 9 Block 9.1 Committed (2.0%) + Phase 10 Block 10.1 Committed (4.0%) + Phase 11 Block 11.1 Committed (4.0%) + Phase 12 Block 12.1 Committed (2.0% / 4.0%) + Phase 13 Block 13.1 Committed (3.0% / 4.0%) + Phase 14 Block 14.1 Software-First Country Launch Readiness (3.0% / 5.0%) = 78.0% of 15-Phase Full Commercial App (81.8% to Stage P6; 100% of original Phase 2 AI Studio scope).',
       },
       latestAuditAt: latestAudit?.createdAt ?? null,
       latestAuditAction: latestAudit?.action ?? null,
@@ -6711,8 +6761,127 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
       };
     });
   }
+
+  // --- Phase 14 Block 14.1: Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine ---
+
+  getCountryLaunchOverview(actor: PublicUser): CountryLaunchOverview {
+    this.syncIfDiskNewer();
+    if (!actor) throw new Error('Authentication required.');
+    return buildCountryLaunchOverview({
+      households: this.data.households || [],
+      campaigns: this.data.campaigns,
+      opportunities: this.data.opportunities,
+      qrLinks: this.data.qrLinks,
+      storedPolicyProfiles: this.data.countryPolicyProfiles,
+      launchDecisions: this.data.countryLaunchDecisions || [],
+    });
+  }
+
+  updateCountryPolicyConfig(
+    actor: PublicUser,
+    input: {
+      countryCode: LaunchMarketCode;
+      consentBannerStrictMode: boolean;
+      requirePreBroadcastHumanModeration: boolean;
+      enforceVppsOrLocalPrivacyLock: boolean;
+      operatorTaxNoticeLabel: string;
+    }
+  ): CountryLaunchOverview {
+    if (actor.role !== 'admin') {
+      throw new Error(
+        'FORBIDDEN: Only administrators may update jurisdiction readiness policy configurations.'
+      );
+    }
+
+    return this.withWriteTransaction((draft) => {
+      draft.countryPolicyProfiles = draft.countryPolicyProfiles || {};
+      const updated = buildUpdatedCountryPolicyConfig({
+        ...input,
+        actorEmail: actor.email,
+      });
+      draft.countryPolicyProfiles[input.countryCode] = updated;
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'COUNTRY_POLICY_PROFILE_UPDATED',
+        'system',
+        input.countryCode,
+        `Updated policy controls for ${input.countryCode} (strictConsent=${updated.consentBannerStrictMode}, moderation=${updated.requirePreBroadcastHumanModeration}, privacyLock=${updated.enforceVppsOrLocalPrivacyLock}, jobFeeZeroLock=true, countryActivated=false, legalComplianceClaimed=false).`
+      );
+
+      return buildCountryLaunchOverview({
+        households: draft.households || [],
+        campaigns: draft.campaigns,
+        opportunities: draft.opportunities,
+        qrLinks: draft.qrLinks,
+        storedPolicyProfiles: draft.countryPolicyProfiles,
+        launchDecisions: draft.countryLaunchDecisions || [],
+      });
+    });
+  }
+
+  submitCountryLaunchDecision(
+    actor: PublicUser,
+    input: {
+      countryCode: LaunchMarketCode;
+      decisionOutcome: CountryLaunchDecisionOutcome;
+      requestedCountryActivation: boolean;
+      summaryNote: string;
+    }
+  ): {
+    decision: CountryLaunchDecisionRecord;
+    overview: CountryLaunchOverview;
+  } {
+    if (actor.role !== 'admin') {
+      throw new Error(
+        'FORBIDDEN: Only administrators may record territory launch readiness decisions.'
+      );
+    }
+
+    // Fail-closed activation guard executes BEFORE modifying store state
+    const decision = buildCountryLaunchDecision({
+      countryCode: input.countryCode,
+      actorEmail: actor.email,
+      decisionOutcome: input.decisionOutcome,
+      requestedCountryActivation: input.requestedCountryActivation,
+      summaryNote: input.summaryNote,
+    });
+
+    return this.withWriteTransaction((draft) => {
+      draft.countryLaunchDecisions = draft.countryLaunchDecisions || [];
+      draft.countryLaunchDecisions.unshift(decision);
+      if (draft.countryLaunchDecisions.length > 50) {
+        draft.countryLaunchDecisions.length = 50;
+      }
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'COUNTRY_LAUNCH_DECISION_LOGGED',
+        'system',
+        decision.id,
+        `Logged Phase 14 launch review for ${decision.countryCode} (${decision.decisionOutcome}): countryActivated=false, commercialLaunchAuthorized=false, paymentCollectionActive=false, hardwareTested=false, legalComplianceClaimed=false.`
+      );
+
+      return {
+        decision,
+        overview: buildCountryLaunchOverview({
+          households: draft.households || [],
+          campaigns: draft.campaigns,
+          opportunities: draft.opportunities,
+          qrLinks: draft.qrLinks,
+          storedPolicyProfiles: draft.countryPolicyProfiles,
+          launchDecisions: draft.countryLaunchDecisions,
+        }),
+      };
+    });
+  }
 }
 
 export const edisonStore = new EdisonPrototypeStore();
+
 
 

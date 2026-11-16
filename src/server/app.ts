@@ -72,6 +72,7 @@ import { runPrivacyComplianceVerificationSuite } from './privacyComplianceEngine
 import { runReliabilityChaosVerificationSuite } from './reliabilityChaosEngine.ts';
 import { runPilotReadinessVerificationSuite } from './pilotReadinessEngine.ts';
 import { runCommercialReadinessVerificationSuite } from './commercialReadinessEngine.ts';
+import { runCountryLaunchVerificationSuite } from './countryLaunchEngine.ts';
 import {
   adCreativeAttachSchema,
   adCreativeSaveSchema,
@@ -96,6 +97,8 @@ import {
   commercialCostAssumptionsSchema,
   companionPolicyEvalSchema,
   complaintCreateSchema,
+  countryLaunchDecisionSchema,
+  countryPolicyUpdateSchema,
   deliveryEventIngestBatchSchema,
   deliveryManifestRequestSchema,
   emptyStrictSchema,
@@ -2593,6 +2596,77 @@ export function createEdisonApp(
         'COMMERCIAL_READINESS_SUITE_RUN',
         'phase13_commercial_readiness',
         `[${req.requestId ?? 'req'}] Phase 13 commercial readiness suite: ${report.passedChecks}/${report.totalChecks} passed (commercialLaunchAuthorized=false, paymentCollectionActive=false, hardwareTested=false).`
+      );
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.json({ report });
+    }
+  );
+
+  // --- Phase 14 Block 14.1: Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine (Software-First) ---
+  app.get(
+    '/api/country-launch/overview',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.json({ overview: store.getCountryLaunchOverview(req.currentUser!) });
+    }
+  );
+
+  app.put(
+    '/api/country-launch/policy',
+    requireAdmin,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(countryPolicyUpdateSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        const overview = store.updateCountryPolicyConfig(req.currentUser!, parsed.data);
+        res.setHeader('Cache-Control', 'no-store, private');
+        res.json({ overview });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.post(
+    '/api/country-launch/decision',
+    requireAdmin,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(countryLaunchDecisionSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        const result = store.submitCountryLaunchDecision(req.currentUser!, parsed.data);
+        res.setHeader('Cache-Control', 'no-store, private');
+        res.status(201).json(result);
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.post(
+    '/api/country-launch/verify-suite',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(emptyStrictSchema, req.body ?? {});
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const report = runCountryLaunchVerificationSuite();
+      store.recordSecurityAudit(
+        req.currentUser!,
+        'COUNTRY_LAUNCH_SUITE_RUN',
+        'phase14_country_launch',
+        `[${req.requestId ?? 'req'}] Phase 14 country launch readiness suite: ${report.passedChecks}/${report.totalChecks} passed (countryActivated=false, activeLaunchedMarketsCount=0, legalComplianceClaimed=false, hardwareTested=false).`
       );
       res.setHeader('Cache-Control', 'no-store, private');
       res.json({ report });
