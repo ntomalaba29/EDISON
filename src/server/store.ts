@@ -77,6 +77,7 @@ import { edisonTvControlEngine } from './tvPlatformAdapter.ts';
 import { localOfflineIntelCache } from './offlineIntelCache.ts';
 import { runPhase4SoftwareExitSuite } from './broadcastMetadataParser.ts';
 import { sharedIntelFleetService } from './sharedIntelFleetService.ts';
+import { runRecordedStreamCalibrationBenchmark } from './breakDurationPredictor.ts';
 
 const DEFAULT_DATA_DIR = path.resolve(process.cwd(), 'data');
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days absolute cap
@@ -4417,6 +4418,25 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
           'Ed25519 device/manifest signatures, multi-TV corroboration quorum, conflict quarantine, scoped delta sync, 2.5% FPR auto-rollback, and 11/11 Scenarios 25–35 verified (hardwareTested=false, Stage P6 deferred).',
       },
       {
+        id: 'qa_52_break_duration_predictor_calibration',
+        block: 'Block 5.2',
+        label:
+          'Phase 5 Block 5.2: Per-Channel ML Lower-Bound (p10/p5) Break Predictor & 10-Fixture Calibration Benchmark',
+        status: (() => {
+          const bench = runRecordedStreamCalibrationBenchmark();
+          return bench.allPassed &&
+            bench.passedFixtures === 10 &&
+            bench.falsePositiveRatePct === 0 &&
+            !bench.hardwareTested &&
+            bench.stageP6Deferred
+            ? 'pass'
+            : 'fail';
+        })(),
+        scope: 'automated_invariant',
+        detail:
+          'Lower-bound p10/p5 quantile predictor rejects mean overestimation on high-variance sports/short breaks and achieves 0% FPR across 10 recorded broadcast stream fixtures (hardwareTested=false, Stage P6 deferred).',
+      },
+      {
         id: 'qa_27_physical_qr_scan',
         block: 'Block 2.7',
         label: 'Physical smartphone camera scan verification on real mobile device',
@@ -4434,8 +4454,8 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
 
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 5 — Lawful Break Detection & Shared Ad Intelligence Fleet Service (Software-First · JSON Retained)',
-      block: 'Block 5.1 (Shared Ad Intelligence Fleet Service, Ed25519 Attestation & Scenarios 25–35)',
+      phase: 'Phase 5 — Lawful Break Detection, ML Duration Predictor & Shared Ad Intelligence (Software-First · JSON Retained)',
+      block: 'Block 5.2 (Per-Channel Break Duration ML Lower-Bound Predictor & Recorded Stream Calibration)',
       automatedInvariantsPassed,
       automatedInvariantsTotal: autoChecks.length,
       physicalQrScanStatus:
@@ -4650,18 +4670,18 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     const latestAudit = this.data.auditLogs[0] ?? null;
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 5 — Lawful Break Detection & Shared Ad Intelligence Fleet Service (Software-First · JSON Retained)',
-      stage: 'Phases 1–4 Software Exit Committed · Phase 5 Block 5.1 Complete (Fleet Service, Ed25519 Attestation & Scenarios 25–35) · TASK-P3-001 READY',
-      block: 'Block 5.1 (Shared Ad Intelligence Fleet Service, Ed25519 Attestation & Scenarios 25–35)',
-      gateStatus: 'BLOCK 5.1 VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · STAGE P6 HARDWARE DEFERRED)',
+      phase: 'Phase 5 — Lawful Break Detection, ML Duration Predictor & Shared Ad Intelligence (Software-First · JSON Retained)',
+      stage: 'Phases 1–4 Committed · Phase 5 Complete Software-First (Block 5.1 Committed + Block 5.2 ML Calibrator) · TASK-P3-001 READY',
+      block: 'Block 5.2 (Per-Channel Break Duration ML Lower-Bound Predictor & Recorded Stream Calibration)',
+      gateStatus: 'BLOCK 5.2 VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · STAGE P6 HARDWARE DEFERRED)',
       progressMetrics: {
         aiStudioAssignmentPct: 85,
-        softwareToStageP6Pct: 69.4,
-        overallFullAppPct: 43.0,
-        remainingUntilFullAppPct: 57.0,
+        softwareToStageP6Pct: 79.0,
+        overallFullAppPct: 49.0,
+        remainingUntilFullAppPct: 51.0,
         consentBlockedScopePct: 15,
         rubricSummary:
-          'Phase 1 Specs (6.0%) + Phase 2 Track A Complete (13.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Block 5.1 Awaiting Commit (6.0%) = 43.0% of 15-Phase Full Commercial App (69.4% to Stage P6; 15% Track B blocked on DEC-OPEN-01).',
+          'Phase 1 Specs (6.0%) + Phase 2 Track A Complete (13.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Complete (Block 5.1 Committed 6.0% + Block 5.2 Awaiting Commit 6.0% = 12.0%) = 49.0% of 15-Phase Full Commercial App (79.0% to Stage P6; 15% Track B blocked on DEC-OPEN-01).',
       },
       latestAuditAt: latestAudit?.createdAt ?? null,
       latestAuditAction: latestAudit?.action ?? null,

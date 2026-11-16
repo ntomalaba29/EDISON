@@ -23,6 +23,10 @@ import {
 import type {
   AdCreativeRecord,
   AdvertiserProfile,
+  BreakCalibrationBenchmarkReport,
+  BreakDaypart,
+  BreakDurationPredictionResult,
+  BreakProgrammeGenre,
   BreakSchedulePlan,
   BroadcastCueParseResult,
   BroadcastCueStandard,
@@ -39,6 +43,7 @@ import type {
   PublicUser,
   QrLinkRecord,
   ScheduledBreakSlot,
+  SharedIntelSignalType,
   SimulatedTvDeviceState,
   TvBreakLifecycleResult,
   TvCadenceSimulationResult,
@@ -530,6 +535,17 @@ export function TvPreviewView({
   const [policyResult, setPolicyResult] = useState<CompanionPolicyEvalResult | null>(null);
   const [phase4ExitReport, setPhase4ExitReport] = useState<Phase4SoftwareExitReport | null>(null);
   const [runningBlock43, setRunningBlock43] = useState(false);
+
+  // Block 5.2 Break-Duration ML Lower-Bound (p10/p5) Predictor & Recorded Stream Calibration Benchmark
+  const [predChannelNumber, setPredChannelNumber] = useState<number>(401);
+  const [predDaypart, setPredDaypart] = useState<BreakDaypart>('daytime');
+  const [predGenre, setPredGenre] = useState<BreakProgrammeGenre>('live_sport');
+  const [predSignalType, setPredSignalType] = useState<SharedIntelSignalType>('av_pattern');
+  const [predRequestedAdSec, setPredRequestedAdSec] = useState<number>(30);
+  const [predResult, setPredResult] = useState<BreakDurationPredictionResult | null>(null);
+  const [benchmarkReport, setBenchmarkReport] =
+    useState<BreakCalibrationBenchmarkReport | null>(null);
+  const [runningBlock52, setRunningBlock52] = useState(false);
 
   const [qrDataUrl, setQrDataUrl] = useState('');
   const stageContainerRef = useRef<HTMLDivElement | null>(null);
@@ -1157,6 +1173,58 @@ export function TvPreviewView({
       }
     } finally {
       setRunningBlock43(false);
+    }
+  };
+
+  const handlePredictBreakBounds = async () => {
+    setRunningBlock52(true);
+    try {
+      const res = await edisonFetch('/api/break-predictor/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channelNumber: predChannelNumber,
+          daypart: predDaypart,
+          programmeGenre: predGenre,
+          signalType: predSignalType,
+          elapsedBreakSec: 0,
+          requestedAdDurationSec: predRequestedAdSec,
+          switchingOverheadSec: 2,
+          safetyBufferSeconds: 5,
+          drmProtected: false,
+        }),
+      });
+      if (res.ok) {
+        const result = (await res.json()) as BreakDurationPredictionResult;
+        setPredResult(result);
+        setSimLogs((prev) => [
+          `[${formatClock(liveBroadcastClock)} · ML-P10-5.2] CH ${result.channelNumber} (${result.daypart}/${result.programmeGenre}) -> p5=${result.p5Sec}s p10=${result.p10Sec}s mean=${result.meanSec}s -> ${result.decision}`,
+          ...prev.slice(0, 18),
+        ]);
+      }
+    } finally {
+      setRunningBlock52(false);
+    }
+  };
+
+  const handleRunCalibrationBenchmark = async () => {
+    setRunningBlock52(true);
+    try {
+      const res = await edisonFetch('/api/break-predictor/calibrate-benchmark', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (res.ok) {
+        const report = (await res.json()) as BreakCalibrationBenchmarkReport;
+        setBenchmarkReport(report);
+        setSimLogs((prev) => [
+          `[${formatClock(liveBroadcastClock)} · CALIBRATION-5.2] ${report.passedFixtures}/${report.totalFixtures} fixtures passed · FPR=${report.falsePositiveRatePct}% · MAE=${report.meanAbsoluteErrorSec}s (hardwareTested=false).`,
+          ...prev.slice(0, 18),
+        ]);
+      }
+    } finally {
+      setRunningBlock52(false);
     }
   };
 
@@ -2880,6 +2948,159 @@ export function TvPreviewView({
                           <span className="truncate text-slate-700">{chk.checkId}</span>
                           <span className={chk.passed ? 'text-emerald-700 font-bold' : 'text-red-700 font-bold'}>
                             {chk.passed ? 'PASS' : 'FAIL'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Phase 5 Block 5.2: Per-Channel Break Duration ML Lower-Bound (p10/p5) Predictor & Calibration Benchmark */}
+              <div className="pt-3 border-t border-slate-200 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h5 className="text-xs font-semibold text-slate-900">
+                      Phase 5 Block 5.2 · Break-Duration ML Lower-Bound (p10/p5) Predictor &amp; Recorded Stream Calibration
+                    </h5>
+                    <p className="text-[11px] text-slate-600">
+                      Computes channel/daypart/genre empirical quantiles (p5/p10/p50/mean) and never schedules on mean duration—safely skipping unstable live-sport or sub-confidence transitions.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={runningBlock52}
+                    onClick={handleRunCalibrationBenchmark}
+                    className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded text-xs font-semibold cursor-pointer disabled:opacity-50"
+                  >
+                    {runningBlock52 ? 'Running Calibration...' : 'Run 10-Fixture Calibration Benchmark'}
+                  </button>
+                </div>
+
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2.5 text-xs">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      aria-label="Predictor Channel"
+                      value={predChannelNumber}
+                      onChange={(e) => setPredChannelNumber(Number(e.target.value))}
+                      className="px-2 py-1.5 border border-slate-200 rounded bg-white font-mono text-[11px]"
+                    >
+                      <option value={101}>CH 101 · BBC One HD</option>
+                      <option value={103}>CH 103 · ITV1 HD</option>
+                      <option value={201}>CH 201 · ZDF HD</option>
+                      <option value={401}>CH 401 · Premier Sport HD</option>
+                    </select>
+                    <select
+                      aria-label="Predictor Daypart"
+                      value={predDaypart}
+                      onChange={(e) => setPredDaypart(e.target.value as BreakDaypart)}
+                      className="px-2 py-1.5 border border-slate-200 rounded bg-white font-mono text-[11px]"
+                    >
+                      <option value="morning">morning</option>
+                      <option value="daytime">daytime</option>
+                      <option value="prime_time">prime_time</option>
+                      <option value="late_night">late_night</option>
+                    </select>
+                    <select
+                      aria-label="Predictor Genre"
+                      value={predGenre}
+                      onChange={(e) => setPredGenre(e.target.value as BreakProgrammeGenre)}
+                      className="px-2 py-1.5 border border-slate-200 rounded bg-white font-mono text-[11px]"
+                    >
+                      <option value="news">news</option>
+                      <option value="drama">drama</option>
+                      <option value="entertainment">entertainment</option>
+                      <option value="live_sport">live_sport</option>
+                    </select>
+                    <select
+                      aria-label="Predictor Signal Type"
+                      value={predSignalType}
+                      onChange={(e) => setPredSignalType(e.target.value as SharedIntelSignalType)}
+                      className="px-2 py-1.5 border border-slate-200 rounded bg-white font-mono text-[11px]"
+                    >
+                      <option value="scte35">scte35</option>
+                      <option value="hbbtv">hbbtv</option>
+                      <option value="channel_cadence">channel_cadence</option>
+                      <option value="av_pattern">av_pattern</option>
+                    </select>
+                    <input
+                      aria-label="Requested Ad Spot Duration Seconds"
+                      type="number"
+                      min={5}
+                      max={120}
+                      value={predRequestedAdSec}
+                      onChange={(e) => setPredRequestedAdSec(Number(e.target.value) || 15)}
+                      className="w-20 px-2 py-1.5 border border-slate-200 rounded bg-white font-mono tabular-nums text-[11px]"
+                    />
+                    <button
+                      type="button"
+                      disabled={runningBlock52}
+                      onClick={handlePredictBreakBounds}
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-medium cursor-pointer disabled:opacity-50"
+                    >
+                      Predict Lower Bounds (p10/p5)
+                    </button>
+                  </div>
+
+                  {predResult && (
+                    <div
+                      className={`p-2.5 rounded border font-mono text-[11px] space-y-1.5 ${
+                        predResult.safeToSchedule
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-950'
+                          : 'bg-amber-50 border-amber-200 text-amber-950'
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2 font-semibold">
+                        <span>
+                          {predResult.decision} · {predResult.channelName}
+                        </span>
+                        <span className="tabular-nums">
+                          Confidence: {predResult.confidenceScore} · Safe Window: {predResult.effectiveSafeWindowSec}s vs Spot {predResult.requestedAdDurationSec}s
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 tabular-nums">
+                        <div className="p-1.5 bg-white border border-slate-200 rounded">
+                          <div className="text-[10px] text-slate-500">p5 Floor</div>
+                          <div className="font-bold text-slate-900">{predResult.p5Sec}s</div>
+                        </div>
+                        <div className="p-1.5 bg-white border border-slate-200 rounded">
+                          <div className="text-[10px] text-slate-500">p10 Lower Bound</div>
+                          <div className="font-bold text-slate-900">{predResult.p10Sec}s</div>
+                        </div>
+                        <div className="p-1.5 bg-white border border-slate-200 rounded">
+                          <div className="text-[10px] text-slate-500">p50 Median</div>
+                          <div className="font-bold text-slate-900">{predResult.p50Sec}s</div>
+                        </div>
+                        <div className="p-1.5 bg-white border border-slate-200 rounded">
+                          <div className="text-[10px] text-slate-500">Mean (Never Used Alone)</div>
+                          <div className="font-bold text-slate-900">{predResult.meanSec}s</div>
+                        </div>
+                      </div>
+                      <p>{predResult.decisionReason}</p>
+                    </div>
+                  )}
+                </div>
+
+                {benchmarkReport && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2 font-mono font-semibold text-emerald-950 tabular-nums">
+                      <span>
+                        Recorded Stream Calibration: {benchmarkReport.passedFixtures}/
+                        {benchmarkReport.totalFixtures} PASSED · FPR={benchmarkReport.falsePositiveRatePct}% · P10 Containment={benchmarkReport.p10SafeContainmentRatePct}% · MAE={benchmarkReport.meanAbsoluteErrorSec}s · Avg Detect={benchmarkReport.avgDetectionLatencyMs}ms
+                      </span>
+                      <span>SOFTWARE FIXTURE BENCHMARK · HARDWARE TESTED: FALSE</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 font-mono text-[11px] tabular-nums">
+                      {benchmarkReport.fixtures.map((fix) => (
+                        <div
+                          key={fix.fixtureId}
+                          className="p-1.5 bg-white border border-emerald-200 rounded flex items-center justify-between gap-2"
+                        >
+                          <span className="truncate text-slate-700">
+                            {fix.fixtureId} (p10={fix.predictedP10Sec}s / mean={fix.predictedMeanSec}s)
+                          </span>
+                          <span className={fix.passed ? 'text-emerald-700 font-bold' : 'text-red-700 font-bold'}>
+                            {fix.passed ? 'PASS' : 'FAIL'}
                           </span>
                         </div>
                       ))}

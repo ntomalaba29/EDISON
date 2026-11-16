@@ -4,6 +4,11 @@ import {
   scheduleCommercialBreak,
   type AdNetworkAdapter,
 } from '../src/server/breakScheduler.ts';
+import {
+  listChannelPredictorProfiles,
+  predictBreakDurationQuantiles,
+  runRecordedStreamCalibrationBenchmark,
+} from '../src/server/breakDurationPredictor.ts';
 import type { CampaignRecord, OpportunityRecord } from '../src/types/edison.ts';
 
 function makeCampaign(overrides: Partial<CampaignRecord>): CampaignRecord {
@@ -226,3 +231,83 @@ describe('scheduleCommercialBreak (SimulationTvAdapter)', () => {
     expect(plan.slots[0].isMockBackfill).toBe(false);
   });
 });
+
+describe('Block 5.2: Break Duration ML Lower-Bound (p10/p5) Predictor & Calibration Benchmark', () => {
+  it('computes empirical p5 <= p10 <= p50 <= mean and safely rejects high-mean live_sport breaks whose p10 lower bound is too short', () => {
+    const profiles = listChannelPredictorProfiles();
+    expect(profiles).toHaveLength(4);
+
+    const sportPred = predictBreakDurationQuantiles({
+      channelNumber: 401,
+      daypart: 'daytime',
+      programmeGenre: 'live_sport',
+      signalType: 'av_pattern',
+      elapsedBreakSec: 0,
+      requestedAdDurationSec: 30,
+      switchingOverheadSec: 2,
+      safetyBufferSeconds: 5,
+      confidenceScore: 0.85,
+      drmProtected: false,
+    });
+
+    expect(sportPred.p5Sec).toBeLessThanOrEqual(sportPred.p10Sec);
+    expect(sportPred.p10Sec).toBeLessThanOrEqual(sportPred.p50Sec);
+    expect(sportPred.meanSec).toBeGreaterThan(45);
+    expect(sportPred.safeToSchedule).toBe(false);
+    expect(sportPred.wouldMeanOverestimate).toBe(true);
+    expect(sportPred.decision).toBe('SKIP_MEAN_UNSAFE_P10_SHORT');
+    expect(sportPred.hardwareTested).toBe(false);
+    expect(sportPred.stageP6Deferred).toBe(true);
+  });
+
+  it('approves prime-time structured SCTE-35 breaks inside p10 safety window and fails closed on DRM or sub-threshold confidence', () => {
+    const primeOk = predictBreakDurationQuantiles({
+      channelNumber: 103,
+      daypart: 'prime_time',
+      programmeGenre: 'drama',
+      signalType: 'scte35',
+      requestedAdDurationSec: 30,
+      confidenceScore: 0.96,
+      drmProtected: false,
+    });
+    expect(primeOk.safeToSchedule).toBe(true);
+    expect(primeOk.decision).toBe('SCHEDULE_WITH_P10_BOUND');
+
+    const drmSkip = predictBreakDurationQuantiles({
+      channelNumber: 103,
+      daypart: 'prime_time',
+      programmeGenre: 'drama',
+      signalType: 'scte35',
+      requestedAdDurationSec: 20,
+      confidenceScore: 0.99,
+      drmProtected: true,
+    });
+    expect(drmSkip.safeToSchedule).toBe(false);
+    expect(drmSkip.decision).toBe('SKIP_DRM_PROTECTED');
+
+    const lowConfSkip = predictBreakDurationQuantiles({
+      channelNumber: 103,
+      daypart: 'prime_time',
+      programmeGenre: 'drama',
+      signalType: 'av_pattern',
+      requestedAdDurationSec: 15,
+      confidenceScore: 0.58,
+      drmProtected: false,
+    });
+    expect(lowConfSkip.safeToSchedule).toBe(false);
+    expect(lowConfSkip.decision).toBe('SKIP_LOW_CONFIDENCE');
+  });
+
+  it('passes all 10 recorded broadcast stream calibration fixtures with 0% FPR and hardwareTested=false', () => {
+    const benchmark = runRecordedStreamCalibrationBenchmark();
+    expect(benchmark.totalFixtures).toBe(10);
+    expect(benchmark.passedFixtures).toBe(10);
+    expect(benchmark.allPassed).toBe(true);
+    expect(benchmark.falsePositiveRatePct).toBe(0);
+    expect(benchmark.p10SafeContainmentRatePct).toBe(100);
+    expect(benchmark.isSoftwareSimulationOnly).toBe(true);
+    expect(benchmark.hardwareTested).toBe(false);
+    expect(benchmark.stageP6Deferred).toBe(true);
+  });
+});
+

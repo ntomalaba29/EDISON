@@ -686,6 +686,25 @@ export const fleetFprReportSchema = z
   })
   .strict();
 
+export const breakDurationPredictSchema = z
+  .object({
+    channelNumber: z.coerce.number().int().min(1).max(999),
+    daypart: z.enum(['morning', 'daytime', 'prime_time', 'late_night']),
+    programmeGenre: z.enum(['news', 'drama', 'live_sport', 'entertainment']),
+    signalType: z.enum(['scte35', 'hbbtv', 'av_pattern', 'channel_cadence']),
+    elapsedBreakSec: z.coerce.number().finite().min(0).max(600).optional().default(0),
+    requestedAdDurationSec: z.coerce.number().int().min(5).max(120),
+    switchingOverheadSec: z.coerce.number().finite().min(0).max(15).optional().default(2),
+    safetyBufferSeconds: z.coerce.number().finite().min(2).max(20).optional().default(5),
+    confidenceScore: z.coerce.number().finite().min(0).max(1).optional(),
+    drmProtected: z.boolean().optional().default(false),
+    observedHistoricalBreaksSec: z
+      .array(z.coerce.number().finite().min(5).max(600))
+      .max(50)
+      .optional(),
+  })
+  .strict();
+
 export const emptyStrictSchema = z.object({}).strict();
 
 

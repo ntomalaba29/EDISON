@@ -130,6 +130,12 @@
   2. **API Routes, UI Console & Regression Suite**: Mounted authenticated strict-Zod endpoints (`/api/shared-intel-fleet/*`), connected Phase 5 Fleet Service & Scenarios `25`–`35` runner UI in `SharedIntelligencePreviewView.tsx`, added 18th QA invariant `qa_51_shared_intel_fleet_scenarios_25_35` (`43.0%` Full App, `69.4%` to Stage P6), and verified unit + HTTP integration coverage (`tests/sharedIntelligence.test.ts`, `tests/securityHardening.test.ts`, `tests/apiRegression.test.ts`).
 - **Next Authorised Action**: Review and commit **Block 5.1** before proceeding to **Phase 5 Block 5.2** (Per-Channel Break Duration ML Predictor & Recorded Stream Calibration) or `TASK-P3-001`. Track B remains strictly blocked on `DEC-OPEN-01`, and physical TV hardware testing stays strictly deferred to `Stage P6`.
 
+---
 
+## 11. Session Entry — 2026-11-16 (`Block 5.1` Committed · `Phase 5 · Stage 5.2 · Block 5.2` Complete & Awaiting Commit)
 
-
+- **Owner Commit Confirmation**: Confirmed manual commit of **Phase 5 · Block 5.1** (`"Committed, next"`), locking the Ed25519 Shared Ad Intelligence Fleet Production Service and `11/11` Scenarios `25`–`35` (`6.0% / 12.0%` Phase 5 committed).
+- **Phase 5 · Block 5.2 Implemented**:
+  1. **Per-Channel ML Lower-Bound Break Predictor & Recorded Stream Calibrator (`src/server/breakDurationPredictor.ts`)**: Built deterministic empirical quantile predictor (`p5`/`p10`/`p50`/`mean`) conditioned on channel, daypart, programme genre, and signal type. Never schedules using `mean` — enforces `p10` lower-bound window containment (`switchingOverheadSec + safetyBufferSeconds`), fails closed on DRM/HDCP or `<0.82` confidence, and executes a 10-fixture recorded broadcast stream benchmark (`10/10` passed, `0%` FPR, `100%` `p10` containment, `hardwareTested: false`, `Stage P6` deferred).
+  2. **API Routes, UI Controls & Regression Suite**: Mounted authenticated strict-Zod endpoints (`/api/break-predictor/profiles`, `/api/break-predictor/predict`, `/api/break-predictor/calibrate-benchmark`), added interactive Block 5.2 predictor & calibration controls in `TvPreviewView.tsx`, added 19th automated QA invariant `qa_52_break_duration_predictor_calibration` (`49.0%` Full App, `79.0%` to Stage P6), and verified unit + HTTP integration coverage (`tests/breakScheduler.test.ts`, `tests/securityHardening.test.ts`, `tests/apiRegression.test.ts`).
+- **Next Authorised Action**: Review and commit **Block 5.2** (completing 100% of Phase 5 Software-First `12.0% / 12.0%`) before proceeding to **Phase 6 Advertising Delivery software prep** or `TASK-P3-001`. Track B remains strictly blocked on `DEC-OPEN-01`, and physical TV hardware testing stays strictly deferred to `Stage P6`.

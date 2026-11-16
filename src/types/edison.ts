@@ -1337,6 +1337,113 @@ export interface SharedIntelFleetSnapshot {
   auditTrail: SharedIntelAuditEntry[];
 }
 
+// --- Phase 5 Block 5.2: Per-Channel Break Duration ML Lower-Bound (p10/p5) Predictor & Calibration ---
 
+export type BreakDaypart = 'morning' | 'daytime' | 'prime_time' | 'late_night';
 
+export type BreakProgrammeGenre = 'news' | 'drama' | 'live_sport' | 'entertainment';
 
+export interface BreakChannelPredictorProfile {
+  channelNumber: number;
+  channelName: string;
+  broadcaster: string;
+  scopeId: string;
+  defaultSignalType: SharedIntelSignalType;
+  baselineSampleCount: number;
+  baselineP5Sec: number;
+  baselineP10Sec: number;
+  baselineP50Sec: number;
+  baselineMeanSec: number;
+  historicalBreaksSec: number[];
+}
+
+export interface BreakDurationPredictionRequest {
+  channelNumber: number;
+  daypart: BreakDaypart;
+  programmeGenre: BreakProgrammeGenre;
+  signalType: SharedIntelSignalType;
+  elapsedBreakSec?: number;
+  requestedAdDurationSec: number;
+  switchingOverheadSec?: number;
+  safetyBufferSeconds?: number;
+  confidenceScore?: number;
+  drmProtected?: boolean;
+  observedHistoricalBreaksSec?: number[];
+}
+
+export type BreakPredictionDecision =
+  | 'SCHEDULE_WITH_P10_BOUND'
+  | 'SKIP_MEAN_UNSAFE_P10_SHORT'
+  | 'SKIP_LOW_CONFIDENCE'
+  | 'SKIP_DRM_PROTECTED';
+
+export interface BreakDurationPredictionResult {
+  channelNumber: number;
+  channelName: string;
+  scopeId: string;
+  daypart: BreakDaypart;
+  programmeGenre: BreakProgrammeGenre;
+  signalType: SharedIntelSignalType;
+  sampleCount: number;
+  p5Sec: number;
+  p10Sec: number;
+  p50Sec: number;
+  meanSec: number;
+  stdDevSec: number;
+  elapsedBreakSec: number;
+  remainingP5Sec: number;
+  remainingP10Sec: number;
+  remainingMeanSec: number;
+  switchingOverheadSec: number;
+  safetyBufferSeconds: number;
+  effectiveSafeWindowSec: number;
+  requestedAdDurationSec: number;
+  confidenceScore: number;
+  safeToSchedule: boolean;
+  wouldMeanOverestimate: boolean;
+  decision: BreakPredictionDecision;
+  decisionReason: string;
+  isSoftwareSimulationOnly: true;
+  hardwareTested: false;
+  stageP6Deferred: true;
+  predictedAt: string;
+}
+
+export interface RecordedStreamFixtureResult {
+  fixtureId: string;
+  title: string;
+  channelNumber: number;
+  daypart: BreakDaypart;
+  programmeGenre: BreakProgrammeGenre;
+  signalType: SharedIntelSignalType;
+  groundTruthIsBreak: boolean;
+  actualRemainingDurationSec: number;
+  requestedAdDurationSec: number;
+  predictedP5Sec: number;
+  predictedP10Sec: number;
+  predictedMeanSec: number;
+  safeToScheduleDecision: boolean;
+  falsePositiveTriggered: boolean;
+  safeConservativeSkip: boolean;
+  p10DidNotOverestimate: boolean;
+  detectionLatencyMs: number;
+  absErrorP10VsActualSec: number;
+  passed: boolean;
+  note: string;
+}
+
+export interface BreakCalibrationBenchmarkReport {
+  generatedAt: string;
+  isSoftwareSimulationOnly: true;
+  hardwareTested: false;
+  stageP6Deferred: true;
+  totalFixtures: number;
+  passedFixtures: number;
+  allPassed: boolean;
+  falsePositiveRatePct: number;
+  falseNegativeSafeSkipRatePct: number;
+  p10SafeContainmentRatePct: number;
+  meanAbsoluteErrorSec: number;
+  avgDetectionLatencyMs: number;
+  fixtures: RecordedStreamFixtureResult[];
+}

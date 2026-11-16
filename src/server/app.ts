@@ -42,6 +42,11 @@ import {
 } from './broadcastMetadataParser.ts';
 import { sharedIntelFleetService } from './sharedIntelFleetService.ts';
 import {
+  listChannelPredictorProfiles,
+  predictBreakDurationQuantiles,
+  runRecordedStreamCalibrationBenchmark,
+} from './breakDurationPredictor.ts';
+import {
   adCreativeAttachSchema,
   adCreativeSaveSchema,
   adminAppealResolveSchema,
@@ -54,6 +59,7 @@ import {
   appealCreateSchema,
   auditLogExportQuerySchema,
   auditLogQuerySchema,
+  breakDurationPredictSchema,
   broadcastCueParseSchema,
   campaignCreateSchema,
   campaignQuerySchema,
@@ -1841,6 +1847,60 @@ export function createEdisonApp(
         `[${req.requestId ?? 'req'}] Reset Shared Intelligence Fleet simulation state.`
       );
       res.json({ state: sharedIntelFleetService.getSnapshot() });
+    }
+  );
+
+  // Phase 5 Block 5.2: Per-Channel Break Duration ML Lower-Bound (p10/p5) Predictor & Recorded Stream Calibration
+  app.get(
+    '/api/break-predictor/profiles',
+    requireAuth,
+    (_req: AuthenticatedRequest, res: Response) => {
+      res.json({
+        isSoftwareSimulationOnly: true,
+        hardwareTested: false,
+        stageP6Deferred: true,
+        profiles: listChannelPredictorProfiles(),
+      });
+    }
+  );
+
+  app.post(
+    '/api/break-predictor/predict',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(breakDurationPredictSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const prediction = predictBreakDurationQuantiles(parsed.data);
+      store.recordSecurityAudit(
+        req.currentUser!,
+        'BREAK_PREDICTOR_EVALUATED',
+        `CH_${prediction.channelNumber}`,
+        `[${req.requestId ?? 'req'}] ${prediction.decision}: p5=${prediction.p5Sec}s p10=${prediction.p10Sec}s mean=${prediction.meanSec}s safeWindow=${prediction.effectiveSafeWindowSec}s (hardwareTested=false).`
+      );
+      res.json(prediction);
+    }
+  );
+
+  app.post(
+    '/api/break-predictor/calibrate-benchmark',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(emptyStrictSchema, req.body ?? {});
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const report = runRecordedStreamCalibrationBenchmark();
+      store.recordSecurityAudit(
+        req.currentUser!,
+        'BREAK_CALIBRATION_BENCHMARK_RUN',
+        'phase5_break_predictor',
+        `[${req.requestId ?? 'req'}] Recorded stream benchmark: ${report.passedFixtures}/${report.totalFixtures} passed, FPR=${report.falsePositiveRatePct}%, MAE=${report.meanAbsoluteErrorSec}s, hardwareTested=false.`
+      );
+      res.json(report);
     }
   );
 

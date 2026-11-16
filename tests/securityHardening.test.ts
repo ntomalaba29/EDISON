@@ -444,8 +444,8 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
       .get('/api/qa/prototype-readiness')
       .set('Authorization', `Bearer ${adminLogin.body.token}`);
     expect(readinessRes.status).toBe(200);
-    expect(readinessRes.body.automatedInvariantsPassed).toBe(18);
-    expect(readinessRes.body.automatedInvariantsTotal).toBe(18);
+    expect(readinessRes.body.automatedInvariantsPassed).toBe(19);
+    expect(readinessRes.body.automatedInvariantsTotal).toBe(19);
   });
 
   it('hardens /api/media/upload against SVG/HTML polyglots & invalid base64 and locks down /uploads/* headers & symlinks', async () => {
@@ -908,13 +908,13 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
     expect(exitRes.body.hardwareTested).toBe(false);
     expect(exitRes.body.stageP6Deferred).toBe(true);
 
-    // 5. Prototype readiness snapshot reports 18/18 automated invariants passing
+    // 5. Prototype readiness snapshot reports 19/19 automated invariants passing
     const qaRes = await request(app)
       .get('/api/qa/prototype-readiness')
       .set('Authorization', `Bearer ${adminToken}`);
     expect(qaRes.status).toBe(200);
-    expect(qaRes.body.automatedInvariantsPassed).toBe(18);
-    expect(qaRes.body.automatedInvariantsTotal).toBe(18);
+    expect(qaRes.body.automatedInvariantsPassed).toBe(19);
+    expect(qaRes.body.automatedInvariantsTotal).toBe(19);
   });
 
   it('Block 5.1: enforces Ed25519 signature verification (401), Zero-PII (400), strict Zod schemas, scoped compatibility (409), and 11/11 Scenarios 25–35', async () => {
@@ -991,7 +991,91 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
     expect(suiteRes.body.hardwareTested).toBe(false);
     expect(suiteRes.body.stageP6Deferred).toBe(true);
   });
+
+  it('Block 5.2: secures break-predictor endpoints with auth/CSRF/strict-Zod, enforces p10 lower bounds, and returns 10/10 recorded stream benchmark', async () => {
+    const unauthNoCsrf = await request(app).post('/api/break-predictor/calibrate-benchmark').send({});
+    expect(unauthNoCsrf.status).toBe(403);
+
+    const invalidBearer = await request(app)
+      .post('/api/break-predictor/predict')
+      .set('Authorization', 'Bearer invalid_token_52')
+      .send({});
+    expect(invalidBearer.status).toBe(401);
+
+    const advLogin = await request(app).post('/api/auth/login').send({
+      email: 'advertiser@edison.demo',
+      password: 'EdisonProto!2026',
+    });
+    const advToken = advLogin.body.token as string;
+
+    const profilesRes = await request(app)
+      .get('/api/break-predictor/profiles')
+      .set('Authorization', `Bearer ${advToken}`);
+    expect(profilesRes.status).toBe(200);
+    expect(profilesRes.body.hardwareTested).toBe(false);
+    expect(profilesRes.body.profiles).toHaveLength(4);
+
+    // Reject unknown fields via strict Zod schema (HTTP 400)
+    const badStrict = await request(app)
+      .post('/api/break-predictor/predict')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({
+        channelNumber: 103,
+        daypart: 'prime_time',
+        programmeGenre: 'drama',
+        signalType: 'scte35',
+        requestedAdDurationSec: 30,
+        unexpectedField: true,
+      });
+    expect(badStrict.status).toBe(400);
+
+    // Conservative skip on high-variance live sport despite high mean
+    const sportPred = await request(app)
+      .post('/api/break-predictor/predict')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({
+        channelNumber: 401,
+        daypart: 'daytime',
+        programmeGenre: 'live_sport',
+        signalType: 'av_pattern',
+        requestedAdDurationSec: 30,
+        confidenceScore: 0.85,
+      });
+    expect(sportPred.status).toBe(200);
+    expect(sportPred.body.safeToSchedule).toBe(false);
+    expect(sportPred.body.wouldMeanOverestimate).toBe(true);
+    expect(sportPred.body.decision).toBe('SKIP_MEAN_UNSAFE_P10_SHORT');
+
+    // Default low-confidence AV-pattern on live sport triggers fail-closed SKIP_LOW_CONFIDENCE
+    const lowConfSportPred = await request(app)
+      .post('/api/break-predictor/predict')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({
+        channelNumber: 401,
+        daypart: 'daytime',
+        programmeGenre: 'live_sport',
+        signalType: 'av_pattern',
+        requestedAdDurationSec: 30,
+      });
+    expect(lowConfSportPred.status).toBe(200);
+    expect(lowConfSportPred.body.safeToSchedule).toBe(false);
+    expect(lowConfSportPred.body.decision).toBe('SKIP_LOW_CONFIDENCE');
+
+    // Run 10-fixture recorded stream benchmark
+    const benchRes = await request(app)
+      .post('/api/break-predictor/calibrate-benchmark')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({});
+    expect(benchRes.status).toBe(200);
+    expect(benchRes.body.totalFixtures).toBe(10);
+    expect(benchRes.body.passedFixtures).toBe(10);
+    expect(benchRes.body.allPassed).toBe(true);
+    expect(benchRes.body.falsePositiveRatePct).toBe(0);
+    expect(benchRes.body.hardwareTested).toBe(false);
+    expect(benchRes.body.stageP6Deferred).toBe(true);
+  });
 });
+
 
 
 
