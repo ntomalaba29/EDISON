@@ -76,6 +76,7 @@ import type {
 import { edisonTvControlEngine } from './tvPlatformAdapter.ts';
 import { localOfflineIntelCache } from './offlineIntelCache.ts';
 import { runPhase4SoftwareExitSuite } from './broadcastMetadataParser.ts';
+import { sharedIntelFleetService } from './sharedIntelFleetService.ts';
 
 const DEFAULT_DATA_DIR = path.resolve(process.cwd(), 'data');
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days absolute cap
@@ -4397,6 +4398,25 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
           'Lawful SCTE-35/HbbTV/AV-cadence cue fixture parsers, ADR-001/ADR-017 companion policy guardrails, and 10/10 Phase 4 software exit suite verified (hardwareTested=false, Stage P6 deferred).',
       },
       {
+        id: 'qa_51_shared_intel_fleet_scenarios_25_35',
+        block: 'Block 5.1',
+        label:
+          'Phase 5 Block 5.1: Shared Ad Intelligence Fleet Service, Ed25519 Attestation & Scenarios 25–35',
+        status: (() => {
+          const fleetReport = sharedIntelFleetService.runScenarios25To35Suite();
+          return fleetReport.allPassed &&
+            fleetReport.passedScenarios === 11 &&
+            fleetReport.zeroPiiVerified &&
+            !fleetReport.hardwareTested &&
+            fleetReport.stageP6Deferred
+            ? 'pass'
+            : 'fail';
+        })(),
+        scope: 'automated_invariant',
+        detail:
+          'Ed25519 device/manifest signatures, multi-TV corroboration quorum, conflict quarantine, scoped delta sync, 2.5% FPR auto-rollback, and 11/11 Scenarios 25–35 verified (hardwareTested=false, Stage P6 deferred).',
+      },
+      {
         id: 'qa_27_physical_qr_scan',
         block: 'Block 2.7',
         label: 'Physical smartphone camera scan verification on real mobile device',
@@ -4414,8 +4434,8 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
 
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 4 — Smart TV OS Adapters & Normal TV Remote (Software-First · JSON Retained)',
-      block: 'Block 4.3 (Broadcast Metadata Cue Fixtures, Companion Policy Guardrails & Software Exit Suite)',
+      phase: 'Phase 5 — Lawful Break Detection & Shared Ad Intelligence Fleet Service (Software-First · JSON Retained)',
+      block: 'Block 5.1 (Shared Ad Intelligence Fleet Service, Ed25519 Attestation & Scenarios 25–35)',
       automatedInvariantsPassed,
       automatedInvariantsTotal: autoChecks.length,
       physicalQrScanStatus:
@@ -4630,18 +4650,18 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     const latestAudit = this.data.auditLogs[0] ?? null;
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 4 — Smart TV OS Adapters & Normal TV Remote (Software-First · JSON Retained)',
-      stage: 'Phase 3 & Blocks 4.1–4.2 Committed · Phase 4 Block 4.3 Complete (Metadata Cue Fixtures, Companion Policy Guardrails & Software Exit) · TASK-P3-001 READY',
-      block: 'Block 4.3 (Broadcast Metadata Cue Fixtures, Companion Policy Guardrails & Software Exit Suite)',
-      gateStatus: 'BLOCK 4.3 VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · STAGE P6 HARDWARE DEFERRED)',
+      phase: 'Phase 5 — Lawful Break Detection & Shared Ad Intelligence Fleet Service (Software-First · JSON Retained)',
+      stage: 'Phases 1–4 Software Exit Committed · Phase 5 Block 5.1 Complete (Fleet Service, Ed25519 Attestation & Scenarios 25–35) · TASK-P3-001 READY',
+      block: 'Block 5.1 (Shared Ad Intelligence Fleet Service, Ed25519 Attestation & Scenarios 25–35)',
+      gateStatus: 'BLOCK 5.1 VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · STAGE P6 HARDWARE DEFERRED)',
       progressMetrics: {
         aiStudioAssignmentPct: 85,
-        softwareToStageP6Pct: 59.7,
-        overallFullAppPct: 37.0,
-        remainingUntilFullAppPct: 63.0,
+        softwareToStageP6Pct: 69.4,
+        overallFullAppPct: 43.0,
+        remainingUntilFullAppPct: 57.0,
         consentBlockedScopePct: 15,
         rubricSummary:
-          'Phase 1 Specs (6.0%) + Phase 2 Track A Complete (13.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Blocks 4.1–4.2 Committed (6.0%) + Phase 4 Block 4.3 Awaiting Commit (3.0%) = 37.0% of 15-Phase Full Commercial App (59.7% to Stage P6; 15% Track B blocked on DEC-OPEN-01).',
+          'Phase 1 Specs (6.0%) + Phase 2 Track A Complete (13.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Block 5.1 Awaiting Commit (6.0%) = 43.0% of 15-Phase Full Commercial App (69.4% to Stage P6; 15% Track B blocked on DEC-OPEN-01).',
       },
       latestAuditAt: latestAudit?.createdAt ?? null,
       latestAuditAction: latestAudit?.action ?? null,

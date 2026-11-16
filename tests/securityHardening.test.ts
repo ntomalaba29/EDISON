@@ -444,8 +444,8 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
       .get('/api/qa/prototype-readiness')
       .set('Authorization', `Bearer ${adminLogin.body.token}`);
     expect(readinessRes.status).toBe(200);
-    expect(readinessRes.body.automatedInvariantsPassed).toBe(17);
-    expect(readinessRes.body.automatedInvariantsTotal).toBe(17);
+    expect(readinessRes.body.automatedInvariantsPassed).toBe(18);
+    expect(readinessRes.body.automatedInvariantsTotal).toBe(18);
   });
 
   it('hardens /api/media/upload against SVG/HTML polyglots & invalid base64 and locks down /uploads/* headers & symlinks', async () => {
@@ -908,13 +908,88 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
     expect(exitRes.body.hardwareTested).toBe(false);
     expect(exitRes.body.stageP6Deferred).toBe(true);
 
-    // 5. Prototype readiness snapshot reports 17/17 automated invariants passing
+    // 5. Prototype readiness snapshot reports 18/18 automated invariants passing
     const qaRes = await request(app)
       .get('/api/qa/prototype-readiness')
       .set('Authorization', `Bearer ${adminToken}`);
     expect(qaRes.status).toBe(200);
-    expect(qaRes.body.automatedInvariantsPassed).toBe(17);
-    expect(qaRes.body.automatedInvariantsTotal).toBe(17);
+    expect(qaRes.body.automatedInvariantsPassed).toBe(18);
+    expect(qaRes.body.automatedInvariantsTotal).toBe(18);
+  });
+
+  it('Block 5.1: enforces Ed25519 signature verification (401), Zero-PII (400), strict Zod schemas, scoped compatibility (409), and 11/11 Scenarios 25–35', async () => {
+    const unauthNoCsrf = await request(app).post('/api/shared-intel-fleet/scenarios-25-35').send({});
+    expect(unauthNoCsrf.status).toBe(403);
+
+    const invalidBearer = await request(app)
+      .post('/api/shared-intel-fleet/scenarios-25-35')
+      .set('Authorization', 'Bearer bad_token_xyz')
+      .send({});
+    expect(invalidBearer.status).toBe(401);
+
+    const adminLogin = await request(app).post('/api/auth/login').send({
+      email: 'admin@edison.demo',
+      password: 'EdisonAdmin!2026',
+    });
+    const adminToken = adminLogin.body.token as string;
+
+    // 1. Spoofed signature rejected with 401
+    const spoofRes = await request(app)
+      .post('/api/shared-intel-fleet/observations')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        tvDeviceId: 'fleet_tv_gb_01',
+        scopeId: 'gb_freeview_bbcone_androidtv14_dvbt2',
+        signalType: 'scte35',
+        estimatedBreakDurationSec: 112,
+        transitionLatencyMs: 360,
+        nonce: `sec_spoof_${Date.now()}`,
+        signatureHex: '00'.repeat(64),
+      });
+    expect(spoofRes.status).toBe(401);
+    expect(spoofRes.body.observation.trustDecision).toBe('rejected_invalid_signature');
+
+    // 2. PII payload rejected with 400
+    const piiRes = await request(app)
+      .post('/api/shared-intel-fleet/observations')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        tvDeviceId: 'fleet_tv_gb_01',
+        scopeId: 'gb_freeview_bbcone_androidtv14_dvbt2',
+        signalType: 'scte35',
+        estimatedBreakDurationSec: 112,
+        transitionLatencyMs: 360,
+        nonce: `sec_pii_${Date.now()}`,
+        useRegisteredDemoSigner: true,
+        householdId: 'hh_forbidden_1',
+      });
+    expect(piiRes.status).toBe(400);
+
+    // 3. Cross-platform/country mismatch returns HTTP 409 compatibility block
+    const compatMismatch = await request(app)
+      .post('/api/shared-intel-fleet/sync-delta')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        tvDeviceId: 'fleet_tv_gb_01',
+        scopeId: 'gb_freeview_bbcone_androidtv14_dvbt2',
+        clientPlatform: 'Samsung Tizen 7.0',
+        clientCountry: 'ZA',
+        knownVersion: 1,
+      });
+    expect(compatMismatch.status).toBe(409);
+    expect(compatMismatch.body.sync.status).toBe('scope_compatibility_mismatch');
+
+    // 4. Scenarios 25-35 automated verification suite returns 11/11 passed
+    const suiteRes = await request(app)
+      .post('/api/shared-intel-fleet/scenarios-25-35')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({});
+    expect(suiteRes.status).toBe(200);
+    expect(suiteRes.body.totalScenarios).toBe(11);
+    expect(suiteRes.body.passedScenarios).toBe(11);
+    expect(suiteRes.body.allPassed).toBe(true);
+    expect(suiteRes.body.hardwareTested).toBe(false);
+    expect(suiteRes.body.stageP6Deferred).toBe(true);
   });
 });
 

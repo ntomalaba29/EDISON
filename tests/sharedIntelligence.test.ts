@@ -139,3 +139,85 @@ describe('Shared Ad Intelligence Prototype Preview (Block P2-V2.4 / ADR-016)', (
     expect(state.deviceCaches[0].fallbackStatus).toBe('rollback_restored');
   });
 });
+
+import crypto from 'node:crypto';
+import {
+  SharedIntelFleetService,
+  canonicalObservationSigningMessage,
+} from '../src/server/sharedIntelFleetService.ts';
+
+describe('Phase 5 Block 5.1: Shared Ad Intelligence Fleet Service & Scenarios 25–35 (ADR-016)', () => {
+  it('passes all 11 Scenarios 25–35 deterministically with zero PII and hardwareTested=false', () => {
+    const fleet = new SharedIntelFleetService();
+    const report = fleet.runScenarios25To35Suite();
+
+    expect(report.totalScenarios).toBe(11);
+    expect(report.passedScenarios).toBe(11);
+    expect(report.allPassed).toBe(true);
+    expect(report.zeroPiiVerified).toBe(true);
+    expect(report.hardwareTested).toBe(false);
+    expect(report.stageP6Deferred).toBe(true);
+  });
+
+  it('verifies external Ed25519 key registration, rejects spoofed/replayed signatures (401), and holds conflicting clusters', () => {
+    const fleet = new SharedIntelFleetService();
+    const scopeId = fleet.getSnapshot().bundles[0].scope.scopeId;
+    const keypair = crypto.generateKeyPairSync('ed25519', {
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    });
+
+    const reg = fleet.registerAttestedDevice({
+      tvDeviceId: 'ext_ed25519_tv_01',
+      platform: 'Android TV 14',
+      country: 'GB',
+      assignedScopeId: scopeId,
+      publicKeyPem: keypair.publicKey,
+    });
+    expect(reg.device.status).toBe('attested_active');
+    expect(reg.signingHelperAvailable).toBe(false);
+
+    const payload = {
+      tvDeviceId: 'ext_ed25519_tv_01',
+      scopeId,
+      signalType: 'scte35' as const,
+      estimatedBreakDurationSec: 112,
+      transitionLatencyMs: 365,
+      nonce: 'ext_nonce_1',
+    };
+    const sigHex = crypto
+      .sign(null, Buffer.from(canonicalObservationSigningMessage(payload), 'utf8'), keypair.privateKey)
+      .toString('hex');
+
+    const acceptedFirst = fleet.submitSignedObservation({
+      ...payload,
+      signatureHex: sigHex,
+    });
+    expect(acceptedFirst.ok).toBe(true);
+    expect(acceptedFirst.signatureVerified).toBe(true);
+    expect(acceptedFirst.trustDecision).toBe('quarantined_pending_quorum');
+
+    // Nonce replay must fail with HTTP 401
+    const replayRes = fleet.submitSignedObservation({
+      ...payload,
+      signatureHex: sigHex,
+    });
+    expect(replayRes.ok).toBe(false);
+    expect(replayRes.httpStatus).toBe(401);
+
+    // Conflicting observation from another attested device reduces confidence without mutating published version
+    const conflicting = fleet.submitSignedObservation({
+      tvDeviceId: 'fleet_tv_gb_02',
+      scopeId,
+      signalType: 'av_pattern',
+      estimatedBreakDurationSec: 45,
+      transitionLatencyMs: 410,
+      nonce: 'conflict_nonce_2',
+      useRegisteredDemoSigner: true,
+    });
+    expect(conflicting.trustDecision).toBe('conflicting_held');
+    expect(fleet.getSnapshot().bundles[0].status).toBe('conflict_split_held');
+    expect(fleet.getSnapshot().bundles[0].version).toBe(3);
+  });
+});
+

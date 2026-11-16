@@ -229,7 +229,7 @@ export default function App() {
         <div className="p-4 m-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-1">
           <p className="font-semibold text-slate-800">Prototype Boundary</p>
           <p className="leading-relaxed">
-            Phase 4 Block 4.3 active (Phase 3 &amp; Blocks 4.1–4.2 committed · TASK-P3-001 READY, JSON retained). Track B (15%) blocked on DEC-OPEN-01. Zero real payments or physical TV hardware tested.
+            Phase 5 Block 5.1 active (Phases 1–4 software exit committed · TASK-P3-001 READY, JSON retained). Track B (15%) blocked on DEC-OPEN-01. Zero real payments or physical TV hardware tested.
           </p>
         </div>
       </aside>

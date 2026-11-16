@@ -40,6 +40,7 @@ import {
   parseAndValidateBroadcastCue,
   runPhase4SoftwareExitSuite,
 } from './broadcastMetadataParser.ts';
+import { sharedIntelFleetService } from './sharedIntelFleetService.ts';
 import {
   adCreativeAttachSchema,
   adCreativeSaveSchema,
@@ -60,6 +61,11 @@ import {
   campaignUpdateSchema,
   companionPolicyEvalSchema,
   complaintCreateSchema,
+  emptyStrictSchema,
+  fleetDeltaSyncSchema,
+  fleetDeviceRegisterSchema,
+  fleetFprReportSchema,
+  fleetObservationSubmitSchema,
   loginSchema,
   mediaUploadSchema,
   offlineCacheEvaluateBreakSchema,
@@ -1659,6 +1665,182 @@ export function createEdisonApp(
         `[${req.requestId ?? 'req'}] Phase 4 software exit suite: ${report.passedChecks}/${report.totalChecks} checks passed (softwareExitReady=${report.softwareExitReady}, hardwareTested=false).`
       );
       res.json(report);
+    }
+  );
+
+  // --- Phase 5 Block 5.1: Production Network-Wide Shared Ad Intelligence Fleet Service (ADR-016 / PRD-19) ---
+  app.get(
+    '/api/shared-intel-fleet/state',
+    requireAuth,
+    (_req: AuthenticatedRequest, res: Response) => {
+      res.setHeader('Cache-Control', 'no-store');
+      res.json(sharedIntelFleetService.getSnapshot());
+    }
+  );
+
+  app.post(
+    '/api/shared-intel-fleet/devices/register',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(fleetDeviceRegisterSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        const reg = sharedIntelFleetService.registerAttestedDevice(parsed.data);
+        store.recordSecurityAudit(
+          req.currentUser!,
+          'FLEET_DEVICE_ATTESTATION_REGISTERED',
+          parsed.data.tvDeviceId,
+          `[${req.requestId ?? 'req'}] Registered attested TV ${parsed.data.tvDeviceId} (${parsed.data.country}/${parsed.data.platform}) for scope ${parsed.data.assignedScopeId}.`
+        );
+        res.status(201).json({
+          ...reg,
+          state: sharedIntelFleetService.getSnapshot(),
+        });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err, 400);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.post(
+    '/api/shared-intel-fleet/observations',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const rawBody = (req.body ?? {}) as Record<string, unknown>;
+      const parsed = parseWithZod(fleetObservationSubmitSchema, rawBody);
+      if (!parsed.ok) {
+        if (parsed.error.includes('Zero-PII policy violation')) {
+          store.recordSecurityAudit(
+            req.currentUser!,
+            'FLEET_ZERO_PII_REJECTED',
+            typeof rawBody.scopeId === 'string' ? rawBody.scopeId : 'unknown',
+            `[${req.requestId ?? 'req'}] ${parsed.error}`
+          );
+        }
+        sendValidationError(res, parsed);
+        return;
+      }
+
+      const d = parsed.data;
+      const result = sharedIntelFleetService.submitSignedObservation({
+        tvDeviceId: d.tvDeviceId,
+        scopeId: d.scopeId,
+        signalType: d.signalType,
+        estimatedBreakDurationSec: d.estimatedBreakDurationSec,
+        transitionLatencyMs: d.transitionLatencyMs,
+        nonce: d.nonce,
+        signatureHex: d.signatureHex,
+        useRegisteredDemoSigner: d.useRegisteredDemoSigner,
+        outlierAnomaly: d.outlierAnomaly,
+        rawPayload: rawBody,
+      });
+
+      store.recordSecurityAudit(
+        req.currentUser!,
+        `FLEET_OBSERVATION_${result.trustDecision.toUpperCase()}`,
+        d.scopeId,
+        `[${req.requestId ?? 'req'}] ${d.tvDeviceId} -> ${result.trustDecision} (HTTP ${result.httpStatus})`
+      );
+
+      res.status(result.httpStatus).json({
+        observation: result,
+        state: sharedIntelFleetService.getSnapshot(),
+      });
+    }
+  );
+
+  app.post(
+    '/api/shared-intel-fleet/sync-delta',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(fleetDeltaSyncSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const sync = sharedIntelFleetService.syncScopedDelta(parsed.data);
+      store.recordSecurityAudit(
+        req.currentUser!,
+        `FLEET_DELTA_SYNC_${sync.status.toUpperCase()}`,
+        parsed.data.scopeId,
+        `[${req.requestId ?? 'req'}] ${sync.detail}`
+      );
+      res.status(sync.ok ? 200 : 409).json({
+        sync,
+        state: sharedIntelFleetService.getSnapshot(),
+      });
+    }
+  );
+
+  app.post(
+    '/api/shared-intel-fleet/report-fpr',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(fleetFprReportSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        const result = sharedIntelFleetService.reportPostUpdateFpr(parsed.data);
+        store.recordSecurityAudit(
+          req.currentUser!,
+          result.rollbackTriggered ? 'FLEET_AUTO_ROLLBACK_FPR' : 'FLEET_FPR_REPORTED',
+          parsed.data.scopeId,
+          `[${req.requestId ?? 'req'}] ${result.reason}`
+        );
+        res.json({
+          report: result,
+          state: sharedIntelFleetService.getSnapshot(),
+        });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err, 400);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.post(
+    '/api/shared-intel-fleet/scenarios-25-35',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(emptyStrictSchema, req.body ?? {});
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const report = sharedIntelFleetService.runScenarios25To35Suite();
+      store.recordSecurityAudit(
+        req.currentUser!,
+        'SHARED_INTEL_SCENARIOS_25_35_RUN',
+        'phase5_shared_intel',
+        `[${req.requestId ?? 'req'}] Scenarios 25-35 verified: ${report.passedScenarios}/${report.totalScenarios} passed (hardwareTested=false, stageP6Deferred=true).`
+      );
+      res.json(report);
+    }
+  );
+
+  app.post(
+    '/api/shared-intel-fleet/reset',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(emptyStrictSchema, req.body ?? {});
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      sharedIntelFleetService.reset();
+      store.recordSecurityAudit(
+        req.currentUser!,
+        'FLEET_SERVICE_RESET',
+        'phase5_shared_intel',
+        `[${req.requestId ?? 'req'}] Reset Shared Intelligence Fleet simulation state.`
+      );
+      res.json({ state: sharedIntelFleetService.getSnapshot() });
     }
   );
 

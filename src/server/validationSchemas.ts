@@ -631,6 +631,64 @@ export const companionPolicyEvalSchema = z
 
 export const phase4ExitSuiteSchema = z.object({}).strict();
 
+// --- Phase 5 Block 5.1: Shared Ad Intelligence Fleet Production Service Schemas ---
+
+export const fleetDeviceRegisterSchema = z
+  .object({
+    tvDeviceId: z.string().trim().min(3).max(120),
+    platform: z.string().trim().min(2).max(80),
+    country: z.string().trim().min(2).max(12),
+    assignedScopeId: z.string().trim().min(3).max(160),
+    publicKeyPem: z.string().trim().min(40).max(2000).optional(),
+  })
+  .strict();
+
+export const fleetObservationSubmitSchema = z
+  .object({
+    tvDeviceId: z.string().trim().min(2).max(120),
+    scopeId: z.string().trim().min(3).max(160),
+    signalType: z.enum(['scte35', 'hbbtv', 'av_pattern', 'channel_cadence']).default('scte35'),
+    estimatedBreakDurationSec: z.coerce.number().finite().min(5).max(1200),
+    transitionLatencyMs: z.coerce.number().finite().min(0).max(30000).default(380),
+    nonce: z.string().trim().min(2).max(120),
+    signatureHex: z.string().trim().max(512).optional(),
+    useRegisteredDemoSigner: z.boolean().optional().default(false),
+    outlierAnomaly: z.boolean().optional().default(false),
+  })
+  .passthrough()
+  .superRefine((val, ctx) => {
+    for (const key of FORBIDDEN_SHARED_INTEL_PII_KEYS) {
+      if (Object.prototype.hasOwnProperty.call(val, key)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: `Zero-PII policy violation: "${key}" is strictly forbidden in Fleet Shared Intelligence observations.`,
+        });
+      }
+    }
+  });
+
+export const fleetDeltaSyncSchema = z
+  .object({
+    tvDeviceId: z.string().trim().min(2).max(120),
+    scopeId: z.string().trim().min(3).max(160),
+    clientPlatform: z.string().trim().min(2).max(80),
+    clientCountry: z.string().trim().min(2).max(12),
+    knownVersion: z.coerce.number().int().min(0).max(100000).default(0),
+    simulateCorruptChecksum: z.boolean().optional().default(false),
+  })
+  .strict();
+
+export const fleetFprReportSchema = z
+  .object({
+    scopeId: z.string().trim().min(3).max(160),
+    observedFprPct: z.coerce.number().finite().min(0).max(100),
+  })
+  .strict();
+
+export const emptyStrictSchema = z.object({}).strict();
+
+
 export function parseWithZod<T extends z.ZodTypeAny>(
   schema: T,
   payload: unknown

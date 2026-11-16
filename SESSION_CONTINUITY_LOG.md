@@ -120,5 +120,16 @@
   2. **API Routes, UI Controls & Regression Suite**: Added strict-Zod authenticated routes (`POST /api/tv-adapters/parse-cue`, `POST /api/tv-adapters/evaluate-policy`, `POST /api/tv-adapters/phase4-exit-suite`), interactive Block 4.3 controls in `TvPreviewView.tsx`, unit + HTTP integration coverage (`tests/phase4AdaptersAndCache.test.ts` & `tests/securityHardening.test.ts`), and 17th QA invariant `qa_43_metadata_fixtures_policy_phase4_exit` (`37.0%` Full App, `59.7%` to Stage P6).
 - **Next Authorised Action**: Review and commit **Block 4.3** before proceeding to **Phase 5 Block 5.1** (or `TASK-P3-001`). Physical TV hardware testing stays strictly deferred to `Stage P6`.
 
+---
+
+## 10. Session Entry — 2026-11-15 (`Block 4.3` Committed · `Phase 5 · Stage 5.1 · Block 5.1` Complete & Awaiting Commit)
+
+- **Owner Commit Confirmation**: Confirmed manual commit of **Phase 4 · Block 4.3** (`"Committed, next"`), locking the 10-check Phase 4 software exit gate (`9.0% / 12.0%` Phase 4 committed).
+- **Phase 5 · Block 5.1 Implemented**:
+  1. **Fleet Shared Intelligence Service (`src/server/sharedIntelFleetService.ts`)**: Upgraded `ADR-016` / `PRD-19` software engine with Ed25519 asymmetric device attestation & bundle signing (`edison_fleet_ed25519_k1`), nonce replay & spoof rejection (`401`), sliding-window flood rate limiting (`429`), Zero-PII payload enforcement (`400`), multi-TV `K=3` corroboration & disagreeing-cluster confidence splitting (`conflict_split_held`), compatibility-isolated delta sync (`409` on cross-OS/country mismatch), post-update `>2.5%` FPR automatic rollback, and `runScenarios25To35Suite()` verifying Scenarios `25`–`35` (`11/11`).
+  2. **API Routes, UI Console & Regression Suite**: Mounted authenticated strict-Zod endpoints (`/api/shared-intel-fleet/*`), connected Phase 5 Fleet Service & Scenarios `25`–`35` runner UI in `SharedIntelligencePreviewView.tsx`, added 18th QA invariant `qa_51_shared_intel_fleet_scenarios_25_35` (`43.0%` Full App, `69.4%` to Stage P6), and verified unit + HTTP integration coverage (`tests/sharedIntelligence.test.ts`, `tests/securityHardening.test.ts`, `tests/apiRegression.test.ts`).
+- **Next Authorised Action**: Review and commit **Block 5.1** before proceeding to **Phase 5 Block 5.2** (Per-Channel Break Duration ML Predictor & Recorded Stream Calibration) or `TASK-P3-001`. Track B remains strictly blocked on `DEC-OPEN-01`, and physical TV hardware testing stays strictly deferred to `Stage P6`.
+
+
 
 

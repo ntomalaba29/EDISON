@@ -7,26 +7,27 @@
 
 ## 1. PROJECT OWNER MESSAGE
 
-> **Phase 3 & Blocks 4.1–4.2 Committed · Phase 4 Block 4.3 Complete & Verified (`TASK-P3-001` `READY` — JSON Persistence Retained)**:
-> - Project Owner confirmed manual commit of **`Block 4.2`** & CI workflow fix (`"Committed, next"`), locking the offline telemetry sync queue, cadence simulator, 8-vector conformance, and Bun GitHub Actions CI (`6.0%` Phase 4 committed).
-> - Completed **Phase 4 · Stage 4.3 · Block 4.3 (Broadcast Metadata Cue Fixtures, Companion Policy Guardrails & 10-Check Phase 4 Software Exit Suite)**:
->   - Created `src/server/broadcastMetadataParser.ts` enforcing lawful fail-closed cue parsing across `scte35_splice_insert`, `hbbtv_ait_dsmcc`, and `av_cadence_marker` fixtures (DRM/HDCP skip, HbbTV external hijack rejection, `<0.85` AV confidence skip), `ADR-001`/`ADR-017` companion policy evaluation (`DENY_FAIL_CLOSED` vs `ALLOW_BOUNDED`), and a 10-check `runPhase4SoftwareExitSuite()`.
->   - Exposed authenticated Block 4.3 endpoints (`POST /api/tv-adapters/parse-cue`, `POST /api/tv-adapters/evaluate-policy`, `POST /api/tv-adapters/phase4-exit-suite`), interactive Simulator UI panels in `TvPreviewView.tsx`, 17th automated QA invariant `qa_43_metadata_fixtures_policy_phase4_exit`, and unit + HTTP security tests (`hardwareTested: false`, `Stage P6` strictly deferred).
+> **Phases 1–4 Software Exit Committed · Phase 5 Block 5.1 Complete & Verified (`TASK-P3-001` `READY` — JSON Persistence Retained)**:
+> - Project Owner confirmed manual commit of **Phase 4 · Block 4.3** (`"Committed, next"`), locking lawful broadcast metadata cue fixtures (`SCTE-35`/`HbbTV`/`AV`), `ADR-001`/`ADR-017` companion policy guardrails, and the 10-check Phase 4 software exit suite (`9.0%` / `12.0%` Phase 4 software exit committed).
+> - Completed **Phase 5 · Stage 5.1 · Block 5.1 (Network-Wide Shared Ad Intelligence Fleet Production Service — `ADR-016` / `PRD-19`, Scenarios `25`–`35`)**:
+>   - Created `src/server/sharedIntelFleetService.ts` implementing Ed25519 asymmetric device & manifest attestation (`registerAttestedDevice`, nonce replay protection, `401` invalid-signature blocking), sliding-window flood rate limiting (`429`), Zero-PII payload rejection (`400`), multi-TV `K=3` corroboration quorum & conflict cluster quarantine, strict scope compatibility delta sync (`409` on cross-OS/country mismatch), post-update `>2.5%` FPR automatic rollback, and `runScenarios25To35Suite()` (`11/11` passed).
+>   - Exposed strict-Zod endpoints (`/api/shared-intel-fleet/*`), connected Phase 5 Fleet Service & Scenarios `25`–`35` UI in `SharedIntelligencePreviewView.tsx`, 18th automated QA invariant `qa_51_shared_intel_fleet_scenarios_25_35`, and full unit + HTTP security integration tests (`hardwareTested: false`, `Stage P6` strictly deferred).
 > - Track B (`15.0%` consent/household/multi-profile/epoch-`403`) remains **strictly blocked** pending separate `DEC-OPEN-01` resolution.
-> - Overall progress is now **`37.0%` of the 15-Phase Full App** (`59.7%` to `Stage P6` · Phase 2 Track A `85.0%` committed + Phase 3 `9.0%` committed + Phase 4 `Blocks 4.1–4.2` `6.0%` committed + `Block 4.3` `3.0%` **`VERIFIED · AWAITING COMMIT`**).
+> - Overall progress is now **`43.0%` of the 15-Phase Full App** (`69.4%` to `Stage P6` · Phases 1–4 committed + Phase 5 `Block 5.1` `6.0%` **`VERIFIED · AWAITING COMMIT`**).
 
 ---
 
 ## 2. PROGRESS PERCENTAGES UNTIL FULL APP
 
 - **Phase 2 AI Studio Prototype Scope**: **`85.0%`** (**`100%` of unblocked Track A committed** · `15.0%` Track B Consent/Household/Multi-Profile/Epoch-`403` strictly **BLOCKED on `DEC-OPEN-01`**)
-- **Software-to-`Stage-P6` Milestone (Phases 1–6 Subtotal = `62.0%` of Full App)**: **`59.7%`** (`37.0% / 62.0%`)
-- **Overall EDISON Project Progress (Until Full 15-Phase International Commercial App = `100.0%`)**: **`37.0%`** (**`63.0%` remaining**)
+- **Software-to-`Stage-P6` Milestone (Phases 1–6 Subtotal = `62.0%` of Full App)**: **`69.4%`** (`43.0% / 62.0%`)
+- **Overall EDISON Project Progress (Until Full 15-Phase International Commercial App = `100.0%`)**: **`43.0%`** (**`57.0%` remaining**)
   - Phase 1 Specs (`v1`–`v2.2`): `6.0% / 6.0%` (**Committed**)
   - Phase 2 Prototype: `13.0% / 14.0%` (`Blocks 2.1`–`2.7` + `P2-FIX.6` + `P2-V2.1`–`P2-V2.4` **Committed**; `1.0%` reserved for Track B / `DEC-OPEN-01`)
   - Phase 3 Hardening: `9.0% / 12.0%` (`Blocks P3-A`, `P3-B` & `P3-C` **Committed** `9.0%`; `TASK-P3-001` **`READY`** `3.0%` with JSON retained in AI Studio)
-  - Phase 4 Smart TV OS Adapters & Normal TV Remote: `9.0% / 12.0%` (**`Blocks 4.1–4.2` `COMMITTED` `6.0%` + `Block 4.3` `VERIFIED · AWAITING COMMIT` `3.0%`**; remaining `3.0%` reserved for OEM partner SDK bindings & `Stage P6` hardware test)
-  - Phase 5 Break Detection & Shared Ad Intelligence (`12%`), Phase 6 Single Final Integrated TV Test (`6%`), Phases 7–9 Delivery/Billing/Render (`12%`), Phases 10–12 Ops/Legal/Failure Testing (`12%`), Phases 13–15 Launch/Expansion (`14%`): `0.0%` (**Not Started / Deferred**)
+  - Phase 4 Smart TV OS Adapters & Normal TV Remote: `9.0% / 12.0%` (**`Blocks 4.1–4.3` `COMMITTED`**; remaining `3.0%` reserved for OEM partner SDK bindings & `Stage P6` hardware test)
+  - Phase 5 Break Detection & Shared Ad Intelligence: `6.0% / 12.0%` (**`Block 5.1` `VERIFIED · AWAITING COMMIT` `6.0%`**; `Block 5.2` ML Break-Length Calibrator `NOT STARTED`)
+  - Phase 6 Single Final Integrated TV Test (`6%`), Phases 7–9 Delivery/Billing/Render (`12%`), Phases 10–12 Ops/Legal/Failure Testing (`12%`), Phases 13–15 Launch/Expansion (`14%`): `0.0%` (**Not Started / Deferred**)
 
 ---
 
@@ -62,7 +63,7 @@
 
 ## 5. COPILOT EXECUTION REPORT
 
-*No VS Code Copilot tasks have been executed. `Blocks P3-A`, `P3-B`, `P3-C` & Phase 4 `Blocks 4.1–4.2` (Committed) and Phase 4 `Block 4.3` (Awaiting Commit) were executed software-first inside AI Studio.*
+*No VS Code Copilot tasks have been executed. Phases 3–4 software exit blocks (`Committed`) and Phase 5 `Block 5.1` (`Awaiting Commit`) were executed software-first inside AI Studio.*
 
 ---
 
@@ -70,19 +71,18 @@
 
 - **Reviewed By**: AI Studio
 - **Phase 3 (`P3-A`, `P3-B` & `P3-C` — `COMMITTED`)**: API hardening, `EdisonDataRepository`, `X-Request-Id` telemetry, CSV formula-neutralized audit export, and modular TV/AURA contracts.
-- **Phase 4 · Blocks `4.1`–`4.2` (`COMMITTED`)**: Platform harnesses, 16-case deterministic fault suite, SHA-256 offline cache swap/rollback, idempotent telemetry queue deduplication, 3-channel cadence simulator, 8-vector emulator conformance, and Bun frozen-lockfile CI workflow.
-- **Phase 4 · Block `4.3` (`VERIFIED · AWAITING COMMIT`)**:
-  - Built `src/server/broadcastMetadataParser.ts` validating lawful `scte35_splice_insert`, `hbbtv_ait_dsmcc`, and `av_cadence_marker` cue fixtures (DRM/HDCP skip, HbbTV 3P hijack block, low-confidence AV skip).
-  - Enforced `evaluateCompanionPolicyGuardrail()` (`ADR-001` / `ADR-017`) blocking `bypass_hdcp`, `background_screen_scrape`, unprivileged `monitor_epg_global`, and 3P broadcast overlays.
-  - Added 10-check `runPhase4SoftwareExitSuite()`, API endpoints (`/api/tv-adapters/parse-cue`, `/evaluate-policy`, `/phase4-exit-suite`), Simulator UI controls in `TvPreviewView.tsx`, 17th QA invariant `qa_43_metadata_fixtures_policy_phase4_exit`, and unit + HTTP security tests.
+- **Phase 4 · Blocks `4.1`–`4.3` (`COMMITTED`)**: Platform harnesses, 16-case fault suite, SHA-256 offline cache/queue deduplication, cadence simulator, 8-vector conformance, cue fixtures, companion policy guardrails & 10-check software exit suite.
+- **Phase 5 · Block `5.1` (`VERIFIED · AWAITING COMMIT`)**:
+  - Built `src/server/sharedIntelFleetService.ts` with Ed25519 device & bundle attestation, replay/spoof rejection (`401`), flood rate-limit guard (`429`), Zero-PII payload rejection (`400`), conflict cluster holding, compatibility-isolated delta sync (`409`), and post-update `>2.5%` FPR auto-rollback.
+  - Added `/api/shared-intel-fleet/*` endpoints, connected interactive Phase 5 Fleet Service & Scenarios `25`–`35` suite UI in `SharedIntelligencePreviewView.tsx`, 18th QA invariant `qa_51_shared_intel_fleet_scenarios_25_35`, and full Vitest/Supertest tests.
 
 ---
 
 ## 7. NEXT ACTION
 
-1. **Completed Gate**: **Phase 4 `Block 4.3` is `VERIFIED · AWAITING COMMIT`** (please review and manually commit all changes).
-2. **Next Authorised Options (After Owner Confirms `Block 4.3` Commit)**:
-   - **Phase 5 / Block `5.1`** (Lawful Break-Detection Confidence Calibration & Network-Wide Shared Ad Intelligence Fleet Production Service — `ADR-016` / `PRD-19`): Production `v2.2` backend service with signed attestation key verification, fleet corroboration quorum, automatic rollback triggers, and scenarios `25`–`35` (keeping physical TV hardware testing strictly deferred to `Stage P6`).
+1. **Completed Gate**: **Phase 5 `Block 5.1` is `VERIFIED · AWAITING COMMIT`** (please review and manually commit all changes).
+2. **Next Authorised Options (After Owner Confirms `Block 5.1` Commit)**:
+   - **Phase 5 / Block `5.2`** (Per-Channel Break Duration ML Predictor & Recorded Broadcast Stream Calibration): Conservative lower-bound (`p10`/`p5`) duration prediction intervals, precision/recall & latency telemetry benchmark suite on recorded fixtures (keeping physical TV hardware testing strictly deferred to `Stage P6`).
    - **Or Execute `TASK-P3-001`** (`READY`): Authorise external PostgreSQL provisioning/migration when ready to move beyond single-host JSON persistence.
    - **To unlock Track B (`15.0%` consent/household/multi-profile/epoch-`403`)**: Resolve **`DEC-OPEN-01`** (`Option A`, `B`, or `C`). Track B remains strictly **BLOCKED** until decided.
 
@@ -101,6 +101,7 @@
 | `TASK-P3-C` | 2026-11-15 | AI Studio -> Owner | Phase 3 / `Block P3-C` | **`COMMITTED`** | `X-Request-Id` correlation & telemetry, CSV formula-neutralized `/api/admin/audit-logs/export`, software-only `TvPlatformAdapter` contracts + `AURA` Normal TV Remote & watchdog simulator (`tests/tvPlatformAdapter.test.ts`). |
 | `TASK-P4-01` | 2026-11-15 | AI Studio -> Owner | Phase 4 / `Block 4.1` | **`COMMITTED`** | Software-first `AndroidTvTifHarness`, `SamsungTizenHarness`, `LgWebOsHarness` fail-closed capability gates, 16-case deterministic fault suite, SHA-256 `LocalOfflineIntelCacheEngine` atomic swap/rollback & simulator UI (`phase4AdaptersAndCache.test.ts`). |
 | `TASK-P4-02` | 2026-11-15 | AI Studio -> Owner | Phase 4 / `Block 4.2` | **`COMMITTED`** | Idempotent offline telemetry sync queue with replay deduplication, multi-channel (`101/103/201`) SCTE-35/HbbTV cadence simulator & 8-vector emulator conformance suite + Bun CI lockfile correction. |
-| `TASK-P4-03` | 2026-11-15 | AI Studio -> Owner | Phase 4 / `Block 4.3` | **`AWAITING COMMIT`** | Lawful broadcast cue fixtures (`SCTE-35`/`HbbTV`/`AV`), ADR-001/ADR-017 companion policy guardrails & 10-check Phase 4 software exit suite (`qa_43_metadata_fixtures_policy_phase4_exit`). |
+| `TASK-P4-03` | 2026-11-15 | AI Studio -> Owner | Phase 4 / `Block 4.3` | **`COMMITTED`** | Lawful broadcast cue fixtures (`SCTE-35`/`HbbTV`/`AV`), ADR-001/ADR-017 companion policy guardrails & 10-check Phase 4 software exit suite (`qa_43_metadata_fixtures_policy_phase4_exit`). |
+| `TASK-P5-01` | 2026-11-15 | AI Studio -> Owner | Phase 5 / `Block 5.1` | **`AWAITING COMMIT`** | Fleet Shared Ad Intelligence Service (`ADR-016` / `PRD-19`), Ed25519 device & manifest attestation, conflict split guard, scoped delta sync, `>2.5%` FPR auto-rollback & 11/11 Scenarios `25`–`35` (`qa_51_shared_intel_fleet_scenarios_25_35`). |
 
 

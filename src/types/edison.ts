@@ -1196,5 +1196,147 @@ export interface Phase4SoftwareExitReport {
   checks: Phase4SoftwareExitCheckItem[];
 }
 
+// --- Phase 5 Block 5.1: Production Network-Wide Shared Ad Intelligence Fleet Service (ADR-016 / PRD-19) ---
+
+export type FleetTrustDecision =
+  | 'quarantined_pending_quorum'
+  | 'accepted_corroborated'
+  | 'conflicting_held'
+  | 'rejected_outlier'
+  | 'rejected_invalid_signature'
+  | 'rejected_pii_violation'
+  | 'rate_limited_flood'
+  | 'queued_offline_replayed';
+
+export interface FleetAttestedDeviceRecord {
+  tvDeviceId: string;
+  keyId: string;
+  publicKeyPem: string;
+  platform: string;
+  country: string;
+  assignedScopeId: string;
+  status: 'attested_active' | 'quarantined_spoof';
+  registeredAt: string;
+  lastSeenAt: string;
+  acceptedCount: number;
+  rejectedCount: number;
+}
+
+export interface FleetSignedBundleRecord {
+  scope: SharedIntelScopeKey;
+  version: number;
+  previousGoodVersion: number;
+  status:
+    | 'corroborated_published'
+    | 'quarantined_pending_corroboration'
+    | 'conflict_split_held'
+    | 'rolled_back';
+  corroboratingDeviceIds: string[];
+  pendingDeviceIds: string[];
+  conflictingClusterCount: number;
+  quorumRequired: number;
+  confidenceScore: number;
+  p10BreakDurationSec: number;
+  p50BreakDurationSec: number;
+  switchingLatencyMs: number;
+  falsePositiveRatePct: number;
+  falseNegativeRatePct: number;
+  signingKeyId: string;
+  sha256Manifest: string;
+  bundleSignatureHex: string;
+  previousGoodManifest: string | null;
+  rollbackReason: string | null;
+  updatedAt: string;
+}
+
+export interface FleetObservationResult {
+  ok: boolean;
+  httpStatus: 201 | 400 | 401 | 429;
+  observationId: string;
+  tvDeviceId: string;
+  scopeId: string;
+  signalType: SharedIntelSignalType;
+  estimatedBreakDurationSec: number;
+  transitionLatencyMs: number;
+  trustDecision: FleetTrustDecision;
+  signatureVerified: boolean;
+  containsPii: false;
+  reason: string;
+  bundleVersionAfter: number | null;
+  createdAt: string;
+}
+
+export interface FleetDeltaSyncResult {
+  ok: boolean;
+  status:
+    | 'delta_delivered'
+    | 'up_to_date'
+    | 'scope_compatibility_mismatch'
+    | 'device_not_attested'
+    | 'checksum_mismatch_rolled_back';
+  tvDeviceId: string;
+  scopeId: string;
+  deliveredVersion: number | null;
+  sha256Manifest: string | null;
+  bundleSignatureHex: string | null;
+  signatureValid: boolean;
+  playbackInterrupted: false;
+  detail: string;
+  syncedAt: string;
+}
+
+export interface FleetFprReportResult {
+  ok: boolean;
+  scopeId: string;
+  reportedFprPct: number;
+  thresholdPct: number;
+  rollbackTriggered: boolean;
+  activeVersionAfter: number;
+  restoredFromVersion: number | null;
+  reason: string;
+  evaluatedAt: string;
+}
+
+export interface SharedIntelScenarioCheckItem {
+  scenarioNumber: 25 | 26 | 27 | 28 | 29 | 30 | 31 | 32 | 33 | 34 | 35;
+  title: string;
+  passed: boolean;
+  detail: string;
+}
+
+export interface SharedIntelScenarios25To35Report {
+  generatedAt: string;
+  isSoftwareSimulationOnly: true;
+  hardwareTested: false;
+  stageP6Deferred: true;
+  zeroPiiVerified: true;
+  totalScenarios: number;
+  passedScenarios: number;
+  allPassed: boolean;
+  scenarios: SharedIntelScenarioCheckItem[];
+}
+
+export interface SharedIntelFleetSnapshot {
+  serviceStage: string;
+  signingKeyId: string;
+  signingPublicKeyPem: string;
+  isSoftwareSimulationOnly: true;
+  hardwareTested: false;
+  stageP6Deferred: true;
+  quorumRequired: number;
+  fprRollbackThresholdPct: number;
+  zeroPiiEnforced: true;
+  rejectedSignatureCount: number;
+  rejectedPiiCount: number;
+  rateLimitedFloodCount: number;
+  conflictHeldCount: number;
+  rollbackCount: number;
+  devices: FleetAttestedDeviceRecord[];
+  bundles: FleetSignedBundleRecord[];
+  recentObservations: FleetObservationResult[];
+  auditTrail: SharedIntelAuditEntry[];
+}
+
+
 
 
