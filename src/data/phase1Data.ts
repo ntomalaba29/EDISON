@@ -69,17 +69,17 @@ export const ROADMAP_PHASES: RoadmapPhaseItem[] = [
     phase: 8,
     title: 'Advertisement Creation & Production Rendering',
     summary:
-      'Block 8.1 VERIFIED & AWAITING COMMIT (3.0%: Software-first 1080p/4K broadcast render blueprints, 5% overscan title-safe margins, WCAG >=4.5:1 contrast, non-overwrite QR vision gate, ITU-R BS.1770-4 / EBU R128 -23 LUFS filter graph & Samsung Tizen WebM->H.264 MP4 rules; ffmpegBinaryExecuted: false).',
+      'Block 8.1 COMMITTED (3.0%: Software-first 1080p/4K broadcast render blueprints, 5% overscan title-safe margins, WCAG >=4.5:1 contrast, non-overwrite QR vision gate, ITU-R BS.1770-4 / EBU R128 -23 LUFS filter graph & Samsung Tizen WebM->H.264 MP4 rules; ffmpegBinaryExecuted: false).',
     milestoneGate: 'Broadcast-compliant media validation pipeline verified software-first (hardware TV decode checked at Stage P6).',
-    status: 'AWAITING COMMIT',
+    status: 'COMMITTED',
   },
   {
     phase: 9,
     title: 'Opportunity Management & Verification',
     summary:
-      'Dedicated verification operations tooling, document vault encryption, automated expiry & employer re-verification, complaint/investigation/appeal workflows.',
+      'Block 9.1 VERIFIED & AWAITING COMMIT (2.0%: Tier 1–3 SHA-256 AES-256-GCM blueprint evidence vault seals + PII redaction, automated expiry & 90-day re-verification quarantine, 4h/24h/48h complaint & appeal SLA tracking, and strict $0.00 zero-fee-influence enforcement; externalKycVendorConnected: false).',
     milestoneGate: '3-tier verification strictly decoupled from advertising spend.',
-    status: 'NOT STARTED',
+    status: 'AWAITING COMMIT',
   },
   {
     phase: 10,
@@ -246,7 +246,7 @@ export function generateFormalReport(
   const pm = liveSnapshot?.progressMetrics;
   const pctBlock = pm
     ? `${pm.overallFullAppPct}% of Full 15-Phase App (${pm.remainingUntilFullAppPct}% remaining) · ${pm.softwareToStageP6Pct}% of Software-to-Stage-P6 Milestone · ${pm.aiStudioAssignmentPct}% of Phase 2 AI Studio Scope (${pm.consentBlockedScopePct}% blocked on DEC-OPEN-01)`
-    : '60.0% of Full 15-Phase App (40.0% remaining) · 81.8% of Software-to-Stage-P6 · 100% of Phase 2 AI Studio Scope (DEC-OPEN-01 Locked: 0% blocked)';
+    : '62.0% of Full 15-Phase App (38.0% remaining) · 81.8% of Software-to-Stage-P6 · 100% of Phase 2 AI Studio Scope (DEC-OPEN-01 Locked: 0% blocked)';
 
   if (command === 'STATUS') {
     return {
@@ -255,14 +255,14 @@ export function generateFormalReport(
       body: [
         'EDISON — PROJECT STATUS REPORT',
         `Generated: ${generatedAt}`,
-        `Current Phase: ${liveSnapshot?.phase ?? 'Phase 8 — Advertisement Creation & Broadcast Rendering Validation (Software-First)'}`,
-        `Current Stage: ${liveSnapshot?.stage ?? 'Phases 1–7 Committed (Inc. Track B DEC-OPEN-01) · Phase 8 Block 8.1 Verified & Awaiting Commit · TASK-P3-001 READY'}`,
-        `Current Block: ${liveSnapshot?.block ?? 'Block 8.1 (Broadcast 1080p/4K Blueprint Validation, 5% Overscan Safe Zones, EBU R128 Audio Filter Graph & Zero-Overwrite QR Vision Gate)'}`,
-        `Commit Gate: ${liveSnapshot?.gateStatus ?? 'BLOCK 8.1 VERIFIED — AWAITING OWNER COMMIT'}`,
+        `Current Phase: ${liveSnapshot?.phase ?? 'Phase 9 — Opportunity Verification Operations Hardening (Software-First)'}`,
+        `Current Stage: ${liveSnapshot?.stage ?? 'Phases 1–8 Committed (Inc. Track B DEC-OPEN-01) · Phase 9 Block 9.1 Verified & Awaiting Commit · TASK-P3-001 READY'}`,
+        `Current Block: ${liveSnapshot?.block ?? 'Block 9.1 (Tier 1–3 SHA-256 Evidence Vault Seals, Automated Expiry & Re-Verification Cadence, 4h/48h SLA Triage & Zero Fee Influence)'}`,
+        `Commit Gate: ${liveSnapshot?.gateStatus ?? 'BLOCK 9.1 VERIFIED — AWAITING OWNER COMMIT'}`,
         '',
         `PROGRESS UNTIL FULL APP: ${pctBlock}`,
         '',
-        'PHASE 2 TO PHASE 8 PROGRESS:',
+        'PHASE 2 TO PHASE 9 PROGRESS:',
         '- Phase 1 + Blueprint v2.1 + v2.2 Shared Ad Intelligence Specs: COMMITTED (6.0% Full App)',
         '- Phase 2 Track A + Track B Complete (DEC-OPEN-01 Locked, 100% AI Studio): COMMITTED (14.0% / 14.0% Full App)',
         '- Phase 3 Software-First Hardening (Blocks P3-A, P3-B, P3-C): COMMITTED (9.0% / 12.0% Full App)',
@@ -270,18 +270,19 @@ export function generateFormalReport(
         '- Phase 5 Complete Software-First (Block 5.1 Fleet Intelligence + Block 5.2 p10/p5 ML Predictor): COMMITTED (12.0% / 12.0% Full App)',
         '- Phase 6 Block 6.1 (Advertising Delivery Infrastructure Software-First): COMMITTED (4.0% / 4.0% Full App)',
         '- Phase 7 Block 7.1 (Advertiser Operations Software-First): COMMITTED (3.0% / 3.0%; paymentCollectionActive=false)',
-        '- Phase 8 Block 8.1 (Broadcast Render Validation, EBU R128 & QR Vision Gate): VERIFIED · AWAITING COMMIT (3.0% / 3.0%; ffmpegBinaryExecuted=false)',
+        '- Phase 8 Block 8.1 (Broadcast Render Validation, EBU R128 & QR Vision Gate): COMMITTED (3.0% / 3.0%; ffmpegBinaryExecuted=false)',
+        '- Phase 9 Block 9.1 (Opportunity Verification Ops Hardening): VERIFIED · AWAITING COMMIT (2.0% / 2.0%; externalKycVendorConnected=false)',
         '- TASK-P3-001 PostgreSQL 16+ Migration Requirements Blueprint: READY (JSON persistence retained in AI Studio without Cloud SQL)',
         '',
         'OVERALL EDISON PROJECT PROGRESS:',
-        `- ${pm?.rubricSummary ?? 'Phase 1 Specs (6.0%) + Phase 2 Complete (14.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Complete Committed (12.0%) + Phase 6 Delivery Infra Committed (4.0%) + Phase 7 Advertiser Ops Committed (3.0%) + Phase 8 Block 8.1 Broadcast Render Validation (3.0%) = 60.0% of 15-Phase Full Commercial App (81.8% to Stage P6; 40.0% remaining).'}`,
-        '- Software-first invariant checks verified cleanly with zero real payments activated, zero FFmpeg binary execution in container, and zero physical hardware tested (Stage P6 strictly deferred until app completion).',
+        `- ${pm?.rubricSummary ?? 'Phase 1 Specs (6.0%) + Phase 2 Complete (14.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Complete Committed (12.0%) + Phase 6 Delivery Infra Committed (4.0%) + Phase 7 Advertiser Ops Committed (3.0%) + Phase 8 Broadcast Render Committed (3.0%) + Phase 9 Opportunity Verification Ops (2.0%) = 62.0% of 15-Phase Full Commercial App (81.8% to Stage P6; 38.0% remaining).'}`,
+        '- Software-first invariant checks verified cleanly with zero real payments activated, zero external KYC vendor APIs connected, zero FFmpeg binary execution in container, and zero physical hardware tested (Stage P6 strictly deferred until app completion).',
         '',
         'LIVE STORE COUNTS:',
         countsLine,
         '',
         'NEXT AUTHORISED ACTION:',
-        'Review and commit Phase 8 Block 8.1 changes, then confirm commit to unlock Phase 9 Opportunity Verification Operations Hardening (software-first).',
+        'Review and commit Phase 9 Block 9.1 changes, then confirm commit to unlock Phase 10 Privacy, Security & Statutory Compliance Readiness (software-first).',
       ].join('\n'),
     };
   }
@@ -293,13 +294,13 @@ export function generateFormalReport(
       body: [
         'EDISON — VERIFICATION & GATE CHECK',
         `Generated: ${generatedAt}`,
-        `Active Block: ${liveSnapshot?.block ?? 'Block 8.1 (Broadcast 1080p/4K Blueprint Validation, 5% Overscan Safe Zones, EBU R128 Audio Filter Graph & Zero-Overwrite QR Vision Gate)'}`,
+        `Active Block: ${liveSnapshot?.block ?? 'Block 9.1 (Tier 1–3 SHA-256 Evidence Vault Seals, Automated Expiry & Re-Verification Cadence, 4h/48h SLA Triage & Zero Fee Influence)'}`,
         `Progress Metrics: ${pctBlock}`,
         `Live Store Telemetry: ${countsLine}`,
         `QR Telemetry: Redirect Requests=${s?.redirectRequestsTotal ?? 0} | Redirects Issued=${s?.redirectIssuedTotal ?? 0} | Suspected Bots=${s?.suspectedBotRedirects ?? 0} | Verified Destination Opens=${s?.verifiedDestinationOpens ?? 0} | Verified Conversions=${s?.verifiedConversionsTotal ?? 0}`,
         `Physical Phone Scan Logs: ${s?.physicalQrPassedCount ?? 0} passed / ${s?.physicalQrTestsCount ?? 0} total`,
         '',
-        'VERIFIED IMPLEMENTATIONS (PHASES 1–7 COMMITTED + PHASE 8 BLOCK 8.1):',
+        'VERIFIED IMPLEMENTATIONS (PHASES 1–8 COMMITTED + PHASE 9 BLOCK 9.1):',
         '- Persistence portability via EdisonDataRepository interface (JSON store schemaVersion 8 retained; zero Cloud SQL cost)',
         '- Auth/RBAC (advertiser, opportunity_submitter, household_viewer, admin) with scrypt hashing, session rotation & 2h idle timeout',
         '- API Zod validation schemas, cookie/header CSRF + edisonFetch, sliding-window rate limiting, 504 timeout & opaque JSON error middleware',
@@ -310,8 +311,9 @@ export function generateFormalReport(
         '- Phase 6 Block 6.1 Advertising Delivery Infrastructure: SHA-256 preload manifests, coarse regional & Tizen/WebM codec gating, $0.00 Charity lock, daily frequency caps, edge CDN outage failover & idempotent ingestion (8/8 checks passed)',
         '- Phase 7 Block 7.1 Advertiser & Campaign Operations: 6-gate KYC readiness evaluation, automated campaign pacing, SHA-256 Pro-Forma invoice blueprints ($0.00 actual cash, $0.00 Charity isolation, paymentCollectionActive=false), SLA ticket breach triage & 8/8 ops suite passed',
         '- Phase 8 Block 8.1 Broadcast Rendering Validation: 1080p/4K target specs, 5%-95% TV overscan margins, WCAG >=4.5:1 contrast, non-overwrite QR vision gate, ITU-R BS.1770-4 / EBU R128 -23 LUFS filter graph, Samsung Tizen WebM->H.264 MP4 rule & 8/8 render checks (ffmpegBinaryExecuted=false)',
+        '- Phase 9 Block 9.1 Opportunity Verification Ops Hardening: Tier 1–3 SHA-256 AES-256-GCM blueprint vault seals, strict Tier 2->3 non-transitivity, informal employer Tier 2 N/A accommodation, 90-day re-verification quarantine, 4h/24h/48h SLA breach tracking & 8/8 ops suite passed',
         '- Track B (DEC-OPEN-01 Locked: Scope B + Bundled Withdrawal): ZW-first 7-level geo households, PIN-isolated multi-member profiles, required/preferred/optional matching, safe TV personalisation, bundled withdrawal & HTTP 403 epoch QR revocation (7/7 checks)',
-        '- Vitest + Supertest Automated Suite (bun run test — 23/23 automated QA invariants across Phases 2–8 & Track B)',
+        '- Vitest + Supertest Automated Suite (bun run test — 24/24 automated QA invariants across Phases 2–9 & Track B)',
         '',
         'OUTSTANDING CHECKS & POST-PROTOTYPE CORE REQUIREMENTS:',
         '- Physical smartphone camera scan verification logged by Project Owner on real mobile hardware.',
@@ -324,18 +326,18 @@ export function generateFormalReport(
   if (command === 'NEXT') {
     return {
       title: 'EDISON — NEXT AUTHORISED ACTION',
-      subtitle: 'Phase 8 Block 8.1 verified & awaiting commit; Phase 9 software work follows commit',
+      subtitle: 'Phase 9 Block 9.1 verified & awaiting commit; Phase 10 software work follows commit',
       body: [
         'EDISON — NEXT GATE EVALUATION',
         `Generated: ${generatedAt}`,
-        `Current Gate: ${liveSnapshot?.gateStatus ?? 'BLOCK 8.1 VERIFIED — AWAITING OWNER COMMIT'}`,
+        `Current Gate: ${liveSnapshot?.gateStatus ?? 'BLOCK 9.1 VERIFIED — AWAITING OWNER COMMIT'}`,
         `Progress Until Full App: ${pctBlock}`,
         '',
         'GATE STATUS & NEXT BLOCK:',
-        'Phase 8 Block 8.1 (Broadcast Rendering Validation, EBU R128 Filter Specs & QR Vision Gate) is VERIFIED & AWAITING COMMIT. Track B (DEC-OPEN-01 Locked) & Phase 7 Block 7.1 are committed, zero real payments are activated (paymentCollectionActive: false), and TASK-P3-001 PostgreSQL blueprint remains READY.',
+        'Phase 9 Block 9.1 (Opportunity Verification Operations Hardening) is VERIFIED & AWAITING COMMIT. Phases 1–8 (including Track B DEC-OPEN-01) are committed, zero real payments are activated (paymentCollectionActive: false), externalKycVendorConnected is false, and TASK-P3-001 PostgreSQL blueprint remains READY.',
         '',
         'AFTER COMMIT CONFIRMATION:',
-        '- Next Software-First Milestone (Phase 9 · Block 9.1): Opportunity Verification Operations Hardening (3-tier independence, expiry & appeals ops; keeping physical Stage P6 hardware test deferred until app completion).',
+        '- Next Software-First Milestone (Phase 10 · Block 10.1): Privacy, Security & Country Statutory Compliance Readiness (data subject requests, retention/deletion automation & independent country statutory mapping).',
         '- DEC-OPEN-02: Confirm k=1 short-break alternating rule.',
         '- DEC-OPEN-03: Google Ad Manager CTV account / format confirmation (mock adapter active until resolved).',
       ].join('\n'),
@@ -345,40 +347,40 @@ export function generateFormalReport(
   if (command === 'COMMIT') {
     return {
       title: 'EDISON — COMMIT CHECKPOINT',
-      subtitle: 'Phase 8 Block 8.1 verified and awaiting manual owner commit',
+      subtitle: 'Phase 9 Block 9.1 verified and awaiting manual owner commit',
       body: [
-        'EDISON — COMMIT CHECKPOINT (PHASE 8 BLOCK 8.1)',
+        'EDISON — COMMIT CHECKPOINT (PHASE 9 BLOCK 9.1)',
         `Generated: ${generatedAt}`,
         `Progress Metrics: ${pctBlock}`,
         `Live Store Telemetry: ${countsLine}`,
         '',
-        'STATUS: BLOCK 8.1 VERIFIED — AWAITING OWNER COMMIT',
-        'REQUIRED USER ACTION: Review Phase 8 Block 8.1 changes and manually commit them before proceeding to Phase 9.',
+        'STATUS: BLOCK 9.1 VERIFIED — AWAITING OWNER COMMIT',
+        'REQUIRED USER ACTION: Review Phase 9 Block 9.1 changes and manually commit them before proceeding to Phase 10.',
       ].join('\n'),
     };
   }
 
   return {
-    title: 'EDISON — PHASE 8 BLOCK 8.1 & FULL-APP PROGRESS REPORT',
+    title: 'EDISON — PHASE 9 BLOCK 9.1 & FULL-APP PROGRESS REPORT',
     subtitle: 'Formal status report with live server telemetry and progress breakdown',
     body: [
       'EDISON — IMPLEMENTATION BLOCK COMPLETION REPORT',
       '',
       'Project: EDISON — International Smart TV Advertising & Opportunities Network',
-      `Production Phase: ${liveSnapshot?.phase ?? 'Phase 8 — Advertisement Creation & Broadcast Rendering Validation (Software-First)'}`,
-      `Stage: ${liveSnapshot?.stage ?? 'Phases 1–7 Committed (Inc. Track B DEC-OPEN-01) · Phase 8 Block 8.1 Verified & Awaiting Commit · TASK-P3-001 READY'}`,
-      `Implementation Block: ${liveSnapshot?.block ?? 'Block 8.1 (Broadcast 1080p/4K Blueprint Validation, 5% Overscan Safe Zones, EBU R128 Audio Filter Graph & Zero-Overwrite QR Vision Gate)'}`,
-      `Status: ${liveSnapshot?.gateStatus ?? 'BLOCK 8.1 VERIFIED — AWAITING OWNER COMMIT'}`,
+      `Production Phase: ${liveSnapshot?.phase ?? 'Phase 9 — Opportunity Verification Operations Hardening (Software-First)'}`,
+      `Stage: ${liveSnapshot?.stage ?? 'Phases 1–8 Committed (Inc. Track B DEC-OPEN-01) · Phase 9 Block 9.1 Verified & Awaiting Commit · TASK-P3-001 READY'}`,
+      `Implementation Block: ${liveSnapshot?.block ?? 'Block 9.1 (Tier 1–3 SHA-256 Evidence Vault Seals, Automated Expiry & Re-Verification Cadence, 4h/48h SLA Triage & Zero Fee Influence)'}`,
+      `Status: ${liveSnapshot?.gateStatus ?? 'BLOCK 9.1 VERIFIED — AWAITING OWNER COMMIT'}`,
       '',
       `PHASE 2 AI STUDIO SCOPE: ${pm?.aiStudioAssignmentPct ?? 100}% (Track A & Track B Committed; 0% Blocked)`,
-      `OVERALL EDISON PROJECT PROGRESS: ${pm?.overallFullAppPct ?? 60.0}% of Full 15-Phase App (${pm?.remainingUntilFullAppPct ?? 40.0}% remaining) · ${pm?.softwareToStageP6Pct ?? 81.8}% of Software-to-Stage-P6 Milestone`,
+      `OVERALL EDISON PROJECT PROGRESS: ${pm?.overallFullAppPct ?? 62.0}% of Full 15-Phase App (${pm?.remainingUntilFullAppPct ?? 38.0}% remaining) · ${pm?.softwareToStageP6Pct ?? 81.8}% of Software-to-Stage-P6 Milestone`,
       '',
       'LIVE STORE TELEMETRY:',
       countsLine,
       `Latest Audit: ${liveSnapshot?.latestAuditAction ?? 'N/A'} (${liveSnapshot?.latestAuditAt ?? 'N/A'})`,
       '',
       'REQUIRED USER ACTION:',
-      'Review Phase 8 Block 8.1 changes and manually commit them to unlock Phase 9 Opportunity Verification Operations Hardening.',
+      'Review Phase 9 Block 9.1 changes and manually commit them to unlock Phase 10 Privacy, Security & Statutory Compliance Readiness.',
       '',
       'PRODUCTION GATE:',
       'LOCKED UNTIL COMMIT CONFIRMATION.',

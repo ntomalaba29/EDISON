@@ -2041,6 +2041,120 @@ export interface BroadcastRenderVerificationReport {
   checks: BroadcastRenderVerifyCheckItem[];
 }
 
+// --- Phase 9 Block 9.1: Opportunity Verification Operations Hardening (Software-First) ---
+
+export type OpportunityEvidenceTierKey =
+  | 'tier1_identity'
+  | 'tier2_organisation'
+  | 'tier3_specific_opportunity';
+
+export interface OpportunityVaultSealRecord {
+  opportunityId: string;
+  tier: OpportunityEvidenceTierKey;
+  tierStatus: OpportunityTierStatus;
+  verifiedAt: string | null;
+  redactedRef: string;
+  vaultSealSha256: string;
+  encryptionEnvelope: {
+    algorithm: 'AES-256-GCM';
+    keyAlias: string;
+    sealedInSoftwareBlueprint: true;
+  };
+  staleOrExpired: boolean;
+}
+
+export interface OpportunityVerificationAssessment {
+  opportunityId: string;
+  title: string;
+  providerType: OpportunityProviderType;
+  status: OpportunityStatus;
+  closingDate: string;
+  expiryDate: string;
+  eligibleForTvSchedule: boolean;
+  expiredByDate: boolean;
+  reverificationRequired: boolean;
+  reverificationReasons: string[];
+  feeIndependenceVerified: boolean;
+  nonTransitivityVerified: boolean;
+  riskFlags: string[];
+  vaultSeals: OpportunityVaultSealRecord[];
+  openComplaintsCount: number;
+  criticalComplaintsCount: number;
+  recommendImmediateSuspension: boolean;
+}
+
+export interface OpportunityOpsSlaItem {
+  itemType: 'complaint' | 'appeal';
+  id: string;
+  opportunityId: string;
+  status: string;
+  categoryOrReason: string;
+  slaHoursTarget: number;
+  elapsedHours: number;
+  slaBreached: boolean;
+  createdAt: string;
+}
+
+export interface OpportunityOpsOverview {
+  generatedAt: string;
+  isSoftwareSimulationOnly: true;
+  externalKycVendorConnected: false;
+  hardwareTested: false;
+  stageP6Deferred: true;
+  automatedOutreachBlocked: true;
+  advertisingFeeInfluencesVerification: false;
+  summary: {
+    totalEvaluated: number;
+    verifiedLiveCount: number;
+    eligibleForTvCount: number;
+    reverificationRequiredCount: number;
+    expiredCount: number;
+    feeIndependenceViolations: number;
+    nonTransitivityViolations: number;
+    openComplaintsCount: number;
+    slaBreachedComplaintsCount: number;
+    openAppealsCount: number;
+    slaBreachedAppealsCount: number;
+    immediateSuspensionRecommendedCount: number;
+  };
+  assessments: OpportunityVerificationAssessment[];
+  slaItems: OpportunityOpsSlaItem[];
+}
+
+export interface OpportunityOpsSweepResult {
+  sweepId: string;
+  executedAt: string;
+  triggeredByUserId: string;
+  expiredTransitionedCount: number;
+  flaggedForReverificationCount: number;
+  immediateSuspensionRecommendedIds: string[];
+  evidenceSealsVerifiedCount: number;
+  feeIndependenceVerified: true;
+  nonTransitivityVerified: true;
+  overview: OpportunityOpsOverview;
+}
+
+export interface OpportunityOpsVerifyCheckItem {
+  checkId: string;
+  label: string;
+  passed: boolean;
+  detail: string;
+}
+
+export interface OpportunityOpsVerificationReport {
+  generatedAt: string;
+  isSoftwareSimulationOnly: true;
+  externalKycVendorConnected: false;
+  advertisingFeeInfluencesVerification: false;
+  hardwareTested: false;
+  stageP6Deferred: true;
+  totalChecks: number;
+  passedChecks: number;
+  allPassed: boolean;
+  checks: OpportunityOpsVerifyCheckItem[];
+}
+
+
 
 
 

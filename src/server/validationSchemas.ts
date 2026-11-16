@@ -855,6 +855,12 @@ export const broadcastRenderJobRequestSchema = z
   })
   .strict();
 
+export const opportunityOpsSweepSchema = z
+  .object({
+    notes: z.string().trim().max(500).optional(),
+  })
+  .strict();
+
 export function parseWithZod<T extends z.ZodTypeAny>(
   schema: T,
   payload: unknown

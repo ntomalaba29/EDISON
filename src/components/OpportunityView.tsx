@@ -23,6 +23,9 @@ import type {
   OpportunityComplaintReason,
   OpportunityComplaintRecord,
   OpportunityComplaintStatus,
+  OpportunityOpsOverview,
+  OpportunityOpsSweepResult,
+  OpportunityOpsVerificationReport,
   OpportunityProviderType,
   OpportunityRecord,
   OpportunityStatus,
@@ -158,6 +161,13 @@ export function OpportunityView({
   const [complaintNotesMap, setComplaintNotesMap] = useState<Record<string, string>>({});
   const [appealNotesMap, setAppealNotesMap] = useState<Record<string, string>>({});
 
+  // Phase 9 Block 9.1 Verification Ops State
+  const [opsOverview, setOpsOverview] = useState<OpportunityOpsOverview | null>(null);
+  const [opsSweep, setOpsSweep] = useState<OpportunityOpsSweepResult | null>(null);
+  const [opsSuiteReport, setOpsSuiteReport] =
+    useState<OpportunityOpsVerificationReport | null>(null);
+  const [opsBusy, setOpsBusy] = useState(false);
+
   const hasInitializedQr = useRef(false);
 
   const loadAll = useCallback(async () => {
@@ -172,12 +182,13 @@ export function OpportunityView({
     }
     setLoading(true);
     try {
-      const [oppRes, cmpnRes, aplRes, qrRes, cmpRes] = await Promise.all([
+      const [oppRes, cmpnRes, aplRes, qrRes, cmpRes, opsRes] = await Promise.all([
         edisonFetch('/api/opportunities'),
         edisonFetch('/api/opportunity-complaints'),
         edisonFetch('/api/opportunity-appeals'),
         edisonFetch('/api/qr'),
         edisonFetch('/api/campaigns'),
+        edisonFetch('/api/opportunity-ops/overview'),
       ]);
       if (oppRes.ok) {
         const d = await oppRes.json();
@@ -209,6 +220,10 @@ export function OpportunityView({
         }
       }
       if (cmpRes.ok) setCampaigns((await cmpRes.json()).items || []);
+      if (opsRes.ok) {
+        const opsData = await opsRes.json();
+        setOpsOverview(opsData.overview ?? null);
+      }
     } finally {
       setLoading(false);
     }
@@ -426,6 +441,59 @@ export function OpportunityView({
     });
     await loadAll();
     await onSummaryRefresh();
+  };
+
+  const handleRunOpsSweep = async () => {
+    setOpsBusy(true);
+    setFeedback(null);
+    try {
+      const res = await edisonFetch('/api/admin/opportunity-ops/sweep', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: 'Manual ops sweep triggered from Verification Hardening panel' }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setFeedback({ type: 'err', text: data.error || 'Verification ops sweep failed.' });
+        return;
+      }
+      setOpsSweep(data.sweep ?? null);
+      if (data.sweep?.overview) {
+        setOpsOverview(data.sweep.overview);
+      }
+      setFeedback({
+        type: 'ok',
+        text: `Ops sweep ${data.sweep.sweepId} completed: ${data.sweep.evidenceSealsVerifiedCount} vault seals verified, ${data.sweep.expiredTransitionedCount} expired, ${data.sweep.flaggedForReverificationCount} pending re-verification.`,
+      });
+      await loadAll();
+      await onSummaryRefresh();
+    } finally {
+      setOpsBusy(false);
+    }
+  };
+
+  const handleRunOpsSuite = async () => {
+    setOpsBusy(true);
+    setFeedback(null);
+    try {
+      const res = await edisonFetch('/api/opportunity-ops/verify-suite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setFeedback({ type: 'err', text: data.error || 'Verification ops suite failed.' });
+        return;
+      }
+      setOpsSuiteReport(data.report ?? null);
+      setFeedback({
+        type: 'ok',
+        text: `Phase 9 Block 9.1 suite: ${data.report.passedChecks}/${data.report.totalChecks} checks passed (externalKycVendorConnected=${String(data.report.externalKycVendorConnected)}).`,
+      });
+    } finally {
+      setOpsBusy(false);
+    }
   };
 
   const stats = useMemo(() => {
@@ -1212,6 +1280,155 @@ export function OpportunityView({
             </div>
           ) : (
             <>
+              <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-4">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900">
+                      Verification Operations Hardening, Evidence Vault &amp; SLA Triage (Phase 9 · Block 9.1)
+                    </h3>
+                    <p className="text-xs text-slate-600 mt-0.5">
+                      SHA-256 AES-256-GCM blueprint vault seals across Tiers 1–3 · Automated 90-day Tier 3 re-verification &amp; expiry quarantine · 4h critical complaint / 48h appeal SLA tracking · External KYC vendor disconnected (software-first).
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={opsBusy}
+                      onClick={handleRunOpsSweep}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded cursor-pointer disabled:opacity-50"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Run Expiry &amp; Vault Sweep</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={opsBusy}
+                      onClick={handleRunOpsSuite}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded cursor-pointer disabled:opacity-50"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>Run 8-Check Ops Suite</span>
+                    </button>
+                  </div>
+                </div>
+
+                {opsOverview && (
+                  <div className="space-y-3 text-xs">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                      <div className="p-2.5 bg-slate-50 border border-slate-200 rounded">
+                        <div className="text-[11px] text-slate-500">Evaluated</div>
+                        <div className="text-sm font-semibold text-slate-900">{opsOverview.summary.totalEvaluated}</div>
+                      </div>
+                      <div className="p-2.5 bg-slate-50 border border-slate-200 rounded">
+                        <div className="text-[11px] text-slate-500">TV-Eligible</div>
+                        <div className="text-sm font-semibold text-emerald-700">{opsOverview.summary.eligibleForTvCount}</div>
+                      </div>
+                      <div className="p-2.5 bg-slate-50 border border-slate-200 rounded">
+                        <div className="text-[11px] text-slate-500">Re-Verify Due</div>
+                        <div className="text-sm font-semibold text-amber-700">{opsOverview.summary.reverificationRequiredCount}</div>
+                      </div>
+                      <div className="p-2.5 bg-slate-50 border border-slate-200 rounded">
+                        <div className="text-[11px] text-slate-500">SLA Breaches</div>
+                        <div className="text-sm font-semibold text-red-700">
+                          {opsOverview.summary.slaBreachedComplaintsCount + opsOverview.summary.slaBreachedAppealsCount}
+                        </div>
+                      </div>
+                      <div className="p-2.5 bg-slate-50 border border-slate-200 rounded">
+                        <div className="text-[11px] text-slate-500">Fee Violations</div>
+                        <div className="text-sm font-semibold text-slate-900">{opsOverview.summary.feeIndependenceViolations}</div>
+                      </div>
+                      <div className="p-2.5 bg-slate-50 border border-slate-200 rounded">
+                        <div className="text-[11px] text-slate-500">Suspend Recommended</div>
+                        <div className="text-sm font-semibold text-red-700">{opsOverview.summary.immediateSuspensionRecommendedCount}</div>
+                      </div>
+                    </div>
+
+                    {opsSweep && (
+                      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded text-emerald-900 flex flex-wrap items-center gap-3">
+                        <span className="font-semibold">Sweep {opsSweep.sweepId}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>Seals verified: {opsSweep.evidenceSealsVerifiedCount}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>Expired transitioned: {opsSweep.expiredTransitionedCount}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>Fee independence: {String(opsSweep.feeIndependenceVerified)}</span>
+                      </div>
+                    )}
+
+                    <div className="overflow-x-auto border border-slate-200 rounded">
+                      <table className="w-full text-left border-collapse">
+                        <thead className="bg-slate-50 text-[11px] text-slate-600 border-b border-slate-200">
+                          <tr>
+                            <th className="py-2 px-3">Opportunity</th>
+                            <th className="py-2 px-3">TV Gate</th>
+                            <th className="py-2 px-3">Tier 1–3 Vault SHA-256 Seals (Redacted Refs)</th>
+                            <th className="py-2 px-3">Independence &amp; Flags</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                          {opsOverview.assessments.map((a) => (
+                            <tr key={a.opportunityId}>
+                              <td className="py-2 px-3 align-top">
+                                <div className="font-medium text-slate-900">{a.title}</div>
+                                <div className="font-mono text-[11px] text-slate-500">
+                                  {a.opportunityId} · {a.status} · expires {a.expiryDate}
+                                </div>
+                              </td>
+                              <td className="py-2 px-3 align-top font-mono text-[11px]">
+                                <span className={a.eligibleForTvSchedule ? 'text-emerald-700 font-semibold' : 'text-amber-700'}>
+                                  {a.eligibleForTvSchedule ? 'ELIGIBLE' : 'HELD'}
+                                </span>
+                              </td>
+                              <td className="py-2 px-3 align-top font-mono text-[11px] space-y-0.5 text-slate-600">
+                                {a.vaultSeals.map((seal) => (
+                                  <div key={seal.tier}>
+                                    {seal.tier}: {seal.redactedRef} · {seal.vaultSealSha256.slice(0, 12)}… ({seal.tierStatus})
+                                  </div>
+                                ))}
+                              </td>
+                              <td className="py-2 px-3 align-top text-[11px] text-slate-700">
+                                <div>
+                                  Fee-independent: {String(a.feeIndependenceVerified)} · Non-transitive: {String(a.nonTransitivityVerified)}
+                                </div>
+                                {a.recommendImmediateSuspension && (
+                                  <div className="text-red-700 font-semibold">Immediate suspension recommended</div>
+                                )}
+                                {a.reverificationReasons.map((r) => (
+                                  <div key={r} className="text-amber-700">{r}</div>
+                                ))}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {opsSuiteReport && (
+                  <div className="border border-slate-200 rounded p-3 space-y-2 text-xs bg-slate-50">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-semibold text-slate-900">
+                        Block 9.1 Ops Verification Suite: {opsSuiteReport.passedChecks}/{opsSuiteReport.totalChecks} passed
+                      </span>
+                      <span className="font-mono text-[11px] text-slate-600">
+                        externalKycVendorConnected={String(opsSuiteReport.externalKycVendorConnected)} · hardwareTested={String(opsSuiteReport.hardwareTested)}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
+                      {opsSuiteReport.checks.map((chk) => (
+                        <div key={chk.checkId} className="p-2 bg-white border border-slate-200 rounded">
+                          <div className="font-medium text-slate-900">
+                            {chk.passed ? 'PASS' : 'FAIL'} · {chk.label}
+                          </div>
+                          <div className="text-[11px] text-slate-600 mt-0.5">{chk.detail}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-4">
                 <div>
                   <h3 className="text-sm font-semibold text-slate-900">

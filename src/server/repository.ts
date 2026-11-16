@@ -29,6 +29,8 @@ import type {
   OpportunityComplaintReason,
   OpportunityComplaintRecord,
   OpportunityComplaintStatus,
+  OpportunityOpsOverview,
+  OpportunityOpsSweepResult,
   OpportunityProviderType,
   OpportunityRecord,
   OpportunityStatus,
@@ -628,5 +630,13 @@ export interface EdisonDataRepository {
   };
 
   getAdvertiserGeoAggregates(actor: PublicUser): AdvertiserGeoAggregateRow[];
+
+  // --- Phase 9 Block 9.1: Opportunity Verification Operations Hardening ---
+  getOpportunityOpsOverview(actor: PublicUser): OpportunityOpsOverview;
+
+  runOpportunityExpiryAndReverificationSweep(
+    actor: PublicUser,
+    input?: { notes?: string }
+  ): OpportunityOpsSweepResult;
 }
 

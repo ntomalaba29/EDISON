@@ -180,3 +180,15 @@
 - **Software-First Boundaries Preserved**: `ffmpegBinaryExecuted: false`, `isSoftwareSimulationOnly: true`, `hardwareTested: false`, `stageP6Deferred: true`, `paymentCollectionActive: false`, JSON persistence (`schemaVersion: 8`) retained without paid Cloud SQL (`TASK-P3-001` `READY`).
 - **Next Authorised Action**: Review and manually commit **Phase 8 Block 8.1** to unlock **Phase 9 Opportunity Verification Operations Hardening** (or execute `TASK-P3-001` external PostgreSQL provisioning).
 
+---
+
+## 16. Session Entry — 2026-11-16 (`Phase 8 Block 8.1` Committed · `Phase 9 · Stage 9.1 · Block 9.1` Verified & Awaiting Commit)
+
+- **Owner Commit Confirmation (`ADR-010`)**: Confirmed manual commit of **Phase 8 · Stage 8.1 · Block 8.1** (`BroadcastRenderEngine`, `60.0%` Full App), unlocking **Phase 9 · Stage 9.1 · Block 9.1**.
+- **Phase 9 · Block 9.1 Implemented (`62.0%` Full App · `38.0%` Remaining · `81.8%` to `Stage P6` · `100.0%` AI Studio Scope)**:
+  1. **Opportunity Verification Ops, Evidence Vault & SLA Engine (`src/server/opportunityOpsEngine.ts`)**: Generates 64-hex SHA-256 AES-256-GCM blueprint vault seals across Tiers 1–3 (`tier1_identity`, `tier2_organisation`, `tier3_specific_opportunity`) with masked display refs (`redactEvidenceRef`). Accommodates legitimate individual/informal employers (`tier2 = not_applicable`), enforces strict Tier 2 -> Tier 3 non-transitivity and `$0.00` Charity zero-fee-influence rules (`advertisingFeeInfluencesVerification: false`), quarantines date-expired or stale (`180d`/`365d`/`90d`) verifications, flags scam risk phrases, and computes 4h critical / 24h standard complaint SLAs + 48h appeal SLAs.
+  2. **API Routes, UI Controls, Documentation & Regression Suite**: Mounted `GET /api/opportunity-ops/overview`, `POST /api/admin/opportunity-ops/sweep`, and `POST /api/opportunity-ops/verify-suite` with strict Zod, CSRF, and RBAC checks, integrated the **Verification Operations Hardening, Evidence Vault & SLA Triage (Phase 9 · Block 9.1)** panel into `OpportunityView.tsx`, added 24th automated QA invariant `qa_91_opportunity_verification_ops`, added `tests/opportunityOps.test.ts` (`8/8` checks, vault hashing/redaction, auth/CSRF/RBAC isolation, `24/24` QA invariants), and reconciled governance records.
+- **Software-First Boundaries Preserved**: `externalKycVendorConnected: false`, `isSoftwareSimulationOnly: true`, `hardwareTested: false`, `stageP6Deferred: true`, `paymentCollectionActive: false`, `automatedOutreachBlocked: true`, and JSON persistence (`schemaVersion: 8`) retained without paid Cloud SQL (`TASK-P3-001` `READY`).
+- **Next Authorised Action**: Review and manually commit **Phase 9 Block 9.1** to unlock **Phase 10 Privacy, Security & Statutory Compliance Readiness** (or execute `TASK-P3-001` external PostgreSQL provisioning).
+
+

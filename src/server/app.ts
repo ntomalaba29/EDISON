@@ -60,6 +60,7 @@ import {
   runTrackBVerificationSuite,
 } from './trackBHouseholdConsent.ts';
 import { runBroadcastRenderVerificationSuite } from './broadcastRenderEngine.ts';
+import { runOpportunityOpsVerificationSuite } from './opportunityOpsEngine.ts';
 import {
   adCreativeAttachSchema,
   adCreativeSaveSchema,
@@ -106,6 +107,7 @@ import {
   offlineQueueDrainSchema,
   offlineQueueEnqueueSchema,
   opportunityCreateSchema,
+  opportunityOpsSweepSchema,
   parseWithZod,
   phase4ExitSuiteSchema,
   physicalQrTestCreateSchema,
@@ -2166,6 +2168,63 @@ export function createEdisonApp(
         'BROADCAST_RENDER_SUITE_RUN',
         'phase8_broadcast_render',
         `[${req.requestId ?? 'req'}] Phase 8 broadcast render suite: ${report.passedChecks}/${report.totalChecks} passed (ffmpegBinaryExecuted=false, hardwareTested=false).`
+      );
+      res.json({ report });
+    }
+  );
+
+  // Phase 9 Block 9.1: Opportunity Verification Operations Hardening (Software-First)
+  app.get(
+    '/api/opportunity-ops/overview',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const overview = store.getOpportunityOpsOverview(req.currentUser!);
+        res.json({ overview });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.post(
+    '/api/admin/opportunity-ops/sweep',
+    requireAdmin,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(opportunityOpsSweepSchema, req.body ?? {});
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        const sweep = store.runOpportunityExpiryAndReverificationSweep(
+          req.currentUser!,
+          parsed.data
+        );
+        res.json({ sweep });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.post(
+    '/api/opportunity-ops/verify-suite',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(emptyStrictSchema, req.body ?? {});
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const report = runOpportunityOpsVerificationSuite();
+      store.recordSecurityAudit(
+        req.currentUser!,
+        'OPPORTUNITY_OPS_SUITE_RUN',
+        'phase9_opportunity_ops',
+        `[${req.requestId ?? 'req'}] Phase 9 opportunity verification ops suite: ${report.passedChecks}/${report.totalChecks} passed (externalKycVendorConnected=false, advertisingFeeInfluencesVerification=false, hardwareTested=false).`
       );
       res.json({ report });
     }

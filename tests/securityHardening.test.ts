@@ -444,8 +444,8 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
       .get('/api/qa/prototype-readiness')
       .set('Authorization', `Bearer ${adminLogin.body.token}`);
     expect(readinessRes.status).toBe(200);
-    expect(readinessRes.body.automatedInvariantsPassed).toBe(23);
-    expect(readinessRes.body.automatedInvariantsTotal).toBe(23);
+    expect(readinessRes.body.automatedInvariantsPassed).toBe(24);
+    expect(readinessRes.body.automatedInvariantsTotal).toBe(24);
   });
 
   it('hardens /api/media/upload against SVG/HTML polyglots & invalid base64 and locks down /uploads/* headers & symlinks', async () => {
@@ -913,8 +913,8 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
       .get('/api/qa/prototype-readiness')
       .set('Authorization', `Bearer ${adminToken}`);
     expect(qaRes.status).toBe(200);
-    expect(qaRes.body.automatedInvariantsPassed).toBe(23);
-    expect(qaRes.body.automatedInvariantsTotal).toBe(23);
+    expect(qaRes.body.automatedInvariantsPassed).toBe(24);
+    expect(qaRes.body.automatedInvariantsTotal).toBe(24);
   });
 
   it('Block 5.1: enforces Ed25519 signature verification (401), Zero-PII (400), strict Zod schemas, scoped compatibility (409), and 11/11 Scenarios 25–35', async () => {
