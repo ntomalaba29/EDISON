@@ -39,6 +39,10 @@ import type {
   OptionBUploadSpec,
   PhysicalQrScanTestRecord,
   PrimaryAdCategory,
+  PrivacyComplianceOverview,
+  PrivacyDsrErasureResult,
+  PrivacyDsrExportPackage,
+  PrivacyRetentionReport,
   PrototypeReadinessSnapshot,
   PublicUser,
   QrDestinationType,
@@ -638,5 +642,21 @@ export interface EdisonDataRepository {
     actor: PublicUser,
     input?: { notes?: string }
   ): OpportunityOpsSweepResult;
+
+  // --- Phase 10 Block 10.1: Privacy, Security & Statutory Compliance Readiness ---
+  getPrivacyComplianceOverview(actor: PublicUser): PrivacyComplianceOverview;
+
+  exportHouseholdDsrPackage(actor: PublicUser, householdId: string): PrivacyDsrExportPackage;
+
+  anonymiseHouseholdDsr(
+    actor: PublicUser,
+    householdId: string,
+    input: { confirmationPhrase: string; reason: string }
+  ): PrivacyDsrErasureResult;
+
+  runPrivacyRetentionCleanupSweep(
+    actor: PublicUser,
+    input?: { notes?: string }
+  ): PrivacyRetentionReport;
 }
 

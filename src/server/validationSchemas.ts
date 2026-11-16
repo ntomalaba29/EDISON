@@ -861,6 +861,21 @@ export const opportunityOpsSweepSchema = z
   })
   .strict();
 
+export const privacyDsrEraseSchema = z
+  .object({
+    confirmationPhrase: z.literal('ERASE HOUSEHOLD DATA', {
+      message: 'confirmationPhrase must equal exact string "ERASE HOUSEHOLD DATA".',
+    }),
+    reason: z.string().trim().min(5, 'reason must be at least 5 characters.').max(300),
+  })
+  .strict();
+
+export const privacyRetentionSweepSchema = z
+  .object({
+    notes: z.string().trim().max(500).optional(),
+  })
+  .strict();
+
 export function parseWithZod<T extends z.ZodTypeAny>(
   schema: T,
   payload: unknown

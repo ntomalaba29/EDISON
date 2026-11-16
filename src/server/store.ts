@@ -48,6 +48,10 @@ import type {
   PhysicalQrScanTestRecord,
   PreSubmitCheckItem,
   PrimaryAdCategory,
+  PrivacyComplianceOverview,
+  PrivacyDsrErasureResult,
+  PrivacyDsrExportPackage,
+  PrivacyRetentionReport,
   PrototypeQaCheckItem,
   PrototypeReadinessSnapshot,
   PublicUser,
@@ -110,6 +114,13 @@ import {
   buildOpportunityOpsOverview,
   runOpportunityOpsVerificationSuite,
 } from './opportunityOpsEngine.ts';
+import {
+  anonymiseHouseholdDraftData,
+  buildHouseholdDsrExportPackage,
+  buildPrivacyComplianceOverview,
+  executeRetentionPurgeOnDraft,
+  runPrivacyComplianceVerificationSuite,
+} from './privacyComplianceEngine.ts';
 
 const DEFAULT_DATA_DIR = path.resolve(process.cwd(), 'data');
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days absolute cap
@@ -5076,6 +5087,27 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
           '8/8 opportunity verification ops invariants passed: Tier 1-3 AES-256-GCM/SHA-256 vault seals + redaction, strict Tier 2->3 non-transitivity, informal employer N/A support, $0.00 Charity fee independence, 90d re-verification + expiry quarantine, and 4h/48h SLA escalation (externalKycVendorConnected=false, hardwareTested=false).',
       },
       {
+        id: 'qa_101_privacy_dsr_statutory_compliance',
+        block: 'Block 10.1',
+        label:
+          'Phase 10 Block 10.1: Privacy, Security & Statutory Compliance Readiness (DSR Export/Erasure, Retention Purge, Zero-PII & 6-Country Register)',
+        status: (() => {
+          const p10 = runPrivacyComplianceVerificationSuite();
+          return p10.allPassed &&
+            p10.passedChecks === 8 &&
+            p10.externalPenTestCompleted === false &&
+            p10.legalComplianceClaimed === false &&
+            p10.cameraMicAttentionTrackingEnabled === false &&
+            !p10.hardwareTested &&
+            p10.stageP6Deferred
+            ? 'pass'
+            : 'fail';
+        })(),
+        scope: 'automated_invariant',
+        detail:
+          '8/8 privacy & statutory checks passed: SHA-256 DSR export PIN-hash redaction, Right-to-Erasure cascade anonymisation + bundled HTTP 403 QR revocation (ordinary TV preserved), session/30d-QR retention purge, zero-PII analytics scanner, camera/mic hard disable, advertiser cross-tenant isolation & 6-country ADR-015 statutory register (externalPenTestCompleted=false, legalComplianceClaimed=false).',
+      },
+      {
         id: 'qa_27_physical_qr_scan',
         block: 'Block 2.7',
         label: 'Physical smartphone camera scan verification on real mobile device',
@@ -5093,8 +5125,8 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
 
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 9 — Opportunity Verification Operations Hardening (Software-First)',
-      block: 'Block 9.1 (Tier 1-3 SHA-256 Evidence Vault Seals, Automated Expiry & Re-Verification Cadence, 4h/48h SLA Triage & Zero Fee Influence)',
+      phase: 'Phase 10 — Privacy, Security & Statutory Compliance Readiness (Software-First)',
+      block: 'Block 10.1 (Household DSR Export/Erasure Cascade, Automated Retention Purge, Zero-PII Telemetry & Independent 6-Country Statutory Register)',
       automatedInvariantsPassed,
       automatedInvariantsTotal: autoChecks.length,
       physicalQrScanStatus:
@@ -5309,19 +5341,19 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     const latestAudit = this.data.auditLogs[0] ?? null;
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 9 — Opportunity Verification Operations Hardening (Software-First)',
-      stage: 'Phases 1–8 Committed (Inc. Track B DEC-OPEN-01) · Phase 9 Block 9.1 Verified & Awaiting Commit · TASK-P3-001 READY',
-      block: 'Block 9.1 (Tier 1–3 SHA-256 Evidence Vault Seals, Automated Expiry & Re-Verification Cadence, 4h/48h SLA Triage & Zero Fee Influence)',
-      gateStatus: 'BLOCK 9.1 VERIFIED — AWAITING OWNER COMMIT (EXTERNAL KYC VENDOR NOT CONNECTED · STAGE P6 HARDWARE DEFERRED)',
+      phase: 'Phase 10 — Privacy, Security & Statutory Compliance Readiness (Software-First)',
+      stage: 'Phases 1–9 Committed (Inc. Track B DEC-OPEN-01) · Phase 10 Block 10.1 Verified & Awaiting Commit · TASK-P3-001 READY',
+      block: 'Block 10.1 (Household DSR Export/Erasure Cascade, Automated Retention Purge, Zero-PII Telemetry & Independent 6-Country Statutory Register)',
+      gateStatus: 'BLOCK 10.1 VERIFIED — AWAITING OWNER COMMIT (EXTERNAL PEN-TEST & LEGAL COMPLIANCE NOT CLAIMED · STAGE P6 HARDWARE DEFERRED)',
       progressMetrics: {
         aiStudioAssignmentPct: 100,
         softwareToStageP6Pct: 81.8,
-        overallFullAppPct: 62.0,
-        remainingUntilFullAppPct: 38.0,
+        overallFullAppPct: 66.0,
+        remainingUntilFullAppPct: 34.0,
         consentBlockedScopePct: 0,
         trackBStatus: 'COMMITTED',
         rubricSummary:
-          'Phase 1 Specs (6.0%) + Phase 2 Track A+B Complete (14.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Complete Committed (12.0%) + Phase 6 Delivery Infra Committed (4.0%) + Phase 7 Advertiser Ops Committed (3.0%) + Phase 8 Broadcast Render Committed (3.0%) + Phase 9 Opportunity Verification Ops (2.0%) = 62.0% of 15-Phase Full Commercial App (81.8% to Stage P6; 100% of original Phase 2 AI Studio scope).',
+          'Phase 1 Specs (6.0%) + Phase 2 Complete (14.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Complete Committed (12.0%) + Phase 6 Delivery Infra Committed (4.0%) + Phase 7 Advertiser Ops Committed (3.0%) + Phase 8 Broadcast Render Committed (3.0%) + Phase 9 Opportunity Ops Committed (2.0%) + Phase 10 Privacy & Statutory Readiness (4.0%) = 66.0% of 15-Phase Full Commercial App (81.8% to Stage P6; 100% of original Phase 2 AI Studio scope).',
       },
       latestAuditAt: latestAudit?.createdAt ?? null,
       latestAuditAction: latestAudit?.action ?? null,
@@ -6120,6 +6152,163 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
         nonTransitivityVerified: true,
         overview,
       };
+    });
+  }
+
+  // --- Phase 10 Block 10.1: Privacy, Security & Statutory Compliance Readiness (Software-First) ---
+
+  getPrivacyComplianceOverview(actor: PublicUser): PrivacyComplianceOverview {
+    this.syncIfDiskNewer();
+    return buildPrivacyComplianceOverview({
+      actor,
+      households: this.data.households ?? [],
+      sessions: this.data.sessions,
+      householdQrTokens: this.data.householdQrTokens ?? [],
+      analyticsEvents: this.data.analyticsEvents,
+    });
+  }
+
+  exportHouseholdDsrPackage(actor: PublicUser, householdId: string): PrivacyDsrExportPackage {
+    this.syncIfDiskNewer();
+    const existing = (this.data.households ?? []).find((h) => h.id === householdId);
+    if (!existing) {
+      throw new Error('NOT_FOUND: Household installation not found.');
+    }
+    this.assertHouseholdReadAccess(actor, existing);
+
+    return this.withWriteTransaction((draft) => {
+      draft.households = draft.households || [];
+      draft.householdMembers = draft.householdMembers || [];
+      draft.householdQrTokens = draft.householdQrTokens || [];
+      draft.consentAuditEvents = draft.consentAuditEvents || [];
+
+      const hh = draft.households.find((h) => h.id === householdId);
+      if (!hh) {
+        throw new Error('NOT_FOUND: Household installation not found.');
+      }
+      this.assertHouseholdReadAccess(actor, hh);
+
+      const pkg = buildHouseholdDsrExportPackage({
+        household: hh,
+        members: draft.householdMembers,
+        householdQrTokens: draft.householdQrTokens,
+        consentAuditEvents: draft.consentAuditEvents,
+      });
+
+      this.pushConsentAudit(draft, {
+        householdId: hh.id,
+        actorId: actor.id,
+        actorRole: actor.role,
+        action: 'DSR_DATA_EXPORTED',
+        previousEpoch: hh.consentEpoch,
+        newEpoch: hh.consentEpoch,
+        reason: `Subject access DSR JSON export (${pkg.exportId}, sha256=${pkg.packageSha256.slice(0, 12)}...).`,
+        affectedQrTokensInvalidated: 0,
+      });
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'PRIVACY_DSR_EXPORT_GENERATED',
+        'household',
+        hh.id,
+        `Generated PIN-redacted DSR export ${pkg.exportId} for household ${hh.id} (members=${pkg.members.length}, tokens=${pkg.householdQrTokens.length}).`
+      );
+
+      return pkg;
+    });
+  }
+
+  anonymiseHouseholdDsr(
+    actor: PublicUser,
+    householdId: string,
+    input: { confirmationPhrase: string; reason: string }
+  ): PrivacyDsrErasureResult {
+    if (input.confirmationPhrase !== 'ERASE HOUSEHOLD DATA') {
+      throw new Error('VALIDATION_ERROR: confirmationPhrase must match "ERASE HOUSEHOLD DATA".');
+    }
+
+    this.syncIfDiskNewer();
+    const existing = (this.data.households ?? []).find((h) => h.id === householdId);
+    if (!existing) {
+      throw new Error('NOT_FOUND: Household installation not found.');
+    }
+    this.assertHouseholdReadAccess(actor, existing);
+
+    return this.withWriteTransaction((draft) => {
+      draft.households = draft.households || [];
+      draft.householdMembers = draft.householdMembers || [];
+      draft.householdQrTokens = draft.householdQrTokens || [];
+
+      const hh = draft.households.find((h) => h.id === householdId);
+      if (!hh) {
+        throw new Error('NOT_FOUND: Household installation not found.');
+      }
+      this.assertHouseholdReadAccess(actor, hh);
+
+      const { erasureResult } = anonymiseHouseholdDraftData({
+        household: hh,
+        members: draft.householdMembers,
+        householdQrTokens: draft.householdQrTokens,
+      });
+
+      this.pushConsentAudit(draft, {
+        householdId: hh.id,
+        actorId: actor.id,
+        actorRole: actor.role,
+        action: 'DSR_HOUSEHOLD_ERASED',
+        previousEpoch: erasureResult.previousEpoch,
+        newEpoch: erasureResult.newEpoch,
+        reason: `Right-to-Erasure DSR anonymisation: ${input.reason.trim()}`,
+        affectedQrTokensInvalidated: erasureResult.qrTokensRevokedCount,
+      });
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'PRIVACY_DSR_HOUSEHOLD_ANONYMISED',
+        'household',
+        hh.id,
+        `Anonymised household ${hh.id} (members=${erasureResult.membersAnonymisedCount}, revokedQrs=${erasureResult.qrTokensRevokedCount}, epoch v${erasureResult.previousEpoch}->v${erasureResult.newEpoch}, ordinaryTvPreserved=true).`
+      );
+
+      return erasureResult;
+    });
+  }
+
+  runPrivacyRetentionCleanupSweep(
+    actor: PublicUser,
+    input: { notes?: string } = {}
+  ): PrivacyRetentionReport {
+    if (actor.role !== 'admin') {
+      throw new Error('FORBIDDEN: Only administrators can execute privacy retention cleanup sweeps.');
+    }
+
+    return this.withWriteTransaction((draft) => {
+      draft.householdQrTokens = draft.householdQrTokens || [];
+      const { report, keptSessions, keptQrTokens } = executeRetentionPurgeOnDraft({
+        sessions: draft.sessions,
+        householdQrTokens: draft.householdQrTokens,
+        analyticsEvents: draft.analyticsEvents,
+      });
+
+      draft.sessions = keptSessions;
+      draft.householdQrTokens = keptQrTokens;
+
+      const noteText = input.notes?.trim() ? ` Note: ${input.notes.trim()}` : '';
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'PRIVACY_RETENTION_SWEEP_EXECUTED',
+        'system',
+        report.sweepId,
+        `Executed Phase 10 Block 10.1 retention cleanup sweep: expiredSessionsPurged=${report.expiredSessionsPurged}, staleExpiredQrTokensPurged=${report.staleExpiredQrTokensPurged}, piiLeaks=${report.piiLeaksDetectedInAnalytics}.${noteText}`
+      );
+
+      return report;
     });
   }
 }

@@ -26,6 +26,11 @@ import type {
   HouseholdOpportunityMatchResult,
   HouseholdQrTokenRecord,
   OpportunityCategory,
+  PrivacyComplianceOverview,
+  PrivacyComplianceVerificationReport,
+  PrivacyDsrErasureResult,
+  PrivacyDsrExportPackage,
+  PrivacyRetentionReport,
   PublicHouseholdInstallationView,
   PublicUser,
   TrackBVerificationReport,
@@ -79,6 +84,21 @@ export function HouseholdPrivacyView({
   const [geoAggregates, setGeoAggregates] = useState<AdvertiserGeoAggregateRow[]>([]);
   const [suiteReport, setSuiteReport] = useState<TrackBVerificationReport | null>(null);
   const [runningSuite, setRunningSuite] = useState(false);
+
+  // Phase 10 Block 10.1 Compliance, DSR & Retention state
+  const [complianceOverview, setComplianceOverview] =
+    useState<PrivacyComplianceOverview | null>(null);
+  const [complianceSuiteReport, setComplianceSuiteReport] =
+    useState<PrivacyComplianceVerificationReport | null>(null);
+  const [runningComplianceSuite, setRunningComplianceSuite] = useState(false);
+  const [dsrExportPkg, setDsrExportPkg] = useState<PrivacyDsrExportPackage | null>(null);
+  const [dsrErasePhrase, setDsrErasePhrase] = useState('');
+  const [dsrEraseReason, setDsrEraseReason] = useState(
+    'Household requested full Right-to-Erasure anonymisation under statutory data-subject rights.'
+  );
+  const [lastDsrErasure, setLastDsrErasure] = useState<PrivacyDsrErasureResult | null>(null);
+  const [lastRetentionReport, setLastRetentionReport] = useState<PrivacyRetentionReport | null>(null);
+  const [runningRetentionSweep, setRunningRetentionSweep] = useState(false);
 
   // Advertiser privacy barrier probe result
   const [privacyProbeResult, setPrivacyProbeResult] = useState<{
@@ -191,9 +211,10 @@ export function HouseholdPrivacyView({
     if (!currentUser) return;
     setLoading(true);
     try {
-      const [cfgRes, aggRes] = await Promise.all([
+      const [cfgRes, aggRes, compRes] = await Promise.all([
         edisonFetch('/api/track-b/country-configs'),
         edisonFetch('/api/advertiser/targeting-aggregates'),
+        edisonFetch('/api/compliance/overview'),
       ]);
       if (cfgRes.ok) {
         const cfgData = await cfgRes.json();
@@ -202,6 +223,10 @@ export function HouseholdPrivacyView({
       if (aggRes.ok) {
         const aggData = await aggRes.json();
         setGeoAggregates(aggData.items || []);
+      }
+      if (compRes.ok) {
+        const compData = await compRes.json();
+        setComplianceOverview(compData.overview || null);
       }
       if (isViewerOrAdmin) {
         const hhRes = await edisonFetch('/api/households');
@@ -598,6 +623,109 @@ export function HouseholdPrivacyView({
       }
     } finally {
       setRunningSuite(false);
+    }
+  };
+
+  const handleRunComplianceSuite = async () => {
+    setRunningComplianceSuite(true);
+    try {
+      const res = await edisonFetch('/api/compliance/verify-suite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setComplianceSuiteReport(data.report || null);
+      }
+    } finally {
+      setRunningComplianceSuite(false);
+    }
+  };
+
+  const handleDsrExport = async () => {
+    if (!selectedHousehold) return;
+    setFeedback(null);
+    const res = await edisonFetch(`/api/households/${selectedHousehold.id}/dsr-export`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setFeedback({ type: 'err', text: data.error || 'DSR export failed.' });
+      return;
+    }
+    setDsrExportPkg(data.package);
+    setFeedback({
+      type: 'ok',
+      text: `DSR Subject Access export ${data.package.exportId} generated (PIN hashes redacted; SHA-256 ${data.package.packageSha256.slice(0, 12)}...).`,
+    });
+    await loadHouseholdDetails(selectedHousehold.id);
+    await onSummaryRefresh();
+  };
+
+  const handleDownloadDsrJson = () => {
+    if (!dsrExportPkg) return;
+    const blob = new Blob([JSON.stringify(dsrExportPkg, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `edison-dsr-${dsrExportPkg.householdId}-${dsrExportPkg.exportId}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDsrErase = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedHousehold) return;
+    setFeedback(null);
+    const res = await edisonFetch(`/api/households/${selectedHousehold.id}/dsr-erase`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        confirmationPhrase: dsrErasePhrase,
+        reason: dsrEraseReason,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setFeedback({ type: 'err', text: data.error || 'DSR erasure failed.' });
+      return;
+    }
+    setLastDsrErasure(data.erasure);
+    setDsrErasePhrase('');
+    setFeedback({
+      type: 'ok',
+      text: `Household DSR Right-to-Erasure completed (${data.erasure.membersAnonymisedCount} profiles scrubbed, ${data.erasure.qrTokensRevokedCount} QRs revoked to HTTP 403, Epoch v${data.erasure.newEpoch}; ordinary TV preserved).`,
+    });
+    await loadAll();
+    await onSummaryRefresh();
+  };
+
+  const handleAdminRetentionSweep = async () => {
+    setRunningRetentionSweep(true);
+    setFeedback(null);
+    try {
+      const res = await edisonFetch('/api/admin/compliance/retention-sweep', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: 'Triggered via EDISON Phase 10 Compliance Console' }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setFeedback({ type: 'err', text: data.error || 'Retention cleanup sweep failed.' });
+        return;
+      }
+      setLastRetentionReport(data.report);
+      setFeedback({
+        type: 'ok',
+        text: `Retention sweep ${data.report.sweepId} completed: ${data.report.expiredSessionsPurged} expired session(s) and ${data.report.staleExpiredQrTokensPurged} >30d expired QR token(s) purged.`,
+      });
+      await loadAll();
+      await onSummaryRefresh();
+    } finally {
+      setRunningRetentionSweep(false);
     }
   };
 
@@ -1893,9 +2021,253 @@ export function HouseholdPrivacyView({
                   </table>
                 </div>
               </div>
+
+              {/* Phase 10 DSR Controls (Subject Access Export & Right-to-Erasure Cascade) */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                <div className="bg-white border border-slate-200 rounded-lg p-6 space-y-4 text-xs">
+                  <div className="pb-3 border-b border-slate-200">
+                    <h3 className="text-base font-semibold text-slate-900">
+                      Data Subject Access Export (GDPR Art. 15 · ZW § 12:07)
+                    </h3>
+                    <p className="text-slate-600 mt-0.5">
+                      Exports owned household metadata, member skills, QR tokens, and consent epochs as a SHA-256 checksummed package with secret <span className="font-mono">pinHash</span> fields permanently redacted.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleDsrExport}
+                      className="px-4 py-2 font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg cursor-pointer"
+                    >
+                      Generate DSR JSON Export
+                    </button>
+                    {dsrExportPkg && (
+                      <button
+                        type="button"
+                        onClick={handleDownloadDsrJson}
+                        className="px-3.5 py-2 font-semibold text-slate-800 border border-slate-300 hover:bg-slate-50 rounded-lg cursor-pointer"
+                      >
+                        Download JSON ({dsrExportPkg.exportId})
+                      </button>
+                    )}
+                  </div>
+
+                  {dsrExportPkg && (
+                    <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5 font-mono text-[11px] text-slate-700">
+                      <div>
+                        Export ID: <span className="font-semibold text-slate-900">{dsrExportPkg.exportId}</span> · PIN Hashes Redacted: <span className="text-emerald-700 font-semibold">true</span>
+                      </div>
+                      <div>
+                        Members: {dsrExportPkg.members.length} · QR Tokens: {dsrExportPkg.householdQrTokens.length} · Consent Events: {dsrExportPkg.consentAuditEvents.length}
+                      </div>
+                      <div className="break-all text-slate-600">
+                        SHA-256: {dsrExportPkg.packageSha256}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <form
+                  onSubmit={handleDsrErase}
+                  className="bg-white border border-slate-200 rounded-lg p-6 space-y-4 text-xs"
+                >
+                  <div className="pb-3 border-b border-slate-200">
+                    <h3 className="text-base font-semibold text-slate-900">
+                      Right-to-Erasure DSR Anonymisation Cascade (GDPR Art. 17)
+                    </h3>
+                    <p className="text-slate-600 mt-0.5">
+                      Irreversibly scrubs exact household address, member names/skills/PIN hashes, withdraws bundled consent, and revokes every <span className="font-mono">hqr_*</span> link to HTTP 403 while keeping ordinary TV usable.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block font-medium text-slate-700 mb-1">
+                      Type <span className="font-mono text-slate-900">ERASE HOUSEHOLD DATA</span> to confirm
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={dsrErasePhrase}
+                      onChange={(e) => setDsrErasePhrase(e.target.value)}
+                      placeholder="ERASE HOUSEHOLD DATA"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-medium text-slate-700 mb-1">
+                      Statutory Erasure Audit Reason
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      minLength={5}
+                      value={dsrEraseReason}
+                      onChange={(e) => setDsrEraseReason(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={dsrErasePhrase !== 'ERASE HOUSEHOLD DATA'}
+                    className="px-4 py-2 font-semibold text-white bg-red-700 hover:bg-red-800 disabled:opacity-50 rounded-lg cursor-pointer"
+                  >
+                    Execute DSR Household Anonymisation
+                  </button>
+
+                  {lastDsrErasure && (
+                    <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-[11px] font-mono text-emerald-900">
+                      Erasure {lastDsrErasure.erasureId} · Profiles Scrubbed: {lastDsrErasure.membersAnonymisedCount} · QRs Revoked: {lastDsrErasure.qrTokensRevokedCount} · Epoch v{lastDsrErasure.previousEpoch} -&gt; v{lastDsrErasure.newEpoch} · Ordinary TV Preserved: true
+                    </div>
+                  )}
+                </form>
+              </div>
             </div>
           )}
         </>
+      )}
+
+      {/* Phase 10 Block 10.1: Privacy Posture, Retention Automation & Independent 6-Country Statutory Register */}
+      {complianceOverview && (
+        <div className="bg-white border border-slate-200 rounded-lg p-6 space-y-5">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+            <div>
+              <h3 className="text-base font-semibold text-slate-900">
+                Phase 10 · Block 10.1: Privacy Posture, Retention &amp; Country Statutory Register
+              </h3>
+              <p className="text-xs text-slate-600 mt-0.5">
+                Software-First Compliance Readiness (ADR-015) · No Legal Counsel Dependency · externalPenTestCompleted: false · legalComplianceClaimed: false · cameraMicAttentionTrackingEnabled: false
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleRunComplianceSuite}
+                disabled={runningComplianceSuite}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg cursor-pointer whitespace-nowrap disabled:opacity-50"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>
+                  {runningComplianceSuite ? 'Verifying...' : 'Run Phase 10 Compliance Suite (8/8)'}
+                </span>
+              </button>
+              {currentUser.role === 'admin' && (
+                <button
+                  type="button"
+                  onClick={handleAdminRetentionSweep}
+                  disabled={runningRetentionSweep}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer whitespace-nowrap disabled:opacity-50"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>
+                    {runningRetentionSweep ? 'Purging...' : 'Run Admin Retention Purge Sweep'}
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+            <div className="border border-slate-200 rounded-lg p-4">
+              <p className="text-slate-500 font-medium">Analytics Zero-PII Check</p>
+              <p className="mt-1 text-base font-semibold text-emerald-700">
+                {complianceOverview.posture.analyticsZeroPiiVerified
+                  ? '0 Leaks Detected'
+                  : `${complianceOverview.posture.piiLeaksDetectedInAnalytics} Leak(s)`}
+              </p>
+              <p className="mt-0.5 text-slate-600">No raw emails or coordinates in telemetry</p>
+            </div>
+
+            <div className="border border-slate-200 rounded-lg p-4">
+              <p className="text-slate-500 font-medium">Camera / Mic Tracking</p>
+              <p className="mt-1 text-base font-semibold text-slate-900">Hard Disabled</p>
+              <p className="mt-0.5 text-slate-600">Section 14 zero-biometric invariant</p>
+            </div>
+
+            <div className="border border-slate-200 rounded-lg p-4">
+              <p className="text-slate-500 font-medium">Retention Queue ({currentUser.role === 'admin' ? 'Fleet' : 'Tenant Scoped'})</p>
+              <p className="mt-1 text-base font-semibold font-mono tabular-nums text-slate-900">
+                {complianceOverview.posture.expiredSessionsPendingPurge} sess ·{' '}
+                {complianceOverview.posture.staleExpiredQrTokensPendingPurge} QR
+              </p>
+              <p className="mt-0.5 text-slate-600">2h session idle · 30d expired QR window</p>
+            </div>
+
+            <div className="border border-slate-200 rounded-lg p-4">
+              <p className="text-slate-500 font-medium">Jurisdiction Launch Status</p>
+              <p className="mt-1 text-base font-semibold text-amber-800">0 / 6 Activated</p>
+              <p className="mt-0.5 text-slate-600">Zero formal legal compliance claimed</p>
+            </div>
+          </div>
+
+          {lastRetentionReport && (
+            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono text-slate-700">
+              Sweep {lastRetentionReport.sweepId} · Expired Sessions Purged: {lastRetentionReport.expiredSessionsPurged} · &gt;30d Stale QRs Purged: {lastRetentionReport.staleExpiredQrTokensPurged} · PII Leaks: {lastRetentionReport.piiLeaksDetectedInAnalytics}
+            </div>
+          )}
+
+          {complianceSuiteReport && (
+            <div className="border border-slate-200 rounded-lg p-4 space-y-2">
+              <div className="flex items-center justify-between text-xs pb-2 border-b border-slate-200">
+                <span className="font-semibold text-slate-900">
+                  Phase 10 Compliance Verification ({complianceSuiteReport.passedChecks}/{complianceSuiteReport.totalChecks} Passed)
+                </span>
+                <span className="font-mono font-semibold text-emerald-700">
+                  {complianceSuiteReport.allPassed ? 'ALL CHECKS PASSED' : 'FAILURES DETECTED'}
+                </span>
+              </div>
+              <div className="divide-y divide-slate-200">
+                {complianceSuiteReport.checks.map((chk) => (
+                  <div key={chk.checkId} className="py-2 flex items-start gap-2 text-xs">
+                    {chk.passed ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <XCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                    )}
+                    <div>
+                      <p className="font-semibold text-slate-900">{chk.label}</p>
+                      <p className="text-slate-600">{chk.detail}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="overflow-x-auto border border-slate-200 rounded-lg">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="px-3.5 py-2.5 font-semibold text-slate-700">Territory</th>
+                  <th className="px-3.5 py-2.5 font-semibold text-slate-700">Researched Public Statutes</th>
+                  <th className="px-3.5 py-2.5 font-semibold text-slate-700">Unresolved Regulatory Uncertainty</th>
+                  <th className="px-3.5 py-2.5 font-semibold text-slate-700 text-right">Launch Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {complianceOverview.countries.map((c) => (
+                  <tr key={c.countryCode} className="align-top">
+                    <td className="px-3.5 py-2.5 font-medium text-slate-900 whitespace-nowrap">
+                      <span className="font-mono font-semibold mr-1.5">{c.countryCode}</span>
+                      <span>{c.countryName}</span>
+                    </td>
+                    <td className="px-3.5 py-2.5 text-slate-700">
+                      {c.statutesResearched.join(' · ')}
+                    </td>
+                    <td className="px-3.5 py-2.5 text-slate-600">
+                      {c.unresolvedRegulatoryUncertainties.join(' · ')}
+                    </td>
+                    <td className="px-3.5 py-2.5 text-right font-mono text-amber-800 whitespace-nowrap">
+                      NOT ACTIVATED · Compliance: false
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
 
       <CopyReportFooter

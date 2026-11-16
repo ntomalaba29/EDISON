@@ -7,13 +7,13 @@
 
 ## 1. PROJECT OWNER MESSAGE
 
-> **Phase 8 Block 8.1 COMMITTED · Phase 9 Block 9.1 Verified & Awaiting Commit (`62.0%` Full App · `TASK-P3-001` `READY`)**:
-> - Completed **Phase 9 · Stage 9.1 · Block 9.1: Opportunity Verification Operations Hardening (Software-First)**:
->   - **Verification Ops, Evidence Vault & SLA Engine (`src/server/opportunityOpsEngine.ts`)**: Generates tamper-evident 64-hex SHA-256 AES-256-GCM blueprint vault seals across Tier 1 (`identity`), Tier 2 (`organisation`), and Tier 3 (`specific_opportunity`) with redacted display refs (`redactEvidenceRef`). Preserves individual/informal employer Tier 2 `not_applicable` accommodation while enforcing strict Tier 2 -> Tier 3 non-transitivity and `$0.00 / FREE` Charity financial independence (`advertisingFeeInfluencesVerification: false`).
->   - **Automated Expiry, 90-Day Re-Verification Quarantine & SLA Triage**: Quarantines listings past closing/expiry dates or exceeding verification cadence (`180d` Tier 1, `365d` Tier 2, `90d` Tier 3), detects upfront-fee/guarantee scam phrases, tracks 4h critical viewer-protection complaint SLAs / 24h standard complaint SLAs / 48h appeal SLAs, and flags immediate suspension recommendations.
->   - **UI, Routes & 24/24 QA Verification**: Mounted `GET /api/opportunity-ops/overview`, `POST /api/admin/opportunity-ops/sweep`, and `POST /api/opportunity-ops/verify-suite`, integrated the interactive **Verification Operations Hardening, Evidence Vault & SLA Triage (Phase 9 · Block 9.1)** panel into `OpportunityView.tsx`, added 24th QA invariant `qa_91_opportunity_verification_ops`, and verified `tests/opportunityOps.test.ts` + full suite.
->   - **Software-First Boundaries Preserved**: `externalKycVendorConnected: false`, `isSoftwareSimulationOnly: true`, `hardwareTested: false`, `stageP6Deferred: true`, `paymentCollectionActive: false`, `automatedOutreachBlocked: true`, and JSON persistence (`schemaVersion: 8`) retained without paid Cloud SQL.
-> - Overall progress is now **`62.0%` of the 15-Phase Full App** (**`38.0%` remaining**, **`100.0%` of Phase 2 AI Studio scope**, **`81.8%` to `Stage P6`** — Phase 9 Block 9.1 **`VERIFIED · AWAITING COMMIT`**).
+> **Phase 9 Block 9.1 COMMITTED · Phase 10 Block 10.1 Verified & Awaiting Commit (`66.0%` Full App · `TASK-P3-001` `READY`)**:
+> - Completed **Phase 10 · Stage 10.1 · Block 10.1: Privacy, Security & Statutory Compliance Readiness (Software-First)**:
+>   - **Privacy, DSR & Statutory Engine (`src/server/privacyComplianceEngine.ts`)**: Generates SHA-256 Subject Access DSR JSON exports with `pinHash` permanently redacted (`pinHashesRedacted: true`), executes Right-to-Erasure cascade anonymisation scrubbing exact addresses, member profiles/skills, and PIN locks while bumping `consentEpoch`, revoking `hqr_*` tokens to `HTTP 403`, and preserving ordinary TV (`ordinaryTvPreserved: true`).
+>   - **Automated Retention Purge, Zero-PII & 6-Country ADR-015 Statutory Register**: Runs deterministic admin retention cleanup sweeps purging idle/expired sessions (`2h` window) and `>30d` stale expired household QRs, scans analytics telemetry for raw emails/GPS leaks (`piiLeaksDetectedInAnalytics === 0`), keeps camera/microphone attention tracking hard-disabled (`cameraMicAttentionTrackingEnabled: false`), and serves the 6-territory static public statutory matrix (`ZW`, `GB`, `EU`, `US`, `ZA`, `KE_NG` — all `countryActivated: false`, `legalComplianceClaimed: false`).
+>   - **UI, Routes & 25/25 QA Verification**: Mounted `GET /api/compliance/overview`, `POST /api/households/:id/dsr-export`, `POST /api/households/:id/dsr-erase`, `POST /api/admin/compliance/retention-sweep`, and `POST /api/compliance/verify-suite`, integrated DSR Export/Erasure and the 6-Country Statutory Register into `HouseholdPrivacyView.tsx`, added 25th QA invariant `qa_101_privacy_dsr_statutory_compliance`, and verified `tests/privacyCompliance.test.ts` + full Vitest suite.
+>   - **Software-First Boundaries Preserved**: `externalPenTestCompleted: false`, `legalComplianceClaimed: false`, `noLawyerDependencyPolicy: true`, `cameraMicAttentionTrackingEnabled: false`, `hardwareTested: false`, `stageP6Deferred: true`, and JSON persistence (`schemaVersion: 8`) retained without paid Cloud SQL.
+> - Overall progress is now **`66.0%` of the 15-Phase Full App** (**`34.0%` remaining**, **`100.0%` of Phase 2 AI Studio scope**, **`81.8%` to `Stage P6`** — Phase 10 Block 10.1 **`VERIFIED · AWAITING COMMIT`**).
 
 ---
 
@@ -21,7 +21,7 @@
 
 - **Phase 2 AI Studio Prototype Scope**: **`100.0%`** (**Track A `85.0%` + Track B `15.0%` `COMMITTED`**; `0.0%` consent-blocked)
 - **Software-to-`Stage-P6` Milestone (Phases 1–6 + Stage P6 Subtotal = `66.0%` of Full App)**: **`81.8%`** (`54.0% / 66.0%`)
-- **Overall EDISON Project Progress (Until Full 15-Phase International Commercial App = `100.0%`)**: **`62.0%`** (**`38.0%` remaining**)
+- **Overall EDISON Project Progress (Until Full 15-Phase International Commercial App = `100.0%`)**: **`66.0%`** (**`34.0%` remaining**)
   - Phase 1 Specs (`v1`–`v2.2`): `6.0% / 6.0%` (**Committed**)
   - Phase 2 Prototype (Track A + Track B under `DEC-OPEN-01`): `14.0% / 14.0%` (**Committed**)
   - Phase 3 Hardening: `9.0% / 12.0%` (`Blocks P3-A`, `P3-B` & `P3-C` **Committed** `9.0%`; `TASK-P3-001` **`READY`** `3.0%` with JSON retained in AI Studio)
@@ -30,17 +30,18 @@
   - Phase 6 Advertising Delivery Infrastructure (Software-First): `4.0% / 4.0%` (**`Block 6.1` `COMMITTED`**)
   - Phase 7 Advertiser & Campaign Operations (Software-First · Non-Transactional): `3.0% / 3.0%` (**`Block 7.1` `COMMITTED`**)
   - Phase 8 Advertisement Creation & Broadcast Rendering Validation (Software-First): `3.0% / 3.0%` (**`Block 8.1` `COMMITTED`**; `ffmpegBinaryExecuted: false`)
-  - Phase 9 Opportunity Verification Operations Hardening (Software-First): `2.0% / 2.0%` (**`Block 9.1` `VERIFIED · AWAITING COMMIT`**; `externalKycVendorConnected: false`)
-  - `Stage P6` Single Final Integrated TV Test (`6%`), Phases 10–12 Legal/Failure Testing (`12%`), Phases 13–15 Launch/Expansion (`14%`): `0.0%` (**Not Started / Deferred**)
+  - Phase 9 Opportunity Verification Operations Hardening (Software-First): `2.0% / 2.0%` (**`Block 9.1` `COMMITTED`**; `externalKycVendorConnected: false`)
+  - Phase 10 Privacy, Security & Statutory Compliance Readiness (Software-First): `4.0% / 4.0%` (**`Block 10.1` `VERIFIED · AWAITING COMMIT`**; `externalPenTestCompleted: false`, `legalComplianceClaimed: false`)
+  - `Stage P6` Single Final Integrated TV Test (`6%`), Phases 11–12 Chaos/Failure & Pilot Testing (`8%`), Phases 13–15 Launch/Expansion (`14%`): `0.0%` (**Not Started / Deferred**)
 
 ---
 
 ## 3. AI STUDIO INSTRUCTIONS
 
-1. Preserve all committed Blocks `2.1`–`2.7`, `P2-FIX.6`, `v2.1`, `v2.2`, `P2-V2.1`–`P2-V2.4`, `Track B` (`DEC-OPEN-01`), `P3-A`–`P3-C`, Phase 4, Phase 5, Phase 6, Phase 7, Phase 8, and verified Block 9.1 guarantees.
+1. Preserve all committed Blocks `2.1`–`2.7`, `P2-FIX.6`, `v2.1`, `v2.2`, `P2-V2.1`–`P2-V2.4`, `Track B` (`DEC-OPEN-01`), `P3-A`–`P3-C`, Phase 4, Phase 5, Phase 6, Phase 7, Phase 8, Phase 9, and verified Block 10.1 guarantees.
 2. **`DEC-OPEN-01` is LOCKED**: Scope B (Full EDISON Model) + Bundled Commercial/Charity Consent Withdrawal + Epoch `HTTP 403` QR Revocation.
 3. Retain locked atomic JSON persistence (`data/edison-store.json`, `schemaVersion: 8`) in AI Studio; do **NOT** provision Cloud SQL, create paid infrastructure, or incur external costs without explicit separate authorisation.
-4. Keep `opportunityOpsEngine` (`externalKycVendorConnected: false`), `BroadcastRenderEngine` (`ffmpegBinaryExecuted: false`), `Network-Wide Shared Ad Intelligence` (`ADR-016` / `PRD-19`), and `Normal Everyday TV Remote Control` (`AURA → EDISON Control Engine → platform adapters → TV`, `ADR-017` / `PRD-20`) strictly labelled **software-only simulation / blueprints (`hardwareTested: false`, `Stage P6` deferred)** with zero physical hardware compatibility claimed.
+4. Keep `privacyComplianceEngine` (`externalPenTestCompleted: false`, `legalComplianceClaimed: false`), `opportunityOpsEngine` (`externalKycVendorConnected: false`), `BroadcastRenderEngine` (`ffmpegBinaryExecuted: false`), `Network-Wide Shared Ad Intelligence` (`ADR-016` / `PRD-19`), and `Normal Everyday TV Remote Control` (`AURA → EDISON Control Engine → platform adapters → TV`, `ADR-017` / `PRD-20`) strictly labelled **software-only simulation / blueprints (`hardwareTested: false`, `Stage P6` deferred)** with zero physical hardware compatibility claimed.
 5. Enforce software-first testing with **strictly one planned final physical TV test at app completion (`Stage P6`)**, `$0.00 / FREE` Charity & employer job listings, locked commercial business outreach/automated emailing, and independent public statutory research without lawyer dependency.
 
 ---
@@ -59,23 +60,23 @@
 
 ## 5. COPILOT EXECUTION REPORT
 
-*No VS Code Copilot tasks have been executed. Phases 1–8 (`Committed`) and Phase 9 `Block 9.1` (`Awaiting Commit`) were executed software-first inside AI Studio.*
+*No VS Code Copilot tasks have been executed. Phases 1–9 (`Committed`) and Phase 10 `Block 10.1` (`Awaiting Commit`) were executed software-first inside AI Studio.*
 
 ---
 
 ## 6. AI STUDIO REVIEW
 
 - **Reviewed By**: AI Studio
-- **Phase 8 · Block 8.1 (`COMMITTED`)**: Confirmed committed by Project Owner (`"Committed, next"`).
-- **Phase 9 · Block 9.1 (`VERIFIED · AWAITING COMMIT`)**: Implemented `src/server/opportunityOpsEngine.ts`, updated `repository.ts`, `store.ts`, `validationSchemas.ts`, `app.ts`, `OpportunityView.tsx`, `phase1Data.ts`, and `tests/opportunityOps.test.ts` (`8/8` ops checks, `24/24` QA invariants, zero external KYC vendor APIs, strict Tier 2->3 non-transitivity, and `$0.00` Charity financial independence).
+- **Phase 9 · Block 9.1 (`COMMITTED`)**: Confirmed committed by Project Owner (`"Committed, next"`).
+- **Phase 10 · Block 10.1 (`VERIFIED · AWAITING COMMIT`)**: Implemented `src/server/privacyComplianceEngine.ts`, updated `edison.ts`, `repository.ts`, `store.ts`, `validationSchemas.ts`, `app.ts`, `HouseholdPrivacyView.tsx`, `phase1Data.ts`, and `tests/privacyCompliance.test.ts` (`8/8` compliance checks, `25/25` QA invariants, SHA-256 PIN-redacted DSR export, cascade anonymisation + `HTTP 403` revocation, 2h/30d retention purge, zero-PII scanner, and honest 6-country `NOT ACTIVATED` statutory matrix).
 
 ---
 
 ## 7. NEXT ACTION
 
-1. **Completed Gate**: **`BLOCK 9.1 VERIFIED — AWAITING OWNER COMMIT`** (please review and manually commit all Phase 9 Block 9.1 changes).
+1. **Completed Gate**: **`BLOCK 10.1 VERIFIED — AWAITING OWNER COMMIT`** (please review and manually commit all Phase 10 Block 10.1 changes).
 2. **Next Authorised Options (After Owner Confirms Commit)**:
-   - **Phase 10 · Block 10.1 (Software-First)**: Privacy, Security & Country Statutory Compliance Readiness (DSR/deletion automation, consent retention policies & independent public statutory readiness register).
+   - **Phase 11 · Block 11.1 (Software-First)**: Comprehensive Reliability & Chaos Failure Testing across all 18+ documented failure modes (`FAILURE_MODE_ANALYSIS.md`: network outage, power loss, decoder crash, CEC/HDCP fault, live TV return watchdog & consent withdrawal under concurrency).
    - **Or Execute `TASK-P3-001`** (`READY`): Authorise external PostgreSQL provisioning/migration when ready to move beyond single-host JSON persistence.
 
 ---
@@ -100,4 +101,5 @@
 | `TASK-P7-01` | 2026-11-16 | AI Studio -> Owner | Phase 7 / `Block 7.1` | **`COMMITTED`** | Advertiser & Campaign Operations (`advertiserOps.ts`): 6-gate KYC readiness evaluation, automated campaign pacing, non-transactional SHA-256 Pro-Forma blueprints (`paymentCollectionActive=false`, `$0.00` Charity lock), SLA breach triage & `8/8` verification suite (`qa_71_advertiser_ops_billing_boundary`). |
 | `TASK-P2-TRACK-B` | 2026-11-16 | AI Studio -> Owner | Phase 2 / `Track B` (`DEC-OPEN-01` Locked) | **`COMMITTED`** | Track B completion (remaining 15% AI Studio): ZW-first 7-level geo households, PIN-protected multi-member profiles, required/preferred/optional opportunity matching, safe TV personalisation, bundled consent withdrawal, HTTP `403` epoch QR revocation & advertiser privacy barrier (`7/7` suite, `qa_p2b_track_b_household_consent_qr_revocation`). |
 | `TASK-P8-01` | 2026-11-16 | AI Studio -> Owner | Phase 8 / `Block 8.1` | **`COMMITTED`** | Advertisement Creation & Broadcast Rendering Validation (`broadcastRenderEngine.ts`): deterministic 1080p/4K SHA-256 blueprints, 5% overscan title-safe zones, WCAG `>=4.5:1` contrast, EBU R128 `-23 LUFS` filter graph, Samsung Tizen WebM->H.264 MP4 rules & strict fail-closed QR vision gate (`8/8` suite, `ffmpegBinaryExecuted=false`). Confirmed committed (`"Committed, next"`). |
-| `TASK-P9-01` | 2026-11-16 | AI Studio -> Owner | Phase 9 / `Block 9.1` | **`AWAITING COMMIT`** | Opportunity Verification Operations Hardening (`opportunityOpsEngine.ts`): Tier 1–3 SHA-256 AES-256-GCM blueprint vault seals + redaction, strict Tier 2->3 non-transitivity, informal employer N/A support, `$0.00` Charity zero-fee-influence guard, 90d re-verification + expiry quarantine, and 4h/24h/48h SLA escalation (`8/8` suite, `24/24` QA invariants, `externalKycVendorConnected=false`). |
+| `TASK-P9-01` | 2026-11-16 | AI Studio -> Owner | Phase 9 / `Block 9.1` | **`COMMITTED`** | Opportunity Verification Operations Hardening (`opportunityOpsEngine.ts`): Tier 1–3 SHA-256 AES-256-GCM blueprint vault seals + redaction, strict Tier 2->3 non-transitivity, informal employer N/A support, `$0.00` Charity zero-fee-influence guard, 90d re-verification + expiry quarantine, and 4h/24h/48h SLA escalation (`8/8` suite, `externalKycVendorConnected=false`). Confirmed committed (`"Committed, next"`). |
+| `TASK-P10-01` | 2026-11-16 | AI Studio -> Owner | Phase 10 / `Block 10.1` | **`AWAITING COMMIT`** | Privacy, Security & Statutory Compliance Readiness (`privacyComplianceEngine.ts`): Subject Access DSR JSON export (`pinHashesRedacted=true`, SHA-256), Right-to-Erasure cascade anonymisation + bundled `HTTP 403` QR revocation preserving ordinary TV, automated 2h-session/30d-QR retention purge, zero-PII analytics scanner, camera/mic hard disable & 6-country ADR-015 statutory matrix (`8/8` suite, `25/25` QA invariants, `externalPenTestCompleted=false`, `legalComplianceClaimed=false`). |

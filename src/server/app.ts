@@ -61,6 +61,7 @@ import {
 } from './trackBHouseholdConsent.ts';
 import { runBroadcastRenderVerificationSuite } from './broadcastRenderEngine.ts';
 import { runOpportunityOpsVerificationSuite } from './opportunityOpsEngine.ts';
+import { runPrivacyComplianceVerificationSuite } from './privacyComplianceEngine.ts';
 import {
   adCreativeAttachSchema,
   adCreativeSaveSchema,
@@ -111,6 +112,8 @@ import {
   parseWithZod,
   phase4ExitSuiteSchema,
   physicalQrTestCreateSchema,
+  privacyDsrEraseSchema,
+  privacyRetentionSweepSchema,
   proFormaBlueprintRequestSchema,
   qrCreateSchema,
   qrStatusPatchSchema,
@@ -2225,6 +2228,105 @@ export function createEdisonApp(
         'OPPORTUNITY_OPS_SUITE_RUN',
         'phase9_opportunity_ops',
         `[${req.requestId ?? 'req'}] Phase 9 opportunity verification ops suite: ${report.passedChecks}/${report.totalChecks} passed (externalKycVendorConnected=false, advertisingFeeInfluencesVerification=false, hardwareTested=false).`
+      );
+      res.json({ report });
+    }
+  );
+
+  // Phase 10 Block 10.1: Privacy, Security & Statutory Compliance Readiness (Software-First)
+  app.get(
+    '/api/compliance/overview',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      res.setHeader('Cache-Control', 'no-store, private');
+      try {
+        const overview = store.getPrivacyComplianceOverview(req.currentUser!);
+        res.json({ overview });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.post(
+    '/api/households/:id/dsr-export',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(emptyStrictSchema, req.body ?? {});
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      res.setHeader('Cache-Control', 'no-store, private');
+      try {
+        const pkg = store.exportHouseholdDsrPackage(req.currentUser!, req.params.id);
+        res.json({ package: pkg });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.post(
+    '/api/households/:id/dsr-erase',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(privacyDsrEraseSchema, req.body ?? {});
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      res.setHeader('Cache-Control', 'no-store, private');
+      try {
+        const erasure = store.anonymiseHouseholdDsr(
+          req.currentUser!,
+          req.params.id,
+          parsed.data
+        );
+        res.json({ erasure });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.post(
+    '/api/admin/compliance/retention-sweep',
+    requireAdmin,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(privacyRetentionSweepSchema, req.body ?? {});
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        const report = store.runPrivacyRetentionCleanupSweep(req.currentUser!, parsed.data);
+        res.json({ report });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.post(
+    '/api/compliance/verify-suite',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(emptyStrictSchema, req.body ?? {});
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const report = runPrivacyComplianceVerificationSuite();
+      store.recordSecurityAudit(
+        req.currentUser!,
+        'PRIVACY_COMPLIANCE_SUITE_RUN',
+        'phase10_privacy_compliance',
+        `[${req.requestId ?? 'req'}] Phase 10 privacy & statutory compliance suite: ${report.passedChecks}/${report.totalChecks} passed (externalPenTestCompleted=false, legalComplianceClaimed=false, hardwareTested=false).`
       );
       res.json({ report });
     }

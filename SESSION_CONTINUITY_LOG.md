@@ -191,4 +191,15 @@
 - **Software-First Boundaries Preserved**: `externalKycVendorConnected: false`, `isSoftwareSimulationOnly: true`, `hardwareTested: false`, `stageP6Deferred: true`, `paymentCollectionActive: false`, `automatedOutreachBlocked: true`, and JSON persistence (`schemaVersion: 8`) retained without paid Cloud SQL (`TASK-P3-001` `READY`).
 - **Next Authorised Action**: Review and manually commit **Phase 9 Block 9.1** to unlock **Phase 10 Privacy, Security & Statutory Compliance Readiness** (or execute `TASK-P3-001` external PostgreSQL provisioning).
 
+---
+
+## 17. Session Entry — 2026-11-16 (`Phase 9 Block 9.1` Committed · `Phase 10 · Stage 10.1 · Block 10.1` Verified & Awaiting Commit)
+
+- **Owner Commit Confirmation (`ADR-010`)**: Confirmed manual commit of **Phase 9 · Stage 9.1 · Block 9.1** (`opportunityOpsEngine`, `62.0%` Full App), unlocking **Phase 10 · Stage 10.1 · Block 10.1**.
+- **Phase 10 · Block 10.1 Implemented (`66.0%` Full App · `34.0%` Remaining · `81.8%` to `Stage P6` · `100.0%` AI Studio Scope)**:
+  1. **Privacy, DSR & Statutory Engine (`src/server/privacyComplianceEngine.ts`)**: Generates SHA-256 Subject Access DSR exports with `pinHash` values permanently redacted (`pinHashesRedacted: true`), executes Right-to-Erasure cascade anonymisation scrubbing exact installation locations, member names/skills/PIN locks, bumping `consentEpoch`, revoking `hqr_*` tokens to `HTTP 403`, and preserving ordinary TV (`ordinaryTvPreserved: true`). Runs automated 2h-session/30d-QR retention sweeps, scans analytics telemetry for raw email/coordinate leaks (`Zero-PII`), keeps camera/mic attention tracking hard-disabled (`cameraMicAttentionTrackingEnabled: false`), and serves the 6-country ADR-015 statutory register (`ZW` initial market, `GB`, `EU`, `US`, `ZA`, `KE_NG` — all `countryActivated: false`, `legalComplianceClaimed: false`).
+  2. **API Routes, UI Controls, Documentation & Regression Suite**: Mounted `GET /api/compliance/overview`, `POST /api/households/:id/dsr-export`, `POST /api/households/:id/dsr-erase`, `POST /api/admin/compliance/retention-sweep`, and `POST /api/compliance/verify-suite` with strict Zod, CSRF, and RBAC checks, wired Sub-Tab 4 DSR cards and the Compliance & Country Statutory Register panel into `HouseholdPrivacyView.tsx`, added 25th automated QA invariant `qa_101_privacy_dsr_statutory_compliance`, added `tests/privacyCompliance.test.ts` (`8/8` checks, DSR export redaction, Right-to-Erasure -> live `HTTP 403` QR revocation, retention purge, `25/25` QA invariants, `66.0%` Full App), and reconciled governance records.
+- **Software-First Boundaries Preserved**: `externalPenTestCompleted: false`, `legalComplianceClaimed: false`, `noLawyerDependencyPolicy: true`, `cameraMicAttentionTrackingEnabled: false`, `hardwareTested: false`, `stageP6Deferred: true`, and JSON persistence (`schemaVersion: 8`) retained without paid Cloud SQL (`TASK-P3-001` `READY`).
+- **Next Authorised Action**: Review and manually commit **Phase 10 Block 10.1** to unlock **Phase 11 Reliability & Chaos Failure Testing (18+ Failure Modes)** (or execute `TASK-P3-001` external PostgreSQL provisioning).
+
 

@@ -1912,7 +1912,9 @@ export type ConsentAuditAction =
   | 'MEMBER_CONSENT_UPDATED'
   | 'LOCATION_UPDATED'
   | 'QR_EPOCH_REVOKED_403'
-  | 'BYPASS_ATTEMPT_BLOCKED';
+  | 'BYPASS_ATTEMPT_BLOCKED'
+  | 'DSR_DATA_EXPORTED'
+  | 'DSR_HOUSEHOLD_ERASED';
 
 export interface ConsentAuditEventRecord {
   id: string;
@@ -2153,6 +2155,116 @@ export interface OpportunityOpsVerificationReport {
   allPassed: boolean;
   checks: OpportunityOpsVerifyCheckItem[];
 }
+
+// --- Phase 10 Block 10.1: Privacy, Security & Statutory Compliance Readiness (Software-First) ---
+
+export interface CountryStatutoryComplianceRecord {
+  countryCode: string;
+  countryName: string;
+  isInitialLaunchMarket: boolean;
+  countryActivated: false;
+  legalComplianceClaimed: false;
+  noLawyerDependencyPolicy: true;
+  statutesResearched: string[];
+  enforcedTechnicalControls: {
+    bundledConsentWithdrawal: boolean;
+    epoch403QrRevocation: boolean;
+    zeroApplicantFeesEnforced: boolean;
+    piiRedactedFromTvAndUrls: boolean;
+    externalSignalIntegrityProhibited: boolean;
+    cameraMicAttentionTrackingDisabled: true;
+  };
+  unresolvedRegulatoryUncertainties: string[];
+}
+
+export interface PrivacyDsrExportPackage {
+  exportId: string;
+  generatedAt: string;
+  householdId: string;
+  exportFormat: 'json_dsr_v1';
+  pinHashesRedacted: true;
+  packageSha256: string;
+  household: PublicHouseholdInstallationView;
+  members: Array<
+    Omit<HouseholdMemberProfile, 'pinHash'> & {
+      hasPinSet: boolean;
+    }
+  >;
+  householdQrTokens: HouseholdQrTokenRecord[];
+  consentAuditEvents: ConsentAuditEventRecord[];
+}
+
+export interface PrivacyDsrErasureResult {
+  erasureId: string;
+  executedAt: string;
+  householdId: string;
+  previousEpoch: number;
+  newEpoch: number;
+  membersAnonymisedCount: number;
+  qrTokensRevokedCount: number;
+  ordinaryTvPreserved: true;
+  commercialConsentStatus: HouseholdInstallationRecord['commercialConsentStatus'];
+  charityAndOpportunityStatus: HouseholdInstallationRecord['charityAndOpportunityStatus'];
+  tombstoneSha256: string;
+}
+
+export interface PrivacyRetentionReport {
+  sweepId: string;
+  executedAt: string;
+  expiredSessionsPurged: number;
+  staleExpiredQrTokensPurged: number;
+  piiLeaksDetectedInAnalytics: number;
+  cameraMicAttentionTrackingEnabled: false;
+  retentionPolicyWindows: {
+    sessionMaxIdleHours: number;
+    expiredHouseholdQrRetentionDays: number;
+    auditLogRetentionDays: number;
+  };
+}
+
+export interface PrivacyComplianceOverview {
+  generatedAt: string;
+  isSoftwareSimulationOnly: true;
+  externalPenTestCompleted: false;
+  hardwareTested: false;
+  stageP6Deferred: true;
+  noLawyerDependencyPolicy: true;
+  legalComplianceClaimed: false;
+  cameraMicAttentionTrackingEnabled: false;
+  posture: {
+    decOpen01Status: 'LOCKED_SCOPE_B_BUNDLED_WITHDRAWAL';
+    totalHouseholdsEvaluated: number;
+    withdrawnOrErasedHouseholds: number;
+    activeSessionsCount: number;
+    expiredSessionsPendingPurge: number;
+    staleExpiredQrTokensPendingPurge: number;
+    analyticsZeroPiiVerified: boolean;
+    piiLeaksDetectedInAnalytics: number;
+  };
+  countries: CountryStatutoryComplianceRecord[];
+}
+
+export interface PrivacyComplianceVerifyCheckItem {
+  checkId: string;
+  label: string;
+  passed: boolean;
+  detail: string;
+}
+
+export interface PrivacyComplianceVerificationReport {
+  generatedAt: string;
+  isSoftwareSimulationOnly: true;
+  externalPenTestCompleted: false;
+  legalComplianceClaimed: false;
+  cameraMicAttentionTrackingEnabled: false;
+  hardwareTested: false;
+  stageP6Deferred: true;
+  totalChecks: number;
+  passedChecks: number;
+  allPassed: boolean;
+  checks: PrivacyComplianceVerifyCheckItem[];
+}
+
 
 
 
