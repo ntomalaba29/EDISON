@@ -23,12 +23,18 @@ import type {
   AdminModerationOverview,
   AuditLogRecord,
   CampaignRecord,
+  DaypartSlot,
+  DeliveryEventIngestResult,
+  DeliveryInfraMetricsSnapshot,
+  DeliveryInfraVerificationReport,
+  DeliveryPreloadManifestResult,
   PublicUser,
   QrLinkRecord,
   QrLinkStatus,
   RevenueLedgerSnapshot,
   SevenStageAnalyticsSnapshot,
   SupportTicketStatus,
+  TvPlatformId,
 } from '../types/edison';
 import { CreativeStage } from './TvPreviewView';
 import { CopyReportFooter } from './CopyReportFooter';
@@ -110,6 +116,18 @@ export function AdminAnalyticsView({
   const [qrReasonMap, setQrReasonMap] = useState<Record<string, string>>({});
   const [ticketResponseMap, setTicketResponseMap] = useState<Record<string, string>>({});
 
+  // Phase 6 Block 6.1 Delivery Infrastructure State
+  const [deliveryPlatform, setDeliveryPlatform] = useState<TvPlatformId>('android_tv_tif');
+  const [deliveryDeviceSlotId, setDeliveryDeviceSlotId] = useState<string>('slot_gb_livingroom_01');
+  const [deliveryRegionCode, setDeliveryRegionCode] = useState<string>('GB');
+  const [deliveryDaypart, setDeliveryDaypart] = useState<DaypartSlot>('daytime');
+  const [deliverySimulateOutage, setDeliverySimulateOutage] = useState<boolean>(false);
+  const [deliveryManifest, setDeliveryManifest] = useState<DeliveryPreloadManifestResult | null>(null);
+  const [deliveryIngestResult, setDeliveryIngestResult] = useState<DeliveryEventIngestResult | null>(null);
+  const [deliveryMetrics, setDeliveryMetrics] = useState<DeliveryInfraMetricsSnapshot | null>(null);
+  const [deliverySuiteReport, setDeliverySuiteReport] = useState<DeliveryInfraVerificationReport | null>(null);
+  const [runningDelivery, setRunningDelivery] = useState<boolean>(false);
+
   const isAdmin = currentUser?.role === 'admin';
 
   const loadData = useCallback(async () => {
@@ -120,6 +138,7 @@ export function AdminAnalyticsView({
       setCreatives([]);
       setAllCampaigns([]);
       setAuditLogs([]);
+      setDeliveryMetrics(null);
       return;
     }
 
@@ -131,6 +150,7 @@ export function AdminAnalyticsView({
       const promises: Promise<Response>[] = [
         edisonFetch(funnelUrl),
         edisonFetch('/api/analytics/revenue-ledger'),
+        edisonFetch('/api/delivery/metrics'),
       ];
       if (isAdmin) {
         promises.push(edisonFetch('/api/admin/moderation-overview'));
@@ -148,11 +168,14 @@ export function AdminAnalyticsView({
         const ledgerJson = await results[1].json();
         setRevenueLedger(ledgerJson.ledger ?? null);
       }
-      if (isAdmin && results.length >= 6) {
-        if (results[2].ok) setOverview(await results[2].json());
-        if (results[3].ok) setCreatives(((await results[3].json()).items as AdCreativeRecord[]) || []);
-        if (results[4].ok) {
-          const cmps: CampaignRecord[] = (await results[4].json()).items || [];
+      if (results[2].ok) {
+        setDeliveryMetrics(await results[2].json());
+      }
+      if (isAdmin && results.length >= 7) {
+        if (results[3].ok) setOverview(await results[3].json());
+        if (results[4].ok) setCreatives(((await results[4].json()).items as AdCreativeRecord[]) || []);
+        if (results[5].ok) {
+          const cmps: CampaignRecord[] = (await results[5].json()).items || [];
           setAllCampaigns(cmps);
           setSelectedCampaignId((prev) => {
             if (prev && cmps.some((c) => c.id === prev)) return prev;
@@ -160,14 +183,126 @@ export function AdminAnalyticsView({
             return (pending ?? cmps[0])?.id ?? '';
           });
         }
-        if (results[5].ok) {
-          setAuditLogs(((await results[5].json()).items as AuditLogRecord[]) || []);
+        if (results[6].ok) {
+          setAuditLogs(((await results[6].json()).items as AuditLogRecord[]) || []);
         }
       }
     } finally {
       setLoading(false);
     }
   }, [currentUser, isAdmin, campaignFilterId, auditTargetFilter]);
+
+  async function handleCompileDeliveryManifest() {
+    setRunningDelivery(true);
+    setFeedback(null);
+    try {
+      const res = await edisonFetch('/api/delivery/manifest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          platformId: deliveryPlatform,
+          deviceSlotId: deliveryDeviceSlotId.trim() || 'slot_gb_livingroom_01',
+          regionCode: deliveryRegionCode.trim() || 'GB',
+          daypart: deliveryDaypart,
+          simulateCdnOutage: deliverySimulateOutage,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setFeedback({ type: 'err', text: json.error || 'Failed to compile delivery manifest.' });
+        return;
+      }
+      setDeliveryManifest(json as DeliveryPreloadManifestResult);
+      const mRes = await edisonFetch('/api/delivery/metrics');
+      if (mRes.ok) setDeliveryMetrics(await mRes.json());
+      setFeedback({
+        type: 'ok',
+        text: `Compiled CDN preload manifest ${(json as DeliveryPreloadManifestResult).manifestId} (${(json as DeliveryPreloadManifestResult).eligibleCount} eligible, ${(json as DeliveryPreloadManifestResult).excludedCount} excluded).`,
+      });
+    } finally {
+      setRunningDelivery(false);
+    }
+  }
+
+  async function handleIngestIdempotentSample() {
+    setRunningDelivery(true);
+    setFeedback(null);
+    try {
+      const targetCampaignId =
+        deliveryManifest?.items[0]?.campaignId ??
+        funnel?.campaignBreakdown[0]?.campaignId ??
+        'cmp_demo_sample';
+      const targetQrToken =
+        deliveryManifest?.items[0]?.qrToken ??
+        funnel?.campaignBreakdown[0]?.qrToken ??
+        'edison-demo';
+      const baseKey = `ui_dlv_${Date.now()}`;
+      const res = await edisonFetch('/api/delivery/ingest-events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          events: [
+            {
+              idempotencyKey: `${baseKey}_play`,
+              deviceSlotId: deliveryDeviceSlotId.trim() || 'slot_gb_livingroom_01',
+              campaignId: targetCampaignId,
+              qrToken: targetQrToken,
+              eventType: 'ad_played',
+              regionCode: deliveryRegionCode.trim() || 'GB',
+              playbackDurationMs: 15000,
+            },
+            {
+              idempotencyKey: `${baseKey}_play`,
+              deviceSlotId: deliveryDeviceSlotId.trim() || 'slot_gb_livingroom_01',
+              campaignId: targetCampaignId,
+              qrToken: targetQrToken,
+              eventType: 'ad_played',
+              regionCode: deliveryRegionCode.trim() || 'GB',
+              playbackDurationMs: 15000,
+            },
+          ],
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setFeedback({ type: 'err', text: json.error || 'Failed to ingest delivery events.' });
+        return;
+      }
+      setDeliveryIngestResult(json as DeliveryEventIngestResult);
+      const mRes = await edisonFetch('/api/delivery/metrics');
+      if (mRes.ok) setDeliveryMetrics(await mRes.json());
+      setFeedback({
+        type: 'ok',
+        text: `Ingested batch: ${json.acceptedNewCount} new event accepted, ${json.deduplicatedReplayCount} replay duplicate suppressed.`,
+      });
+    } finally {
+      setRunningDelivery(false);
+    }
+  }
+
+  async function handleRunDeliverySuite() {
+    setRunningDelivery(true);
+    setFeedback(null);
+    try {
+      const res = await edisonFetch('/api/delivery/verify-suite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setFeedback({ type: 'err', text: json.error || 'Failed to run delivery verification suite.' });
+        return;
+      }
+      setDeliverySuiteReport(json as DeliveryInfraVerificationReport);
+      setFeedback({
+        type: 'ok',
+        text: `Phase 6 Delivery Suite: ${(json as DeliveryInfraVerificationReport).passedChecks}/${(json as DeliveryInfraVerificationReport).totalChecks} checks passed (hardwareTested=false).`,
+      });
+    } finally {
+      setRunningDelivery(false);
+    }
+  }
 
   useEffect(() => {
     loadData();
@@ -849,6 +984,253 @@ export function AdminAnalyticsView({
                 No accessible campaigns found yet for analytics comparison.
               </div>
             )}
+          </div>
+
+          {/* Phase 6 Block 6.1: Advertising Delivery Infrastructure (Software-First) */}
+          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Phase 6 Block 6.1 · Advertising Delivery Infrastructure (Software-First)
+                </h3>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  SHA-256 CDN preload manifests, coarse regional &amp; device-codec filtering, server-side daily frequency caps, edge CDN failover recovery &amp; idempotent event ingestion. Hardware tests strictly deferred to Stage P6.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono">
+                <span className="border border-slate-300 bg-slate-50 text-slate-700 px-2 py-1 rounded">
+                  SOFTWARE SIMULATION ONLY
+                </span>
+                <span className="border border-emerald-300 bg-emerald-50 text-emerald-800 px-2 py-1 rounded">
+                  CHARITY $0.00 LOCKED
+                </span>
+                <span className="border border-amber-300 bg-amber-50 text-amber-800 px-2 py-1 rounded">
+                  STAGE P6 DEFERRED
+                </span>
+              </div>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
+                <label className="space-y-1">
+                  <span className="font-medium text-slate-700 block">Target Smart TV OS</span>
+                  <select
+                    value={deliveryPlatform}
+                    onChange={(e) => setDeliveryPlatform(e.target.value as TvPlatformId)}
+                    className="w-full px-2.5 py-2 border border-slate-300 rounded-md bg-white text-slate-900"
+                  >
+                    <option value="android_tv_tif">Android TV TIF</option>
+                    <option value="samsung_tizen">Samsung Tizen</option>
+                    <option value="lg_webos">LG webOS</option>
+                    <option value="simulation_tv">Simulation TV</option>
+                  </select>
+                </label>
+
+                <label className="space-y-1">
+                  <span className="font-medium text-slate-700 block">Device Slot ID</span>
+                  <input
+                    type="text"
+                    value={deliveryDeviceSlotId}
+                    onChange={(e) => setDeliveryDeviceSlotId(e.target.value)}
+                    className="w-full px-2.5 py-2 border border-slate-300 rounded-md font-mono text-slate-900"
+                    placeholder="slot_gb_livingroom_01"
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="font-medium text-slate-700 block">Coarse Region Scope</span>
+                  <select
+                    value={deliveryRegionCode}
+                    onChange={(e) => setDeliveryRegionCode(e.target.value)}
+                    className="w-full px-2.5 py-2 border border-slate-300 rounded-md bg-white text-slate-900"
+                  >
+                    <option value="GB">GB (United Kingdom · National)</option>
+                    <option value="DE">DE (Germany)</option>
+                    <option value="ZA">ZA (South Africa)</option>
+                    <option value="US">US (United States)</option>
+                    <option value="GLOBAL">GLOBAL</option>
+                  </select>
+                </label>
+
+                <label className="space-y-1">
+                  <span className="font-medium text-slate-700 block">Broadcast Daypart</span>
+                  <select
+                    value={deliveryDaypart}
+                    onChange={(e) => setDeliveryDaypart(e.target.value as DaypartSlot)}
+                    className="w-full px-2.5 py-2 border border-slate-300 rounded-md bg-white text-slate-900"
+                  >
+                    <option value="daytime">Daytime</option>
+                    <option value="prime_time">Prime Time</option>
+                    <option value="morning">Morning</option>
+                    <option value="late_night">Late Night</option>
+                    <option value="all_day">All Day</option>
+                  </select>
+                </label>
+
+                <label className="flex items-center gap-2 pt-5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={deliverySimulateOutage}
+                    onChange={(e) => setDeliverySimulateOutage(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                  />
+                  <span className="text-slate-800 font-medium">Simulate Primary CDN Outage</span>
+                </label>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                <button
+                  type="button"
+                  disabled={runningDelivery}
+                  onClick={handleCompileDeliveryManifest}
+                  className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-medium rounded-md cursor-pointer"
+                >
+                  Compile Preload Manifest
+                </button>
+                <button
+                  type="button"
+                  disabled={runningDelivery}
+                  onClick={handleIngestIdempotentSample}
+                  className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-medium rounded-md cursor-pointer"
+                >
+                  Test Idempotent Event Ingestion
+                </button>
+                <button
+                  type="button"
+                  disabled={runningDelivery}
+                  onClick={handleRunDeliverySuite}
+                  className="px-3.5 py-2 border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 text-slate-800 text-xs font-medium rounded-md cursor-pointer"
+                >
+                  Run 8-Check Delivery Suite
+                </button>
+              </div>
+
+              {deliveryMetrics && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  <div className="p-3 border border-slate-200 rounded bg-slate-50">
+                    <div className="text-slate-500">CDN Edge Status</div>
+                    <div className="font-mono font-semibold text-slate-900 mt-0.5">
+                      {deliveryMetrics.cdnEdgeStatus}
+                    </div>
+                  </div>
+                  <div className="p-3 border border-slate-200 rounded bg-slate-50">
+                    <div className="text-slate-500">Manifests / Failovers</div>
+                    <div className="font-mono tabular-nums font-semibold text-slate-900 mt-0.5">
+                      {deliveryMetrics.manifestsCompiledTotal} / {deliveryMetrics.failoverRecoveriesTotal}
+                    </div>
+                  </div>
+                  <div className="p-3 border border-slate-200 rounded bg-slate-50">
+                    <div className="text-slate-500">Events Accepted / Dedup</div>
+                    <div className="font-mono tabular-nums font-semibold text-slate-900 mt-0.5">
+                      {deliveryMetrics.ingestedEventsAcceptedTotal} / {deliveryMetrics.ingestedEventsDeduplicatedTotal}
+                    </div>
+                  </div>
+                  <div className="p-3 border border-slate-200 rounded bg-slate-50">
+                    <div className="text-slate-500">Anomalies Rejected / Cap Keys</div>
+                    <div className="font-mono tabular-nums font-semibold text-slate-900 mt-0.5">
+                      {deliveryMetrics.ingestedEventsRejectedAnomalyTotal} / {deliveryMetrics.activeDeviceCapKeysCount}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {deliveryManifest && (
+                <div className="border border-slate-200 rounded-md p-4 space-y-3 text-xs bg-slate-50/70">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="font-mono font-semibold text-slate-900">
+                      Manifest {deliveryManifest.manifestId} · SHA-256 {deliveryManifest.manifestSha256.slice(0, 16)}...
+                    </div>
+                    <div className="font-mono text-slate-700">
+                      Edge: {deliveryManifest.cdnEdgeStatus} · Ordinary TV Preserved: {String(deliveryManifest.ordinaryTvPreserved)} · Eligible: {deliveryManifest.eligibleCount} / Excluded: {deliveryManifest.excludedCount}
+                    </div>
+                  </div>
+                  {deliveryManifest.items.length > 0 && (
+                    <div className="overflow-x-auto bg-white border border-slate-200 rounded">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                          <tr>
+                            <th className="py-2 px-3 font-semibold">Campaign</th>
+                            <th className="py-2 px-3 font-semibold">Category</th>
+                            <th className="py-2 px-3 font-semibold text-right">Cap Left</th>
+                            <th className="py-2 px-3 font-semibold text-right">Est. Spot Value</th>
+                            <th className="py-2 px-3 font-semibold">Preload Mirror URI</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                          {deliveryManifest.items.map((item) => (
+                            <tr key={item.campaignId}>
+                              <td className="py-2 px-3 font-medium text-slate-900">
+                                {item.title}
+                                <div className="font-mono text-[11px] text-slate-500">{item.campaignId}</div>
+                              </td>
+                              <td className="py-2 px-3 font-mono text-slate-700">{item.primaryCategory}</td>
+                              <td className="py-2 px-3 text-right font-mono tabular-nums">
+                                {item.remainingDailyCap}/{item.dailyFrequencyCap}
+                              </td>
+                              <td className="py-2 px-3 text-right font-mono tabular-nums">
+                                ${item.estimatedValueUsd.toFixed(2)}
+                              </td>
+                              <td className="py-2 px-3 font-mono text-[11px] text-slate-600 truncate max-w-xs">
+                                {item.preloadAssetUri}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  {deliveryManifest.excluded.length > 0 && (
+                    <div className="text-[11px] font-mono text-slate-600 space-y-1">
+                      <div className="font-semibold text-slate-700">Excluded Campaigns:</div>
+                      {deliveryManifest.excluded.map((ex) => (
+                        <div key={ex.campaignId}>
+                          [{ex.reasonCode}] {ex.title} — {ex.detail}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {deliveryIngestResult && (
+                <div className="border border-blue-200 bg-blue-50/50 rounded-md p-3 text-xs font-mono text-slate-800">
+                  Idempotent Batch Result: received={deliveryIngestResult.receivedCount}, acceptedNew={deliveryIngestResult.acceptedNewCount}, deduplicatedReplays={deliveryIngestResult.deduplicatedReplayCount}, rejectedAnomalies={deliveryIngestResult.rejectedAnomalyCount}
+                </div>
+              )}
+
+              {deliverySuiteReport && (
+                <div className="border border-slate-200 rounded-md overflow-hidden">
+                  <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs font-semibold text-slate-900">
+                    <span>
+                      Phase 6 Delivery Verification Suite ({deliverySuiteReport.passedChecks}/{deliverySuiteReport.totalChecks} Passed)
+                    </span>
+                    <span className="font-mono text-emerald-700">
+                      hardwareTested={String(deliverySuiteReport.hardwareTested)} · stageP6Deferred={String(deliverySuiteReport.stageP6Deferred)}
+                    </span>
+                  </div>
+                  <div className="divide-y divide-slate-200">
+                    {deliverySuiteReport.checks.map((chk) => (
+                      <div key={chk.checkId} className="px-4 py-2 text-xs flex items-start justify-between gap-4">
+                        <div>
+                          <div className="font-medium text-slate-900">
+                            <span className="font-mono text-slate-500 mr-2">{chk.checkId}</span>
+                            {chk.label}
+                          </div>
+                          <div className="text-slate-600 mt-0.5">{chk.detail}</div>
+                        </div>
+                        <span
+                          className={`font-mono font-semibold shrink-0 ${
+                            chk.passed ? 'text-emerald-700' : 'text-red-700'
+                          }`}
+                        >
+                          {chk.passed ? 'PASS' : 'FAIL'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Recent Analytics Event Stream */}

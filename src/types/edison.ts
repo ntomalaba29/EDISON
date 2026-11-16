@@ -1447,3 +1447,120 @@ export interface BreakCalibrationBenchmarkReport {
   avgDetectionLatencyMs: number;
   fixtures: RecordedStreamFixtureResult[];
 }
+
+// --- Phase 6 Block 6.1: Advertising Delivery Infrastructure (Software-First CDN Preload, Frequency Caps & Event Ingestion) ---
+
+export type DeliveryCdnEdgeStatus = 'primary_healthy' | 'secondary_failover' | 'degraded_offline_cache';
+
+export interface DeliveryManifestItem {
+  campaignId: string;
+  creativeId: string | null;
+  title: string;
+  primaryCategory: PrimaryAdCategory;
+  contentCategory: CampaignContentCategory;
+  durationSeconds: number;
+  dailyFrequencyCap: number;
+  dailyImpressionsRecorded: number;
+  remainingDailyCap: number;
+  qrToken: string | null;
+  preloadAssetUri: string;
+  fallbackAssetUri: string;
+  assetSha256: string;
+  codecProfile: string;
+  targetRegions: string[];
+  estimatedValueUsd: number;
+  charityZeroCostLocked: boolean;
+}
+
+export interface DeliveryExcludedCampaign {
+  campaignId: string;
+  title: string;
+  reasonCode:
+    | 'SKIP_STATUS_INELIGIBLE'
+    | 'SKIP_SCHEDULE_WINDOW'
+    | 'SKIP_REGION_MISMATCH'
+    | 'SKIP_DAYPART_MISMATCH'
+    | 'SKIP_FREQUENCY_CAP_REACHED'
+    | 'SKIP_INCOMPATIBLE_DEVICE'
+    | 'SKIP_EXPIRED_OR_INVALID_QR';
+  detail: string;
+}
+
+export interface DeliveryPreloadManifestResult {
+  manifestId: string;
+  generatedAt: string;
+  expiresAt: string;
+  platformId: TvPlatformId;
+  deviceSlotId: string;
+  regionCode: string;
+  daypart: DaypartSlot;
+  cdnEdgeStatus: DeliveryCdnEdgeStatus;
+  cdnMirrorOrigin: string;
+  failClosedFallbackUsed: boolean;
+  ordinaryTvPreserved: true;
+  eligibleCount: number;
+  excludedCount: number;
+  manifestSha256: string;
+  items: DeliveryManifestItem[];
+  excluded: DeliveryExcludedCampaign[];
+  isSoftwareSimulationOnly: true;
+  hardwareTested: false;
+  stageP6Deferred: true;
+}
+
+export interface DeliveryEventIngestItem {
+  idempotencyKey: string;
+  deviceSlotId: string;
+  campaignId: string;
+  qrToken?: string | null;
+  eventType: 'ad_requested' | 'ad_delivered' | 'ad_played' | 'ad_viewable';
+  regionCode: string;
+  playbackDurationMs: number;
+  occurredAt?: string;
+}
+
+export interface DeliveryEventIngestResult {
+  ok: boolean;
+  processedAt: string;
+  receivedCount: number;
+  acceptedNewCount: number;
+  deduplicatedReplayCount: number;
+  rejectedAnomalyCount: number;
+  rejectedReasons: string[];
+  isSoftwareSimulationOnly: true;
+  hardwareTested: false;
+}
+
+export interface DeliveryInfraMetricsSnapshot {
+  generatedAt: string;
+  cdnEdgeStatus: DeliveryCdnEdgeStatus;
+  manifestsCompiledTotal: number;
+  failoverRecoveriesTotal: number;
+  ingestedEventsAcceptedTotal: number;
+  ingestedEventsDeduplicatedTotal: number;
+  ingestedEventsRejectedAnomalyTotal: number;
+  activeDeviceCapKeysCount: number;
+  estimatedP95ManifestLatencyMs: number;
+  isSoftwareSimulationOnly: true;
+  hardwareTested: false;
+  stageP6Deferred: true;
+}
+
+export interface DeliveryInfraVerifyCheckItem {
+  checkId: string;
+  label: string;
+  passed: boolean;
+  detail: string;
+}
+
+export interface DeliveryInfraVerificationReport {
+  generatedAt: string;
+  isSoftwareSimulationOnly: true;
+  hardwareTested: false;
+  stageP6Deferred: true;
+  totalChecks: number;
+  passedChecks: number;
+  allPassed: boolean;
+  checks: DeliveryInfraVerifyCheckItem[];
+}
+

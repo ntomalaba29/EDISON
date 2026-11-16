@@ -705,6 +705,38 @@ export const breakDurationPredictSchema = z
   })
   .strict();
 
+export const deliveryManifestRequestSchema = z
+  .object({
+    platformId: z.enum(['simulation_tv', 'android_tv_tif', 'samsung_tizen', 'lg_webos']),
+    deviceSlotId: z.string().trim().min(2).max(120),
+    regionCode: z.string().trim().min(2).max(20),
+    daypart: daypartSlotEnum.optional().default('daytime'),
+    simulateCdnOutage: z.boolean().optional().default(false),
+  })
+  .strict();
+
+export const deliveryEventIngestBatchSchema = z
+  .object({
+    events: z
+      .array(
+        z
+          .object({
+            idempotencyKey: z.string().trim().min(3).max(120),
+            deviceSlotId: z.string().trim().min(2).max(120),
+            campaignId: z.string().trim().min(2).max(120),
+            qrToken: z.string().trim().max(120).nullable().optional(),
+            eventType: z.enum(['ad_requested', 'ad_delivered', 'ad_played', 'ad_viewable']),
+            regionCode: z.string().trim().min(2).max(20),
+            playbackDurationMs: z.coerce.number().finite().min(-1000).max(600000),
+            occurredAt: z.string().trim().max(60).optional(),
+          })
+          .strict()
+      )
+      .min(1)
+      .max(100),
+  })
+  .strict();
+
 export const emptyStrictSchema = z.object({}).strict();
 
 

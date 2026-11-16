@@ -47,6 +47,10 @@ import {
   runRecordedStreamCalibrationBenchmark,
 } from './breakDurationPredictor.ts';
 import {
+  edisonDeliveryInfra,
+  runDeliveryInfraVerificationSuite,
+} from './adDeliveryInfra.ts';
+import {
   adCreativeAttachSchema,
   adCreativeSaveSchema,
   adminAppealResolveSchema,
@@ -67,6 +71,8 @@ import {
   campaignUpdateSchema,
   companionPolicyEvalSchema,
   complaintCreateSchema,
+  deliveryEventIngestBatchSchema,
+  deliveryManifestRequestSchema,
   emptyStrictSchema,
   fleetDeltaSyncSchema,
   fleetDeviceRegisterSchema,
@@ -1899,6 +1905,85 @@ export function createEdisonApp(
         'BREAK_CALIBRATION_BENCHMARK_RUN',
         'phase5_break_predictor',
         `[${req.requestId ?? 'req'}] Recorded stream benchmark: ${report.passedFixtures}/${report.totalFixtures} passed, FPR=${report.falsePositiveRatePct}%, MAE=${report.meanAbsoluteErrorSec}s, hardwareTested=false.`
+      );
+      res.json(report);
+    }
+  );
+
+  // Phase 6 Block 6.1: Advertising Delivery Infrastructure (CDN Preload Manifests, Frequency Caps, Failover & Idempotent Ingestion)
+  app.post(
+    '/api/delivery/manifest',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(deliveryManifestRequestSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const user = req.currentUser!;
+      const manifest = edisonDeliveryInfra.compilePreloadManifest({
+        platformId: parsed.data.platformId,
+        deviceSlotId: parsed.data.deviceSlotId,
+        regionCode: parsed.data.regionCode,
+        daypart: parsed.data.daypart,
+        simulateCdnOutage: parsed.data.simulateCdnOutage,
+        campaigns: store.listCampaignsForUser(user),
+        creatives: store.listAdCreativesForUser(user),
+        qrLinks: store.listQrLinksForUser(user),
+      });
+      store.recordSecurityAudit(
+        user,
+        'DELIVERY_MANIFEST_COMPILED',
+        manifest.manifestId,
+        `[${req.requestId ?? 'req'}] Platform=${manifest.platformId} region=${manifest.regionCode} edge=${manifest.cdnEdgeStatus} eligible=${manifest.eligibleCount} excluded=${manifest.excludedCount} (hardwareTested=false).`
+      );
+      res.json(manifest);
+    }
+  );
+
+  app.post(
+    '/api/delivery/ingest-events',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(deliveryEventIngestBatchSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const result = edisonDeliveryInfra.ingestDeliveryEvents(parsed.data.events);
+      store.recordSecurityAudit(
+        req.currentUser!,
+        'DELIVERY_EVENTS_INGESTED',
+        'phase6_delivery_ingest',
+        `[${req.requestId ?? 'req'}] Batch received=${result.receivedCount} accepted=${result.acceptedNewCount} dedup=${result.deduplicatedReplayCount} rejectedAnomaly=${result.rejectedAnomalyCount}.`
+      );
+      res.json(result);
+    }
+  );
+
+  app.get(
+    '/api/delivery/metrics',
+    requireAuth,
+    (_req: AuthenticatedRequest, res: Response) => {
+      res.json(edisonDeliveryInfra.getMetricsSnapshot());
+    }
+  );
+
+  app.post(
+    '/api/delivery/verify-suite',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(emptyStrictSchema, req.body ?? {});
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const report = runDeliveryInfraVerificationSuite();
+      store.recordSecurityAudit(
+        req.currentUser!,
+        'DELIVERY_INFRA_SUITE_RUN',
+        'phase6_delivery_infra',
+        `[${req.requestId ?? 'req'}] Phase 6 delivery suite: ${report.passedChecks}/${report.totalChecks} passed (hardwareTested=false).`
       );
       res.json(report);
     }

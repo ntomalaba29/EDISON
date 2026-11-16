@@ -444,8 +444,8 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
       .get('/api/qa/prototype-readiness')
       .set('Authorization', `Bearer ${adminLogin.body.token}`);
     expect(readinessRes.status).toBe(200);
-    expect(readinessRes.body.automatedInvariantsPassed).toBe(19);
-    expect(readinessRes.body.automatedInvariantsTotal).toBe(19);
+    expect(readinessRes.body.automatedInvariantsPassed).toBe(20);
+    expect(readinessRes.body.automatedInvariantsTotal).toBe(20);
   });
 
   it('hardens /api/media/upload against SVG/HTML polyglots & invalid base64 and locks down /uploads/* headers & symlinks', async () => {
@@ -908,13 +908,13 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
     expect(exitRes.body.hardwareTested).toBe(false);
     expect(exitRes.body.stageP6Deferred).toBe(true);
 
-    // 5. Prototype readiness snapshot reports 19/19 automated invariants passing
+    // 5. Prototype readiness snapshot reports 20/20 automated invariants passing
     const qaRes = await request(app)
       .get('/api/qa/prototype-readiness')
       .set('Authorization', `Bearer ${adminToken}`);
     expect(qaRes.status).toBe(200);
-    expect(qaRes.body.automatedInvariantsPassed).toBe(19);
-    expect(qaRes.body.automatedInvariantsTotal).toBe(19);
+    expect(qaRes.body.automatedInvariantsPassed).toBe(20);
+    expect(qaRes.body.automatedInvariantsTotal).toBe(20);
   });
 
   it('Block 5.1: enforces Ed25519 signature verification (401), Zero-PII (400), strict Zod schemas, scoped compatibility (409), and 11/11 Scenarios 25–35', async () => {
@@ -1073,6 +1073,103 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
     expect(benchRes.body.falsePositiveRatePct).toBe(0);
     expect(benchRes.body.hardwareTested).toBe(false);
     expect(benchRes.body.stageP6Deferred).toBe(true);
+  });
+
+  it('Block 6.1: secures /api/delivery/* with auth/CSRF/strict-Zod, compiles CDN manifests with failover, deduplicates ingested events & passes 8/8 suite', async () => {
+    const unauthNoCsrf = await request(app).post('/api/delivery/verify-suite').send({});
+    expect(unauthNoCsrf.status).toBe(403);
+
+    const invalidBearer = await request(app)
+      .post('/api/delivery/manifest')
+      .set('Authorization', 'Bearer bad_token_61')
+      .send({});
+    expect(invalidBearer.status).toBe(401);
+
+    const advLogin = await request(app).post('/api/auth/login').send({
+      email: 'advertiser@edison.demo',
+      password: 'EdisonProto!2026',
+    });
+    const advToken = advLogin.body.token as string;
+
+    // 1. Strict Zod rejects unknown field
+    const strictFail = await request(app)
+      .post('/api/delivery/manifest')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({
+        platformId: 'android_tv_tif',
+        deviceSlotId: 'slot_http_1',
+        regionCode: 'GB',
+        unexpectedField: true,
+      });
+    expect(strictFail.status).toBe(400);
+
+    // 2. Compile manifest under simulated CDN outage failover
+    const manifestRes = await request(app)
+      .post('/api/delivery/manifest')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({
+        platformId: 'android_tv_tif',
+        deviceSlotId: 'slot_http_1',
+        regionCode: 'GB',
+        daypart: 'daytime',
+        simulateCdnOutage: true,
+      });
+    expect(manifestRes.status).toBe(200);
+    expect(manifestRes.body.cdnEdgeStatus).toBe('secondary_failover');
+    expect(manifestRes.body.failClosedFallbackUsed).toBe(true);
+    expect(manifestRes.body.ordinaryTvPreserved).toBe(true);
+    expect(manifestRes.body.manifestSha256).toHaveLength(64);
+    expect(manifestRes.body.hardwareTested).toBe(false);
+
+    // 3. Ingest duplicate replay + unique event -> 1 accepted, 1 deduplicated
+    const batchKey = `http_dlv_${Date.now()}`;
+    const ingestRes = await request(app)
+      .post('/api/delivery/ingest-events')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({
+        events: [
+          {
+            idempotencyKey: batchKey,
+            deviceSlotId: 'slot_http_1',
+            campaignId: 'cmp_http_1',
+            qrToken: 'edison-demo',
+            eventType: 'ad_played',
+            regionCode: 'GB',
+            playbackDurationMs: 15000,
+          },
+          {
+            idempotencyKey: batchKey,
+            deviceSlotId: 'slot_http_1',
+            campaignId: 'cmp_http_1',
+            qrToken: 'edison-demo',
+            eventType: 'ad_played',
+            regionCode: 'GB',
+            playbackDurationMs: 15000,
+          },
+        ],
+      });
+    expect(ingestRes.status).toBe(200);
+    expect(ingestRes.body.ok).toBe(true);
+    expect(ingestRes.body.acceptedNewCount).toBe(1);
+    expect(ingestRes.body.deduplicatedReplayCount).toBe(1);
+
+    // 4. Metrics & 8-check verification suite
+    const metricsRes = await request(app)
+      .get('/api/delivery/metrics')
+      .set('Authorization', `Bearer ${advToken}`);
+    expect(metricsRes.status).toBe(200);
+    expect(metricsRes.body.hardwareTested).toBe(false);
+
+    const suiteRes = await request(app)
+      .post('/api/delivery/verify-suite')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({});
+    expect(suiteRes.status).toBe(200);
+    expect(suiteRes.body.totalChecks).toBe(8);
+    expect(suiteRes.body.passedChecks).toBe(8);
+    expect(suiteRes.body.allPassed).toBe(true);
+    expect(suiteRes.body.hardwareTested).toBe(false);
+    expect(suiteRes.body.stageP6Deferred).toBe(true);
   });
 });
 
