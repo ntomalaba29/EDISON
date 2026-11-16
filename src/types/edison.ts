@@ -581,6 +581,8 @@ export interface EdisonStoreData {
   lastReliabilityChaosReport?: ReliabilityChaosReport | null;
   pilotCohorts?: PilotCohortBlueprintRecord[];
   stageP6PrepNotes?: Record<string, string>;
+  commercialBoardDecisions?: CommercialBoardDecisionRecord[];
+  commercialCostAssumptions?: CommercialCostAssumptionsInput;
 }
 
 export interface EdisonProgressMetrics {
@@ -2638,6 +2640,135 @@ export interface PilotReadinessVerificationReport {
   allPassed: boolean;
   checks: PilotReadinessVerifyCheckItem[];
 }
+
+// --- Phase 13 Block 13.1: Commercial Readiness Board Gate, SLA Matrix & Unit Economics (Software-First) ---
+
+export type CommercialReadinessPillarId =
+  | 'technical_readiness'
+  | 'operational_readiness'
+  | 'security_privacy'
+  | 'legal_regulatory'
+  | 'advertiser_onboarding'
+  | 'customer_support'
+  | 'revenue_model_charity_lock'
+  | 'infrastructure_unit_economics'
+  | 'reliability_live_tv'
+  | 'pilot_hardware_evidence';
+
+export type CommercialGateStatus = 'software_ready' | 'blocked_pending_external_gate';
+
+export interface CommercialPillarAssessment {
+  pillarId: CommercialReadinessPillarId;
+  categoryLabel: string;
+  title: string;
+  gateStatus: CommercialGateStatus;
+  softwareVerified: boolean;
+  liveExecutionVerified: false | boolean;
+  evidenceSummary: string;
+  blockingDependency: string | null;
+}
+
+export interface ProductionSlaTarget {
+  slaId: string;
+  serviceDomain: string;
+  metric: string;
+  targetThreshold: string;
+  measurementSource: string;
+  escalationOwner: string;
+  currentSoftwareStatus: 'verified_in_simulation' | 'baseline_defined';
+}
+
+export interface CommercialCostAssumptionsInput {
+  activeHouseholdsEstimate: number;
+  monthlyCommercialBreaksPerHousehold: number;
+  estimatedDirectCampaignsCount: number;
+  cdnEgressCostPerGbUsd: number;
+  dbHostingTierMonthlyUsd: number;
+  supportAgentHeadcount: number;
+  moderationHoursPerWeek: number;
+}
+
+export interface CommercialUnitEconomicsSnapshot {
+  assumptions: CommercialCostAssumptionsInput;
+  estimatedMonthlyCommercialImpressions: number;
+  estimatedMonthlyCharityImpressions: number;
+  estimatedMonthlyCloudCostUsd: number;
+  estimatedSupportOpsCostUsd: number;
+  estimatedTotalMonthlyOpexUsd: number;
+  costPerThousandAdDeliveriesUsd: number;
+  charityListingFeeUsd: 0;
+  charityJobFeeLockEnforced: true;
+  estimatedRevenuePerDirectCampaignRequiredUsd: number;
+  paymentCollectionActive: false;
+  isSimulatedBudgetModel: true;
+  costModelSha256: string;
+}
+
+export type CommercialBoardDecisionOutcome =
+  | 'hold_software_ready_pending_external_gates'
+  | 'defer_pending_stage_p6_and_compliance';
+
+export interface CommercialBoardDecisionRecord {
+  id: string;
+  boardReviewerEmail: string;
+  decisionOutcome: CommercialBoardDecisionOutcome;
+  summaryNote: string;
+  commercialLaunchAuthorized: false;
+  paymentCollectionActive: false;
+  countryActivated: false;
+  hardwareTested: false;
+  boardDecisionSha256: string;
+  createdAt: string;
+}
+
+export interface CommercialReadinessOverview {
+  generatedAt: string;
+  isSoftwareSimulationOnly: true;
+  commercialLaunchAuthorized: false;
+  paymentCollectionActive: false;
+  countryActivated: false;
+  hardwareTested: false;
+  pilotHardwareExecuted: false;
+  stageP6Deferred: true;
+  realBroadcastTunerConnected: false;
+  externalKycVendorConnected: false;
+  externalPenTestCompleted: false;
+  legalComplianceClaimed: false;
+  ffmpegBinaryExecuted: false;
+  charityListingFeeUsd: 0;
+  charityJobFeeLockEnforced: true;
+  softwarePillarsReadyCount: number;
+  pillarsTotalCount: number;
+  blockedExternalPillarsCount: number;
+  pillars: CommercialPillarAssessment[];
+  productionSlaTargets: ProductionSlaTarget[];
+  unitEconomics: CommercialUnitEconomicsSnapshot;
+  boardDecisions: CommercialBoardDecisionRecord[];
+  launchBlockersSummary: string[];
+  commercialReadinessSha256: string;
+}
+
+export interface CommercialReadinessVerifyCheckItem {
+  checkId: string;
+  label: string;
+  passed: boolean;
+  detail: string;
+}
+
+export interface CommercialReadinessVerificationReport {
+  generatedAt: string;
+  isSoftwareSimulationOnly: true;
+  commercialLaunchAuthorized: false;
+  paymentCollectionActive: false;
+  countryActivated: false;
+  hardwareTested: false;
+  stageP6Deferred: true;
+  totalChecks: number;
+  passedChecks: number;
+  allPassed: boolean;
+  checks: CommercialReadinessVerifyCheckItem[];
+}
+
 
 
 

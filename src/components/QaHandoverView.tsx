@@ -25,6 +25,7 @@ import type {
 } from '../types/edison';
 import { QrCodePreview } from './QrCodePreview';
 import { PilotReadinessPanel } from './PilotReadinessPanel';
+import { CommercialReadinessPanel } from './CommercialReadinessPanel';
 import { CopyReportFooter, copyTextWithFallback } from './CopyReportFooter';
 import { edisonFetch } from '../lib/csrfFetch';
 
@@ -34,7 +35,7 @@ interface QaHandoverViewProps {
   onSummaryRefresh: () => Promise<void>;
 }
 
-type QaSubTab = 'scan_lab' | 'qa_audit' | 'pilot_readiness' | 'handover';
+type QaSubTab = 'scan_lab' | 'qa_audit' | 'pilot_readiness' | 'commercial_readiness' | 'handover';
 
 export function QaHandoverView({
   currentUser,
@@ -432,6 +433,18 @@ export function QaHandoverView({
           >
             <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
             <span>Phase 12 Pilot &amp; Stage P6 Runbook</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSubTab('commercial_readiness')}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+              subTab === 'commercial_readiness'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <ClipboardCheck className="w-3.5 h-3.5 shrink-0" />
+            <span>Phase 13 Commercial Readiness</span>
           </button>
           <button
             type="button"
@@ -1004,6 +1017,15 @@ export function QaHandoverView({
       {/* SUB-TAB 3: PHASE 12 PILOT READINESS & STAGE P6 RUNBOOK */}
       {subTab === 'pilot_readiness' && (
         <PilotReadinessPanel
+          currentUser={currentUser}
+          onNavigateAuth={onNavigateAuth}
+          onSummaryRefresh={onSummaryRefresh}
+        />
+      )}
+
+      {/* SUB-TAB 4: PHASE 13 COMMERCIAL READINESS BOARD GATE */}
+      {subTab === 'commercial_readiness' && (
+        <CommercialReadinessPanel
           currentUser={currentUser}
           onNavigateAuth={onNavigateAuth}
           onSummaryRefresh={onSummaryRefresh}

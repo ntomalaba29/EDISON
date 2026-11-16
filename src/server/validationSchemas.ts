@@ -958,6 +958,29 @@ export const stageP6CheckPrepareSchema = z
   })
   .strict();
 
+export const commercialCostAssumptionsSchema = z
+  .object({
+    activeHouseholdsEstimate: z.coerce.number().int().min(10).max(5000000),
+    monthlyCommercialBreaksPerHousehold: z.coerce.number().int().min(1).max(1000),
+    estimatedDirectCampaignsCount: z.coerce.number().int().min(1).max(100000),
+    cdnEgressCostPerGbUsd: z.coerce.number().finite().min(0.001).max(5),
+    dbHostingTierMonthlyUsd: z.coerce.number().finite().min(0).max(100000),
+    supportAgentHeadcount: z.coerce.number().int().min(1).max(500),
+    moderationHoursPerWeek: z.coerce.number().finite().min(1).max(5000),
+  })
+  .strict();
+
+export const commercialBoardDecisionSchema = z
+  .object({
+    decisionOutcome: z.enum([
+      'hold_software_ready_pending_external_gates',
+      'defer_pending_stage_p6_and_compliance',
+    ]),
+    requestedLaunchAuthorization: z.boolean(),
+    summaryNote: z.string().trim().min(10).max(800),
+  })
+  .strict();
+
 export function parseWithZod<T extends z.ZodTypeAny>(
   schema: T,
   payload: unknown

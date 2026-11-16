@@ -13,6 +13,10 @@ import type {
   BroadcastResolutionProfile,
   ChaosInjectSeverity,
   ChaosScenarioResult,
+  CommercialBoardDecisionOutcome,
+  CommercialBoardDecisionRecord,
+  CommercialCostAssumptionsInput,
+  CommercialReadinessOverview,
   FailureModeId,
   CampaignContentCategory,
   CampaignPreviewGateResult,
@@ -732,6 +736,26 @@ export interface EdisonDataRepository {
       ownerPrepNote: string;
     }
   ): PilotReadinessOverview;
+
+  // --- Phase 13 Block 13.1: Commercial Readiness Board Gate, SLA Matrix & Unit Economics ---
+  getCommercialReadinessOverview(actor: PublicUser): CommercialReadinessOverview;
+
+  updateCommercialCostAssumptions(
+    actor: PublicUser,
+    input: CommercialCostAssumptionsInput
+  ): CommercialReadinessOverview;
+
+  submitCommercialBoardDecision(
+    actor: PublicUser,
+    input: {
+      decisionOutcome: CommercialBoardDecisionOutcome;
+      requestedLaunchAuthorization: boolean;
+      summaryNote: string;
+    }
+  ): {
+    decision: CommercialBoardDecisionRecord;
+    overview: CommercialReadinessOverview;
+  };
 }
 
 

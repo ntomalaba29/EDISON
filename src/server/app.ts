@@ -71,6 +71,7 @@ import { runOpportunityOpsVerificationSuite } from './opportunityOpsEngine.ts';
 import { runPrivacyComplianceVerificationSuite } from './privacyComplianceEngine.ts';
 import { runReliabilityChaosVerificationSuite } from './reliabilityChaosEngine.ts';
 import { runPilotReadinessVerificationSuite } from './pilotReadinessEngine.ts';
+import { runCommercialReadinessVerificationSuite } from './commercialReadinessEngine.ts';
 import {
   adCreativeAttachSchema,
   adCreativeSaveSchema,
@@ -91,6 +92,8 @@ import {
   campaignQuerySchema,
   campaignTransitionSchema,
   campaignUpdateSchema,
+  commercialBoardDecisionSchema,
+  commercialCostAssumptionsSchema,
   companionPolicyEvalSchema,
   complaintCreateSchema,
   deliveryEventIngestBatchSchema,
@@ -2519,6 +2522,77 @@ export function createEdisonApp(
         'PILOT_READINESS_SUITE_RUN',
         'phase12_pilot_readiness',
         `[${req.requestId ?? 'req'}] Phase 12 pilot readiness suite: ${report.passedChecks}/${report.totalChecks} passed (hardwareTested=false, stageP6Deferred=true, countryActivated=false).`
+      );
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.json({ report });
+    }
+  );
+
+  // --- Phase 13 Block 13.1: Commercial Readiness Board Gate, SLA Matrix & Unit Economics (Software-First) ---
+  app.get(
+    '/api/commercial-readiness/overview',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.json({ overview: store.getCommercialReadinessOverview(req.currentUser!) });
+    }
+  );
+
+  app.put(
+    '/api/commercial-readiness/cost-assumptions',
+    requireAdmin,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(commercialCostAssumptionsSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        const overview = store.updateCommercialCostAssumptions(req.currentUser!, parsed.data);
+        res.setHeader('Cache-Control', 'no-store, private');
+        res.json({ overview });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.post(
+    '/api/commercial-readiness/board-decision',
+    requireAdmin,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(commercialBoardDecisionSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        const result = store.submitCommercialBoardDecision(req.currentUser!, parsed.data);
+        res.setHeader('Cache-Control', 'no-store, private');
+        res.status(201).json(result);
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.post(
+    '/api/commercial-readiness/verify-suite',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(emptyStrictSchema, req.body ?? {});
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const report = runCommercialReadinessVerificationSuite();
+      store.recordSecurityAudit(
+        req.currentUser!,
+        'COMMERCIAL_READINESS_SUITE_RUN',
+        'phase13_commercial_readiness',
+        `[${req.requestId ?? 'req'}] Phase 13 commercial readiness suite: ${report.passedChecks}/${report.totalChecks} passed (commercialLaunchAuthorized=false, paymentCollectionActive=false, hardwareTested=false).`
       );
       res.setHeader('Cache-Control', 'no-store, private');
       res.json({ report });

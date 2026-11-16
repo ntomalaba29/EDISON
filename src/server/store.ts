@@ -23,6 +23,10 @@ import type {
   CampaignStatus,
   ChaosInjectSeverity,
   ChaosScenarioResult,
+  CommercialBoardDecisionOutcome,
+  CommercialBoardDecisionRecord,
+  CommercialCostAssumptionsInput,
+  CommercialReadinessOverview,
   ConsentAuditAction,
   ConsentAuditEventRecord,
   DaypartSlot,
@@ -112,6 +116,11 @@ import {
   runPilotReadinessVerificationSuite,
   scanPilotTelemetryZeroPii,
 } from './pilotReadinessEngine.ts';
+import {
+  buildCommercialBoardDecision,
+  buildCommercialReadinessOverview,
+  runCommercialReadinessVerificationSuite,
+} from './commercialReadinessEngine.ts';
 import { scheduleCommercialBreak } from './breakScheduler.ts';
 import {
   buildSafeTvPersonalisationDisplay,
@@ -5130,6 +5139,27 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
           '8/8 Phase 12 pilot readiness invariants passed: Phase 4–11 pre-pilot software gates, Zero-PII opt-in telemetry guard, consent-epoch lock, 8-step Stage P6 physical runbook & non-commercial boundaries (hardwareTested=false, stageP6Deferred=true).',
       },
       {
+        id: 'qa_131_commercial_readiness_board_gate',
+        block: 'Block 13.1',
+        label:
+          'Phase 13 Block 13.1: Software-First Commercial Readiness Board Gate, 7-SLA Matrix & Unit Economics Model',
+        status: (() => {
+          const p13 = runCommercialReadinessVerificationSuite();
+          return p13.allPassed &&
+            p13.passedChecks === 8 &&
+            !p13.commercialLaunchAuthorized &&
+            !p13.paymentCollectionActive &&
+            !p13.countryActivated &&
+            !p13.hardwareTested &&
+            p13.stageP6Deferred
+            ? 'pass'
+            : 'fail';
+        })(),
+        scope: 'automated_invariant',
+        detail:
+          '8/8 Phase 13 commercial readiness invariants passed: 10-pillar board gate, 7-domain SLA thresholds, $0.00 Charity unit economics lock & fail-closed premature launch block (commercialLaunchAuthorized=false, paymentCollectionActive=false).',
+      },
+      {
         id: 'qa_27_physical_qr_scan',
         block: 'Block 2.7',
         label: 'Physical smartphone camera scan verification on real mobile device',
@@ -5147,8 +5177,8 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
 
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 12 — Controlled Hardware & Viewer Pilot Readiness (Software-First)',
-      block: 'Block 12.1 (Pre-Pilot Software Gates, Opt-In Zero-PII Telemetry Schema & Single Final Stage P6 Runbook)',
+      phase: 'Phase 13 — Commercial Readiness Board Gate, SLA Matrix & Unit Economics (Software-First)',
+      block: 'Block 13.1 (10-Pillar Commercial Readiness Gate, 7-SLA Matrix, Unit Economics & Unactivated Pre-Launch Review)',
       automatedInvariantsPassed,
       automatedInvariantsTotal: autoChecks.length,
       physicalQrScanStatus:
@@ -5363,19 +5393,19 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     const latestAudit = this.data.auditLogs[0] ?? null;
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 12 — Controlled Hardware & Viewer Pilot Readiness (Software-First)',
-      stage: 'Phases 1–11 Committed (Inc. Track B DEC-OPEN-01) · Phase 12 Block 12.1 Software-First Readiness Complete · Stage P6 Hardware & Launch Markets Deferred',
-      block: 'Block 12.1 (Pre-Pilot Software Gates, Opt-In Zero-PII Telemetry Schema & Single Final Stage P6 Runbook)',
-      gateStatus: 'BLOCK 12.1 VERIFIED — AWAITING OWNER COMMIT (STAGE P6 HARDWARE & COMMERCIAL LAUNCH DEFERRED)',
+      phase: 'Phase 13 — Commercial Readiness Board Gate, SLA Matrix & Unit Economics (Software-First)',
+      stage: 'Phases 1–12 Block 12.1 Committed (Inc. Track B DEC-OPEN-01) · Phase 13 Block 13.1 Verified & Awaiting Commit · Stage P6 Hardware & Launch Markets Deferred',
+      block: 'Block 13.1 (10-Pillar Commercial Readiness Gate, 7-SLA Matrix, Unit Economics & Unactivated Pre-Launch Review)',
+      gateStatus: 'BLOCK 13.1 VERIFIED — AWAITING OWNER COMMIT (COMMERCIAL LAUNCH, PAYMENTS & STAGE P6 DEFERRED)',
       progressMetrics: {
         aiStudioAssignmentPct: 100,
         softwareToStageP6Pct: 81.8,
-        overallFullAppPct: 72.0,
-        remainingUntilFullAppPct: 28.0,
+        overallFullAppPct: 75.0,
+        remainingUntilFullAppPct: 25.0,
         consentBlockedScopePct: 0,
         trackBStatus: 'COMMITTED',
         rubricSummary:
-          'Phase 1 Specs (6.0%) + Phase 2 Track A+B Committed (14.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Complete Committed (12.0%) + Phase 6 Delivery Infra Committed (4.0%) + Phase 7 Block 7.1 Committed (3.0%) + Phase 8 Block 8.1 Committed (3.0%) + Phase 9 Block 9.1 Committed (2.0%) + Phase 10 Block 10.1 Committed (4.0%) + Phase 11 Block 11.1 Committed (4.0%) + Phase 12 Block 12.1 Software-First Pilot Readiness (2.0% / 4.0%) = 72.0% of 15-Phase Full Commercial App (81.8% to Stage P6; 100% of original Phase 2 AI Studio scope).',
+          'Phase 1 Specs (6.0%) + Phase 2 Track A+B Committed (14.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Complete Committed (12.0%) + Phase 6 Delivery Infra Committed (4.0%) + Phase 7 Block 7.1 Committed (3.0%) + Phase 8 Block 8.1 Committed (3.0%) + Phase 9 Block 9.1 Committed (2.0%) + Phase 10 Block 10.1 Committed (4.0%) + Phase 11 Block 11.1 Committed (4.0%) + Phase 12 Block 12.1 Committed (2.0% / 4.0%) + Phase 13 Block 13.1 Software-First Commercial Readiness (3.0% / 4.0%) = 75.0% of 15-Phase Full Commercial App (81.8% to Stage P6; 100% of original Phase 2 AI Studio scope).',
       },
       latestAuditAt: latestAudit?.createdAt ?? null,
       latestAuditAction: latestAudit?.action ?? null,
@@ -6567,6 +6597,118 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
         cohorts: draft.pilotCohorts || [],
         stageP6PrepNotes: draft.stageP6PrepNotes,
       });
+    });
+  }
+
+  // --- Phase 13 Block 13.1: Commercial Readiness Board Gate, SLA Matrix & Unit Economics ---
+
+  getCommercialReadinessOverview(actor: PublicUser): CommercialReadinessOverview {
+    this.syncIfDiskNewer();
+    if (!actor) throw new Error('Authentication required.');
+    return buildCommercialReadinessOverview({
+      profiles: this.data.advertiserProfiles,
+      campaigns: this.data.campaigns,
+      creatives: this.data.adCreatives,
+      opportunities: this.data.opportunities,
+      qrLinks: this.data.qrLinks,
+      tickets: this.data.supportTickets,
+      assumptions: this.data.commercialCostAssumptions,
+      boardDecisions: this.data.commercialBoardDecisions || [],
+    });
+  }
+
+  updateCommercialCostAssumptions(
+    actor: PublicUser,
+    input: CommercialCostAssumptionsInput
+  ): CommercialReadinessOverview {
+    if (actor.role !== 'admin') {
+      throw new Error(
+        'FORBIDDEN: Only administrators may update commercial unit-economics budget assumptions.'
+      );
+    }
+
+    return this.withWriteTransaction((draft) => {
+      draft.commercialCostAssumptions = { ...input };
+      const overview = buildCommercialReadinessOverview({
+        profiles: draft.advertiserProfiles,
+        campaigns: draft.campaigns,
+        creatives: draft.adCreatives,
+        opportunities: draft.opportunities,
+        qrLinks: draft.qrLinks,
+        tickets: draft.supportTickets,
+        assumptions: draft.commercialCostAssumptions,
+        boardDecisions: draft.commercialBoardDecisions || [],
+      });
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'COMMERCIAL_UNIT_ECONOMICS_UPDATED',
+        'system',
+        'phase13_unit_economics',
+        `Updated software budget assumptions (${input.activeHouseholdsEstimate} households, OPEX=$${overview.unitEconomics.estimatedTotalMonthlyOpexUsd}/mo, Charity=$0.00, paymentCollectionActive=false).`
+      );
+
+      return overview;
+    });
+  }
+
+  submitCommercialBoardDecision(
+    actor: PublicUser,
+    input: {
+      decisionOutcome: CommercialBoardDecisionOutcome;
+      requestedLaunchAuthorization: boolean;
+      summaryNote: string;
+    }
+  ): {
+    decision: CommercialBoardDecisionRecord;
+    overview: CommercialReadinessOverview;
+  } {
+    if (actor.role !== 'admin') {
+      throw new Error(
+        'FORBIDDEN: Only administrators may submit Commercial Readiness Board decisions.'
+      );
+    }
+
+    // Fail-closed launch guard executes BEFORE modifying store state
+    const decision = buildCommercialBoardDecision({
+      actorEmail: actor.email,
+      decisionOutcome: input.decisionOutcome,
+      requestedLaunchAuthorization: input.requestedLaunchAuthorization,
+      summaryNote: input.summaryNote,
+    });
+
+    return this.withWriteTransaction((draft) => {
+      draft.commercialBoardDecisions = draft.commercialBoardDecisions || [];
+      draft.commercialBoardDecisions.unshift(decision);
+      if (draft.commercialBoardDecisions.length > 50) {
+        draft.commercialBoardDecisions.length = 50;
+      }
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'COMMERCIAL_BOARD_REVIEW_LOGGED',
+        'system',
+        decision.id,
+        `Logged Commercial Readiness Board review (${decision.decisionOutcome}): commercialLaunchAuthorized=false, paymentCollectionActive=false, countryActivated=false, hardwareTested=false.`
+      );
+
+      return {
+        decision,
+        overview: buildCommercialReadinessOverview({
+          profiles: draft.advertiserProfiles,
+          campaigns: draft.campaigns,
+          creatives: draft.adCreatives,
+          opportunities: draft.opportunities,
+          qrLinks: draft.qrLinks,
+          tickets: draft.supportTickets,
+          assumptions: draft.commercialCostAssumptions,
+          boardDecisions: draft.commercialBoardDecisions,
+        }),
+      };
     });
   }
 }
