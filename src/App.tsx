@@ -36,6 +36,7 @@ import { OpportunityView } from './components/OpportunityView';
 import { AdminAnalyticsView } from './components/AdminAnalyticsView';
 import { QaHandoverView } from './components/QaHandoverView';
 import { SharedIntelligencePreviewView } from './components/SharedIntelligencePreviewView';
+import { HouseholdPrivacyView } from './components/HouseholdPrivacyView';
 import { COMMIT_AND_NEXT_MESSAGE, copyTextWithFallback } from './components/CopyReportFooter';
 import { EDISON_DOCUMENTS } from './data/documents';
 import { edisonFetch } from './lib/csrfFetch';
@@ -43,6 +44,7 @@ import type { PublicUser } from './types/edison';
 
 type NavTab =
   | 'auth'
+  | 'household'
   | 'profile'
   | 'campaigns'
   | 'studio'
@@ -77,6 +79,7 @@ interface FoundationSummary {
 
 const PROTOTYPE_NAV: { id: NavTab; label: string; icon: typeof KeyRound }[] = [
   { id: 'auth', label: 'Auth & RBAC Console', icon: KeyRound },
+  { id: 'household', label: 'Households, Profiles & Consent', icon: Tv },
   { id: 'profile', label: 'Advertiser Profile', icon: Building2 },
   { id: 'campaigns', label: 'Campaigns (10-State)', icon: Megaphone },
   { id: 'studio', label: 'Ad Creation Studio', icon: Palette },
@@ -169,7 +172,7 @@ export default function App() {
         <nav className="p-3 space-y-5" aria-label="EDISON navigation">
           <div>
             <p className="px-3 mb-1.5 text-xs font-semibold text-slate-500">
-              Phase 2 Track A · Track B Blocked
+              Phase 2 Track A + Track B Complete
             </p>
             <div className="space-y-1">
               {PROTOTYPE_NAV.map((item) => {
@@ -229,7 +232,7 @@ export default function App() {
         <div className="p-4 m-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-1">
           <p className="font-semibold text-slate-800">Prototype Boundary</p>
           <p className="leading-relaxed">
-            Phase 7 Block 7.1 active (Phases 1–6 committed · TASK-P3-001 READY, JSON retained). Non-transactional billing only; Track B (15%) blocked on DEC-OPEN-01; zero physical TV hardware tested.
+            Phase 2 Track B verified (DEC-OPEN-01 locked: Scope B + Bundled Withdrawal; 100% AI Studio scope) alongside Phases 1–7 software-first milestones (TASK-P3-001 READY, JSON retained). Non-transactional billing only; zero physical TV hardware tested (Stage P6 deferred).
           </p>
         </div>
       </aside>
@@ -251,7 +254,7 @@ export default function App() {
               <span className="text-slate-500 whitespace-nowrap">EDISON</span>
               <span className="text-slate-300" aria-hidden="true">/</span>
               <span className="text-slate-500 whitespace-nowrap hidden sm:inline">
-                {isPrototypeTab ? 'Phase 2 Track A Complete' : 'Governance'}
+                {isPrototypeTab ? 'Phase 2 Complete (Track A + B)' : 'Governance'}
               </span>
               <span className="text-slate-300 hidden sm:inline" aria-hidden="true">/</span>
               <h1 className="font-semibold text-slate-900 truncate">{currentItem.label}</h1>
@@ -301,6 +304,13 @@ export default function App() {
               currentUser={currentUser}
               summary={summary}
               onAuthChange={refreshAuthState}
+            />
+          )}
+          {activeTab === 'household' && (
+            <HouseholdPrivacyView
+              currentUser={currentUser}
+              onNavigateAuth={() => setActiveTab('auth')}
+              onSummaryRefresh={refreshAuthState}
             />
           )}
           {activeTab === 'profile' && (

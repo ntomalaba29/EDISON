@@ -40,6 +40,7 @@ import type {
   OfflineQueueDrainResult,
   Phase4SoftwareExitReport,
   PrimaryAdCategory,
+  PublicHouseholdInstallationView,
   PublicUser,
   QrLinkRecord,
   ScheduledBreakSlot,
@@ -477,6 +478,8 @@ export function TvPreviewView({
   const [safetyBufferInput, setSafetyBufferInput] = useState(5);
   const [alternatingStart, setAlternatingStart] = useState<PrimaryAdCategory>('CHARITY');
   const [allowMockBackfill, setAllowMockBackfill] = useState(true);
+  const [households, setHouseholds] = useState<PublicHouseholdInstallationView[]>([]);
+  const [selectedBreakHouseholdId, setSelectedBreakHouseholdId] = useState<string>('');
   const [breakPlan, setBreakPlan] = useState<BreakSchedulePlan | null>(null);
   const [planningBreak, setPlanningBreak] = useState(false);
   const [activeSlotCursor, setActiveSlotCursor] = useState(-1); // -1 = single spot, >=0 = multi-slot planned break
@@ -625,6 +628,15 @@ export function TvPreviewView({
         if (Array.isArray(chData.channels)) {
           setChannelBindings(chData.channels);
         }
+      }
+      if (currentUser.role === 'household_viewer' || currentUser.role === 'admin') {
+        const hhRes = await edisonFetch('/api/households');
+        if (hhRes.ok) {
+          const hhData = await hhRes.json();
+          setHouseholds(hhData.items || []);
+        }
+      } else {
+        setHouseholds([]);
       }
     } finally {
       setLoading(false);
@@ -868,6 +880,7 @@ export function TvPreviewView({
   const handlePlanBreak = async () => {
     setPlanningBreak(true);
     try {
+      const selectedHh = households.find((h) => h.id === selectedBreakHouseholdId);
       const res = await edisonFetch('/api/simulator/schedule-break', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -877,6 +890,12 @@ export function TvPreviewView({
           requestedSlotCount: 4,
           alternatingPointerStart: alternatingStart,
           allowMockBackfill,
+          ...(selectedHh
+            ? {
+                householdId: selectedHh.id,
+                expectedConsentEpoch: selectedHh.consentEpoch,
+              }
+            : {}),
         }),
       });
       if (res.ok) {
@@ -2200,6 +2219,27 @@ export function TvPreviewView({
               </div>
             </div>
 
+            {households.length > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 text-xs pt-1">
+                <label className="font-medium text-slate-700 whitespace-nowrap">
+                  Bind Household Consent &amp; Personalisation Gate (Track B):
+                </label>
+                <select
+                  value={selectedBreakHouseholdId}
+                  onChange={(e) => setSelectedBreakHouseholdId(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-slate-200 rounded-lg bg-white"
+                >
+                  <option value="">Unbound Simulator Mode (No Household Consent Filter)</option>
+                  {households.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.householdLabel} ({h.publicLocation.countryCode} · Epoch v{h.consentEpoch} ·{' '}
+                      {h.commercialConsentStatus === 'granted' ? 'Consent Active' : 'Withdrawn'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {breakPlan && (
               <div className="space-y-3 pt-2">
                 <div
@@ -2211,11 +2251,17 @@ export function TvPreviewView({
                 >
                   <div className="space-y-0.5">
                     <p className="font-semibold font-mono">
-                      {breakPlan.skipped
+                      {breakPlan.adDeliverySuspended
+                        ? 'COMMERCIAL & CHARITY AD DELIVERY SUSPENDED BY CONSENT WITHDRAWAL (ORDINARY TV PRESERVED)'
+                        : breakPlan.skipped
                         ? 'BREAK SKIPPED BY SAFETY BUFFER GUARDRAIL'
                         : `PLANNED ${breakPlan.slots.length} SLOTS (${breakPlan.totalScheduledDurationSeconds}s of ${breakPlan.usableBreakSeconds}s usable) · Next Pointer: ${breakPlan.nextAlternatingPointer}`}
                     </p>
-                    <p>{breakPlan.skipReason ?? breakPlan.adapterDisclaimer}</p>
+                    <p>
+                      {breakPlan.suspensionReason ??
+                        breakPlan.skipReason ??
+                        breakPlan.adapterDisclaimer}
+                    </p>
                   </div>
                   {breakPlan.k1ShortBreakRuleApplied && (
                     <span className="px-2.5 py-1 bg-amber-100 border border-amber-300 text-amber-900 rounded font-mono font-semibold">
@@ -2223,6 +2269,18 @@ export function TvPreviewView({
                     </span>
                   )}
                 </div>
+
+                {breakPlan.tvPersonalisation && (
+                  <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-900 text-white text-xs space-y-1">
+                    <p className="font-mono text-slate-400">
+                      SAFE TV PERSONALISATION ({breakPlan.tvPersonalisation.mode.toUpperCase()} · PRIVATE DATA EXPOSED: FALSE)
+                    </p>
+                    <p className="font-semibold text-sm">
+                      {breakPlan.tvPersonalisation.tvHeadline}
+                    </p>
+                    <p className="text-slate-300">{breakPlan.tvPersonalisation.tvSubline}</p>
+                  </div>
+                )}
 
                 {breakPlan.slots.length > 0 && (
                   <div className="overflow-x-auto border border-slate-200 rounded-lg">

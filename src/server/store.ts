@@ -7,6 +7,7 @@ import type {
   AdCreativeStatus,
   AdStudioMode,
   AdvertiserEntityType,
+  AdvertiserGeoAggregateRow,
   AdvertiserProfile,
   AdminModerationOverview,
   AnalyticsEventRecord,
@@ -18,8 +19,15 @@ import type {
   CampaignPreviewGateResult,
   CampaignRecord,
   CampaignStatus,
+  ConsentAuditAction,
+  ConsentAuditEventRecord,
   DaypartSlot,
   EdisonStoreData,
+  HouseholdInstallationRecord,
+  HouseholdLocation,
+  HouseholdMemberProfile,
+  HouseholdOpportunityMatchResult,
+  HouseholdQrTokenRecord,
   LiveReportSnapshot,
   OptionAComposition,
   OptionBUploadSpec,
@@ -62,6 +70,16 @@ import { runDeliveryInfraVerificationSuite } from './adDeliveryInfra.ts';
 import { runAdvertiserOpsVerificationSuite } from './advertiserOps.ts';
 import { scheduleCommercialBreak } from './breakScheduler.ts';
 import {
+  buildSafeTvPersonalisationDisplay,
+  computeAdvertiserGeoAggregates,
+  hashProfilePin,
+  matchOpportunitiesForHousehold,
+  runTrackBVerificationSuite,
+  sanitizeMemberForList,
+  validateHouseholdLocationHierarchy,
+  verifyProfilePin,
+} from './trackBHouseholdConsent.ts';
+import {
   createInitialSharedIntelPreviewState,
   runSharedIntelSimulationAction,
   submitSharedIntelObservation,
@@ -90,6 +108,14 @@ const LOCK_TIMEOUT_MS = 3000;
 const STALE_LOCK_MS = 10000;
 
 const PROCESS_HASH_SALT = crypto.randomBytes(16).toString('hex');
+
+function isProductionEnvironment(): boolean {
+  return process.env.NODE_ENV === 'production';
+}
+
+function isDemoOrSeedUser(user: Pick<UserAccount, 'email' | 'isPrototypeSeed'>): boolean {
+  return Boolean(user.isPrototypeSeed) || user.email.trim().toLowerCase().endsWith('.demo');
+}
 
 const BOT_USER_AGENT_PATTERNS = [
   /bot\b/i,
@@ -704,6 +730,66 @@ function buildSeedOpportunities(now: string): OpportunityRecord[] {
       advertisingFeeInfluencesVerification: false,
       rejectionReason: null,
       suspensionReason: null,
+      countryCode: 'GB',
+      provinceOrRegion: 'Greater Manchester',
+      structuredCriteria: {
+        requiredKeywords: ['electrical'],
+        preferredKeywords: ['apprenticeship', 'solar'],
+        optionalKeywords: ['engineering'],
+        minExperienceYears: 0,
+      },
+      isPrototypeSeed: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'opp_seed_zw_04',
+      ownerId: 'usr_seed_opp_01',
+      providerType: 'registered_organisation',
+      providerName: 'Harare Civic Skills Trust (ZW Seed)',
+      category: 'apprenticeship',
+      title: 'Harare Solar & Fibre Electrical Apprenticeship — 2026 Cohort',
+      description:
+        'Accredited practical training across residential solar PV and municipal fibre networks in Greater Harare. Zero application or training fees.',
+      location: 'Harare, Zimbabwe',
+      eligibilityRequirements:
+        'Basic electrical or network cabling interest; Harare or Bulawayo residents welcome. Selection never guaranteed.',
+      applicationMethod: 'Free online application portal via EDISON QR.',
+      contactInfo: 'harare-intake@civicskills.example',
+      qrToken: 'job-demo',
+      linkedCampaignId: 'cmp_seed_03',
+      closingDate: closingFuture,
+      expiryDate: expiryFuture,
+      status: 'verified_live',
+      verificationTiers: {
+        identityStatus: 'verified',
+        identityEvidenceRef: 'KYC-SEED-SAMUEL-OKAFOR',
+        identityNotes: 'Tier 1 identity verified.',
+        identityVerifiedAt: now,
+        organisationStatus: 'verified',
+        organisationEvidenceRef: 'PROTO-ZW-TRUST-2026',
+        organisationNotes: 'Tier 2 organisation verified.',
+        organisationVerifiedAt: now,
+        specificOpportunityStatus: 'verified',
+        specificOpportunityEvidenceRef: 'ZW-SOLAR-APPRENTICE-2026',
+        specificOpportunityNotes: 'Tier 3 Harare apprenticeship cohort verified independently.',
+        specificOpportunityVerifiedAt: now,
+      },
+      scamRiskFlags: [],
+      applicationFeeFreeConfirmed: true,
+      noGuaranteeConfirmed: true,
+      advertisingFeeInfluencesVerification: false,
+      rejectionReason: null,
+      suspensionReason: null,
+      countryCode: 'ZW',
+      provinceOrRegion: 'Harare Metropolitan',
+      structuredCriteria: {
+        requiredKeywords: ['electrical'],
+        preferredKeywords: ['solar', 'fibre'],
+        optionalKeywords: ['engineering', 'apprenticeship'],
+        minExperienceYears: 0,
+        targetProvinces: ['Harare Metropolitan'],
+      },
       isPrototypeSeed: true,
       createdAt: now,
       updatedAt: now,
@@ -711,11 +797,163 @@ function buildSeedOpportunities(now: string): OpportunityRecord[] {
   ];
 }
 
+function buildSeedViewerUser(now: string): UserAccount {
+  return {
+    id: 'usr_seed_viewer_01',
+    email: 'viewer@edison.demo',
+    passwordHash: hashPassword('EdisonViewer!2026'),
+    name: 'Tariro Moyo (Household Owner Seed)',
+    organisationName: 'Moyo Household · Harare ZW',
+    role: 'household_viewer',
+    verificationStatus: 'verified',
+    isPrototypeSeed: true,
+    createdAt: now,
+  };
+}
+
+function buildSeedHouseholdsAndMembers(now: string): {
+  households: HouseholdInstallationRecord[];
+  householdMembers: HouseholdMemberProfile[];
+  consentAuditEvents: ConsentAuditEventRecord[];
+} {
+  const geo = validateHouseholdLocationHierarchy({
+    countryCode: 'ZW',
+    provinceOrRegion: 'Harare Metropolitan',
+    metroArea: 'Greater Harare',
+    cityOrTown: 'Harare',
+    district: 'Harare Urban',
+    suburbOrArea: 'Avondale',
+    exactInstallationLocation: '14 King George Road, Unit 3, Avondale',
+  });
+  const hhId = 'hh_seed_zw_01';
+  return {
+    households: [
+      {
+        id: hhId,
+        ownerUserId: 'usr_seed_viewer_01',
+        householdLabel: 'Moyo Family Smart TV (Harare ZW Seed)',
+        tvDeviceLabel: 'Living Room 55" Smart TV (Android TV)',
+        location: geo.normalized,
+        locationValid: geo.valid,
+        locationValidationErrors: geo.errors,
+        targetingDisabled: !geo.valid,
+        ordinaryTvPreserved: true,
+        commercialConsentStatus: 'granted',
+        charityAndOpportunityStatus: 'active',
+        personalisationMasterEnabled: true,
+        neutralDisplayMode: false,
+        consentEpoch: 1,
+        consentVersionLabel: 'DEC-OPEN-01-ScopeB-v1',
+        lastConsentChangedAt: now,
+        isPrototypeSeed: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+    householdMembers: [
+      {
+        id: 'mem_seed_zw_01',
+        householdId: hhId,
+        ownerUserId: 'usr_seed_viewer_01',
+        displayName: 'Tariro Moyo',
+        pinHash: hashProfilePin('4321'),
+        hasPinLock: true,
+        personalisationConsentGranted: true,
+        educationLevel: 'National Certificate',
+        qualifications: ['City & Guilds Electrical Installation Level 2'],
+        skills: ['electrical', 'solar', 'wiring'],
+        experienceSummary: '2 years residential electrical & solar inverter assistance',
+        experienceYears: 2,
+        occupationOrTrade: 'Electrical Apprentice Candidate',
+        employmentInterests: ['solar', 'electrical', 'apprenticeship'],
+        careerAspirations: 'Certified Renewable Energy Electrician',
+        industries: ['Energy', 'Construction'],
+        interestedCategories: ['apprenticeship', 'training'],
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'mem_seed_zw_02',
+        householdId: hhId,
+        ownerUserId: 'usr_seed_viewer_01',
+        displayName: 'Tinashe Moyo',
+        pinHash: null,
+        hasPinLock: false,
+        personalisationConsentGranted: true,
+        educationLevel: 'BEng Telecommunications',
+        qualifications: ['BEng Honours Telecommunications'],
+        skills: ['electrical', 'fibre', 'engineering', 'network'],
+        experienceSummary: '3 years urban fibre rollout and power backup systems',
+        experienceYears: 3,
+        occupationOrTrade: 'Field Telecoms Technician',
+        employmentInterests: ['fibre', 'engineering', 'apprenticeship'],
+        careerAspirations: 'Principal Network Infrastructure Engineer',
+        industries: ['Telecoms', 'Energy'],
+        interestedCategories: ['apprenticeship', 'permanent_employment'],
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+    consentAuditEvents: [
+      {
+        id: 'caud_seed_01',
+        householdId: hhId,
+        actorId: 'usr_seed_viewer_01',
+        actorRole: 'household_viewer',
+        action: 'CONSENT_GRANTED',
+        previousEpoch: 0,
+        newEpoch: 1,
+        reason: 'Initial opt-in household registration for ZW Track B prototype.',
+        affectedQrTokensInvalidated: 0,
+        ordinaryTvPreserved: true,
+        createdAt: now,
+      },
+    ],
+  };
+}
+
 function createInitialSeed(): EdisonStoreData {
   const now = new Date().toISOString();
+  if (isProductionEnvironment()) {
+    return {
+      schemaVersion: 8,
+      users: [],
+      sessions: [],
+      qrLinks: [],
+      advertiserProfiles: [],
+      campaigns: [],
+      adCreatives: [],
+      supportTickets: [],
+      opportunities: [],
+      opportunityComplaints: [],
+      opportunityAppeals: [],
+      analyticsEvents: [],
+      physicalQrScanTests: [],
+      sharedIntelPreview: createInitialSharedIntelPreviewState(),
+      households: [],
+      householdMembers: [],
+      householdQrTokens: [],
+      consentAuditEvents: [],
+      auditLogs: [
+        {
+          id: `aud_${crypto.randomBytes(6).toString('hex')}`,
+          actorId: null,
+          actorRole: 'system',
+          action: 'STORE_INITIALIZED',
+          targetType: 'system',
+          targetId: 'edison-store',
+          detail:
+            'Production persistence initialized (schema v8; demo/prototype seed accounts and seed PINs disabled).',
+          createdAt: now,
+        },
+      ],
+    };
+  }
+
   const advertiserId = 'usr_seed_adv_01';
   const submitterId = 'usr_seed_opp_01';
   const adminId = 'usr_seed_adm_01';
+  const trackBSeed = buildSeedHouseholdsAndMembers(now);
 
   return {
     schemaVersion: 8,
@@ -753,6 +991,7 @@ function createInitialSeed(): EdisonStoreData {
         isPrototypeSeed: true,
         createdAt: now,
       },
+      buildSeedViewerUser(now),
     ],
     sessions: [],
     qrLinks: [
@@ -801,6 +1040,10 @@ function createInitialSeed(): EdisonStoreData {
     analyticsEvents: [],
     physicalQrScanTests: [],
     sharedIntelPreview: createInitialSharedIntelPreviewState(),
+    households: trackBSeed.households,
+    householdMembers: trackBSeed.householdMembers,
+    householdQrTokens: [],
+    consentAuditEvents: trackBSeed.consentAuditEvents,
     auditLogs: [
       {
         id: `aud_${crypto.randomBytes(6).toString('hex')}`,
@@ -809,7 +1052,7 @@ function createInitialSeed(): EdisonStoreData {
         action: 'STORE_INITIALIZED',
         targetType: 'system',
         targetId: 'edison-store',
-        detail: 'Prototype persistence initialized (schema v8) with seeded accounts, hashed-session support, QR links, profiles, campaigns, studio creatives, opportunities, and Shared Intelligence preview.',
+        detail: 'Prototype persistence initialized (schema v8) with seeded accounts, Track B ZW household/profiles/bundled consent epochs, hashed-session support, QR links, profiles, campaigns, studio creatives, opportunities, and Shared Intelligence preview.',
         createdAt: now,
       },
     ],
@@ -830,13 +1073,15 @@ function normalizeStoreData(parsed: EdisonStoreData): EdisonStoreData {
     };
   });
 
+  const prod = isProductionEnvironment();
+
   const existingProfiles = Array.isArray(parsed.advertiserProfiles) ? parsed.advertiserProfiles : [];
   const profiles =
-    existingProfiles.length > 0 ? existingProfiles : buildSeedAdvertiserProfiles(now);
+    existingProfiles.length > 0 ? existingProfiles : prod ? [] : buildSeedAdvertiserProfiles(now);
 
   const existingCampaigns = Array.isArray(parsed.campaigns) ? parsed.campaigns : [];
   const rawCampaigns =
-    existingCampaigns.length > 0 ? existingCampaigns : buildSeedCampaigns(now);
+    existingCampaigns.length > 0 ? existingCampaigns : prod ? [] : buildSeedCampaigns(now);
   const campaigns: CampaignRecord[] = rawCampaigns.map((c) =>
     c.contentCategory === 'opportunity_promotion' &&
     (c.simulatedEstimate?.model !== 'charity_free_zero_cost' ||
@@ -858,7 +1103,7 @@ function normalizeStoreData(parsed: EdisonStoreData): EdisonStoreData {
 
   const existingCreatives = Array.isArray(parsed.adCreatives) ? parsed.adCreatives : [];
   const rawCreatives =
-    existingCreatives.length > 0 ? existingCreatives : buildSeedAdCreatives(now);
+    existingCreatives.length > 0 ? existingCreatives : prod ? [] : buildSeedAdCreatives(now);
   const adCreatives: AdCreativeRecord[] = rawCreatives.map((cr) => ({
     ...cr,
     textOnly: cr.textOnly ?? null,
@@ -874,11 +1119,11 @@ function normalizeStoreData(parsed: EdisonStoreData): EdisonStoreData {
 
   const existingTickets = Array.isArray(parsed.supportTickets) ? parsed.supportTickets : [];
   const supportTickets =
-    existingTickets.length > 0 ? existingTickets : buildSeedTickets(now);
+    existingTickets.length > 0 ? existingTickets : prod ? [] : buildSeedTickets(now);
 
   const existingOpps = Array.isArray(parsed.opportunities) ? parsed.opportunities : [];
   const opportunities =
-    existingOpps.length > 0 ? existingOpps : buildSeedOpportunities(now);
+    existingOpps.length > 0 ? existingOpps : prod ? [] : buildSeedOpportunities(now);
 
   const opportunityComplaints = Array.isArray(parsed.opportunityComplaints)
     ? parsed.opportunityComplaints
@@ -910,16 +1155,49 @@ function normalizeStoreData(parsed: EdisonStoreData): EdisonStoreData {
     })
     .filter((s): s is SessionRecord => s !== null);
 
+  const existingUsers = Array.isArray(parsed.users) ? [...parsed.users] : [];
+  const existingOppsList = [...opportunities];
+
+  let households = Array.isArray(parsed.households) ? parsed.households : [];
+  let householdMembers = Array.isArray(parsed.householdMembers) ? parsed.householdMembers : [];
+  const householdQrTokens = Array.isArray(parsed.householdQrTokens)
+    ? parsed.householdQrTokens
+    : [];
+  let consentAuditEvents = Array.isArray(parsed.consentAuditEvents)
+    ? parsed.consentAuditEvents
+    : [];
+
+  if (!prod) {
+    const seedTrackB = buildSeedHouseholdsAndMembers(now);
+    if (!existingUsers.some((u) => u.email === 'viewer@edison.demo')) {
+      existingUsers.push(buildSeedViewerUser(now));
+    }
+    const seedOpps = buildSeedOpportunities(now);
+    const zwOpp = seedOpps.find((o) => o.id === 'opp_seed_zw_04');
+    if (zwOpp && !existingOppsList.some((o) => o.id === 'opp_seed_zw_04')) {
+      existingOppsList.push(zwOpp);
+    }
+    if (households.length === 0) {
+      households = seedTrackB.households;
+    }
+    if (householdMembers.length === 0) {
+      householdMembers = seedTrackB.householdMembers;
+    }
+    if (consentAuditEvents.length === 0) {
+      consentAuditEvents = seedTrackB.consentAuditEvents;
+    }
+  }
+
   return {
     schemaVersion: 8,
-    users: parsed.users || [],
+    users: existingUsers,
     sessions: migratedSessions,
     qrLinks: migratedLinks,
     advertiserProfiles: profiles,
     campaigns,
     adCreatives,
     supportTickets,
-    opportunities,
+    opportunities: existingOppsList,
     opportunityComplaints,
     opportunityAppeals,
     analyticsEvents: parsed.analyticsEvents || [],
@@ -928,6 +1206,10 @@ function normalizeStoreData(parsed: EdisonStoreData): EdisonStoreData {
       parsed.sharedIntelPreview && Array.isArray(parsed.sharedIntelPreview.bundles)
         ? parsed.sharedIntelPreview
         : createInitialSharedIntelPreviewState(),
+    households,
+    householdMembers,
+    householdQrTokens,
+    consentAuditEvents,
     auditLogs: parsed.auditLogs || [],
   };
 }
@@ -1114,11 +1396,14 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
       password: string;
       name: string;
       organisationName: string;
-      role: 'advertiser' | 'opportunity_submitter';
+      role: 'advertiser' | 'opportunity_submitter' | 'household_viewer';
     },
     previousSessionToken?: string
   ): { user: PublicUser; session: SessionRecord & { token: string } } {
     const emailNorm = params.email.trim().toLowerCase();
+    if (isProductionEnvironment() && emailNorm.endsWith('.demo')) {
+      throw new Error('FORBIDDEN: Reserved .demo accounts cannot be registered in production.');
+    }
     return this.withWriteTransaction((draft) => {
       if (draft.users.some((u) => u.email === emailNorm)) {
         throw new Error('An account with this email already exists.');
@@ -1139,26 +1424,28 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
       };
 
       draft.users.push(user);
-      draft.advertiserProfiles.push({
-        userId: user.id,
-        entityType: orgName === 'Independent / Individual' ? 'individual_sole_trader' : 'registered_business',
-        businessOrTradingName: orgName,
-        registrationOrTaxId: '',
-        industryCategory: params.role === 'opportunity_submitter' ? 'Employment & Opportunities' : 'General Commercial',
-        countryCode: 'GB',
-        cityRegion: '',
-        physicalAddress: '',
-        primaryContactName: user.name,
-        primaryContactEmail: user.email,
-        primaryContactPhone: '',
-        billingContactName: user.name,
-        billingContactEmail: user.email,
-        websiteUrl: '',
-        verificationStatus: 'unverified',
-        verificationNotes: '',
-        isPrototypeSeed: false,
-        updatedAt: now,
-      });
+      if (params.role !== 'household_viewer') {
+        draft.advertiserProfiles.push({
+          userId: user.id,
+          entityType: orgName === 'Independent / Individual' ? 'individual_sole_trader' : 'registered_business',
+          businessOrTradingName: orgName,
+          registrationOrTaxId: '',
+          industryCategory: params.role === 'opportunity_submitter' ? 'Employment & Opportunities' : 'General Commercial',
+          countryCode: 'ZW',
+          cityRegion: '',
+          physicalAddress: '',
+          primaryContactName: user.name,
+          primaryContactEmail: user.email,
+          primaryContactPhone: '',
+          billingContactName: user.name,
+          billingContactEmail: user.email,
+          websiteUrl: '',
+          verificationStatus: 'unverified',
+          verificationNotes: '',
+          isPrototypeSeed: false,
+          updatedAt: now,
+        });
+      }
 
       const session = this.createSessionInDraft(draft, user, previousSessionToken);
       this.addAudit(
@@ -1182,6 +1469,21 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     const emailNorm = email.trim().toLowerCase();
     return this.withWriteTransaction((draft) => {
       const user = draft.users.find((u) => u.email === emailNorm);
+      if (isProductionEnvironment() && (emailNorm.endsWith('.demo') || (user && isDemoOrSeedUser(user)))) {
+        this.addAudit(
+          draft,
+          null,
+          'anonymous',
+          'DEMO_AUTH_BLOCKED_IN_PRODUCTION',
+          'auth',
+          emailNorm,
+          'Rejected prototype/demo account authentication while NODE_ENV=production.'
+        );
+        throw new Error(
+          'FORBIDDEN: Demo and prototype seed accounts are disabled in production environments.'
+        );
+      }
+
       if (!user || !verifyPassword(password, user.passwordHash)) {
         this.addAudit(
           draft,
@@ -1270,6 +1572,9 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     if (!session) return null;
     const user = this.data.users.find((u) => u.id === session.userId);
     if (!user) return null;
+    if (isProductionEnvironment() && isDemoOrSeedUser(user)) {
+      return null;
+    }
     return { user: toPublicUser(user), session: { ...session } };
   }
 
@@ -1479,7 +1784,116 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     const deduplicated = Boolean(lastHit && nowMs - lastHit < DEDUP_WINDOW_MS);
 
     return this.withWriteTransaction((draft) => {
-      const target = draft.qrLinks.find((q) => q.token === token);
+      let target = draft.qrLinks.find((q) => q.token === token);
+      let boundHouseholdQr: HouseholdQrTokenRecord | null = null;
+
+      if (!target && token.startsWith('hqr_')) {
+        boundHouseholdQr = (draft.householdQrTokens || []).find((hqr) => hqr.token === token) ?? null;
+        if (boundHouseholdQr) {
+          const hh = (draft.households || []).find((h) => h.id === boundHouseholdQr!.householdId) ?? null;
+          const isExpired = Date.parse(boundHouseholdQr.expiresAt) <= nowMs;
+          const isConsentWithdrawn =
+            !hh ||
+            hh.commercialConsentStatus !== 'granted' ||
+            hh.charityAndOpportunityStatus !== 'active';
+          const isLocationInvalid = !hh || !hh.locationValid || hh.targetingDisabled;
+          const isEpochStale = !hh || hh.consentEpoch !== boundHouseholdQr.consentEpoch;
+          const isExplicitlyRevoked = Boolean(boundHouseholdQr.revokedAt);
+
+          if (
+            isExpired ||
+            isConsentWithdrawn ||
+            isLocationInvalid ||
+            isEpochStale ||
+            isExplicitlyRevoked
+          ) {
+            boundHouseholdQr.rejected403Count += 1;
+            const reasonCode = isExpired
+              ? 'QR access token has expired.'
+              : isConsentWithdrawn
+              ? 'Household advertising & opportunity consent has been withdrawn (HTTP 403 revoked).'
+              : isLocationInvalid
+              ? 'Household location validation is incomplete; targeted QR access is disabled.'
+              : 'Household consent epoch changed or QR access was revoked (HTTP 403).';
+
+            draft.consentAuditEvents = draft.consentAuditEvents || [];
+            draft.consentAuditEvents.unshift({
+              id: `caud_${crypto.randomBytes(5).toString('hex')}`,
+              householdId: boundHouseholdQr.householdId,
+              actorId: null,
+              actorRole: 'anonymous',
+              action: 'QR_EPOCH_REVOKED_403',
+              previousEpoch: boundHouseholdQr.consentEpoch,
+              newEpoch: hh?.consentEpoch ?? boundHouseholdQr.consentEpoch,
+              reason: `Blocked /r/${token}: ${reasonCode}`,
+              affectedQrTokensInvalidated: 0,
+              ordinaryTvPreserved: true,
+              createdAt: nowIso,
+            });
+            this.pushAnalyticsEvent(draft, {
+              id: `evt_${crypto.randomBytes(6).toString('hex')}`,
+              qrToken: token,
+              campaignId: boundHouseholdQr.campaignId,
+              eventType: 'redirect_requested',
+              measurementSource: 'real_measured',
+              dedupKey,
+              isSuspectedBot,
+              isDeduplicated: deduplicated,
+              redirectOutcome: isExpired ? 'expired_token' : 'revoked_consent',
+              createdAt: nowIso,
+            });
+            this.addAudit(
+              draft,
+              null,
+              'anonymous',
+              'QR_HOUSEHOLD_EPOCH_REJECTED_403',
+              'consent',
+              token,
+              `Rejected /r/${token} with HTTP 403 (${reasonCode}).`
+            );
+            return {
+              ok: false,
+              reason: reasonCode,
+              statusCode: 403,
+            };
+          }
+
+          if (boundHouseholdQr.opportunityId) {
+            const linkedOpp = draft.opportunities.find(
+              (o) => o.id === boundHouseholdQr!.opportunityId
+            );
+            const today = nowIso.slice(0, 10);
+            if (
+              !linkedOpp ||
+              linkedOpp.status !== 'verified_live' ||
+              linkedOpp.closingDate < today ||
+              linkedOpp.expiryDate < today
+            ) {
+              boundHouseholdQr.rejected403Count += 1;
+              this.pushAnalyticsEvent(draft, {
+                id: `evt_${crypto.randomBytes(6).toString('hex')}`,
+                qrToken: token,
+                campaignId: boundHouseholdQr.campaignId,
+                eventType: 'redirect_requested',
+                measurementSource: 'real_measured',
+                dedupKey,
+                isSuspectedBot,
+                isDeduplicated: deduplicated,
+                redirectOutcome: 'revoked_consent',
+                createdAt: nowIso,
+              });
+              return {
+                ok: false,
+                reason: 'Opportunity linked to this QR token is no longer verified live.',
+                statusCode: 403,
+              };
+            }
+          }
+
+          boundHouseholdQr.resolvedCount += 1;
+          target = draft.qrLinks.find((q) => q.token === boundHouseholdQr!.baseQrToken);
+        }
+      }
 
       if (!target) {
         this.pushAnalyticsEvent(draft, {
@@ -2909,9 +3323,76 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
       requestedSlotCount?: number;
       alternatingPointerStart?: PrimaryAdCategory;
       allowMockBackfill?: boolean;
+      householdId?: string;
+      expectedConsentEpoch?: number;
     }
   ): BreakSchedulePlan {
     this.syncIfDiskNewer();
+
+    let household: HouseholdInstallationRecord | null = null;
+    let tvPersonalisation: BreakSchedulePlan['tvPersonalisation'] = null;
+
+    if (params.householdId) {
+      const gate = this.evaluateHouseholdDeliveryGate(
+        actor,
+        params.householdId,
+        params.expectedConsentEpoch
+      );
+      household = gate.household;
+      if (!gate.allowed) {
+        const suspendedDisplay = buildSafeTvPersonalisationDisplay({
+          household: gate.household,
+          matchedMembers: [],
+          opportunityTitle: 'Suspended',
+        });
+        return {
+          generatedAt: new Date().toISOString(),
+          adapterId: 'simulation_tv_adapter',
+          adapterDisclaimer:
+            'SIMULATION TV ADAPTER ONLY — Bundled household consent gate enforced before scheduling.',
+          requestedBreakDurationSeconds: Math.max(
+            0,
+            Math.round(params.requestedBreakDurationSeconds ?? 65)
+          ),
+          safetyBufferSeconds: Math.max(2, Math.min(15, Math.round(params.safetyBufferSeconds ?? 5))),
+          usableBreakSeconds: 0,
+          requestedSlotCount: Math.max(1, Math.min(6, Math.round(params.requestedSlotCount ?? 4))),
+          k1ShortBreakRuleApplied: false,
+          skipped: true,
+          skipReason: gate.reason,
+          alternatingPointerStart: params.alternatingPointerStart ?? 'CHARITY',
+          nextAlternatingPointer: params.alternatingPointerStart ?? 'CHARITY',
+          slots: [],
+          totalScheduledDurationSeconds: 0,
+          householdConsentEvaluated: true,
+          householdId: gate.household.id,
+          consentEpoch: gate.household.consentEpoch,
+          adDeliverySuspended: true,
+          suspensionReason: gate.reason,
+          ordinaryTvPreserved: true,
+          tvPersonalisation: suspendedDisplay,
+        };
+      }
+
+      const members = (this.data.householdMembers || []).filter(
+        (m) => m.householdId === gate.household.id
+      );
+      const matchRes = matchOpportunitiesForHousehold({
+        household: gate.household,
+        members,
+        opportunities: this.data.opportunities,
+      });
+      const bestMatch =
+        matchRes.matches.find((m) => m.matchedCount > 0) ?? matchRes.matches[0] ?? null;
+      tvPersonalisation = bestMatch
+        ? bestMatch.tvDisplay
+        : buildSafeTvPersonalisationDisplay({
+            household: gate.household,
+            matchedMembers: [],
+            opportunityTitle: 'Verified Community Opportunities',
+          });
+    }
+
     const scopedCampaigns =
       actor.role === 'admin'
         ? this.data.campaigns
@@ -2926,7 +3407,7 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
           );
     const liveOpportunities = this.data.opportunities.filter((o) => o.status === 'verified_live');
 
-    return scheduleCommercialBreak({
+    const basePlan = scheduleCommercialBreak({
       campaigns: scopedCampaigns,
       creatives: scopedCreatives,
       opportunities: liveOpportunities,
@@ -2936,6 +3417,21 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
       alternatingPointerStart: params.alternatingPointerStart,
       allowMockBackfill: params.allowMockBackfill,
     });
+
+    if (household) {
+      return {
+        ...basePlan,
+        householdConsentEvaluated: true,
+        householdId: household.id,
+        consentEpoch: household.consentEpoch,
+        adDeliverySuspended: false,
+        suspensionReason: null,
+        ordinaryTvPreserved: true,
+        tvPersonalisation,
+      };
+    }
+
+    return basePlan;
   }
 
   // --- Opportunity Management, 3-Tier Verification, Expiry, Complaints & Appeals (Block 2.5) ---
@@ -4476,6 +4972,19 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
           '8/8 advertiser ops invariants passed: KYC onboarding readiness gating, paymentCollectionActive=false lock, $0.00 Charity pro-forma isolation, SHA-256 blueprint integrity, pacing classification & SLA breach detection (hardwareTested=false, Stage P6 deferred).',
       },
       {
+        id: 'qa_p2b_track_b_household_consent_qr_revocation',
+        block: 'Track B (DEC-OPEN-01)',
+        label:
+          'Track B: ZW/Intl Household Geo Validation, Multi-Profile Isolation, Personalisation Privacy, Bundled Consent Epochs & HTTP 403 QR Revocation',
+        status: (() => {
+          const tb = runTrackBVerificationSuite();
+          return tb.allPassed && tb.passedChecks === tb.totalChecks ? 'pass' : 'fail';
+        })(),
+        scope: 'automated_invariant',
+        detail:
+          'DEC-OPEN-01 Locked (Scope B + Bundled Withdrawal): 7/7 Track B invariants verified (ZW initial launch config + international configs, geo hierarchy fail-closed, scrypt profile PINs, non-guaranteed matching, TV zero-CV privacy, bundled withdrawal suspending commercial + charity + QR HTTP 403).',
+      },
+      {
         id: 'qa_27_physical_qr_scan',
         block: 'Block 2.7',
         label: 'Physical smartphone camera scan verification on real mobile device',
@@ -4709,18 +5218,19 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     const latestAudit = this.data.auditLogs[0] ?? null;
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 7 — Advertiser and Campaign Operations (Software-First · Non-Transactional Billing)',
-      stage: 'Phases 1–6 Committed · Phase 7 Block 7.1 Advertiser Ops & Pacing Verified · TASK-P3-001 READY',
-      block: 'Block 7.1 (Advertiser Onboarding Gates, Campaign Pacing, Pro-Forma Invoice Blueprint & Support SLA Triage)',
-      gateStatus: 'BLOCK 7.1 VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · STAGE P6 HARDWARE DEFERRED)',
+      phase: 'Phase 2 Track B Complete · Phase 7 Block 7.1 Active (Software-First · Non-Transactional Billing)',
+      stage: 'Phases 1–6 Committed · Phase 2 Track B 100% Complete · Phase 7 Block 7.1 Verified · TASK-P3-001 READY',
+      block: 'Track B (DEC-OPEN-01 Locked: Household Registration, Multi-Profile, Personalisation, Bundled Consent & HTTP 403 QR Revocation) + Block 7.1',
+      gateStatus: 'TRACK B VERIFIED — AWAITING OWNER COMMIT (DEC-OPEN-01 LOCKED · STAGE P6 HARDWARE DEFERRED)',
       progressMetrics: {
-        aiStudioAssignmentPct: 85,
-        softwareToStageP6Pct: 80.3,
-        overallFullAppPct: 56.0,
-        remainingUntilFullAppPct: 44.0,
-        consentBlockedScopePct: 15,
+        aiStudioAssignmentPct: 100,
+        softwareToStageP6Pct: 81.8,
+        overallFullAppPct: 57.0,
+        remainingUntilFullAppPct: 43.0,
+        consentBlockedScopePct: 0,
+        trackBStatus: 'VERIFIED_AWAITING_COMMIT',
         rubricSummary:
-          'Phase 1 Specs (6.0%) + Phase 2 Track A Complete (13.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Complete Committed (12.0%) + Phase 6 Delivery Infra Committed (4.0%) + Phase 7 Block 7.1 Advertiser Ops Awaiting Commit (3.0%) = 56.0% of 15-Phase Full Commercial App (80.3% to Stage P6; 15% Track B blocked on DEC-OPEN-01).',
+          'Phase 1 Specs (6.0%) + Phase 2 Track A+B Complete (14.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Complete Committed (12.0%) + Phase 6 Delivery Infra Committed (4.0%) + Phase 7 Block 7.1 Advertiser Ops (3.0%) = 57.0% of 15-Phase Full Commercial App (81.8% to Stage P6; 100% of original Phase 2 AI Studio scope).',
       },
       latestAuditAt: latestAudit?.createdAt ?? null,
       latestAuditAction: latestAudit?.action ?? null,
@@ -4728,6 +5238,730 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
       summary,
     };
   }
+
+  // --- Track B: Households, Multi-Profile, Personalisation, Bundled Consent & QR Revocation ---
+
+  private assertHouseholdReadAccess(
+    actor: PublicUser,
+    household: HouseholdInstallationRecord
+  ): void {
+    if (
+      isProductionEnvironment() &&
+      (household.isPrototypeSeed || household.ownerUserId === 'usr_seed_viewer_01')
+    ) {
+      throw new Error(
+        'FORBIDDEN: Prototype seed household fixtures and demo PINs are disabled in production environments.'
+      );
+    }
+    if (actor.role === 'admin') return;
+    if (actor.role !== 'household_viewer' || household.ownerUserId !== actor.id) {
+      throw new Error(
+        'FORBIDDEN: Privacy boundary prohibits advertisers, opportunity submitters, or other households from reading private household or profile data.'
+      );
+    }
+  }
+
+  private pushConsentAudit(
+    draft: EdisonStoreData,
+    entry: Omit<ConsentAuditEventRecord, 'id' | 'createdAt' | 'ordinaryTvPreserved'>
+  ): ConsentAuditEventRecord {
+    draft.consentAuditEvents = draft.consentAuditEvents || [];
+    const record: ConsentAuditEventRecord = {
+      id: `caud_${crypto.randomBytes(5).toString('hex')}`,
+      ...entry,
+      ordinaryTvPreserved: true,
+      createdAt: new Date().toISOString(),
+    };
+    draft.consentAuditEvents.unshift(record);
+    if (draft.consentAuditEvents.length > 500) {
+      draft.consentAuditEvents.length = 500;
+    }
+    return record;
+  }
+
+  listHouseholdsForUser(actor: PublicUser): HouseholdInstallationRecord[] {
+    this.syncIfDiskNewer();
+    if (actor.role === 'advertiser' || actor.role === 'opportunity_submitter') {
+      throw new Error(
+        'FORBIDDEN: Advertisers and opportunity submitters cannot list private household installations; use aggregate regional analytics only.'
+      );
+    }
+    const all = this.data.households || [];
+    const filtered =
+      actor.role === 'admin' ? all : all.filter((h) => h.ownerUserId === actor.id);
+    return filtered.map((h) => ({ ...h, location: { ...h.location } }));
+  }
+
+  getHouseholdForActor(actor: PublicUser, householdId: string): HouseholdInstallationRecord {
+    this.syncIfDiskNewer();
+    const hh = (this.data.households || []).find((h) => h.id === householdId);
+    if (!hh) {
+      throw new Error('Household installation not found.');
+    }
+    this.assertHouseholdReadAccess(actor, hh);
+    return { ...hh, location: { ...hh.location } };
+  }
+
+  createHousehold(
+    actor: PublicUser,
+    input: {
+      householdLabel: string;
+      tvDeviceLabel: string;
+      location: HouseholdLocation;
+      commercialConsentGranted: boolean;
+      personalisationMasterEnabled?: boolean;
+      neutralDisplayMode?: boolean;
+    }
+  ): HouseholdInstallationRecord {
+    if (actor.role !== 'household_viewer' && actor.role !== 'admin') {
+      throw new Error(
+        'FORBIDDEN: Only household viewer accounts or admins may register a household TV installation.'
+      );
+    }
+    const geoCheck = validateHouseholdLocationHierarchy(input.location);
+    const now = new Date().toISOString();
+
+    return this.withWriteTransaction((draft) => {
+      draft.households = draft.households || [];
+      const commercialStatus = input.commercialConsentGranted ? 'granted' : 'withdrawn';
+      const hh: HouseholdInstallationRecord = {
+        id: `hh_${crypto.randomBytes(5).toString('hex')}`,
+        ownerUserId: actor.id,
+        householdLabel: input.householdLabel.trim(),
+        tvDeviceLabel: input.tvDeviceLabel.trim(),
+        location: geoCheck.normalized,
+        locationValid: geoCheck.valid,
+        locationValidationErrors: geoCheck.errors,
+        targetingDisabled: !geoCheck.valid,
+        ordinaryTvPreserved: true,
+        commercialConsentStatus: commercialStatus,
+        charityAndOpportunityStatus:
+          commercialStatus === 'granted' ? 'active' : 'suspended_by_bundled_withdrawal',
+        personalisationMasterEnabled: input.personalisationMasterEnabled !== false,
+        neutralDisplayMode: Boolean(input.neutralDisplayMode),
+        consentEpoch: 1,
+        consentVersionLabel: 'DEC-OPEN-01-ScopeB-v1',
+        lastConsentChangedAt: now,
+        isPrototypeSeed: false,
+        createdAt: now,
+        updatedAt: now,
+      };
+      draft.households.unshift(hh);
+
+      this.pushConsentAudit(draft, {
+        householdId: hh.id,
+        actorId: actor.id,
+        actorRole: actor.role,
+        action: commercialStatus === 'granted' ? 'CONSENT_GRANTED' : 'CONSENT_WITHDRAWN_BUNDLED',
+        previousEpoch: 0,
+        newEpoch: 1,
+        reason: `Household registered (${hh.location.countryCode}/${hh.location.provinceOrRegion}); locationValid=${hh.locationValid}; bundledConsent=${commercialStatus}.`,
+        affectedQrTokensInvalidated: 0,
+      });
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'HOUSEHOLD_REGISTERED',
+        'household',
+        hh.id,
+        `Registered household ${hh.id} (${hh.location.countryCode}/${hh.location.cityOrTown}; targetingDisabled=${hh.targetingDisabled}; ordinaryTvPreserved=true).`
+      );
+      return { ...hh, location: { ...hh.location } };
+    });
+  }
+
+  updateHouseholdLocation(
+    actor: PublicUser,
+    householdId: string,
+    location: HouseholdLocation
+  ): HouseholdInstallationRecord {
+    const geoCheck = validateHouseholdLocationHierarchy(location);
+    return this.withWriteTransaction((draft) => {
+      draft.households = draft.households || [];
+      const hh = draft.households.find((h) => h.id === householdId);
+      if (!hh) throw new Error('Household installation not found.');
+      this.assertHouseholdReadAccess(actor, hh);
+
+      hh.location = geoCheck.normalized;
+      hh.locationValid = geoCheck.valid;
+      hh.locationValidationErrors = geoCheck.errors;
+      hh.targetingDisabled = !geoCheck.valid;
+      hh.updatedAt = new Date().toISOString();
+
+      this.pushConsentAudit(draft, {
+        householdId: hh.id,
+        actorId: actor.id,
+        actorRole: actor.role,
+        action: 'LOCATION_UPDATED',
+        previousEpoch: hh.consentEpoch,
+        newEpoch: hh.consentEpoch,
+        reason: geoCheck.valid
+          ? `Updated validated geo hierarchy (${hh.location.countryCode}/${hh.location.provinceOrRegion}/${hh.location.cityOrTown}).`
+          : `Location update flagged invalid (${geoCheck.errors[0] ?? 'hierarchy mismatch'}); targeted ads disabled, ordinary TV preserved.`,
+        affectedQrTokensInvalidated: 0,
+      });
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'HOUSEHOLD_LOCATION_UPDATED',
+        'household',
+        hh.id,
+        `Updated household location (${hh.location.countryCode}/${hh.location.provinceOrRegion}; locationValid=${hh.locationValid}).`
+      );
+      return { ...hh, location: { ...hh.location } };
+    });
+  }
+
+  updateHouseholdDisplaySettings(
+    actor: PublicUser,
+    householdId: string,
+    input: {
+      householdLabel?: string;
+      tvDeviceLabel?: string;
+      personalisationMasterEnabled?: boolean;
+      neutralDisplayMode?: boolean;
+    }
+  ): HouseholdInstallationRecord {
+    return this.withWriteTransaction((draft) => {
+      draft.households = draft.households || [];
+      const hh = draft.households.find((h) => h.id === householdId);
+      if (!hh) throw new Error('Household installation not found.');
+      this.assertHouseholdReadAccess(actor, hh);
+
+      if (input.householdLabel !== undefined) hh.householdLabel = input.householdLabel.trim();
+      if (input.tvDeviceLabel !== undefined) hh.tvDeviceLabel = input.tvDeviceLabel.trim();
+      if (input.personalisationMasterEnabled !== undefined) {
+        hh.personalisationMasterEnabled = input.personalisationMasterEnabled;
+      }
+      if (input.neutralDisplayMode !== undefined) {
+        hh.neutralDisplayMode = input.neutralDisplayMode;
+      }
+      hh.updatedAt = new Date().toISOString();
+
+      this.pushConsentAudit(draft, {
+        householdId: hh.id,
+        actorId: actor.id,
+        actorRole: actor.role,
+        action: 'NEUTRAL_MODE_CHANGED',
+        previousEpoch: hh.consentEpoch,
+        newEpoch: hh.consentEpoch,
+        reason: `Display preferences updated (personalisationMasterEnabled=${hh.personalisationMasterEnabled}, neutralDisplayMode=${hh.neutralDisplayMode}).`,
+        affectedQrTokensInvalidated: 0,
+      });
+      return { ...hh, location: { ...hh.location } };
+    });
+  }
+
+  withdrawHouseholdConsentBundled(
+    actor: PublicUser,
+    householdId: string,
+    reason: string
+  ): {
+    household: HouseholdInstallationRecord;
+    revokedQrTokensCount: number;
+    auditEvent: ConsentAuditEventRecord;
+  } {
+    const now = new Date().toISOString();
+    return this.withWriteTransaction((draft) => {
+      draft.households = draft.households || [];
+      draft.householdQrTokens = draft.householdQrTokens || [];
+      const hh = draft.households.find((h) => h.id === householdId);
+      if (!hh) throw new Error('Household installation not found.');
+      this.assertHouseholdReadAccess(actor, hh);
+
+      const previousEpoch = hh.consentEpoch;
+      const nextEpoch = previousEpoch + 1;
+      hh.commercialConsentStatus = 'withdrawn';
+      hh.charityAndOpportunityStatus = 'suspended_by_bundled_withdrawal';
+      hh.consentEpoch = nextEpoch;
+      hh.lastConsentChangedAt = now;
+      hh.updatedAt = now;
+
+      let revokedQrTokensCount = 0;
+      for (const qrt of draft.householdQrTokens) {
+        if (qrt.householdId === hh.id && !qrt.revokedAt) {
+          qrt.revokedAt = now;
+          qrt.revokedReason = `BUNDLED_CONSENT_WITHDRAWAL (epoch ${previousEpoch} -> ${nextEpoch}): ${reason.trim()}`;
+          revokedQrTokensCount += 1;
+        }
+      }
+
+      const auditEvent = this.pushConsentAudit(draft, {
+        householdId: hh.id,
+        actorId: actor.id,
+        actorRole: actor.role,
+        action: 'CONSENT_WITHDRAWN_BUNDLED',
+        previousEpoch,
+        newEpoch: nextEpoch,
+        reason: `Bundled withdrawal enforced (DEC-OPEN-01): ${reason.trim()}. Suspended commercial + charity + opportunities + personalisation + invalidated ${revokedQrTokensCount} QR token(s). Ordinary TV remains functional.`,
+        affectedQrTokensInvalidated: revokedQrTokensCount,
+      });
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'HOUSEHOLD_CONSENT_WITHDRAWN_BUNDLED',
+        'consent',
+        hh.id,
+        `Withdrew household consent (epoch ${previousEpoch}->${nextEpoch}); suspended commercial + charity/opportunities; revoked ${revokedQrTokensCount} QR tokens; ordinary TV intact.`
+      );
+
+      return {
+        household: { ...hh, location: { ...hh.location } },
+        revokedQrTokensCount,
+        auditEvent,
+      };
+    });
+  }
+
+  restoreHouseholdConsentExplicit(
+    actor: PublicUser,
+    householdId: string,
+    input: { explicitConfirmation: boolean; reason: string }
+  ): {
+    household: HouseholdInstallationRecord;
+    auditEvent: ConsentAuditEventRecord;
+  } {
+    if (!input.explicitConfirmation) {
+      throw new Error(
+        'Explicit viewer confirmation is required to restore bundled household consent.'
+      );
+    }
+    const now = new Date().toISOString();
+    return this.withWriteTransaction((draft) => {
+      draft.households = draft.households || [];
+      const hh = draft.households.find((h) => h.id === householdId);
+      if (!hh) throw new Error('Household installation not found.');
+      this.assertHouseholdReadAccess(actor, hh);
+
+      const previousEpoch = hh.consentEpoch;
+      const nextEpoch = previousEpoch + 1; // Increment again so pre-withdrawal QR tokens stay forever 403!
+      hh.commercialConsentStatus = 'granted';
+      hh.charityAndOpportunityStatus = 'active';
+      hh.consentEpoch = nextEpoch;
+      hh.lastConsentChangedAt = now;
+      hh.updatedAt = now;
+
+      const auditEvent = this.pushConsentAudit(draft, {
+        householdId: hh.id,
+        actorId: actor.id,
+        actorRole: actor.role,
+        action: 'CONSENT_RESTORED_EXPLICIT',
+        previousEpoch,
+        newEpoch: nextEpoch,
+        reason: `Explicit auditable consent restoration: ${input.reason.trim()} (prior epoch tokens remain permanently invalidated HTTP 403).`,
+        affectedQrTokensInvalidated: 0,
+      });
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'HOUSEHOLD_CONSENT_RESTORED_EXPLICIT',
+        'consent',
+        hh.id,
+        `Explicitly restored household consent (epoch ${previousEpoch}->${nextEpoch}).`
+      );
+
+      return {
+        household: { ...hh, location: { ...hh.location } },
+        auditEvent,
+      };
+    });
+  }
+
+  listHouseholdMembers(
+    actor: PublicUser,
+    householdId: string
+  ): Array<Omit<HouseholdMemberProfile, 'pinHash'>> {
+    this.syncIfDiskNewer();
+    const hh = (this.data.households || []).find((h) => h.id === householdId);
+    if (!hh) throw new Error('Household installation not found.');
+    this.assertHouseholdReadAccess(actor, hh);
+    return (this.data.householdMembers || [])
+      .filter((m) => m.householdId === householdId)
+      .map((m) => sanitizeMemberForList(m));
+  }
+
+  createHouseholdMember(
+    actor: PublicUser,
+    householdId: string,
+    input: {
+      displayName: string;
+      pin?: string;
+      personalisationConsentGranted?: boolean;
+      educationLevel?: string;
+      qualifications?: string[];
+      skills?: string[];
+      experienceSummary?: string;
+      experienceYears?: number;
+      occupationOrTrade?: string;
+      employmentInterests?: string[];
+      careerAspirations?: string;
+      industries?: string[];
+      interestedCategories?: OpportunityCategory[];
+    }
+  ): Omit<HouseholdMemberProfile, 'pinHash'> {
+    const now = new Date().toISOString();
+    return this.withWriteTransaction((draft) => {
+      const hh = (draft.households || []).find((h) => h.id === householdId);
+      if (!hh) throw new Error('Household installation not found.');
+      this.assertHouseholdReadAccess(actor, hh);
+
+      draft.householdMembers = draft.householdMembers || [];
+      const member: HouseholdMemberProfile = {
+        id: `mem_${crypto.randomBytes(5).toString('hex')}`,
+        householdId,
+        ownerUserId: hh.ownerUserId,
+        displayName: input.displayName.trim(),
+        pinHash: input.pin ? hashProfilePin(input.pin) : null,
+        hasPinLock: Boolean(input.pin),
+        personalisationConsentGranted: input.personalisationConsentGranted !== false,
+        educationLevel: (input.educationLevel || '').trim(),
+        qualifications: (input.qualifications || []).map((s) => s.trim()).filter(Boolean),
+        skills: (input.skills || []).map((s) => s.trim()).filter(Boolean),
+        experienceSummary: (input.experienceSummary || '').trim(),
+        experienceYears: Math.max(0, Math.round(input.experienceYears ?? 0)),
+        occupationOrTrade: (input.occupationOrTrade || '').trim(),
+        employmentInterests: (input.employmentInterests || []).map((s) => s.trim()).filter(Boolean),
+        careerAspirations: (input.careerAspirations || '').trim(),
+        industries: (input.industries || []).map((s) => s.trim()).filter(Boolean),
+        interestedCategories: input.interestedCategories || [],
+        createdAt: now,
+        updatedAt: now,
+      };
+      draft.householdMembers.push(member);
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'HOUSEHOLD_MEMBER_CREATED',
+        'household',
+        member.id,
+        `Added household profile "${member.displayName}" to household ${householdId} (personalisationConsent=${member.personalisationConsentGranted}).`
+      );
+      return sanitizeMemberForList(member);
+    });
+  }
+
+  updateHouseholdMember(
+    actor: PublicUser,
+    householdId: string,
+    memberId: string,
+    input: {
+      pinVerification?: string;
+      displayName?: string;
+      newPin?: string | null;
+      personalisationConsentGranted?: boolean;
+      educationLevel?: string;
+      qualifications?: string[];
+      skills?: string[];
+      experienceSummary?: string;
+      experienceYears?: number;
+      occupationOrTrade?: string;
+      employmentInterests?: string[];
+      careerAspirations?: string;
+      industries?: string[];
+      interestedCategories?: OpportunityCategory[];
+    }
+  ): Omit<HouseholdMemberProfile, 'pinHash'> {
+    return this.withWriteTransaction((draft) => {
+      const hh = (draft.households || []).find((h) => h.id === householdId);
+      if (!hh) throw new Error('Household installation not found.');
+      this.assertHouseholdReadAccess(actor, hh);
+
+      const member = (draft.householdMembers || []).find(
+        (m) => m.id === memberId && m.householdId === householdId
+      );
+      if (!member) throw new Error('Household member profile not found.');
+
+      if (member.hasPinLock && member.pinHash && actor.role !== 'admin') {
+        if (!input.pinVerification || !verifyProfilePin(input.pinVerification, member.pinHash)) {
+          throw new Error('FORBIDDEN: Invalid or missing profile PIN verification for this member.');
+        }
+      }
+
+      if (input.displayName !== undefined) member.displayName = input.displayName.trim();
+      if (input.newPin === null) {
+        member.pinHash = null;
+        member.hasPinLock = false;
+      } else if (typeof input.newPin === 'string' && input.newPin.length >= 4) {
+        member.pinHash = hashProfilePin(input.newPin);
+        member.hasPinLock = true;
+      }
+      if (input.personalisationConsentGranted !== undefined) {
+        member.personalisationConsentGranted = input.personalisationConsentGranted;
+        this.pushConsentAudit(draft, {
+          householdId,
+          actorId: actor.id,
+          actorRole: actor.role,
+          action: 'MEMBER_CONSENT_UPDATED',
+          previousEpoch: hh.consentEpoch,
+          newEpoch: hh.consentEpoch,
+          reason: `Member ${member.displayName} personalisationConsentGranted=${input.personalisationConsentGranted}.`,
+          affectedQrTokensInvalidated: 0,
+        });
+      }
+      if (input.educationLevel !== undefined) member.educationLevel = input.educationLevel.trim();
+      if (input.qualifications !== undefined) member.qualifications = input.qualifications;
+      if (input.skills !== undefined) member.skills = input.skills;
+      if (input.experienceSummary !== undefined)
+        member.experienceSummary = input.experienceSummary.trim();
+      if (input.experienceYears !== undefined)
+        member.experienceYears = Math.max(0, Math.round(input.experienceYears));
+      if (input.occupationOrTrade !== undefined)
+        member.occupationOrTrade = input.occupationOrTrade.trim();
+      if (input.employmentInterests !== undefined)
+        member.employmentInterests = input.employmentInterests;
+      if (input.careerAspirations !== undefined)
+        member.careerAspirations = input.careerAspirations.trim();
+      if (input.industries !== undefined) member.industries = input.industries;
+      if (input.interestedCategories !== undefined)
+        member.interestedCategories = input.interestedCategories;
+      member.updatedAt = new Date().toISOString();
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'HOUSEHOLD_MEMBER_UPDATED',
+        'household',
+        member.id,
+        `Updated household profile ${member.id} (consent=${member.personalisationConsentGranted}).`
+      );
+      return sanitizeMemberForList(member);
+    });
+  }
+
+  deleteHouseholdMember(
+    actor: PublicUser,
+    householdId: string,
+    memberId: string,
+    pinVerification?: string
+  ): void {
+    this.withWriteTransaction((draft) => {
+      const hh = (draft.households || []).find((h) => h.id === householdId);
+      if (!hh) throw new Error('Household installation not found.');
+      this.assertHouseholdReadAccess(actor, hh);
+
+      draft.householdMembers = draft.householdMembers || [];
+      const member = draft.householdMembers.find(
+        (m) => m.id === memberId && m.householdId === householdId
+      );
+      if (!member) throw new Error('Household member profile not found.');
+
+      if (member.hasPinLock && member.pinHash && actor.role !== 'admin') {
+        if (!pinVerification || !verifyProfilePin(pinVerification, member.pinHash)) {
+          throw new Error('FORBIDDEN: Invalid or missing profile PIN verification for deletion.');
+        }
+      }
+
+      draft.householdMembers = draft.householdMembers.filter((m) => m.id !== memberId);
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'HOUSEHOLD_MEMBER_DELETED',
+        'household',
+        memberId,
+        `Deleted household profile ${memberId} from ${householdId}.`
+      );
+    });
+  }
+
+  evaluateHouseholdOpportunityMatches(
+    actor: PublicUser,
+    householdId: string
+  ): {
+    householdId: string;
+    consentEpoch: number;
+    commercialConsentStatus: HouseholdInstallationRecord['commercialConsentStatus'];
+    charityAndOpportunityStatus: HouseholdInstallationRecord['charityAndOpportunityStatus'];
+    neutralDisplayMode: boolean;
+    deliverySuspended: boolean;
+    suspensionReason: string | null;
+    ordinaryTvPreserved: true;
+    matches: HouseholdOpportunityMatchResult[];
+  } {
+    this.syncIfDiskNewer();
+    const hh = (this.data.households || []).find((h) => h.id === householdId);
+    if (!hh) throw new Error('Household installation not found.');
+    this.assertHouseholdReadAccess(actor, hh);
+
+    const members = (this.data.householdMembers || []).filter(
+      (m) => m.householdId === householdId
+    );
+    const result = matchOpportunitiesForHousehold({
+      household: hh,
+      members,
+      opportunities: this.data.opportunities,
+    });
+
+    return {
+      householdId: hh.id,
+      consentEpoch: hh.consentEpoch,
+      commercialConsentStatus: hh.commercialConsentStatus,
+      charityAndOpportunityStatus: hh.charityAndOpportunityStatus,
+      neutralDisplayMode: hh.neutralDisplayMode,
+      ...result,
+    };
+  }
+
+  issueHouseholdEpochQrToken(
+    actor: PublicUser,
+    householdId: string,
+    input: {
+      baseQrToken: string;
+      opportunityId?: string | null;
+      campaignId?: string | null;
+      ttlSeconds?: number;
+    }
+  ): HouseholdQrTokenRecord {
+    const nowMs = Date.now();
+    const nowIso = new Date(nowMs).toISOString();
+    const ttlMs = Math.max(1000, Math.min(86400 * 1000, (input.ttlSeconds ?? 1800) * 1000));
+
+    return this.withWriteTransaction((draft) => {
+      const hh = (draft.households || []).find((h) => h.id === householdId);
+      if (!hh) throw new Error('Household installation not found.');
+      this.assertHouseholdReadAccess(actor, hh);
+
+      if (
+        hh.commercialConsentStatus !== 'granted' ||
+        hh.charityAndOpportunityStatus !== 'active'
+      ) {
+        throw new Error(
+          'FORBIDDEN: Cannot issue household QR access token while household bundled consent is withdrawn.'
+        );
+      }
+      if (!hh.locationValid || hh.targetingDisabled) {
+        throw new Error(
+          'Household location validation is invalid; targeted QR token issuance disabled.'
+        );
+      }
+
+      const baseQr = draft.qrLinks.find((q) => q.token === input.baseQrToken);
+      if (!baseQr || baseQr.status !== 'active') {
+        throw new Error('Base QR link is missing or not active.');
+      }
+
+      draft.householdQrTokens = draft.householdQrTokens || [];
+      const tokenRecord: HouseholdQrTokenRecord = {
+        token: `hqr_${crypto.randomBytes(6).toString('hex')}`,
+        baseQrToken: baseQr.token,
+        householdId: hh.id,
+        opportunityId: input.opportunityId ?? null,
+        campaignId: input.campaignId ?? null,
+        consentEpoch: hh.consentEpoch,
+        issuedAt: nowIso,
+        expiresAt: new Date(nowMs + ttlMs).toISOString(),
+        revokedAt: null,
+        revokedReason: null,
+        resolvedCount: 0,
+        rejected403Count: 0,
+      };
+      draft.householdQrTokens.unshift(tokenRecord);
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'HOUSEHOLD_EPOCH_QR_ISSUED',
+        'consent',
+        tokenRecord.token,
+        `Issued epoch-${hh.consentEpoch} QR token /r/${tokenRecord.token} bound to household ${hh.id} (expires ${tokenRecord.expiresAt}).`
+      );
+      return { ...tokenRecord };
+    });
+  }
+
+  listHouseholdQrTokens(actor: PublicUser, householdId: string): HouseholdQrTokenRecord[] {
+    this.syncIfDiskNewer();
+    const hh = (this.data.households || []).find((h) => h.id === householdId);
+    if (!hh) throw new Error('Household installation not found.');
+    this.assertHouseholdReadAccess(actor, hh);
+    return (this.data.householdQrTokens || [])
+      .filter((t) => t.householdId === householdId)
+      .map((t) => ({ ...t }));
+  }
+
+  listConsentAuditEvents(actor: PublicUser, householdId: string): ConsentAuditEventRecord[] {
+    this.syncIfDiskNewer();
+    const hh = (this.data.households || []).find((h) => h.id === householdId);
+    if (!hh) throw new Error('Household installation not found.');
+    this.assertHouseholdReadAccess(actor, hh);
+    return (this.data.consentAuditEvents || [])
+      .filter((e) => e.householdId === householdId)
+      .map((e) => ({ ...e }));
+  }
+
+  evaluateHouseholdDeliveryGate(
+    actor: PublicUser,
+    householdId: string,
+    expectedConsentEpoch?: number
+  ): {
+    allowed: boolean;
+    household: HouseholdInstallationRecord;
+    reason: string | null;
+  } {
+    this.syncIfDiskNewer();
+    const hh = (this.data.households || []).find((h) => h.id === householdId);
+    if (!hh) {
+      throw new Error('Household installation not found.');
+    }
+    this.assertHouseholdReadAccess(actor, hh);
+
+    if (
+      hh.commercialConsentStatus !== 'granted' ||
+      hh.charityAndOpportunityStatus !== 'active'
+    ) {
+      return {
+        allowed: false,
+        household: { ...hh, location: { ...hh.location } },
+        reason:
+          'Bundled consent withdrawal is active: commercial advertising, charity ads, opportunities, and personalisation are suspended (ordinary TV preserved).',
+      };
+    }
+
+    if (!hh.locationValid || hh.targetingDisabled) {
+      return {
+        allowed: false,
+        household: { ...hh, location: { ...hh.location } },
+        reason:
+          'Household geographic hierarchy is missing or invalid; targeted ad delivery is disabled while ordinary TV continues.',
+      };
+    }
+
+    if (
+      typeof expectedConsentEpoch === 'number' &&
+      expectedConsentEpoch !== hh.consentEpoch
+    ) {
+      return {
+        allowed: false,
+        household: { ...hh, location: { ...hh.location } },
+        reason: `Stale consent epoch (${expectedConsentEpoch} != current ${hh.consentEpoch}); stale caches and tokens rejected fail-closed.`,
+      };
+    }
+
+    return {
+      allowed: true,
+      household: { ...hh, location: { ...hh.location } },
+      reason: null,
+    };
+  }
+
+  getAdvertiserGeoAggregates(actor: PublicUser): AdvertiserGeoAggregateRow[] {
+    this.syncIfDiskNewer();
+    if (!actor) throw new Error('Authentication required.');
+    // Strictly returns only non-identifying coarse city/province household counts (never addresses or profiles).
+    return computeAdvertiserGeoAggregates(this.data.households || []);
+  }
 }
 
 export const edisonStore = new EdisonPrototypeStore();
+

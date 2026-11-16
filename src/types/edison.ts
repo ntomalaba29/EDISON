@@ -1,4 +1,4 @@
-export type UserRole = 'advertiser' | 'opportunity_submitter' | 'admin';
+export type UserRole = 'advertiser' | 'opportunity_submitter' | 'admin' | 'household_viewer';
 
 export type AccountVerificationStatus =
   | 'unverified'
@@ -391,6 +391,9 @@ export interface OpportunityRecord {
   advertisingFeeInfluencesVerification: false;
   rejectionReason: string | null;
   suspensionReason: string | null;
+  countryCode?: string;
+  provinceOrRegion?: string;
+  structuredCriteria?: OpportunityStructuredCriteria;
   isPrototypeSeed: boolean;
   createdAt: string;
   updatedAt: string;
@@ -464,7 +467,13 @@ export interface AnalyticsEventRecord {
   dedupKey: string;
   isSuspectedBot?: boolean;
   isDeduplicated?: boolean;
-  redirectOutcome?: 'issued' | 'not_found' | 'inactive' | 'flagged';
+  redirectOutcome?:
+    | 'issued'
+    | 'not_found'
+    | 'inactive'
+    | 'flagged'
+    | 'revoked_consent'
+    | 'expired_token';
   createdAt: string;
 }
 
@@ -482,6 +491,8 @@ export interface AuditLogRecord {
     | 'media_upload'
     | 'support_ticket'
     | 'opportunity'
+    | 'household'
+    | 'consent'
     | 'qa_handover'
     | 'system';
   targetId: string;
@@ -563,6 +574,10 @@ export interface EdisonStoreData {
   physicalQrScanTests: PhysicalQrScanTestRecord[];
   auditLogs: AuditLogRecord[];
   sharedIntelPreview?: SharedIntelPreviewState;
+  households?: HouseholdInstallationRecord[];
+  householdMembers?: HouseholdMemberProfile[];
+  householdQrTokens?: HouseholdQrTokenRecord[];
+  consentAuditEvents?: ConsentAuditEventRecord[];
 }
 
 export interface EdisonProgressMetrics {
@@ -571,6 +586,7 @@ export interface EdisonProgressMetrics {
   overallFullAppPct: number;
   remainingUntilFullAppPct: number;
   consentBlockedScopePct: number;
+  trackBStatus?: string;
   rubricSummary: string;
 }
 
@@ -691,6 +707,13 @@ export interface BreakSchedulePlan {
   nextAlternatingPointer: PrimaryAdCategory;
   slots: ScheduledBreakSlot[];
   totalScheduledDurationSeconds: number;
+  householdConsentEvaluated?: boolean;
+  householdId?: string | null;
+  consentEpoch?: number | null;
+  adDeliverySuspended?: boolean;
+  suspensionReason?: string | null;
+  ordinaryTvPreserved?: true;
+  tvPersonalisation?: TvBreakPersonalisationDisplay | null;
 }
 
 export interface RevenueStreamLedgerRow {
@@ -1506,6 +1529,10 @@ export interface DeliveryPreloadManifestResult {
   isSoftwareSimulationOnly: true;
   hardwareTested: false;
   stageP6Deferred: true;
+  householdId?: string | null;
+  consentEpoch?: number | null;
+  adDeliverySuspended?: boolean;
+  suspensionReason?: string | null;
 }
 
 export interface DeliveryEventIngestItem {
@@ -1701,5 +1728,233 @@ export interface AdvertiserOpsVerificationReport {
   allPassed: boolean;
   checks: AdvertiserOpsVerifyCheckItem[];
 }
+
+// --- Track B (DEC-OPEN-01 Locked): Household Registration, Multi-Profile, Personalisation, Bundled Consent & QR Revocation ---
+
+export interface CountryGeoProvinceConfig {
+  name: string;
+  metroArea: string | null;
+  cities: Array<{
+    name: string;
+    districts: Array<{
+      name: string;
+      suburbs: string[];
+    }>;
+  }>;
+}
+
+export interface CountryGeoConfig {
+  countryCode: string;
+  countryName: string;
+  isInitialLaunchMarket: boolean;
+  countryActivated: false;
+  metroAreasSupported: boolean;
+  bundledWithdrawalEnforced: true;
+  legalConsentBaseline: string;
+  provinces: CountryGeoProvinceConfig[];
+}
+
+export interface HouseholdLocation {
+  countryCode: string;
+  provinceOrRegion: string;
+  metroArea: string;
+  cityOrTown: string;
+  district: string;
+  suburbOrArea: string;
+  exactInstallationLocation: string;
+}
+
+export interface PublicHouseholdLocation {
+  countryCode: string;
+  provinceOrRegion: string;
+  metroArea: string;
+  cityOrTown: string;
+  district: string;
+  targetingKey: string;
+  exactLocationRedacted: true;
+}
+
+export type HouseholdConsentStatus = 'granted' | 'withdrawn';
+
+export type CharityDeliveryConsentState = 'active' | 'suspended_by_bundled_withdrawal';
+
+export interface HouseholdInstallationRecord {
+  id: string;
+  ownerUserId: string;
+  householdLabel: string;
+  tvDeviceLabel: string;
+  location: HouseholdLocation;
+  locationValid: boolean;
+  locationValidationErrors: string[];
+  targetingDisabled: boolean;
+  ordinaryTvPreserved: true;
+  commercialConsentStatus: HouseholdConsentStatus;
+  charityAndOpportunityStatus: CharityDeliveryConsentState;
+  personalisationMasterEnabled: boolean;
+  neutralDisplayMode: boolean;
+  consentEpoch: number;
+  consentVersionLabel: string;
+  lastConsentChangedAt: string;
+  isPrototypeSeed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublicHouseholdInstallationView {
+  id: string;
+  ownerUserId: string;
+  householdLabel: string;
+  tvDeviceLabel: string;
+  publicLocation: PublicHouseholdLocation;
+  locationValid: boolean;
+  locationValidationErrors: string[];
+  targetingDisabled: boolean;
+  ordinaryTvPreserved: true;
+  commercialConsentStatus: HouseholdConsentStatus;
+  charityAndOpportunityStatus: CharityDeliveryConsentState;
+  personalisationMasterEnabled: boolean;
+  neutralDisplayMode: boolean;
+  consentEpoch: number;
+  consentVersionLabel: string;
+  lastConsentChangedAt: string;
+  isPrototypeSeed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HouseholdMemberProfile {
+  id: string;
+  householdId: string;
+  ownerUserId: string;
+  displayName: string;
+  pinHash?: string | null;
+  hasPinLock: boolean;
+  personalisationConsentGranted: boolean;
+  educationLevel: string;
+  qualifications: string[];
+  skills: string[];
+  experienceSummary: string;
+  experienceYears: number;
+  occupationOrTrade: string;
+  employmentInterests: string[];
+  careerAspirations: string;
+  industries: string[];
+  interestedCategories: OpportunityCategory[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OpportunityStructuredCriteria {
+  requiredKeywords: string[];
+  preferredKeywords: string[];
+  optionalKeywords: string[];
+  minExperienceYears?: number;
+  targetProvinces?: string[];
+  targetCities?: string[];
+}
+
+export interface HouseholdMatchMemberDetail {
+  memberId: string;
+  displayName: string;
+  scorePct: number;
+  requiredMet: string[];
+  requiredMissing: string[];
+  preferredMet: string[];
+  optionalMatched: string[];
+  eligible: boolean;
+}
+
+export interface TvBreakPersonalisationDisplay {
+  mode: 'single_named' | 'multi_named' | 'neutral_shared' | 'suspended_no_consent';
+  tvHeadline: string;
+  tvSubline: string;
+  namedRecipientsCount: number;
+  privateDataExposed: false;
+  ordinaryTvUsable: true;
+}
+
+export interface HouseholdOpportunityMatchResult {
+  opportunityId: string;
+  opportunityTitle: string;
+  providerName: string;
+  category: OpportunityCategory;
+  locationLabel: string;
+  closingDate: string;
+  matchedCount: number;
+  matchedMembers: HouseholdMatchMemberDetail[];
+  excludedMembersCount: number;
+  excludedReasons: string[];
+  tvDisplay: TvBreakPersonalisationDisplay;
+  guaranteeDisclaimer: string;
+  baseQrToken: string | null;
+}
+
+export interface HouseholdQrTokenRecord {
+  token: string;
+  baseQrToken: string;
+  householdId: string;
+  opportunityId: string | null;
+  campaignId: string | null;
+  consentEpoch: number;
+  issuedAt: string;
+  expiresAt: string;
+  revokedAt: string | null;
+  revokedReason: string | null;
+  resolvedCount: number;
+  rejected403Count: number;
+}
+
+export type ConsentAuditAction =
+  | 'CONSENT_GRANTED'
+  | 'CONSENT_WITHDRAWN_BUNDLED'
+  | 'CONSENT_RESTORED_EXPLICIT'
+  | 'NEUTRAL_MODE_CHANGED'
+  | 'MEMBER_CONSENT_UPDATED'
+  | 'LOCATION_UPDATED'
+  | 'QR_EPOCH_REVOKED_403'
+  | 'BYPASS_ATTEMPT_BLOCKED';
+
+export interface ConsentAuditEventRecord {
+  id: string;
+  householdId: string;
+  actorId: string | null;
+  actorRole: UserRole | 'anonymous' | 'system';
+  action: ConsentAuditAction;
+  previousEpoch: number;
+  newEpoch: number;
+  reason: string;
+  affectedQrTokensInvalidated: number;
+  ordinaryTvPreserved: true;
+  createdAt: string;
+}
+
+export interface AdvertiserGeoAggregateRow {
+  countryCode: string;
+  provinceOrRegion: string;
+  cityOrTown: string;
+  targetingKey: string;
+  consentedEligibleHouseholdsCount: number;
+  activeTvSlotsCount: number;
+  privateAddressesExposed: false;
+  individualProfilesExposed: false;
+}
+
+export interface TrackBVerificationCheckItem {
+  checkId: string;
+  label: string;
+  passed: boolean;
+  detail: string;
+}
+
+export interface TrackBVerificationReport {
+  generatedAt: string;
+  decOpen01Status: 'LOCKED_SCOPE_B_BUNDLED_WITHDRAWAL';
+  initialLaunchMarket: 'ZW';
+  totalChecks: number;
+  passedChecks: number;
+  allPassed: boolean;
+  checks: TrackBVerificationCheckItem[];
+}
+
 
 

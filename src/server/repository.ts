@@ -4,6 +4,7 @@ import type {
   AdStudioMode,
   AdminModerationOverview,
   AdvertiserEntityType,
+  AdvertiserGeoAggregateRow,
   AdvertiserProfile,
   AnalyticsEventRecord,
   AuditLogRecord,
@@ -12,7 +13,13 @@ import type {
   CampaignPreviewGateResult,
   CampaignRecord,
   CampaignStatus,
+  ConsentAuditEventRecord,
   DaypartSlot,
+  HouseholdInstallationRecord,
+  HouseholdLocation,
+  HouseholdMemberProfile,
+  HouseholdOpportunityMatchResult,
+  HouseholdQrTokenRecord,
   LiveReportSnapshot,
   OpportunityAppealRecord,
   OpportunityAppealStatus,
@@ -74,7 +81,7 @@ export interface EdisonDataRepository {
       password: string;
       name: string;
       organisationName: string;
-      role: 'advertiser' | 'opportunity_submitter';
+      role: 'advertiser' | 'opportunity_submitter' | 'household_viewer';
     },
     previousSessionToken?: string
   ): { user: PublicUser; session: SessionRecord & { token: string } };
@@ -286,6 +293,8 @@ export interface EdisonDataRepository {
       requestedSlotCount?: number;
       alternatingPointerStart?: PrimaryAdCategory;
       allowMockBackfill?: boolean;
+      householdId?: string;
+      expectedConsentEpoch?: number;
     }
   ): BreakSchedulePlan;
 
@@ -462,4 +471,154 @@ export interface EdisonDataRepository {
 
   getFoundationSummary(): LiveReportSnapshot['summary'];
   getLiveReportSnapshot(): LiveReportSnapshot;
+
+  // --- Track B: Households, Multi-Profile, Personalisation, Bundled Consent & QR Revocation ---
+  listHouseholdsForUser(actor: PublicUser): HouseholdInstallationRecord[];
+
+  getHouseholdForActor(actor: PublicUser, householdId: string): HouseholdInstallationRecord;
+
+  createHousehold(
+    actor: PublicUser,
+    input: {
+      householdLabel: string;
+      tvDeviceLabel: string;
+      location: HouseholdLocation;
+      commercialConsentGranted: boolean;
+      personalisationMasterEnabled?: boolean;
+      neutralDisplayMode?: boolean;
+    }
+  ): HouseholdInstallationRecord;
+
+  updateHouseholdLocation(
+    actor: PublicUser,
+    householdId: string,
+    location: HouseholdLocation
+  ): HouseholdInstallationRecord;
+
+  updateHouseholdDisplaySettings(
+    actor: PublicUser,
+    householdId: string,
+    input: {
+      householdLabel?: string;
+      tvDeviceLabel?: string;
+      personalisationMasterEnabled?: boolean;
+      neutralDisplayMode?: boolean;
+    }
+  ): HouseholdInstallationRecord;
+
+  withdrawHouseholdConsentBundled(
+    actor: PublicUser,
+    householdId: string,
+    reason: string
+  ): {
+    household: HouseholdInstallationRecord;
+    revokedQrTokensCount: number;
+    auditEvent: ConsentAuditEventRecord;
+  };
+
+  restoreHouseholdConsentExplicit(
+    actor: PublicUser,
+    householdId: string,
+    input: { explicitConfirmation: boolean; reason: string }
+  ): {
+    household: HouseholdInstallationRecord;
+    auditEvent: ConsentAuditEventRecord;
+  };
+
+  listHouseholdMembers(
+    actor: PublicUser,
+    householdId: string
+  ): Array<Omit<HouseholdMemberProfile, 'pinHash'>>;
+
+  createHouseholdMember(
+    actor: PublicUser,
+    householdId: string,
+    input: {
+      displayName: string;
+      pin?: string;
+      personalisationConsentGranted?: boolean;
+      educationLevel?: string;
+      qualifications?: string[];
+      skills?: string[];
+      experienceSummary?: string;
+      experienceYears?: number;
+      occupationOrTrade?: string;
+      employmentInterests?: string[];
+      careerAspirations?: string;
+      industries?: string[];
+      interestedCategories?: OpportunityCategory[];
+    }
+  ): Omit<HouseholdMemberProfile, 'pinHash'>;
+
+  updateHouseholdMember(
+    actor: PublicUser,
+    householdId: string,
+    memberId: string,
+    input: {
+      pinVerification?: string;
+      displayName?: string;
+      newPin?: string | null;
+      personalisationConsentGranted?: boolean;
+      educationLevel?: string;
+      qualifications?: string[];
+      skills?: string[];
+      experienceSummary?: string;
+      experienceYears?: number;
+      occupationOrTrade?: string;
+      employmentInterests?: string[];
+      careerAspirations?: string;
+      industries?: string[];
+      interestedCategories?: OpportunityCategory[];
+    }
+  ): Omit<HouseholdMemberProfile, 'pinHash'>;
+
+  deleteHouseholdMember(
+    actor: PublicUser,
+    householdId: string,
+    memberId: string,
+    pinVerification?: string
+  ): void;
+
+  evaluateHouseholdOpportunityMatches(
+    actor: PublicUser,
+    householdId: string
+  ): {
+    householdId: string;
+    consentEpoch: number;
+    commercialConsentStatus: HouseholdInstallationRecord['commercialConsentStatus'];
+    charityAndOpportunityStatus: HouseholdInstallationRecord['charityAndOpportunityStatus'];
+    neutralDisplayMode: boolean;
+    deliverySuspended: boolean;
+    suspensionReason: string | null;
+    ordinaryTvPreserved: true;
+    matches: HouseholdOpportunityMatchResult[];
+  };
+
+  issueHouseholdEpochQrToken(
+    actor: PublicUser,
+    householdId: string,
+    input: {
+      baseQrToken: string;
+      opportunityId?: string | null;
+      campaignId?: string | null;
+      ttlSeconds?: number;
+    }
+  ): HouseholdQrTokenRecord;
+
+  listHouseholdQrTokens(actor: PublicUser, householdId: string): HouseholdQrTokenRecord[];
+
+  listConsentAuditEvents(actor: PublicUser, householdId: string): ConsentAuditEventRecord[];
+
+  evaluateHouseholdDeliveryGate(
+    actor: PublicUser,
+    householdId: string,
+    expectedConsentEpoch?: number
+  ): {
+    allowed: boolean;
+    household: HouseholdInstallationRecord;
+    reason: string | null;
+  };
+
+  getAdvertiserGeoAggregates(actor: PublicUser): AdvertiserGeoAggregateRow[];
 }
+

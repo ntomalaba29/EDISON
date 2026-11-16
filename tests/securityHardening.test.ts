@@ -444,8 +444,8 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
       .get('/api/qa/prototype-readiness')
       .set('Authorization', `Bearer ${adminLogin.body.token}`);
     expect(readinessRes.status).toBe(200);
-    expect(readinessRes.body.automatedInvariantsPassed).toBe(21);
-    expect(readinessRes.body.automatedInvariantsTotal).toBe(21);
+    expect(readinessRes.body.automatedInvariantsPassed).toBe(22);
+    expect(readinessRes.body.automatedInvariantsTotal).toBe(22);
   });
 
   it('hardens /api/media/upload against SVG/HTML polyglots & invalid base64 and locks down /uploads/* headers & symlinks', async () => {
@@ -908,13 +908,13 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
     expect(exitRes.body.hardwareTested).toBe(false);
     expect(exitRes.body.stageP6Deferred).toBe(true);
 
-    // 5. Prototype readiness snapshot reports 20/20 automated invariants passing
+    // 5. Prototype readiness snapshot reports 22/22 automated invariants passing
     const qaRes = await request(app)
       .get('/api/qa/prototype-readiness')
       .set('Authorization', `Bearer ${adminToken}`);
     expect(qaRes.status).toBe(200);
-    expect(qaRes.body.automatedInvariantsPassed).toBe(21);
-    expect(qaRes.body.automatedInvariantsTotal).toBe(21);
+    expect(qaRes.body.automatedInvariantsPassed).toBe(22);
+    expect(qaRes.body.automatedInvariantsTotal).toBe(22);
   });
 
   it('Block 5.1: enforces Ed25519 signature verification (401), Zero-PII (400), strict Zod schemas, scoped compatibility (409), and 11/11 Scenarios 25–35', async () => {

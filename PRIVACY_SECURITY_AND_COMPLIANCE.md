@@ -1,6 +1,6 @@
 # EDISON — Privacy, Security & Consent Architecture (Pre-Commit Reconciliation)
 
-**Document Status**: Reconciled Specification (`v2.1` — Explicitly Exposes Consent Architecture Conflict as **`[UNRESOLVED OWNER DECISION: DEC-OPEN-01]`** — **DO NOT IMPLEMENT CONSENT/PROFILE/EPOCH-403 FEATURES UNTIL OWNER APPROVES AN OPTION**)
+**Document Status**: Reconciled & Locked (`v2.2` — **`DEC-OPEN-01` LOCKED BY PROJECT OWNER**: **Decision 1 = Scope B Full EDISON Model**; **Decision 2 = Bundled Consent Withdrawal** — Implemented in Track B)
 
 ---
 
@@ -34,22 +34,24 @@ Rather than silently overwriting `ADR-002` or assuming viewer accounts are manda
 
 ---
 
-### 1.2 Competing Design Options for Owner Selection (`[UNRESOLVED — DO NOT IMPLEMENT UNTIL APPROVED]`)
+### 1.2 Locked Owner Decision (`DEC-OPEN-01`: Scope B Full Model + Bundled Withdrawal)
 
 | Option | Architecture Summary | Consequences & Trade-Offs | Consent / Profile Impact |
 | :--- | :--- | :--- | :--- |
-| **Option A — Pure Account-Free Contextual Baseline (`ADR-002` + `ADR-006`)** | Zero household registrations, zero individual TV profiles, global/regional contextual breaks (`CHARITY -> COMMERCIAL`), device-local opt-out toggle, direct `HTTP 302` on all QR scans. | Fastest, simplest, zero intra-household privacy/account liability; **cannot** address individuals by name (`"Malaba, this is for you!"`), cannot store multi-member CV/skills on TV, and cannot selectively return `HTTP 403` for a withdrawn household's old photo of a shared QR. | **Lowest complexity / Zero viewer accounts** |
-| **Option B — Full Dual-Layer Household + Profiles + Epoch `HTTP 403` (`Blueprint v2.0` Full Proposal)** | Household TV registration (7-level private geo) + multi-member voluntary profiles + separated Household vs Individual consent + per-household `ConsentEpoch` QR binding (`403` on withdrawal) + isolated mobile Opportunity Card (`Save`/`Dismiss`). | Delivers full personalised TV opportunity matching, strong post-withdrawal `HTTP 403` QR enforcement, and strict household data isolation; introduces household registration state, profile PIN/session security, dynamic per-epoch QR signing, and slightly higher UX setup on mobile/TV. | **Highest personalisation & post-withdrawal control; requires household/profile state** |
-| **Option C — Hybrid Two-Tier Opt-In (Contextual Direct `302` Default + Optional Opt-In Household/Profiles)** | Default TV mode remains 100% account-free contextual with pure `ADR-002` direct `HTTP 302`; households that **explicitly opt in** unlock Household + Multi-Profile Personalisation with epoch-scoped QR validation (`HTTP 403` on withdrawal). | Preserves frictionless `ADR-002` zero-account onboarding while supporting full Blueprint `v2.0` personalisation & epoch revocation for opt-in households; doubles branching in break scheduler & QR endpoint (contextual vs epoch-bound paths). | **Preserves `ADR-002` baseline + adds opt-in profiles (`Moderate complexity`)** |
+| **Option A — Pure Account-Free Contextual Baseline (`ADR-002` + `ADR-006`)** | Zero household registrations, zero individual TV profiles, global/regional contextual breaks (`CHARITY -> COMMERCIAL`), device-local opt-out toggle, direct `HTTP 302` on all QR scans. | Fastest, simplest, zero intra-household privacy/account liability; cannot address individuals by name or selectively return `HTTP 403` per withdrawn household. | Not selected |
+| **Option B — Full Dual-Layer Household + Profiles + Epoch `HTTP 403` + Bundled Withdrawal (`LOCKED` / `IMPLEMENTED`)** | Household TV registration (Zimbabwe-first + international 7-level private geo hierarchy) + multi-member voluntary profiles with optional `scrypt` PIN isolation + separated Household vs Individual consent + per-household `consentEpoch` QR binding (`HTTP 403` on withdrawal or stale epoch) + bundled withdrawal suspending commercial ads, charity ads, opportunities & personalisation while keeping ordinary TV usable. | Delivers personalised TV opportunity matching (`required`/`preferred`/`optional` criteria), strong post-withdrawal `HTTP 403` enforcement with `Cache-Control: no-store, private`, and strict advertiser privacy isolation (`403` on `/api/households*`, aggregate counts only). | **LOCKED & IMPLEMENTED IN TRACK B** |
+| **Option C — Hybrid Two-Tier Opt-In** | Account-free contextual default plus explicit opt-in households/profiles. | Doubles branching across scheduler and QR endpoints. | Not selected |
 
-> **Governance Lock**: Implementation of **household registrations, 7-level private household coordinates, multi-profile personalisation matching, named TV greetings, consent epochs, and `HTTP 403` QR invalidation** is **`BLOCKED`** until the Project Owner explicitly chooses Option A, B, or C under **`DEC-OPEN-01`**.
+> **Locked Implementation Controls (`DEC-OPEN-01`)**:
+> 1. Withdrawing household commercial advertising consent increments `consentEpoch`, sets `commercialConsentStatus: 'withdrawn'` and `charityAndOpportunityStatus: 'suspended_by_bundled_withdrawal'`, disables affected personalisation, revokes active `hqr_*` tokens so `/r/:token` responds with **`HTTP 403`** and `Cache-Control: no-store, private`, suspends break scheduling (`adDeliverySuspended: true`) and preload delivery manifests, and preserves ordinary TV & `AURA` remote operation (`ordinaryTvPreserved: true`).
+> 2. Explicit restoration requires `explicitConfirmation: true` plus an audited reason, increments `consentEpoch` again so pre-withdrawal QR tokens remain permanently blocked (`HTTP 403`), and writes immutable entries to `consentAuditEvents` and `auditLogs`.
 
 ---
 
-## 2. Non-Negotiable Privacy & Security Rules (Apply Regardless of Option Chosen)
+## 2. Non-Negotiable Privacy & Security Rules
 
-1. **On-TV Screen Safety**: Even if Option B or C is approved, **never** render qualifications, employment history, trade credentials, exact age, or private contact details on TV screens.
-2. **Zero Advertiser Access to Viewer/Household Data**: Advertisers and opportunity submitters **must never** browse household profiles or obtain exact residential addresses/coordinates; advertisers receive **aggregate campaign metrics only**.
+1. **On-TV Screen Safety**: **Never** render qualifications, employment history, trade credentials, exact age, or private contact details on TV screens—TV banners display only preferred first/display names (`single_named`, `multi_named`) or neutral household prompts (`neutral_shared`).
+2. **Zero Advertiser Access to Viewer/Household Data**: Advertisers and opportunity submitters **must never** browse household profiles or obtain exact residential addresses/coordinates (`HTTP 403` on household/member routes); advertisers receive **aggregate consented counts by coarse area only** (`/api/advertiser/targeting-aggregates`).
 3. **Zero PII in URLs, QR Tokens, Logs & Analytics**: Private profile attributes and exact household coordinates must never be embedded in QR query strings, server access logs, or analytics payloads.
 4. **No Camera / Microphone Attention Tracking**: Prohibited by default.
-5. **Core Technical Security Controls**: RBAC (`admin`, `advertiser`, `opportunity_submitter`), magic-byte upload inspection, SVG/HTML XSS upload blocking, SSRF-safe HTTP fetchers, `Secure` production cookies, CSRF/Origin guards, and immutable audit logs.
+5. **Core Technical Security Controls**: RBAC (`admin`, `advertiser`, `opportunity_submitter`, `household_viewer`), optional per-member `scrypt` PIN isolation, magic-byte upload inspection, SVG/HTML XSS upload blocking, SSRF-safe HTTP fetchers, `Secure` production cookies, CSRF/Origin guards, and immutable audit logs.

@@ -19,9 +19,9 @@ export const registerSchema = z
       .min(2, 'Name must be at least 2 characters.')
       .max(120, 'Name must be at most 120 characters.'),
     organisationName: z.string().trim().max(160).optional().default(''),
-    role: z.enum(['advertiser', 'opportunity_submitter'], {
+    role: z.enum(['advertiser', 'opportunity_submitter', 'household_viewer'], {
       message:
-        'Self-registration role must be "advertiser" or "opportunity_submitter". Admin accounts cannot be self-registered.',
+        'Self-registration role must be "advertiser", "opportunity_submitter", or "household_viewer". Admin accounts cannot be self-registered.',
     }),
   })
   .strict();
@@ -186,6 +186,8 @@ export const simulatorBreakScheduleSchema = z
     requestedSlotCount: z.coerce.number().int().min(1).max(4).optional(),
     alternatingPointerStart: z.enum(['CHARITY', 'COMMERCIAL']).optional().default('CHARITY'),
     allowMockBackfill: z.boolean().optional().default(true),
+    householdId: z.string().trim().min(2).max(120).optional(),
+    expectedConsentEpoch: z.coerce.number().int().min(1).max(1000000).optional(),
   })
   .strict();
 
@@ -712,6 +714,8 @@ export const deliveryManifestRequestSchema = z
     regionCode: z.string().trim().min(2).max(20),
     daypart: daypartSlotEnum.optional().default('daytime'),
     simulateCdnOutage: z.boolean().optional().default(false),
+    householdId: z.string().trim().min(2).max(120).optional(),
+    expectedConsentEpoch: z.coerce.number().int().min(1).max(1000000).optional(),
   })
   .strict();
 
@@ -745,6 +749,104 @@ export const proFormaBlueprintRequestSchema = z
 
 export const emptyStrictSchema = z.object({}).strict();
 
+export const householdLocationSchema = z
+  .object({
+    countryCode: z.string().trim().min(2).max(12),
+    provinceOrRegion: z.string().trim().min(1).max(120),
+    metroArea: z.string().trim().max(120).optional().default(''),
+    cityOrTown: z.string().trim().min(1).max(120),
+    district: z.string().trim().min(1).max(120),
+    suburbOrArea: z.string().trim().min(1).max(120),
+    exactInstallationLocation: z.string().trim().min(1).max(240),
+  })
+  .strict();
+
+export const householdCreateSchema = z
+  .object({
+    householdLabel: z.string().trim().min(2).max(120),
+    tvDeviceLabel: z.string().trim().min(2).max(120),
+    location: householdLocationSchema,
+    commercialConsentGranted: z.boolean(),
+    personalisationMasterEnabled: z.boolean().optional().default(true),
+    neutralDisplayMode: z.boolean().optional().default(false),
+  })
+  .strict();
+
+export const householdDisplaySettingsPatchSchema = z
+  .object({
+    householdLabel: z.string().trim().min(2).max(120).optional(),
+    tvDeviceLabel: z.string().trim().min(2).max(120).optional(),
+    personalisationMasterEnabled: z.boolean().optional(),
+    neutralDisplayMode: z.boolean().optional(),
+  })
+  .strict();
+
+export const householdConsentWithdrawSchema = z
+  .object({
+    reason: z.string().trim().min(3).max(500),
+  })
+  .strict();
+
+export const householdConsentRestoreSchema = z
+  .object({
+    explicitConfirmation: z.boolean(),
+    reason: z.string().trim().min(3).max(500),
+  })
+  .strict();
+
+const opportunityCategoryEnum = z.enum(ALL_OPPORTUNITY_CATEGORIES);
+
+export const householdMemberCreateSchema = z
+  .object({
+    displayName: z.string().trim().min(1).max(80),
+    pin: z.string().trim().regex(/^\d{4,8}$/, 'PIN must be 4–8 digits.').optional(),
+    personalisationConsentGranted: z.boolean().optional().default(true),
+    educationLevel: z.string().trim().max(120).optional().default(''),
+    qualifications: z.array(z.string().trim().max(120)).max(20).optional().default([]),
+    skills: z.array(z.string().trim().max(80)).max(30).optional().default([]),
+    experienceSummary: z.string().trim().max(500).optional().default(''),
+    experienceYears: z.coerce.number().int().min(0).max(60).optional().default(0),
+    occupationOrTrade: z.string().trim().max(120).optional().default(''),
+    employmentInterests: z.array(z.string().trim().max(80)).max(20).optional().default([]),
+    careerAspirations: z.string().trim().max(300).optional().default(''),
+    industries: z.array(z.string().trim().max(80)).max(20).optional().default([]),
+    interestedCategories: z.array(opportunityCategoryEnum).max(14).optional().default([]),
+  })
+  .strict();
+
+export const householdMemberUpdateSchema = z
+  .object({
+    pinVerification: z.string().trim().max(12).optional(),
+    displayName: z.string().trim().min(1).max(80).optional(),
+    newPin: z.string().trim().regex(/^\d{4,8}$/, 'PIN must be 4–8 digits.').nullable().optional(),
+    personalisationConsentGranted: z.boolean().optional(),
+    educationLevel: z.string().trim().max(120).optional(),
+    qualifications: z.array(z.string().trim().max(120)).max(20).optional(),
+    skills: z.array(z.string().trim().max(80)).max(30).optional(),
+    experienceSummary: z.string().trim().max(500).optional(),
+    experienceYears: z.coerce.number().int().min(0).max(60).optional(),
+    occupationOrTrade: z.string().trim().max(120).optional(),
+    employmentInterests: z.array(z.string().trim().max(80)).max(20).optional(),
+    careerAspirations: z.string().trim().max(300).optional(),
+    industries: z.array(z.string().trim().max(80)).max(20).optional(),
+    interestedCategories: z.array(opportunityCategoryEnum).max(14).optional(),
+  })
+  .strict();
+
+export const householdMemberDeleteSchema = z
+  .object({
+    pinVerification: z.string().trim().max(12).optional(),
+  })
+  .strict();
+
+export const householdQrIssueSchema = z
+  .object({
+    baseQrToken: z.string().trim().min(2).max(120),
+    opportunityId: z.string().trim().max(120).nullable().optional(),
+    campaignId: z.string().trim().max(120).nullable().optional(),
+    ttlSeconds: z.coerce.number().int().min(1).max(86400).optional().default(1800),
+  })
+  .strict();
 
 export function parseWithZod<T extends z.ZodTypeAny>(
   schema: T,

@@ -56,6 +56,10 @@ import {
   runAdvertiserOpsVerificationSuite,
 } from './advertiserOps.ts';
 import {
+  listCountryGeoConfigs,
+  runTrackBVerificationSuite,
+} from './trackBHouseholdConsent.ts';
+import {
   adCreativeAttachSchema,
   adCreativeSaveSchema,
   adminAppealResolveSchema,
@@ -83,6 +87,15 @@ import {
   fleetDeviceRegisterSchema,
   fleetFprReportSchema,
   fleetObservationSubmitSchema,
+  householdConsentRestoreSchema,
+  householdConsentWithdrawSchema,
+  householdCreateSchema,
+  householdDisplaySettingsPatchSchema,
+  householdLocationSchema,
+  householdMemberCreateSchema,
+  householdMemberDeleteSchema,
+  householdMemberUpdateSchema,
+  householdQrIssueSchema,
   loginSchema,
   mediaUploadSchema,
   offlineCacheEvaluateBreakSchema,
@@ -525,8 +538,9 @@ export function createEdisonApp(
         csrfToken: session.csrfToken,
       });
     } catch (err) {
-      res.status(409).json({
-        error: err instanceof Error ? err.message : 'Unable to register user.',
+      const message = err instanceof Error ? err.message : 'Unable to register user.';
+      res.status(message.startsWith('FORBIDDEN:') ? 403 : 409).json({
+        error: message,
       });
     }
   });
@@ -551,8 +565,9 @@ export function createEdisonApp(
         csrfToken: session.csrfToken,
       });
     } catch (err) {
-      res.status(401).json({
-        error: err instanceof Error ? err.message : 'Invalid credentials.',
+      const message = err instanceof Error ? err.message : 'Invalid credentials.';
+      res.status(message.startsWith('FORBIDDEN:') ? 403 : 401).json({
+        error: message,
       });
     }
   });
@@ -828,8 +843,14 @@ export function createEdisonApp(
         sendValidationError(res, parsed);
         return;
       }
-      const plan = store.planSimulatedBreak(req.currentUser!, parsed.data);
-      res.json({ plan });
+      try {
+        const plan = store.planSimulatedBreak(req.currentUser!, parsed.data);
+        res.setHeader('Cache-Control', 'no-store, private');
+        res.json({ plan });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
     }
   );
 
@@ -1927,6 +1948,48 @@ export function createEdisonApp(
         return;
       }
       const user = req.currentUser!;
+      res.setHeader('Cache-Control', 'no-store, private');
+
+      if (parsed.data.householdId) {
+        try {
+          const gate = store.evaluateHouseholdDeliveryGate(
+            user,
+            parsed.data.householdId,
+            parsed.data.expectedConsentEpoch
+          );
+          if (!gate.allowed) {
+            const blockedManifest = edisonDeliveryInfra.compilePreloadManifest({
+              platformId: parsed.data.platformId,
+              deviceSlotId: parsed.data.deviceSlotId,
+              regionCode: parsed.data.regionCode,
+              daypart: parsed.data.daypart,
+              simulateCdnOutage: parsed.data.simulateCdnOutage,
+              campaigns: [],
+              creatives: [],
+              qrLinks: [],
+            });
+            store.recordSecurityAudit(
+              user,
+              'DELIVERY_MANIFEST_SUSPENDED_CONSENT',
+              gate.household.id,
+              `[${req.requestId ?? 'req'}] ${gate.reason}`
+            );
+            res.json({
+              ...blockedManifest,
+              householdId: gate.household.id,
+              consentEpoch: gate.household.consentEpoch,
+              adDeliverySuspended: true,
+              suspensionReason: gate.reason,
+            });
+            return;
+          }
+        } catch (err) {
+          const { code, message } = mapErrorStatus(err);
+          res.status(code).json({ error: message });
+          return;
+        }
+      }
+
       const manifest = edisonDeliveryInfra.compilePreloadManifest({
         platformId: parsed.data.platformId,
         deviceSlotId: parsed.data.deviceSlotId,
@@ -1943,7 +2006,12 @@ export function createEdisonApp(
         manifest.manifestId,
         `[${req.requestId ?? 'req'}] Platform=${manifest.platformId} region=${manifest.regionCode} edge=${manifest.cdnEdgeStatus} eligible=${manifest.eligibleCount} excluded=${manifest.excludedCount} (hardwareTested=false).`
       );
-      res.json(manifest);
+      res.json({
+        ...manifest,
+        householdId: parsed.data.householdId ?? null,
+        adDeliverySuspended: false,
+        suspensionReason: null,
+      });
     }
   );
 
@@ -2057,6 +2125,294 @@ export function createEdisonApp(
     }
   );
 
+  // --- Track B (DEC-OPEN-01 Locked): Households, Profiles, Matching, Bundled Consent & QR Revocation ---
+  app.get('/api/track-b/country-configs', requireAuth, (_req: AuthenticatedRequest, res: Response) => {
+    res.json({
+      decOpen01Status: 'LOCKED_SCOPE_B_BUNDLED_WITHDRAWAL',
+      initialLaunchMarket: 'ZW',
+      countries: listCountryGeoConfigs(),
+    });
+  });
+
+  app.post('/api/track-b/verify-suite', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const parsed = parseWithZod(emptyStrictSchema, req.body ?? {});
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
+      return;
+    }
+    const report = runTrackBVerificationSuite();
+    store.recordSecurityAudit(
+      req.currentUser!,
+      'TRACK_B_VERIFICATION_SUITE_RUN',
+      'track_b_consent',
+      `[${req.requestId ?? 'req'}] Track B verification: ${report.passedChecks}/${report.totalChecks} passed (DEC-OPEN-01 locked).`
+    );
+    res.json(report);
+  });
+
+  app.get(
+    '/api/advertiser/targeting-aggregates',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      res.setHeader('Cache-Control', 'no-store, private');
+      const rows = store.getAdvertiserGeoAggregates(req.currentUser!);
+      res.json({
+        privacyNotice:
+          'Aggregate consented households only — exact installation locations and member profiles are strictly redacted.',
+        items: rows,
+      });
+    }
+  );
+
+  app.get('/api/households', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store, private');
+    try {
+      const items = store.listHouseholdsForUser(req.currentUser!);
+      res.json({ items });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.post('/api/households', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const parsed = parseWithZod(householdCreateSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
+      return;
+    }
+    try {
+      const item = store.createHousehold(req.currentUser!, parsed.data);
+      res.status(201).json({ item });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.get('/api/households/:id', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store, private');
+    try {
+      const item = store.getHouseholdForActor(req.currentUser!, req.params.id);
+      res.json({ item });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.put('/api/households/:id/location', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const parsed = parseWithZod(householdLocationSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
+      return;
+    }
+    try {
+      const item = store.updateHouseholdLocation(req.currentUser!, req.params.id, parsed.data);
+      res.json({ item });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.patch('/api/households/:id/settings', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const parsed = parseWithZod(householdDisplaySettingsPatchSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
+      return;
+    }
+    try {
+      const item = store.updateHouseholdDisplaySettings(
+        req.currentUser!,
+        req.params.id,
+        parsed.data
+      );
+      res.json({ item });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.post(
+    '/api/households/:id/consent/withdraw',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(householdConsentWithdrawSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        const result = store.withdrawHouseholdConsentBundled(
+          req.currentUser!,
+          req.params.id,
+          parsed.data.reason
+        );
+        res.setHeader('Cache-Control', 'no-store, private');
+        res.json(result);
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.post(
+    '/api/households/:id/consent/restore',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(householdConsentRestoreSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        const result = store.restoreHouseholdConsentExplicit(
+          req.currentUser!,
+          req.params.id,
+          parsed.data
+        );
+        res.setHeader('Cache-Control', 'no-store, private');
+        res.json(result);
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.get('/api/households/:id/members', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store, private');
+    try {
+      const items = store.listHouseholdMembers(req.currentUser!, req.params.id);
+      res.json({ items });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.post('/api/households/:id/members', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const parsed = parseWithZod(householdMemberCreateSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
+      return;
+    }
+    try {
+      const item = store.createHouseholdMember(req.currentUser!, req.params.id, parsed.data);
+      res.status(201).json({ item });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.patch(
+    '/api/households/:id/members/:memberId',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(householdMemberUpdateSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        const item = store.updateHouseholdMember(
+          req.currentUser!,
+          req.params.id,
+          req.params.memberId,
+          parsed.data
+        );
+        res.json({ item });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.delete(
+    '/api/households/:id/members/:memberId',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(householdMemberDeleteSchema, req.body ?? {});
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        store.deleteHouseholdMember(
+          req.currentUser!,
+          req.params.id,
+          req.params.memberId,
+          parsed.data.pinVerification
+        );
+        res.json({ ok: true });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.get('/api/households/:id/matches', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store, private');
+    try {
+      const result = store.evaluateHouseholdOpportunityMatches(req.currentUser!, req.params.id);
+      res.json(result);
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.post('/api/households/:id/qr-issue', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const parsed = parseWithZod(householdQrIssueSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
+      return;
+    }
+    try {
+      const item = store.issueHouseholdEpochQrToken(
+        req.currentUser!,
+        req.params.id,
+        parsed.data
+      );
+      res.status(201).json({ item });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.get('/api/households/:id/qr-tokens', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store, private');
+    try {
+      const items = store.listHouseholdQrTokens(req.currentUser!, req.params.id);
+      res.json({ items });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.get(
+    '/api/households/:id/consent-history',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      res.setHeader('Cache-Control', 'no-store, private');
+      try {
+        const items = store.listConsentAuditEvents(req.currentUser!, req.params.id);
+        res.json({ items });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
   // Admin-only Audit Log, Hardened Export & Request Telemetry Endpoints
   app.get('/api/admin/audit-logs', requireAdmin, (req: AuthenticatedRequest, res: Response) => {
     const parsedQuery = parseWithZod(auditLogQuerySchema, {
@@ -2158,8 +2514,9 @@ export function createEdisonApp(
 
   // Real Direct-to-Destination QR Tracking Redirect (/r/:token)
   // Records `redirect_requested` on receipt and `redirect_issued` on HTTP 302.
-  // Never emits `destination_opened` or claims confirmed human QR scans.
+  // Rejects revoked/withdrawn/stale-epoch/expired Track B household QR tokens with HTTP 403 and no-store cache headers.
   app.get('/r/:token', redirectRateMiddleware, (req: Request, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store, private');
     const token = req.params.token;
     const clientIp = req.ip || 'unknown';
     const userAgent = req.get('user-agent') || 'unknown';
