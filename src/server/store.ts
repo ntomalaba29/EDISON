@@ -73,6 +73,8 @@ import type {
   EdisonDataRepository,
   StorageBackendMetadata,
 } from './repository.ts';
+import { edisonTvControlEngine } from './tvPlatformAdapter.ts';
+import { localOfflineIntelCache } from './offlineIntelCache.ts';
 
 const DEFAULT_DATA_DIR = path.resolve(process.cwd(), 'data');
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days absolute cap
@@ -4356,6 +4358,26 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
           'Android TV TIF, Samsung Tizen & LG webOS software harnesses with fail-closed privilege gates, 16-case deterministic fault-injection watchdog suite, and SHA-256 atomic offline cache swap/rollback (hardwareTested=false, Stage P6 deferred).',
       },
       {
+        id: 'qa_42_offline_queue_cadence_conformance',
+        block: 'Block 4.2',
+        label:
+          'Phase 4 Block 4.2: Offline Telemetry Sync Queue Deduplication, Broadcast Cadence & Conformance Vectors',
+        status: (() => {
+          const hasBlock42Contracts =
+            typeof edisonTvControlEngine.runBroadcastCadenceSimulation === 'function' &&
+            typeof edisonTvControlEngine.runEmulatorConformanceVectors === 'function' &&
+            typeof localOfflineIntelCache.enqueueOfflineObservation === 'function' &&
+            typeof localOfflineIntelCache.drainObservationQueue === 'function';
+          const conformance = edisonTvControlEngine.runEmulatorConformanceVectors();
+          return hasBlock42Contracts && conformance.allPassed && !conformance.hardwareTested
+            ? 'pass'
+            : 'fail';
+        })(),
+        scope: 'automated_invariant',
+        detail:
+          'Idempotent zero-PII offline telemetry sync queue, 3-channel SCTE-35/HbbTV cadence simulator, and 8/8 emulator conformance vectors verified (hardwareTested=false, Stage P6 deferred).',
+      },
+      {
         id: 'qa_27_physical_qr_scan',
         block: 'Block 2.7',
         label: 'Physical smartphone camera scan verification on real mobile device',
@@ -4374,7 +4396,7 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     return {
       generatedAt: new Date().toISOString(),
       phase: 'Phase 4 — Smart TV OS Adapters & Normal TV Remote (Software-First · JSON Retained)',
-      block: 'Block 4.1 (Software-First Smart TV Adapter Harnesses & Local Offline Intelligence Cache)',
+      block: 'Block 4.2 (Offline Telemetry Sync Queue, Multi-Channel Cadence Simulator & Conformance Vectors)',
       automatedInvariantsPassed,
       automatedInvariantsTotal: autoChecks.length,
       physicalQrScanStatus:
@@ -4590,17 +4612,17 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     return {
       generatedAt: new Date().toISOString(),
       phase: 'Phase 4 — Smart TV OS Adapters & Normal TV Remote (Software-First · JSON Retained)',
-      stage: 'Phase 3 Blocks P3-A/P3-B/P3-C Committed · Phase 4 Block 4.1 Complete (Harnesses, Fault Suite & Offline Cache) · TASK-P3-001 READY',
-      block: 'Block 4.1 (Software-First Smart TV Adapter Harnesses & Local Offline Intelligence Cache)',
-      gateStatus: 'BLOCK 4.1 VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · STAGE P6 HARDWARE DEFERRED)',
+      stage: 'Phase 3 & Block 4.1 Committed · Phase 4 Block 4.2 Complete (Offline Sync Queue, Cadence Simulator & Conformance Vectors) · TASK-P3-001 READY',
+      block: 'Block 4.2 (Offline Telemetry Sync Queue, Multi-Channel Cadence Simulator & Conformance Vectors)',
+      gateStatus: 'BLOCK 4.2 VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · STAGE P6 HARDWARE DEFERRED)',
       progressMetrics: {
         aiStudioAssignmentPct: 85,
-        softwareToStageP6Pct: 50.0,
-        overallFullAppPct: 31.0,
-        remainingUntilFullAppPct: 69.0,
+        softwareToStageP6Pct: 54.8,
+        overallFullAppPct: 34.0,
+        remainingUntilFullAppPct: 66.0,
         consentBlockedScopePct: 15,
         rubricSummary:
-          'Phase 1 Specs (6.0%) + Phase 2 Track A Complete (13.0%) + Phase 3 Software Hardening Committed (9.0%) + Phase 4 Block 4.1 Awaiting Commit (3.0%) = 31.0% of 15-Phase Full Commercial App (50.0% to Stage P6; 15% Track B blocked on DEC-OPEN-01).',
+          'Phase 1 Specs (6.0%) + Phase 2 Track A Complete (13.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Block 4.1 Committed (3.0%) + Phase 4 Block 4.2 Awaiting Commit (3.0%) = 34.0% of 15-Phase Full Commercial App (54.8% to Stage P6; 15% Track B blocked on DEC-OPEN-01).',
       },
       latestAuditAt: latestAudit?.createdAt ?? null,
       latestAuditAction: latestAudit?.action ?? null,

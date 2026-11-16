@@ -58,6 +58,8 @@ import {
   offlineCacheEvaluateBreakSchema,
   offlineCacheRollbackSchema,
   offlineCacheStageSchema,
+  offlineQueueDrainSchema,
+  offlineQueueEnqueueSchema,
   opportunityCreateSchema,
   parseWithZod,
   physicalQrTestCreateSchema,
@@ -72,6 +74,8 @@ import {
   supportTicketCreateSchema,
   supportTicketStatusSchema,
   tvBreakLifecycleSchema,
+  tvCadenceSimulateSchema,
+  tvConformanceVectorsSchema,
   tvFaultSuiteSchema,
   tvRemoteSimulateSchema,
 } from './validationSchemas.ts';
@@ -1484,6 +1488,108 @@ export function createEdisonApp(
         hardwareTested: false,
         state: localOfflineIntelCache.getSnapshot(),
       });
+    }
+  );
+
+  // --- Phase 4 Block 4.2: Offline Telemetry Sync Queue, Multi-Channel Cadence & Conformance Vectors ---
+  app.get('/api/tv-adapters/channels', requireAuth, (_req: AuthenticatedRequest, res: Response) => {
+    res.json({
+      isSoftwareSimulationOnly: true,
+      hardwareTested: false,
+      channels: edisonTvControlEngine.listChannelBindings(),
+    });
+  });
+
+  app.post(
+    '/api/offline-intel-cache/queue-observation',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(offlineQueueEnqueueSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const queued = localOfflineIntelCache.enqueueOfflineObservation(parsed.data);
+      store.recordSecurityAudit(
+        req.currentUser!,
+        queued.ok
+          ? queued.deduplicatedReplay
+            ? 'OFFLINE_QUEUE_REPLAY_DEDUPED'
+            : 'OFFLINE_QUEUE_OBSERVATION_ADDED'
+          : 'OFFLINE_QUEUE_REJECTED',
+        parsed.data.scopeId,
+        `[${req.requestId ?? 'req'}] ${queued.detail}`
+      );
+      res.status(queued.ok ? 200 : 400).json({
+        ...queued,
+        state: localOfflineIntelCache.getSnapshot(),
+      });
+    }
+  );
+
+  app.post(
+    '/api/offline-intel-cache/drain-queue',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(offlineQueueDrainSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const drain = localOfflineIntelCache.drainObservationQueue(parsed.data);
+      store.recordSecurityAudit(
+        req.currentUser!,
+        drain.ok ? 'OFFLINE_QUEUE_DRAINED' : 'OFFLINE_QUEUE_DRAIN_OFFLINE_HELD',
+        'all_scopes',
+        `[${req.requestId ?? 'req'}] ${drain.detail}`
+      );
+      res.json({
+        ...drain,
+        state: localOfflineIntelCache.getSnapshot(),
+      });
+    }
+  );
+
+  app.post(
+    '/api/tv-adapters/cadence-simulate',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(tvCadenceSimulateSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const result = edisonTvControlEngine.runBroadcastCadenceSimulation(parsed.data);
+      store.recordSecurityAudit(
+        req.currentUser!,
+        'TV_ADAPTER_CADENCE_SIMULATED',
+        `${parsed.data.platformId}:ch${parsed.data.channelNumber}`,
+        `[${req.requestId ?? 'req'}] ${result.detail}`
+      );
+      res.json({
+        ...result,
+        cacheState: localOfflineIntelCache.getSnapshot(),
+      });
+    }
+  );
+
+  app.post(
+    '/api/tv-adapters/conformance-vectors',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(tvConformanceVectorsSchema, req.body ?? {});
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const report = edisonTvControlEngine.runEmulatorConformanceVectors();
+      store.recordSecurityAudit(
+        req.currentUser!,
+        'TV_EMULATOR_CONFORMANCE_RUN',
+        'all_platforms',
+        `[${req.requestId ?? 'req'}] Ran ${report.passedVectors}/${report.totalVectors} emulator conformance vectors (hardwareTested=false).`
+      );
+      res.json(report);
     }
   );
 

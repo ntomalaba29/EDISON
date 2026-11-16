@@ -444,8 +444,8 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
       .get('/api/qa/prototype-readiness')
       .set('Authorization', `Bearer ${adminLogin.body.token}`);
     expect(readinessRes.status).toBe(200);
-    expect(readinessRes.body.automatedInvariantsPassed).toBe(15);
-    expect(readinessRes.body.automatedInvariantsTotal).toBe(15);
+    expect(readinessRes.body.automatedInvariantsPassed).toBe(16);
+    expect(readinessRes.body.automatedInvariantsTotal).toBe(16);
   });
 
   it('hardens /api/media/upload against SVG/HTML polyglots & invalid base64 and locks down /uploads/* headers & symlinks', async () => {
@@ -723,7 +723,118 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
     expect(rollbackRes.status).toBe(200);
     expect(rollbackRes.body.bundle.version).toBe(baseVer);
   });
+
+  it('Block 4.2: secures offline observation queue, idempotent drain, multi-channel cadence simulator & conformance vector endpoints', async () => {
+    const unauthChannels = await request(app).get('/api/tv-adapters/channels');
+    expect(unauthChannels.status).toBe(401);
+
+    const advLogin = await request(app).post('/api/auth/login').send({
+      email: 'advertiser@edison.demo',
+      password: 'EdisonProto!2026',
+    });
+    const advToken = advLogin.body.token as string;
+
+    const channelsRes = await request(app)
+      .get('/api/tv-adapters/channels')
+      .set('Authorization', `Bearer ${advToken}`);
+    expect(channelsRes.status).toBe(200);
+    expect(channelsRes.body.hardwareTested).toBe(false);
+    expect(channelsRes.body.channels).toHaveLength(3);
+
+    // Reject unknown PII field on queue-observation strictly with HTTP 400
+    const piiReject = await request(app)
+      .post('/api/offline-intel-cache/queue-observation')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({
+        idempotencyKey: 'http_obs_pii_reject',
+        scopeId: channelsRes.body.channels[0].scopeId,
+        channelNumber: 101,
+        signalType: 'scte35_cue',
+        observedBreakDurationSec: 85,
+        viewerEmail: 'leaked@example.com',
+      });
+    expect(piiReject.status).toBe(400);
+
+    // Enqueue valid observation -> drain offline (held) -> drain online -> replay rejected as dedup
+    const scopeId = channelsRes.body.channels[0].scopeId as string;
+    const uniqueKey = `http_obs_${Date.now()}`;
+    const q1 = await request(app)
+      .post('/api/offline-intel-cache/queue-observation')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({
+        idempotencyKey: uniqueKey,
+        scopeId,
+        channelNumber: 101,
+        signalType: 'scte35_cue',
+        observedBreakDurationSec: 85,
+      });
+    expect(q1.status).toBe(200);
+    expect(q1.body.queued).toBe(true);
+
+    const drainOffline = await request(app)
+      .post('/api/offline-intel-cache/drain-queue')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({ networkOnline: false });
+    expect(drainOffline.status).toBe(200);
+    expect(drainOffline.body.ok).toBe(false);
+
+    const drainOnline = await request(app)
+      .post('/api/offline-intel-cache/drain-queue')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({ networkOnline: true });
+    expect(drainOnline.status).toBe(200);
+    expect(drainOnline.body.ok).toBe(true);
+    expect(drainOnline.body.drainedNewCount).toBeGreaterThanOrEqual(1);
+
+    const qReplay = await request(app)
+      .post('/api/offline-intel-cache/queue-observation')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({
+        idempotencyKey: uniqueKey,
+        scopeId,
+        channelNumber: 101,
+        signalType: 'scte35_cue',
+        observedBreakDurationSec: 85,
+      });
+    expect(qReplay.status).toBe(200);
+    expect(qReplay.body.deduplicatedReplay).toBe(true);
+
+    // Cadence simulation + Conformance vectors
+    const cadenceRes = await request(app)
+      .post('/api/tv-adapters/cadence-simulate')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({
+        platformId: 'android_tv_tif',
+        channelNumber: 101,
+        signalType: 'scte35_cue',
+        observedBreakDurationSec: 95,
+        adDurationSeconds: 20,
+        networkOnline: true,
+        idempotencyKey: `http_cad_${Date.now()}`,
+      });
+    expect(cadenceRes.status).toBe(200);
+    expect(cadenceRes.body.breakExecuted).toBe(true);
+    expect(cadenceRes.body.finalTvState.ordinaryTvIntact).toBe(true);
+    expect(cadenceRes.body.hardwareTested).toBe(false);
+
+    // Drain any queued cadence entry so server stays clean
+    await request(app)
+      .post('/api/offline-intel-cache/drain-queue')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({ networkOnline: true });
+
+    const confRes = await request(app)
+      .post('/api/tv-adapters/conformance-vectors')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({});
+    expect(confRes.status).toBe(200);
+    expect(confRes.body.totalVectors).toBe(8);
+    expect(confRes.body.passedVectors).toBe(8);
+    expect(confRes.body.allPassed).toBe(true);
+    expect(confRes.body.hardwareTested).toBe(false);
+  });
 });
+
 
 
 

@@ -984,6 +984,29 @@ export interface OfflineCacheOperationResult {
   executedAt: string;
 }
 
+export interface OfflineQueuedObservation {
+  id: string;
+  idempotencyKey: string;
+  scopeId: string;
+  channelNumber: number;
+  signalType: 'scte35_cue' | 'hbbtv_ait' | 'av_cadence' | 'offline_skip';
+  observedBreakDurationSec: number;
+  switchingLatencyMs: number;
+  containsPii: false;
+  queuedAt: string;
+}
+
+export interface OfflineQueueDrainResult {
+  ok: boolean;
+  networkOnline: boolean;
+  attemptedCount: number;
+  drainedNewCount: number;
+  deduplicatedReplayCount: number;
+  remainingQueueCount: number;
+  detail: string;
+  executedAt: string;
+}
+
 export interface OfflineCacheStateSnapshot {
   isSoftwareSimulationOnly: true;
   hardwareTested: false;
@@ -991,6 +1014,9 @@ export interface OfflineCacheStateSnapshot {
   offlineResilient: boolean;
   bundles: OfflineCacheBundleEntry[];
   queuedObservationsCount: number;
+  queuedObservations: OfflineQueuedObservation[];
+  deduplicatedReplaysCount: number;
+  drainedObservationsTotal: number;
   recentOperations: Array<{
     id: string;
     action: string;
@@ -1001,5 +1027,62 @@ export interface OfflineCacheStateSnapshot {
   }>;
 }
 
+// --- Phase 4 Block 4.2: Multi-Channel Adapter State, Cadence Simulator & Conformance Vectors ---
+
+export interface TvChannelProfileBinding {
+  channelNumber: number;
+  channelName: string;
+  broadcaster: string;
+  scopeId: string;
+  defaultInput: Exclude<TvInputSource, 'EDISON_APP'>;
+  signalStandard: 'SCTE-35' | 'HbbTV-AIT' | 'DVB-Cadence';
+}
+
+export interface TvCadenceSimulationResult {
+  ok: boolean;
+  isSoftwareSimulationOnly: true;
+  hardwareTested: false;
+  platformId: TvPlatformId;
+  channelBinding: TvChannelProfileBinding;
+  signalType: 'scte35_cue' | 'hbbtv_ait' | 'av_cadence';
+  networkOnline: boolean;
+  cacheEligibility: {
+    eligible: boolean;
+    bundleVersion: number | null;
+    availableP10Sec: number;
+    requiredTotalSec: number;
+    reason: string;
+  };
+  breakExecuted: boolean;
+  adDisplayedDuringBreak: boolean;
+  watchdogRecovered: boolean;
+  observationQueued: boolean;
+  deduplicatedReplay: boolean;
+  finalTvState: SimulatedTvDeviceState;
+  detail: string;
+  auditTraceId: string;
+  executedAt: string;
+}
+
+export interface TvEmulatorConformanceVector {
+  vectorId: string;
+  platformId: TvPlatformId;
+  scenario: string;
+  expectedOutcome: string;
+  actualOutcome: string;
+  ordinaryTvPreserved: boolean;
+  passed: boolean;
+}
+
+export interface TvEmulatorConformanceReport {
+  generatedAt: string;
+  isSoftwareSimulationOnly: true;
+  hardwareTested: false;
+  stageP6Deferred: true;
+  totalVectors: number;
+  passedVectors: number;
+  allPassed: boolean;
+  vectors: TvEmulatorConformanceVector[];
+}
 
 

@@ -547,6 +547,44 @@ export const offlineCacheEvaluateBreakSchema = z
   })
   .strict();
 
+export const offlineQueueEnqueueSchema = z
+  .object({
+    idempotencyKey: z.string().trim().min(3).max(120),
+    scopeId: z.string().trim().min(3).max(160),
+    channelNumber: z.coerce.number().int().min(1).max(999),
+    signalType: z.enum(['scte35_cue', 'hbbtv_ait', 'av_cadence', 'offline_skip']),
+    observedBreakDurationSec: z.coerce.number().int().min(5).max(600),
+    switchingLatencyMs: z.coerce.number().int().min(50).max(5000).optional().default(380),
+  })
+  .strict();
+
+export const offlineQueueDrainSchema = z
+  .object({
+    networkOnline: z.boolean(),
+    maxBatchSize: z.coerce.number().int().min(1).max(200).optional().default(50),
+  })
+  .strict();
+
+export const tvCadenceSimulateSchema = z
+  .object({
+    platformId: z.enum(['simulation_tv', 'android_tv_tif', 'samsung_tizen', 'lg_webos']),
+    channelNumber: z.coerce.number().int().min(1).max(999),
+    signalType: z.enum(['scte35_cue', 'hbbtv_ait', 'av_cadence']).optional().default('scte35_cue'),
+    observedBreakDurationSec: z.coerce.number().int().min(5).max(600),
+    adDurationSeconds: z.coerce.number().int().min(5).max(120).optional().default(20),
+    safetyBufferSeconds: z.coerce.number().int().min(2).max(20).optional().default(5),
+    networkOnline: z.boolean().optional().default(true),
+    faultMode: z
+      .enum(['none', 'adapter_timeout', 'hdcp_blocked', 'decoder_crash', 'network_drop'])
+      .optional()
+      .default('none'),
+    idempotencyKey: z.string().trim().min(3).max(120).optional(),
+    currentState: simulatedTvDeviceStateSchema.optional(),
+  })
+  .strict();
+
+export const tvConformanceVectorsSchema = z.object({}).strict();
+
 export function parseWithZod<T extends z.ZodTypeAny>(
   schema: T,
   payload: unknown

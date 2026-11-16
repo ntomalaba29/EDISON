@@ -4,6 +4,8 @@ import type {
   OfflineCacheBundleEntry,
   OfflineCacheOperationResult,
   OfflineCacheStateSnapshot,
+  OfflineQueueDrainResult,
+  OfflineQueuedObservation,
 } from '../types/edison.ts';
 
 export function computeOfflineBundleManifest(params: {
@@ -34,7 +36,10 @@ export function computeOfflineBundleManifest(params: {
  */
 export class LocalOfflineIntelCacheEngine {
   private readonly bundles = new Map<string, OfflineCacheBundleEntry>();
-  private queuedObservationsCount = 0;
+  private readonly queuedObservations: OfflineQueuedObservation[] = [];
+  private readonly seenIdempotencyKeys = new Set<string>();
+  private deduplicatedReplaysCount = 0;
+  private drainedObservationsTotal = 0;
   private readonly recentOperations: OfflineCacheStateSnapshot['recentOperations'] = [];
 
   constructor() {
@@ -43,7 +48,10 @@ export class LocalOfflineIntelCacheEngine {
 
   resetDefaults(): void {
     this.bundles.clear();
-    this.queuedObservationsCount = 0;
+    this.queuedObservations.length = 0;
+    this.seenIdempotencyKeys.clear();
+    this.deduplicatedReplaysCount = 0;
+    this.drainedObservationsTotal = 0;
     this.recentOperations.length = 0;
     const now = new Date().toISOString();
 
@@ -136,8 +144,129 @@ export class LocalOfflineIntelCacheEngine {
       zeroPiiEnforced: true,
       offlineResilient: this.bundles.size > 0,
       bundles: Array.from(this.bundles.values()).map((b) => ({ ...b })),
-      queuedObservationsCount: this.queuedObservationsCount,
+      queuedObservationsCount: this.queuedObservations.length,
+      queuedObservations: this.queuedObservations.map((q) => ({ ...q })),
+      deduplicatedReplaysCount: this.deduplicatedReplaysCount,
+      drainedObservationsTotal: this.drainedObservationsTotal,
       recentOperations: this.recentOperations.map((o) => ({ ...o })),
+    };
+  }
+
+  enqueueOfflineObservation(input: {
+    idempotencyKey: string;
+    scopeId: string;
+    channelNumber: number;
+    signalType: OfflineQueuedObservation['signalType'];
+    observedBreakDurationSec: number;
+    switchingLatencyMs: number;
+  }): {
+    ok: boolean;
+    queued: boolean;
+    deduplicatedReplay: boolean;
+    observation: OfflineQueuedObservation | null;
+    detail: string;
+  } {
+    const scopeKnown = this.bundles.has(input.scopeId);
+    if (!scopeKnown) {
+      const detail = `Scope isolation guard: refused to queue observation for unknown scope "${input.scopeId}".`;
+      this.pushOp('QUEUE_REJECTED_SCOPE', input.scopeId, detail, false);
+      return {
+        ok: false,
+        queued: false,
+        deduplicatedReplay: false,
+        observation: null,
+        detail,
+      };
+    }
+
+    const key = input.idempotencyKey.trim();
+    const alreadyQueued = this.queuedObservations.some((o) => o.idempotencyKey === key);
+    if (alreadyQueued || this.seenIdempotencyKeys.has(key)) {
+      this.deduplicatedReplaysCount += 1;
+      const detail = `Idempotent replay guard: skipped duplicate observation key "${key}" for ${input.scopeId}.`;
+      this.pushOp('QUEUE_REPLAY_DEDUPLICATED', input.scopeId, detail, true);
+      return {
+        ok: true,
+        queued: false,
+        deduplicatedReplay: true,
+        observation: null,
+        detail,
+      };
+    }
+
+    const obs: OfflineQueuedObservation = {
+      id: `obs_${crypto.randomBytes(5).toString('hex')}`,
+      idempotencyKey: key,
+      scopeId: input.scopeId,
+      channelNumber: input.channelNumber,
+      signalType: input.signalType,
+      observedBreakDurationSec: input.observedBreakDurationSec,
+      switchingLatencyMs: input.switchingLatencyMs,
+      containsPii: false,
+      queuedAt: new Date().toISOString(),
+    };
+    this.queuedObservations.push(obs);
+    if (this.queuedObservations.length > 200) {
+      this.queuedObservations.shift();
+    }
+    const detail = `Queued zero-PII offline observation ${obs.id} (key=${key}, ch=${input.channelNumber}, signal=${input.signalType}).`;
+    this.pushOp('OBSERVATION_QUEUED_OFFLINE', input.scopeId, detail, true);
+    return {
+      ok: true,
+      queued: true,
+      deduplicatedReplay: false,
+      observation: { ...obs },
+      detail,
+    };
+  }
+
+  drainObservationQueue(params: {
+    networkOnline: boolean;
+    maxBatchSize?: number;
+  }): OfflineQueueDrainResult {
+    const now = new Date().toISOString();
+    if (!params.networkOnline) {
+      const detail = `Network offline — retained ${this.queuedObservations.length} queued observation(s) fail-closed in local cache.`;
+      this.pushOp('QUEUE_DRAIN_DEFERRED_OFFLINE', 'all_scopes', detail, false);
+      return {
+        ok: false,
+        networkOnline: false,
+        attemptedCount: this.queuedObservations.length,
+        drainedNewCount: 0,
+        deduplicatedReplayCount: 0,
+        remainingQueueCount: this.queuedObservations.length,
+        detail,
+        executedAt: now,
+      };
+    }
+
+    const batchLimit = Math.max(1, Math.min(200, params.maxBatchSize ?? 50));
+    const batch = this.queuedObservations.splice(0, batchLimit);
+    let drainedNewCount = 0;
+    let deduplicatedReplayCount = 0;
+
+    for (const item of batch) {
+      if (this.seenIdempotencyKeys.has(item.idempotencyKey)) {
+        deduplicatedReplayCount += 1;
+        this.deduplicatedReplaysCount += 1;
+      } else {
+        this.seenIdempotencyKeys.add(item.idempotencyKey);
+        drainedNewCount += 1;
+        this.drainedObservationsTotal += 1;
+      }
+    }
+
+    const detail = `Drained ${drainedNewCount} new observation(s) (${deduplicatedReplayCount} replay(s) deduplicated); ${this.queuedObservations.length} remaining in queue.`;
+    this.pushOp('QUEUE_DRAINED_SYNC', 'all_scopes', detail, true);
+    return {
+      ok: true,
+      networkOnline: true,
+      attemptedCount: batch.length,
+      drainedNewCount,
+      deduplicatedReplayCount,
+      remainingQueueCount: this.queuedObservations.length,
+      detail,
+      executedAt: now,
     };
   }
 
@@ -333,7 +462,14 @@ export class LocalOfflineIntelCacheEngine {
       params.adDurationSeconds + switchingOverheadSec + params.safetyBufferSeconds;
 
     if (bundle.p10BreakDurationSec < requiredTotalSec) {
-      this.queuedObservationsCount += 1;
+      this.enqueueOfflineObservation({
+        idempotencyKey: `skip_${params.scopeId}_v${bundle.version}_d${params.adDurationSeconds}_b${params.safetyBufferSeconds}`,
+        scopeId: params.scopeId,
+        channelNumber: 101,
+        signalType: 'offline_skip',
+        observedBreakDurationSec: bundle.p10BreakDurationSec,
+        switchingLatencyMs: bundle.switchingLatencyMs,
+      });
       const reason = `Skipped break offline: cached P10 (${bundle.p10BreakDurationSec}s) < required ${requiredTotalSec}s (${params.adDurationSeconds}s ad + ${switchingOverheadSec}s switch + ${params.safetyBufferSeconds}s safety buffer).`;
       this.pushOp('OFFLINE_BREAK_SKIPPED_SAFE', params.scopeId, reason, true);
       return {

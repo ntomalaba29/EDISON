@@ -169,4 +169,116 @@ describe('EDISON Phase 4 Block 4.1 — Software TV Adapter Harnesses & Offline I
     expect(uncachedScope.eligible).toBe(false);
     expect(uncachedScope.reason).toContain('fail closed');
   });
+
+  it('Block 4.2: deduplicates idempotent offline observation replays and retains queue fail-closed when offline', () => {
+    const cache = new LocalOfflineIntelCacheEngine();
+    const scopeId = cache.getSnapshot().bundles[0].scopeId;
+
+    // 1. Unknown scope is rejected cleanly
+    const badScope = cache.enqueueOfflineObservation({
+      idempotencyKey: 'k_unknown',
+      scopeId: 'untrusted_scope',
+      channelNumber: 101,
+      signalType: 'scte35_cue',
+      observedBreakDurationSec: 80,
+      switchingLatencyMs: 380,
+    });
+    expect(badScope.ok).toBe(false);
+    expect(badScope.queued).toBe(false);
+
+    // 2. First observation queues cleanly with zero PII
+    const q1 = cache.enqueueOfflineObservation({
+      idempotencyKey: 'obs_key_101_a',
+      scopeId,
+      channelNumber: 101,
+      signalType: 'scte35_cue',
+      observedBreakDurationSec: 85,
+      switchingLatencyMs: 380,
+    });
+    expect(q1.ok).toBe(true);
+    expect(q1.queued).toBe(true);
+    expect(q1.deduplicatedReplay).toBe(false);
+    expect(q1.observation?.containsPii).toBe(false);
+
+    // 3. Duplicate key before drain is deduplicated
+    const dupBeforeDrain = cache.enqueueOfflineObservation({
+      idempotencyKey: 'obs_key_101_a',
+      scopeId,
+      channelNumber: 101,
+      signalType: 'scte35_cue',
+      observedBreakDurationSec: 85,
+      switchingLatencyMs: 380,
+    });
+    expect(dupBeforeDrain.queued).toBe(false);
+    expect(dupBeforeDrain.deduplicatedReplay).toBe(true);
+
+    // 4. Offline drain retains queue intact (fail-closed)
+    const offlineDrain = cache.drainObservationQueue({ networkOnline: false });
+    expect(offlineDrain.ok).toBe(false);
+    expect(offlineDrain.remainingQueueCount).toBe(1);
+    expect(offlineDrain.drainedNewCount).toBe(0);
+
+    // 5. Online drain drains observation and deduplicates subsequent replay after drain
+    const onlineDrain = cache.drainObservationQueue({ networkOnline: true });
+    expect(onlineDrain.ok).toBe(true);
+    expect(onlineDrain.drainedNewCount).toBe(1);
+    expect(onlineDrain.remainingQueueCount).toBe(0);
+
+    const replayAfterDrain = cache.enqueueOfflineObservation({
+      idempotencyKey: 'obs_key_101_a',
+      scopeId,
+      channelNumber: 101,
+      signalType: 'scte35_cue',
+      observedBreakDurationSec: 85,
+      switchingLatencyMs: 380,
+    });
+    expect(replayAfterDrain.queued).toBe(false);
+    expect(replayAfterDrain.deduplicatedReplay).toBe(true);
+    expect(cache.getSnapshot().deduplicatedReplaysCount).toBe(2);
+    expect(cache.getSnapshot().drainedObservationsTotal).toBe(1);
+  });
+
+  it('Block 4.2: runs multi-channel SCTE-35/HbbTV cadence simulation and passes all 8 software emulator conformance vectors', () => {
+    const engine = new EdisonTvControlEngine();
+    expect(engine.listChannelBindings()).toHaveLength(3);
+
+    // Short break skips safely without interrupting TV
+    const shortSim = engine.runBroadcastCadenceSimulation({
+      platformId: 'android_tv_tif',
+      channelNumber: 101,
+      signalType: 'scte35_cue',
+      observedBreakDurationSec: 18,
+      adDurationSeconds: 30,
+      networkOnline: false,
+      recordToQueue: false,
+    });
+    expect(shortSim.breakExecuted).toBe(false);
+    expect(shortSim.finalTvState.ordinaryTvIntact).toBe(true);
+
+    // Sufficient break plays ad and restores ordinary TV cleanly
+    const healthySim = engine.runBroadcastCadenceSimulation({
+      platformId: 'samsung_tizen',
+      channelNumber: 103,
+      signalType: 'scte35_cue',
+      observedBreakDurationSec: 100,
+      adDurationSeconds: 20,
+      networkOnline: true,
+      recordToQueue: false,
+    });
+    expect(healthySim.breakExecuted).toBe(true);
+    expect(healthySim.adDisplayedDuringBreak).toBe(true);
+    expect(healthySim.finalTvState.activeInput).toBe('LIVE_TUNER');
+    expect(healthySim.finalTvState.adBreakOverlayActive).toBe(false);
+    expect(healthySim.hardwareTested).toBe(false);
+
+    // Run 8-vector emulator conformance suite
+    const conformance = engine.runEmulatorConformanceVectors();
+    expect(conformance.isSoftwareSimulationOnly).toBe(true);
+    expect(conformance.hardwareTested).toBe(false);
+    expect(conformance.stageP6Deferred).toBe(true);
+    expect(conformance.totalVectors).toBe(8);
+    expect(conformance.passedVectors).toBe(8);
+    expect(conformance.allPassed).toBe(true);
+  });
 });
+

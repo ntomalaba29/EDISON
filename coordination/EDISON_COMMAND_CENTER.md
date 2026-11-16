@@ -7,26 +7,26 @@
 
 ## 1. PROJECT OWNER MESSAGE
 
-> **Phase 3 Block P3-C Committed · Phase 4 Block 4.1 Complete & Verified (`TASK-P3-001` `READY` — JSON Persistence Retained)**:
-> - Project Owner confirmed manual commit of **`Block P3-C`** (`"Committed, next"`), locking all three Phase 3 AI Studio hardening blocks (`P3-A`, `P3-B`, `P3-C` = `9.0%`).
-> - Completed **Phase 4 · Stage 4.1 · Block 4.1 (Software-First Smart TV Adapter Harnesses & Offline Intelligence Cache)**:
->   - Upgraded `src/server/tvPlatformAdapter.ts` with platform-specific software harnesses (`SimulationTvHarness`, `AndroidTvTifHarness`, `SamsungTizenHarness`, `LgWebOsHarness`) enforcing `enterAdBreakSession`, `exitToOrdinaryTv`, fail-closed privilege boundaries (LG webOS without partner Luna privilege), and a **16-case deterministic fault-injection suite** across all 4 platforms × 4 fault modes (`hardwareTested: false`, `Stage P6` strictly deferred).
->   - Implemented `src/server/offlineIntelCache.ts` (`LocalOfflineIntelCacheEngine`) with SHA-256 manifest verification, scope isolation, anti-downgrade guard, atomic pointer swap, instant `previousGoodVersion` rollback, and offline break-duration feasibility evaluation (`P10` >= ad + switching + buffer).
->   - Exposed authenticated Block 4.1 endpoints (`/api/tv-adapters/break-lifecycle`, `/api/tv-adapters/fault-suite`, `/api/offline-intel-cache/*`), integrated interactive UI controls into `TvPreviewView.tsx`, and added unit + HTTP regression tests plus `qa_41_tv_harnesses_and_offline_cache` (`15/15` automated QA invariants).
+> **Phase 3 & Block 4.1 Committed · Phase 4 Block 4.2 Complete & Verified (`TASK-P3-001` `READY` — JSON Persistence Retained)**:
+> - Project Owner confirmed manual commit of **`Block 4.1`** (`"Committed, next"`), locking the initial Phase 4 Smart TV adapter harnesses and SHA-256 offline cache (`3.0%`).
+> - Completed **Phase 4 · Stage 4.2 · Block 4.2 (Offline Telemetry Sync Queue, Multi-Channel Adapter State Persistence & Cadence Simulator)**:
+>   - Extended `LocalOfflineIntelCacheEngine` (`src/server/offlineIntelCache.ts`) with a zero-PII offline observation queue supporting idempotency-key replay deduplication, bounded capacity, and fail-closed queue retention when offline (`networkOnline: false`).
+>   - Added `DEFAULT_TV_CHANNEL_BINDINGS` (`CH 101`, `103`, `201`), `runBroadcastCadenceSimulation()`, and an **8-vector software emulator conformance suite** (`runEmulatorConformanceVectors()`) in `src/server/tvPlatformAdapter.ts` (`hardwareTested: false`, `Stage P6` strictly deferred).
+>   - Exposed authenticated Block 4.2 endpoints (`GET /api/tv-adapters/channels`, `POST /api/offline-intel-cache/queue-observation`, `POST /api/offline-intel-cache/drain-queue`, `POST /api/tv-adapters/cadence-simulate`, `POST /api/tv-adapters/conformance-vectors`), added interactive UI controls in `TvPreviewView.tsx`, and added unit + HTTP integration tests plus `qa_42_offline_queue_cadence_conformance` (`16/16` automated QA invariants).
 > - Track B (`15.0%` consent/household/multi-profile/epoch-`403`) remains **strictly blocked** pending separate `DEC-OPEN-01` resolution.
-> - Overall progress is now **`31.0%` of the 15-Phase Full App** (`50.0%` to `Stage P6` · Phase 2 Track A `85.0%` committed + Phase 3 `9.0%` committed + Phase 4 `Block 4.1` `3.0%` **`VERIFIED · AWAITING COMMIT`**).
+> - Overall progress is now **`34.0%` of the 15-Phase Full App** (`54.8%` to `Stage P6` · Phase 2 Track A `85.0%` committed + Phase 3 `9.0%` committed + Phase 4 `Block 4.1` `3.0%` committed + `Block 4.2` `3.0%` **`VERIFIED · AWAITING COMMIT`**).
 
 ---
 
 ## 2. PROGRESS PERCENTAGES UNTIL FULL APP
 
 - **Phase 2 AI Studio Prototype Scope**: **`85.0%`** (**`100%` of unblocked Track A committed** · `15.0%` Track B Consent/Household/Multi-Profile/Epoch-`403` strictly **BLOCKED on `DEC-OPEN-01`**)
-- **Software-to-`Stage-P6` Milestone (Phases 1–6 Subtotal = `62.0%` of Full App)**: **`50.0%`** (`31.0% / 62.0%`)
-- **Overall EDISON Project Progress (Until Full 15-Phase International Commercial App = `100.0%`)**: **`31.0%`** (**`69.0%` remaining**)
+- **Software-to-`Stage-P6` Milestone (Phases 1–6 Subtotal = `62.0%` of Full App)**: **`54.8%`** (`34.0% / 62.0%`)
+- **Overall EDISON Project Progress (Until Full 15-Phase International Commercial App = `100.0%`)**: **`34.0%`** (**`66.0%` remaining**)
   - Phase 1 Specs (`v1`–`v2.2`): `6.0% / 6.0%` (**Committed**)
   - Phase 2 Prototype: `13.0% / 14.0%` (`Blocks 2.1`–`2.7` + `P2-FIX.6` + `P2-V2.1`–`P2-V2.4` **Committed**; `1.0%` reserved for Track B / `DEC-OPEN-01`)
   - Phase 3 Hardening: `9.0% / 12.0%` (`Blocks P3-A`, `P3-B` & `P3-C` **Committed** `9.0%`; `TASK-P3-001` **`READY`** `3.0%` with JSON retained in AI Studio)
-  - Phase 4 Smart TV OS Adapters & Normal TV Remote: `3.0% / 12.0%` (**`Block 4.1` `VERIFIED · AWAITING COMMIT` `3.0%`** — software-first harnesses, 16-case fault suite & SHA-256 offline cache; zero physical TV hardware tested, `Stage P6` strictly deferred)
+  - Phase 4 Smart TV OS Adapters & Normal TV Remote: `6.0% / 12.0%` (**`Block 4.1` `COMMITTED` `3.0%` + `Block 4.2` `VERIFIED · AWAITING COMMIT` `3.0%`** — zero physical TV hardware tested, `Stage P6` strictly deferred)
   - Phase 5 Break Detection & Shared Ad Intelligence (`12%`), Phase 6 Single Final Integrated TV Test (`6%`), Phases 7–9 Delivery/Billing/Render (`12%`), Phases 10–12 Ops/Legal/Failure Testing (`12%`), Phases 13–15 Launch/Expansion (`14%`): `0.0%` (**Not Started / Deferred**)
 
 ---
@@ -63,27 +63,27 @@
 
 ## 5. COPILOT EXECUTION REPORT
 
-*No VS Code Copilot tasks have been executed. `Blocks P3-A`, `P3-B`, `P3-C` (Committed) and Phase 4 `Block 4.1` (Awaiting Commit) were executed software-first inside AI Studio.*
+*No VS Code Copilot tasks have been executed. `Blocks P3-A`, `P3-B`, `P3-C` & Phase 4 `Block 4.1` (Committed) and Phase 4 `Block 4.2` (Awaiting Commit) were executed software-first inside AI Studio.*
 
 ---
 
 ## 6. AI STUDIO REVIEW
 
 - **Reviewed By**: AI Studio
-- **Phase 3 (`P3-A`, `P3-B` & `P3-C` — `COMMITTED`)**:
-  - API Zod validation, cookie/header CSRF & `edisonFetch`, rate limits, SHA-256 hashed/rotated sessions (`schemaVersion: 8`), `EdisonDataRepository` portability port, `/uploads/*` CSP/symlink/polyglot hardening, `X-Request-Id` correlation & telemetry, CSV formula-neutralized audit export, and modular `TvPlatformAdapter` / AURA Normal TV Remote contracts — **all confirmed committed by Owner**.
-- **Phase 4 · Block `4.1` (`VERIFIED · AWAITING COMMIT`)**:
-  - Upgraded `src/server/tvPlatformAdapter.ts` to concrete `SimulationTvHarness`, `AndroidTvTifHarness`, `SamsungTizenHarness`, and `LgWebOsHarness` adapters with `enterAdBreakSession`, `exitToOrdinaryTv`, fail-closed privilege guards, and 16-case `runDeterministicFaultSuite()`.
-  - Built `src/server/offlineIntelCache.ts` (`LocalOfflineIntelCacheEngine`) enforcing SHA-256 manifest verification, scope isolation, anti-downgrade, atomic pointer swap, `previousGoodVersion` rollback, and offline `P10` break-duration feasibility guards.
-  - Added Block 4.1 endpoints (`/api/tv-adapters/break-lifecycle`, `/api/tv-adapters/fault-suite`, `/api/offline-intel-cache/*`), integrated interactive UI controls in `TvPreviewView.tsx`, created `tests/phase4AdaptersAndCache.test.ts`, expanded `tests/securityHardening.test.ts`, and added 15th automated QA invariant `qa_41_tv_harnesses_and_offline_cache` (`15/15` passing).
+- **Phase 3 (`P3-A`, `P3-B` & `P3-C` — `COMMITTED`)**: API hardening, `EdisonDataRepository`, `X-Request-Id` telemetry, CSV formula-neutralized audit export, and modular TV/AURA contracts.
+- **Phase 4 · Block `4.1` (`COMMITTED`)**: `AndroidTvTifHarness`, `SamsungTizenHarness`, `LgWebOsHarness` fail-closed guards, 16-case deterministic fault suite, and `LocalOfflineIntelCacheEngine` SHA-256 swap/rollback.
+- **Phase 4 · Block `4.2` (`VERIFIED · AWAITING COMMIT`)**:
+  - Extended `LocalOfflineIntelCacheEngine` with idempotent zero-PII offline observation queueing (`enqueueOfflineObservation`), replay deduplication, and fail-closed offline retention (`drainObservationQueue`).
+  - Added multi-channel broadcast bindings (`CH 101`, `103`, `201`), end-to-end `runBroadcastCadenceSimulation()`, and 8-vector software emulator conformance testing (`runEmulatorConformanceVectors()`, `hardwareTested: false`).
+  - Exposed authenticated Block 4.2 endpoints, Simulator UI controls in `TvPreviewView.tsx`, 16th automated QA invariant `qa_42_offline_queue_cadence_conformance`, and unit + HTTP security regression coverage.
 
 ---
 
 ## 7. NEXT ACTION
 
-1. **Completed Gate**: **Phase 4 `Block 4.1` is `VERIFIED · AWAITING COMMIT`** (please review and manually commit all changes).
-2. **Next Authorised Options (After Owner Confirms `Block 4.1` Commit)**:
-   - **Phase 4 / Block `4.2`** (Offline Telemetry Sync Queue, Multi-Channel Adapter State Persistence & Cadence Simulator): Persist/drain queued offline intelligence observations with replay deduplication, simulate channel-specific SCTE-35/HbbTV cadence streams driving `TvPlatformAdapter` + `LocalOfflineIntelCacheEngine` end-to-end, and add software emulator conformance vectors (still keeping physical TV testing strictly deferred to `Stage P6`).
+1. **Completed Gate**: **Phase 4 `Block 4.2` is `VERIFIED · AWAITING COMMIT`** (please review and manually commit all changes).
+2. **Next Authorised Options (After Owner Confirms `Block 4.2` Commit)**:
+   - **Phase 4 / Block `4.3`** (Multi-Signal Broadcast Metadata Parser Fixtures, Companion Policy Guardrails & Phase 4 Exit Readiness): Implement lawful SCTE-35/HbbTV/AV-cadence fixture parsers (`metadata_cue_validator`), companion policy enforcement (`ADR-001` / `ADR-017` no 3P hijack), and final Phase 4 software exit suite (keeping physical TV testing strictly deferred to `Stage P6`).
    - **Or Execute `TASK-P3-001`** (`READY`): Authorise external PostgreSQL provisioning/migration when ready to move beyond single-host JSON persistence.
    - **To unlock Track B (`15.0%` consent/household/multi-profile/epoch-`403`)**: Resolve **`DEC-OPEN-01`** (`Option A`, `B`, or `C`). Track B remains strictly **BLOCKED** until decided.
 
@@ -100,5 +100,7 @@
 | `TASK-P3-A` | 2026-11-15 | AI Studio -> Owner | Phase 3 / `Block P3-A` | **`COMMITTED`** | API Zod validation, cookie/header CSRF & same-origin protection, rate limiters (`429`), hashed/rotated sessions (`schemaVersion: 8`), `edisonFetch` fix, and `tests/securityHardening.test.ts`. |
 | `TASK-P3-B` | 2026-11-15 | AI Studio -> Owner | Phase 3 / `Block P3-B` | **`COMMITTED`** | `EdisonDataRepository` persistence port, hardened `/uploads/*` CSP/symlink/polyglot controls, API timeout (`504`) & JSON error middleware, React `AppErrorBoundary`, CI workflow, and AI Studio host/port migration fixes. |
 | `TASK-P3-C` | 2026-11-15 | AI Studio -> Owner | Phase 3 / `Block P3-C` | **`COMMITTED`** | `X-Request-Id` correlation & telemetry, CSV formula-neutralized `/api/admin/audit-logs/export`, software-only `TvPlatformAdapter` contracts + `AURA` Normal TV Remote & watchdog simulator (`tests/tvPlatformAdapter.test.ts`). |
-| `TASK-P4-01` | 2026-11-15 | AI Studio -> Owner | Phase 4 / `Block 4.1` | **`AWAITING COMMIT`** | Software-first `AndroidTvTifHarness`, `SamsungTizenHarness`, `LgWebOsHarness` fail-closed capability gates, 16-case deterministic fault suite, SHA-256 `LocalOfflineIntelCacheEngine` atomic swap/rollback & simulator UI (`phase4AdaptersAndCache.test.ts`). |
+| `TASK-P4-01` | 2026-11-15 | AI Studio -> Owner | Phase 4 / `Block 4.1` | **`COMMITTED`** | Software-first `AndroidTvTifHarness`, `SamsungTizenHarness`, `LgWebOsHarness` fail-closed capability gates, 16-case deterministic fault suite, SHA-256 `LocalOfflineIntelCacheEngine` atomic swap/rollback & simulator UI (`phase4AdaptersAndCache.test.ts`). |
+| `TASK-P4-02` | 2026-11-15 | AI Studio -> Owner | Phase 4 / `Block 4.2` | **`AWAITING COMMIT`** | Idempotent offline telemetry sync queue with replay deduplication, multi-channel (`101/103/201`) SCTE-35/HbbTV cadence simulator & 8-vector emulator conformance suite (`qa_42_offline_queue_cadence_conformance`). |
+
 

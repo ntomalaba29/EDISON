@@ -28,12 +28,16 @@ import type {
   CampaignRecord,
   OfflineCacheOperationResult,
   OfflineCacheStateSnapshot,
+  OfflineQueueDrainResult,
   PrimaryAdCategory,
   PublicUser,
   QrLinkRecord,
   ScheduledBreakSlot,
   SimulatedTvDeviceState,
   TvBreakLifecycleResult,
+  TvCadenceSimulationResult,
+  TvChannelProfileBinding,
+  TvEmulatorConformanceReport,
   TvFaultSimulationMode,
   TvFaultSuiteReport,
   TvPlatformCapabilityProfile,
@@ -496,6 +500,16 @@ export function TvPreviewView({
     useState<OfflineCacheOperationResult | null>(null);
   const [cacheScopeId, setCacheScopeId] = useState('gb_freeview_bbcone_androidtv14_dvbt2');
   const [cacheBusy, setCacheBusy] = useState(false);
+  const [channelBindings, setChannelBindings] = useState<TvChannelProfileBinding[]>([]);
+  const [selectedChannelNumber, setSelectedChannelNumber] = useState<number>(101);
+  const [cadenceBreakSec, setCadenceBreakSec] = useState<number>(90);
+  const [cadenceNetworkOnline, setCadenceNetworkOnline] = useState<boolean>(true);
+  const [cadenceResult, setCadenceResult] = useState<TvCadenceSimulationResult | null>(null);
+  const [queueDrainResult, setQueueDrainResult] = useState<OfflineQueueDrainResult | null>(null);
+  const [conformanceReport, setConformanceReport] = useState<TvEmulatorConformanceReport | null>(
+    null
+  );
+  const [runningBlock42, setRunningBlock42] = useState(false);
 
   const [qrDataUrl, setQrDataUrl] = useState('');
   const stageContainerRef = useRef<HTMLDivElement | null>(null);
@@ -555,9 +569,10 @@ export function TvPreviewView({
         const p = await profRes.json();
         setProfile(p.profile ?? null);
       }
-      const [adapterRes, cacheRes] = await Promise.all([
+      const [adapterRes, cacheRes, channelsRes] = await Promise.all([
         edisonFetch('/api/tv-adapters/profiles'),
         edisonFetch('/api/offline-intel-cache/state'),
+        edisonFetch('/api/tv-adapters/channels'),
       ]);
       if (adapterRes.ok) {
         const adData = await adapterRes.json();
@@ -568,6 +583,12 @@ export function TvPreviewView({
       if (cacheRes.ok) {
         const cData = (await cacheRes.json()) as OfflineCacheStateSnapshot;
         setOfflineCacheState(cData);
+      }
+      if (channelsRes.ok) {
+        const chData = await channelsRes.json();
+        if (Array.isArray(chData.channels)) {
+          setChannelBindings(chData.channels);
+        }
       }
     } finally {
       setLoading(false);
@@ -961,6 +982,80 @@ export function TvPreviewView({
       setOfflineCacheFeedback(data);
     } finally {
       setCacheBusy(false);
+    }
+  };
+
+  const handleRunCadenceSimulation = async () => {
+    setRunningBlock42(true);
+    try {
+      const res = await edisonFetch('/api/tv-adapters/cadence-simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          platformId: selectedPlatformId,
+          channelNumber: selectedChannelNumber,
+          signalType: selectedChannelNumber === 201 ? 'hbbtv_ait' : 'scte35_cue',
+          observedBreakDurationSec: cadenceBreakSec,
+          adDurationSeconds: 20,
+          safetyBufferSeconds: 5,
+          networkOnline: cadenceNetworkOnline,
+          faultMode: tvFaultMode,
+          currentState: { ...simTvDeviceState, platformId: selectedPlatformId },
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCadenceResult(data);
+        if (data.cacheState) setOfflineCacheState(data.cacheState);
+        if (data.finalTvState) setSimTvDeviceState(data.finalTvState);
+        setSimLogs((prev) => [
+          `[${formatClock(liveBroadcastClock)} · CADENCE-4.2] ${data.detail}`,
+          ...prev.slice(0, 18),
+        ]);
+      }
+    } finally {
+      setRunningBlock42(false);
+    }
+  };
+
+  const handleDrainOfflineQueue = async (online: boolean) => {
+    setRunningBlock42(true);
+    try {
+      const res = await edisonFetch('/api/offline-intel-cache/drain-queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ networkOnline: online, maxBatchSize: 50 }),
+      });
+      const data = await res.json();
+      setQueueDrainResult(data);
+      if (data.state) setOfflineCacheState(data.state);
+      setSimLogs((prev) => [
+        `[${formatClock(liveBroadcastClock)} · QUEUE-DRAIN] ${data.detail}`,
+        ...prev.slice(0, 18),
+      ]);
+    } finally {
+      setRunningBlock42(false);
+    }
+  };
+
+  const handleRunConformanceVectors = async () => {
+    setRunningBlock42(true);
+    try {
+      const res = await edisonFetch('/api/tv-adapters/conformance-vectors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (res.ok) {
+        const report = (await res.json()) as TvEmulatorConformanceReport;
+        setConformanceReport(report);
+        setSimLogs((prev) => [
+          `[${formatClock(liveBroadcastClock)} · CONFORMANCE-4.2] ${report.passedVectors}/${report.totalVectors} emulator vectors passed (hardwareTested=false).`,
+          ...prev.slice(0, 18),
+        ]);
+      }
+    } finally {
+      setRunningBlock42(false);
     }
   };
 
@@ -2395,6 +2490,138 @@ export function TvPreviewView({
                         <p className="text-slate-500">Status: {b.status}</p>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Phase 4 Block 4.2: Multi-Channel Cadence Simulator, Offline Queue Drain & Conformance Vectors */}
+              <div className="pt-3 border-t border-slate-200 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h5 className="text-xs font-semibold text-slate-900">
+                      Phase 4 Block 4.2 · Multi-Channel Cadence Simulator, Offline Queue Sync &amp; Conformance Vectors
+                    </h5>
+                    <p className="text-[11px] text-slate-600">
+                      Drives channel-scoped SCTE-35/HbbTV breaks through offline P10 cache + platform harnesses with idempotent replay deduplication.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <select
+                      aria-label="Broadcast Channel Binding"
+                      value={selectedChannelNumber}
+                      onChange={(e) => setSelectedChannelNumber(Number(e.target.value))}
+                      className="px-2.5 py-1.5 border border-slate-200 rounded bg-white font-mono text-[11px]"
+                    >
+                      {(channelBindings.length > 0
+                        ? channelBindings
+                        : [
+                            { channelNumber: 101, channelName: 'BBC One (SCTE-35)' },
+                            { channelNumber: 103, channelName: 'ITV1 HD (SCTE-35)' },
+                            { channelNumber: 201, channelName: 'ZDF HD (HbbTV-AIT)' },
+                          ]
+                      ).map((ch) => (
+                        <option key={ch.channelNumber} value={ch.channelNumber}>
+                          CH {ch.channelNumber} · {ch.channelName}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      aria-label="Observed Break Duration Seconds"
+                      type="number"
+                      min={10}
+                      max={300}
+                      value={cadenceBreakSec}
+                      onChange={(e) => setCadenceBreakSec(Number(e.target.value) || 20)}
+                      className="w-20 px-2 py-1.5 border border-slate-200 rounded bg-white font-mono text-[11px]"
+                    />
+                    <label className="flex items-center gap-1.5 px-2 py-1.5 border border-slate-200 rounded bg-slate-50 cursor-pointer text-[11px]">
+                      <input
+                        type="checkbox"
+                        checked={cadenceNetworkOnline}
+                        onChange={(e) => setCadenceNetworkOnline(e.target.checked)}
+                      />
+                      <span>Online</span>
+                    </label>
+                    <button
+                      type="button"
+                      disabled={runningBlock42}
+                      onClick={handleRunCadenceSimulation}
+                      className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-medium cursor-pointer disabled:opacity-50"
+                    >
+                      Simulate Cadence
+                    </button>
+                    <button
+                      type="button"
+                      disabled={runningBlock42}
+                      onClick={() => handleDrainOfflineQueue(cadenceNetworkOnline)}
+                      className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded font-medium cursor-pointer disabled:opacity-50"
+                    >
+                      Drain Queue ({offlineCacheState?.queuedObservationsCount ?? 0})
+                    </button>
+                    <button
+                      type="button"
+                      disabled={runningBlock42}
+                      onClick={handleRunConformanceVectors}
+                      className="px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded font-semibold cursor-pointer disabled:opacity-50"
+                    >
+                      Run 8-Vector Conformance
+                    </button>
+                  </div>
+                </div>
+
+                {cadenceResult && (
+                  <div className="p-2.5 bg-indigo-50 border border-indigo-200 rounded text-xs font-mono space-y-1 text-indigo-950">
+                    <div className="flex flex-wrap justify-between gap-2">
+                      <span>
+                        CH {cadenceResult.channelBinding.channelNumber} ({cadenceResult.signalType}) ·{' '}
+                        {cadenceResult.breakExecuted ? 'EXECUTED & RESTORED' : 'SAFELY SKIPPED'}
+                      </span>
+                      <span>
+                        Queued: {cadenceResult.observationQueued ? 'YES' : 'DEDUPED'} · Ordinary TV Intact:{' '}
+                        {cadenceResult.finalTvState.ordinaryTvIntact ? 'TRUE' : 'FALSE'}
+                      </span>
+                    </div>
+                    <p>{cadenceResult.detail}</p>
+                  </div>
+                )}
+
+                {queueDrainResult && (
+                  <div
+                    className={`p-2.5 rounded border text-xs font-mono ${
+                      queueDrainResult.ok
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                        : 'bg-amber-50 border-amber-200 text-amber-900'
+                    }`}
+                  >
+                    {queueDrainResult.detail} (Total Drained: {offlineCacheState?.drainedObservationsTotal ?? 0} ·
+                    Deduplicated Replays: {offlineCacheState?.deduplicatedReplaysCount ?? 0})
+                  </div>
+                )}
+
+                {conformanceReport && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2 font-mono font-semibold text-emerald-950">
+                      <span>
+                        Emulator Conformance Vectors: {conformanceReport.passedVectors}/
+                        {conformanceReport.totalVectors} PASSED
+                      </span>
+                      <span>SOFTWARE SIMULATION · HARDWARE TESTED: FALSE</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 font-mono text-[11px]">
+                      {conformanceReport.vectors.map((vec) => (
+                        <div
+                          key={vec.vectorId}
+                          className="p-1.5 bg-white border border-emerald-200 rounded flex items-center justify-between gap-2"
+                        >
+                          <span className="truncate text-slate-700">
+                            {vec.vectorId} ({vec.platformId})
+                          </span>
+                          <span className={vec.passed ? 'text-emerald-700 font-bold' : 'text-red-700 font-bold'}>
+                            {vec.passed ? 'PASS' : 'FAIL'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
