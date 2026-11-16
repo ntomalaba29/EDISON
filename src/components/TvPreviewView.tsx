@@ -30,6 +30,12 @@ import type {
   PublicUser,
   QrLinkRecord,
   ScheduledBreakSlot,
+  SimulatedTvDeviceState,
+  TvFaultSimulationMode,
+  TvPlatformCapabilityProfile,
+  TvPlatformId,
+  TvRemoteCommand,
+  TvRemoteDispatchResult,
 } from '../types/edison';
 import { CopyReportFooter } from './CopyReportFooter';
 import { edisonFetch } from '../lib/csrfFetch';
@@ -456,6 +462,27 @@ export function TvPreviewView({
   const [planningBreak, setPlanningBreak] = useState(false);
   const [activeSlotCursor, setActiveSlotCursor] = useState(-1); // -1 = single spot, >=0 = multi-slot planned break
 
+  // Block P3-C Software-Only Modular TvPlatformAdapter & AURA Normal TV Remote Simulator
+  const [tvAdapterProfiles, setTvAdapterProfiles] = useState<TvPlatformCapabilityProfile[]>([]);
+  const [selectedPlatformId, setSelectedPlatformId] = useState<TvPlatformId>('android_tv_tif');
+  const [tvFaultMode, setTvFaultMode] = useState<TvFaultSimulationMode>('none');
+  const [simulateAdActive, setSimulateAdActive] = useState(false);
+  const [simTvDeviceState, setSimTvDeviceState] = useState<SimulatedTvDeviceState>({
+    platformId: 'android_tv_tif',
+    powerOn: true,
+    volume: 24,
+    muted: false,
+    activeInput: 'LIVE_TUNER',
+    previousOrdinaryInput: 'LIVE_TUNER',
+    channelNumber: 101,
+    adBreakOverlayActive: false,
+    lastDpadAction: null,
+    lastRestoredAt: null,
+    ordinaryTvIntact: true,
+  });
+  const [tvDispatchResult, setTvDispatchResult] = useState<TvRemoteDispatchResult | null>(null);
+  const [dispatchingTvCmd, setDispatchingTvCmd] = useState(false);
+
   const [qrDataUrl, setQrDataUrl] = useState('');
   const stageContainerRef = useRef<HTMLDivElement | null>(null);
   const playerVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -513,6 +540,13 @@ export function TvPreviewView({
       if (profRes.ok) {
         const p = await profRes.json();
         setProfile(p.profile ?? null);
+      }
+      const adapterRes = await edisonFetch('/api/tv-adapters/profiles');
+      if (adapterRes.ok) {
+        const adData = await adapterRes.json();
+        if (Array.isArray(adData.profiles)) {
+          setTvAdapterProfiles(adData.profiles);
+        }
       }
     } finally {
       setLoading(false);
@@ -780,6 +814,40 @@ export function TvPreviewView({
       }
     } finally {
       setPlanningBreak(false);
+    }
+  };
+
+  const handleSimulateAuraRemote = async (
+    command: TvRemoteCommand,
+    targetInput?: 'LIVE_TUNER' | 'HDMI_1' | 'HDMI_2'
+  ) => {
+    setDispatchingTvCmd(true);
+    try {
+      const res = await edisonFetch('/api/tv-adapters/remote-simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          platformId: selectedPlatformId,
+          intentSource: 'AURA',
+          command,
+          targetInput,
+          faultMode: tvFaultMode,
+          simulateActiveAdSession: simulateAdActive,
+          currentState: { ...simTvDeviceState, platformId: selectedPlatformId },
+        }),
+      });
+      if (res.ok) {
+        const result = (await res.json()) as TvRemoteDispatchResult;
+        setTvDispatchResult(result);
+        setSimTvDeviceState(result.nextState);
+        setSimulateAdActive(result.nextState.adBreakOverlayActive);
+        setSimLogs((prev) => [
+          `[${formatClock(liveBroadcastClock)} · TV-ADAPTER-SIM] ${result.detail}`,
+          ...prev.slice(0, 18),
+        ]);
+      }
+    } finally {
+      setDispatchingTvCmd(false);
     }
   };
 
@@ -1860,6 +1928,200 @@ export function TvPreviewView({
                 )}
               </div>
             )}
+
+            {/* Block P3-C: Software-Only Modular TvPlatformAdapter & AURA Normal Everyday TV Remote Simulator */}
+            <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-900">
+                    Modular TvPlatformAdapter &amp; AURA Normal Everyday TV Remote (Software-Only Sim)
+                  </h4>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    Exercises <span className="font-mono">AURA → EDISON Control Engine → platform adapter → TV</span> and
+                    deterministic watchdog restoration under fault injection. Physical TV hardware testing remains strictly deferred to <span className="font-mono">Stage P6</span>.
+                  </p>
+                </div>
+                <span className="text-[11px] font-mono px-2.5 py-1 bg-amber-50 border border-amber-200 text-amber-800 rounded">
+                  SOFTWARE SIMULATION · HARDWARE TESTED: FALSE
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                <div>
+                  <label className="block font-medium text-slate-700 mb-1">
+                    Target Modular Adapter
+                  </label>
+                  <select
+                    aria-label="Target Modular Adapter"
+                    value={selectedPlatformId}
+                    onChange={(e) => {
+                      const nextId = e.target.value as TvPlatformId;
+                      setSelectedPlatformId(nextId);
+                      setSimTvDeviceState((s) => ({ ...s, platformId: nextId }));
+                    }}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white"
+                  >
+                    {(tvAdapterProfiles.length > 0
+                      ? tvAdapterProfiles
+                      : [
+                          { platformId: 'android_tv_tif', displayName: 'Android TV / Google TV (TIF Mock)' },
+                          { platformId: 'samsung_tizen', displayName: 'Samsung Tizen TV (Mock)' },
+                          { platformId: 'lg_webos', displayName: 'LG webOS TV (Mock)' },
+                          { platformId: 'simulation_tv', displayName: 'SimulationTvAdapter (Contract)' },
+                        ]
+                    ).map((p) => (
+                      <option key={p.platformId} value={p.platformId}>
+                        {p.displayName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-medium text-slate-700 mb-1">
+                    Fault Injection Mode (Watchdog Test)
+                  </label>
+                  <select
+                    aria-label="Fault Injection Mode"
+                    value={tvFaultMode}
+                    onChange={(e) => setTvFaultMode(e.target.value as TvFaultSimulationMode)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white"
+                  >
+                    <option value="none">None (Normal Execution)</option>
+                    <option value="adapter_timeout">adapter_timeout (Watchdog Restore)</option>
+                    <option value="hdcp_blocked">hdcp_blocked (Refuse &amp; Preserve TV)</option>
+                    <option value="decoder_crash">decoder_crash (Isolate &amp; Restore)</option>
+                    <option value="network_drop">network_drop (Abort Overlay)</option>
+                  </select>
+                </div>
+
+                <div className="flex items-end">
+                  <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 w-full cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={simulateAdActive}
+                      onChange={(e) => setSimulateAdActive(e.target.checked)}
+                    />
+                    <span className="font-medium text-slate-700">
+                      Simulate Active Ad Break Overlay
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <button
+                  type="button"
+                  disabled={dispatchingTvCmd}
+                  onClick={() => handleSimulateAuraRemote('power_toggle')}
+                  className="px-2.5 py-1.5 border border-slate-200 rounded bg-white hover:bg-slate-50 font-medium cursor-pointer"
+                >
+                  Power
+                </button>
+                <button
+                  type="button"
+                  disabled={dispatchingTvCmd}
+                  onClick={() => handleSimulateAuraRemote('volume_up')}
+                  className="px-2.5 py-1.5 border border-slate-200 rounded bg-white hover:bg-slate-50 font-medium cursor-pointer"
+                >
+                  Vol +
+                </button>
+                <button
+                  type="button"
+                  disabled={dispatchingTvCmd}
+                  onClick={() => handleSimulateAuraRemote('volume_down')}
+                  className="px-2.5 py-1.5 border border-slate-200 rounded bg-white hover:bg-slate-50 font-medium cursor-pointer"
+                >
+                  Vol -
+                </button>
+                <button
+                  type="button"
+                  disabled={dispatchingTvCmd}
+                  onClick={() => handleSimulateAuraRemote('mute_toggle')}
+                  className="px-2.5 py-1.5 border border-slate-200 rounded bg-white hover:bg-slate-50 font-medium cursor-pointer"
+                >
+                  Mute
+                </button>
+                <button
+                  type="button"
+                  disabled={dispatchingTvCmd}
+                  onClick={() => handleSimulateAuraRemote('channel_up')}
+                  className="px-2.5 py-1.5 border border-slate-200 rounded bg-white hover:bg-slate-50 font-medium cursor-pointer"
+                >
+                  CH +
+                </button>
+                <button
+                  type="button"
+                  disabled={dispatchingTvCmd}
+                  onClick={() => handleSimulateAuraRemote('channel_down')}
+                  className="px-2.5 py-1.5 border border-slate-200 rounded bg-white hover:bg-slate-50 font-medium cursor-pointer"
+                >
+                  CH -
+                </button>
+                <button
+                  type="button"
+                  disabled={dispatchingTvCmd}
+                  onClick={() => handleSimulateAuraRemote('input_source_select', 'HDMI_1')}
+                  className="px-2.5 py-1.5 border border-slate-200 rounded bg-white hover:bg-slate-50 font-medium cursor-pointer"
+                >
+                  Input HDMI 1
+                </button>
+                <button
+                  type="button"
+                  disabled={dispatchingTvCmd}
+                  onClick={() => handleSimulateAuraRemote('back')}
+                  className="px-2.5 py-1.5 border border-blue-200 rounded bg-blue-50 text-blue-800 hover:bg-blue-100 font-semibold cursor-pointer"
+                >
+                  Back / Restore TV
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono">
+                <div>
+                  <span className="text-slate-500 block">Power</span>
+                  <span className="font-semibold text-slate-900">
+                    {simTvDeviceState.powerOn ? 'ON' : 'STANDBY'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Input</span>
+                  <span className="font-semibold text-slate-900">
+                    {simTvDeviceState.activeInput}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Channel / Vol</span>
+                  <span className="font-semibold text-slate-900">
+                    CH {simTvDeviceState.channelNumber} · {simTvDeviceState.muted ? 'MUTE' : `V${simTvDeviceState.volume}`}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Ad Overlay</span>
+                  <span className="font-semibold text-slate-900">
+                    {simTvDeviceState.adBreakOverlayActive ? 'ACTIVE (SIM)' : 'INACTIVE'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Ordinary TV Intact</span>
+                  <span className="font-semibold text-emerald-700">
+                    {simTvDeviceState.ordinaryTvIntact ? 'TRUE' : 'FALSE'}
+                  </span>
+                </div>
+              </div>
+
+              {tvDispatchResult && (
+                <div className="p-3 bg-slate-900 text-slate-100 rounded-lg text-xs font-mono space-y-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-slate-400">
+                    <span>Trace: {tvDispatchResult.auditTraceId}</span>
+                    <span>
+                      Watchdog: {tvDispatchResult.watchdogTriggered ? 'TRIGGERED' : 'IDLE'} · Outcome:{' '}
+                      {tvDispatchResult.restorationOutcome}
+                    </span>
+                  </div>
+                  <p className="text-emerald-300">{tvDispatchResult.detail}</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

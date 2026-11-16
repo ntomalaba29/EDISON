@@ -25,10 +25,15 @@ import {
   buildHardenedCookieOptions,
   generateCsrfToken,
   isSameOriginRequest,
+  neutralizeCsvCell,
   parseCookies,
+  requestCorrelationMiddleware,
   securityHeadersMiddleware,
   timingSafeMatch,
+  type CorrelatedRequest,
+  type RequestTelemetryEntry,
 } from './security.ts';
+import { edisonTvControlEngine } from './tvPlatformAdapter.ts';
 import {
   adCreativeAttachSchema,
   adCreativeSaveSchema,
@@ -40,6 +45,7 @@ import {
   adminVerifyTiersSchema,
   advertiserProfilePutSchema,
   appealCreateSchema,
+  auditLogExportQuerySchema,
   auditLogQuerySchema,
   campaignCreateSchema,
   campaignQuerySchema,
@@ -61,6 +67,7 @@ import {
   simulatorEventSchema,
   supportTicketCreateSchema,
   supportTicketStatusSchema,
+  tvRemoteSimulateSchema,
 } from './validationSchemas.ts';
 import type {
   OptionAComposition,
@@ -73,7 +80,7 @@ import type {
 
 const SEVEN_DAYS_MS = 1000 * 60 * 60 * 24 * 7;
 
-interface AuthenticatedRequest extends Request {
+interface AuthenticatedRequest extends CorrelatedRequest {
   currentUser?: PublicUser | null;
   currentSession?: SessionRecord | null;
   sessionToken?: string;
@@ -156,6 +163,16 @@ export function createEdisonApp(
   const app = express();
   app.set('trust proxy', true);
   app.disable('x-powered-by');
+
+  const recentTelemetry: RequestTelemetryEntry[] = [];
+  const recordRequestTelemetry = (entry: RequestTelemetryEntry) => {
+    if (entry.path.startsWith('/api') || entry.path.startsWith('/r/')) {
+      recentTelemetry.unshift(entry);
+      if (recentTelemetry.length > 200) {
+        recentTelemetry.length = 200;
+      }
+    }
+  };
 
   const limiter = new InMemoryRateLimiter();
   const rl = options?.rateLimits ?? {};
@@ -304,6 +321,7 @@ export function createEdisonApp(
   }
 
   app.use(securityHeadersMiddleware);
+  app.use(requestCorrelationMiddleware(recordRequestTelemetry));
   app.use('/api', apiTimeoutMiddleware(options?.requestTimeoutMs ?? 15_000));
   app.use(attachSession);
   app.use('/api', requireCsrfAndSameOrigin);
@@ -1303,7 +1321,46 @@ export function createEdisonApp(
     }
   );
 
-  // Admin-only Audit Log & Redirect Event Endpoints (RBAC Verification Targets)
+  // --- Software-Only Phase 4 Modular TV Adapter & AURA Normal Everyday Remote Simulator (Block P3-C) ---
+  app.get('/api/tv-adapters/profiles', requireAuth, (_req: AuthenticatedRequest, res: Response) => {
+    res.json({
+      isSoftwareSimulationOnly: true,
+      hardwareTested: false,
+      stageP6Deferred: true,
+      profiles: edisonTvControlEngine.listCapabilityProfiles(),
+    });
+  });
+
+  app.post(
+    '/api/tv-adapters/remote-simulate',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(tvRemoteSimulateSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const d = parsed.data;
+      const result = edisonTvControlEngine.dispatchRemoteCommand({
+        platformId: d.platformId,
+        intentSource: d.intentSource,
+        command: d.command,
+        targetInput: d.targetInput,
+        faultMode: d.faultMode,
+        simulateActiveAdSession: d.simulateActiveAdSession,
+        currentState: d.currentState,
+      });
+      store.recordSecurityAudit(
+        req.currentUser!,
+        'TV_ADAPTER_REMOTE_SIMULATED',
+        d.platformId,
+        `[${req.requestId ?? 'req'}] ${d.intentSource} -> ${d.command} (fault=${d.faultMode}, outcome=${result.restorationOutcome})`
+      );
+      res.json(result);
+    }
+  );
+
+  // Admin-only Audit Log, Hardened Export & Request Telemetry Endpoints
   app.get('/api/admin/audit-logs', requireAdmin, (req: AuthenticatedRequest, res: Response) => {
     const parsedQuery = parseWithZod(auditLogQuerySchema, {
       targetType: typeof req.query.targetType === 'string' ? req.query.targetType : undefined,
@@ -1320,6 +1377,78 @@ export function createEdisonApp(
       }),
     });
   });
+
+  app.get(
+    '/api/admin/audit-logs/export',
+    requireAdmin,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsedQuery = parseWithZod(auditLogExportQuerySchema, {
+        targetType: typeof req.query.targetType === 'string' ? req.query.targetType : undefined,
+        limit: typeof req.query.limit === 'string' ? req.query.limit : undefined,
+        format: typeof req.query.format === 'string' ? req.query.format : undefined,
+      });
+      if (!parsedQuery.ok) {
+        sendValidationError(res, parsedQuery);
+        return;
+      }
+
+      const { targetType, limit, format } = parsedQuery.data;
+      const items = store.listAuditLogs({ targetType, limit });
+
+      store.recordSecurityAudit(
+        req.currentUser!,
+        'ADMIN_AUDIT_LOG_EXPORTED',
+        targetType,
+        `[${req.requestId ?? 'req'}] Exported ${items.length} audit log row(s) as ${format.toUpperCase()}.`
+      );
+
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="edison-audit-logs.${format}"`
+      );
+
+      if (format === 'csv') {
+        const header = ['id', 'createdAt', 'actorId', 'actorRole', 'action', 'targetType', 'targetId', 'detail'].join(',');
+        const lines = items.map((row) =>
+          [
+            neutralizeCsvCell(row.id),
+            neutralizeCsvCell(row.createdAt),
+            neutralizeCsvCell(row.actorId ?? ''),
+            neutralizeCsvCell(row.actorRole),
+            neutralizeCsvCell(row.action),
+            neutralizeCsvCell(row.targetType),
+            neutralizeCsvCell(row.targetId),
+            neutralizeCsvCell(row.detail),
+          ].join(',')
+        );
+        res.type('text/csv; charset=utf-8').send([header, ...lines].join('\n'));
+        return;
+      }
+
+      res.json({
+        exportedAt: new Date().toISOString(),
+        requestId: req.requestId ?? null,
+        targetType,
+        count: items.length,
+        items,
+      });
+    }
+  );
+
+  app.get(
+    '/api/admin/request-telemetry',
+    requireAdmin,
+    (req: AuthenticatedRequest, res: Response) => {
+      res.setHeader('Cache-Control', 'no-store');
+      res.json({
+        requestId: req.requestId ?? null,
+        count: recentTelemetry.length,
+        items: recentTelemetry.slice(0, 50),
+      });
+    }
+  );
 
   app.get('/api/qr/events', requireAuth, (req: AuthenticatedRequest, res: Response) => {
     const user = req.currentUser!;

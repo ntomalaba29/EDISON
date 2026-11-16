@@ -444,8 +444,8 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
       .get('/api/qa/prototype-readiness')
       .set('Authorization', `Bearer ${adminLogin.body.token}`);
     expect(readinessRes.status).toBe(200);
-    expect(readinessRes.body.automatedInvariantsPassed).toBe(13);
-    expect(readinessRes.body.automatedInvariantsTotal).toBe(13);
+    expect(readinessRes.body.automatedInvariantsPassed).toBe(14);
+    expect(readinessRes.body.automatedInvariantsTotal).toBe(14);
   });
 
   it('hardens /api/media/upload against SVG/HTML polyglots & invalid base64 and locks down /uploads/* headers & symlinks', async () => {
@@ -546,6 +546,93 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
     expect(boomRes.body.error).toBe('Internal server error.');
     expect(JSON.stringify(boomRes.body)).not.toContain('Sensitive internal DB string');
   });
+
+  it('Block P3-C: attaches sanitised X-Request-Id correlation headers, neutralizes CSV formula injection in admin audit export & secures TV adapter sim endpoints', async () => {
+    // 1. Valid client request ID is echoed; header-injection / invalid IDs are replaced safely
+    const cleanReqId = 'edison_trace-2026.01';
+    const healthClean = await request(app)
+      .get('/api/health')
+      .set('X-Request-Id', cleanReqId);
+    expect(healthClean.status).toBe(200);
+    expect(healthClean.headers['x-request-id']).toBe(cleanReqId);
+
+    const healthInjected = await request(app)
+      .get('/api/health')
+      .set('X-Request-Id', 'bad id with spaces / <script>');
+    expect(healthInjected.status).toBe(200);
+    expect(healthInjected.headers['x-request-id']).toMatch(/^req_[a-f0-9]{16}$/);
+
+    // 2. Non-admin cannot access audit-logs/export or request-telemetry
+    const advLogin = await request(app).post('/api/auth/login').send({
+      email: 'advertiser@edison.demo',
+      password: 'EdisonProto!2026',
+    });
+    const advToken = advLogin.body.token as string;
+    const forbidExport = await request(app)
+      .get('/api/admin/audit-logs/export?format=csv')
+      .set('Authorization', `Bearer ${advToken}`);
+    expect(forbidExport.status).toBe(403);
+
+    const forbidTelemetry = await request(app)
+      .get('/api/admin/request-telemetry')
+      .set('Authorization', `Bearer ${advToken}`);
+    expect(forbidTelemetry.status).toBe(403);
+
+    // 3. Inject formula-like payload via QR creation or security audit and verify CSV neutralization
+    const adminLogin = await request(app).post('/api/auth/login').send({
+      email: 'admin@edison.demo',
+      password: 'EdisonAdmin!2026',
+    });
+    const adminToken = adminLogin.body.token as string;
+
+    store.recordSecurityAudit(
+      adminLogin.body.user,
+      'TEST_FORMULA_PAYLOAD',
+      '=CMD("calc")',
+      '+SUM(1,2) formula check'
+    );
+
+    const csvExport = await request(app)
+      .get('/api/admin/audit-logs/export?format=csv&limit=20')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(csvExport.status).toBe(200);
+    expect(csvExport.headers['content-type']).toContain('text/csv');
+    expect(csvExport.headers['content-disposition']).toContain('edison-audit-logs.csv');
+    expect(csvExport.headers['x-content-type-options']).toBe('nosniff');
+    expect(csvExport.headers['cache-control']).toBe('no-store');
+    // Formula trigger prefixes must be neutralized with leading single quote inside quotes
+    expect(csvExport.text).toContain(`"'=CMD(""calc"")"`);
+    expect(csvExport.text).toContain(`"'+SUM(1,2) formula check"`);
+
+    // 4. TV adapter simulation endpoints require auth, pass strict Zod validation, and return simulated-only flags
+    const unauthAdapters = await request(app).get('/api/tv-adapters/profiles');
+    expect(unauthAdapters.status).toBe(401);
+
+    const profilesRes = await request(app)
+      .get('/api/tv-adapters/profiles')
+      .set('Authorization', `Bearer ${advToken}`);
+    expect(profilesRes.status).toBe(200);
+    expect(profilesRes.body.isSoftwareSimulationOnly).toBe(true);
+    expect(profilesRes.body.hardwareTested).toBe(false);
+    expect(profilesRes.body.profiles).toHaveLength(4);
+
+    const simRes = await request(app)
+      .post('/api/tv-adapters/remote-simulate')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({
+        platformId: 'android_tv_tif',
+        intentSource: 'AURA',
+        command: 'channel_up',
+        faultMode: 'adapter_timeout',
+        simulateActiveAdSession: true,
+      });
+    expect(simRes.status).toBe(200);
+    expect(simRes.body.watchdogTriggered).toBe(true);
+    expect(simRes.body.restorationOutcome).toBe('restored_to_ordinary_tv');
+    expect(simRes.body.nextState.ordinaryTvIntact).toBe(true);
+    expect(simRes.body.hardwareTested).toBe(false);
+  });
 });
+
 
 

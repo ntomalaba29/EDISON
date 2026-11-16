@@ -447,6 +447,60 @@ export const sharedIntelActionSchema = z
   })
   .strict();
 
+export const auditLogExportQuerySchema = z
+  .object({
+    targetType: z.string().trim().max(60).optional().default('all'),
+    limit: z.coerce.number().int().min(1).max(1000).optional().default(200),
+    format: z.enum(['json', 'csv']).optional().default('json'),
+  })
+  .strict();
+
+const simulatedTvDeviceStateSchema = z
+  .object({
+    platformId: z.enum(['simulation_tv', 'android_tv_tif', 'samsung_tizen', 'lg_webos']),
+    powerOn: z.boolean(),
+    volume: z.coerce.number().int().min(0).max(100),
+    muted: z.boolean(),
+    activeInput: z.enum(['LIVE_TUNER', 'HDMI_1', 'HDMI_2', 'EDISON_APP']),
+    previousOrdinaryInput: z.enum(['LIVE_TUNER', 'HDMI_1', 'HDMI_2']),
+    channelNumber: z.coerce.number().int().min(1).max(999),
+    adBreakOverlayActive: z.boolean(),
+    lastDpadAction: z.string().max(40).nullable(),
+    lastRestoredAt: z.string().max(60).nullable(),
+    ordinaryTvIntact: z.boolean(),
+  })
+  .strict();
+
+export const tvRemoteSimulateSchema = z
+  .object({
+    platformId: z.enum(['simulation_tv', 'android_tv_tif', 'samsung_tizen', 'lg_webos']),
+    intentSource: z.enum(['AURA', 'EDISON_UI']).optional().default('AURA'),
+    command: z.enum([
+      'power_toggle',
+      'volume_up',
+      'volume_down',
+      'mute_toggle',
+      'channel_up',
+      'channel_down',
+      'input_source_select',
+      'dpad_up',
+      'dpad_down',
+      'dpad_left',
+      'dpad_right',
+      'dpad_ok',
+      'back',
+      'home',
+    ]),
+    targetInput: z.enum(['LIVE_TUNER', 'HDMI_1', 'HDMI_2', 'EDISON_APP']).optional(),
+    faultMode: z
+      .enum(['none', 'adapter_timeout', 'hdcp_blocked', 'decoder_crash', 'network_drop'])
+      .optional()
+      .default('none'),
+    simulateActiveAdSession: z.boolean().optional().default(false),
+    currentState: simulatedTvDeviceStateSchema.optional(),
+  })
+  .strict();
+
 export function parseWithZod<T extends z.ZodTypeAny>(
   schema: T,
   payload: unknown

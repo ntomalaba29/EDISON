@@ -4324,6 +4324,21 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
           'EdisonDataRepository persistence port active (JSON store schema v8 retained with zero Cloud SQL cost), /uploads sandboxed with strict CSP + canonical realpath guard, Express 504 timeout & opaque JSON error middleware, React AppErrorBoundary & GitHub Actions CI configured.',
       },
       {
+        id: 'qa_p3c_correlation_export_tv_contracts',
+        block: 'Block P3-C',
+        label:
+          'Phase 3/4 Entry: Request Correlation, Hardened Audit Export & Software-Only TvPlatformAdapter / AURA Remote Contracts',
+        status: (() => {
+          const hasP3cModules =
+            fs.existsSync(path.resolve(process.cwd(), 'src', 'server', 'tvPlatformAdapter.ts')) &&
+            fs.existsSync(path.resolve(process.cwd(), 'tests', 'tvPlatformAdapter.test.ts'));
+          return hasP3cModules ? 'pass' : 'fail';
+        })(),
+        scope: 'automated_invariant',
+        detail:
+          'X-Request-Id correlation + sanitised request telemetry, formula-neutralized CSV/JSON admin audit export, and 4 software-only TvPlatformAdapter contracts with AURA Normal TV Remote & watchdog fault-recovery simulation (hardware testing strictly deferred to Stage P6).',
+      },
+      {
         id: 'qa_27_physical_qr_scan',
         block: 'Block 2.7',
         label: 'Physical smartphone camera scan verification on real mobile device',
@@ -4342,7 +4357,7 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     return {
       generatedAt: new Date().toISOString(),
       phase: 'Phase 3 — Software-First Engineering Hardening (Track A Active · JSON Persistence Retained)',
-      block: 'Block P3-B (EdisonDataRepository Port, Asset CSP/Symlink Hardening, Timeout/ErrorBoundary & CI)',
+      block: 'Block P3-C (Request Correlation, Audit Export Hardening & Software-Only TvPlatformAdapter / AURA Remote Contracts)',
       automatedInvariantsPassed,
       automatedInvariantsTotal: autoChecks.length,
       physicalQrScanStatus:
@@ -4558,17 +4573,17 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     return {
       generatedAt: new Date().toISOString(),
       phase: 'Phase 3 — Software-First Engineering Hardening (Track A Active · JSON Retained)',
-      stage: 'Block P3-A Committed · Block P3-B Complete (Repository Port, Asset/Timeout/ErrorBoundary & CI) · TASK-P3-001 READY',
-      block: 'Block P3-B (EdisonDataRepository Port, /uploads CSP/Symlink Hardening, Timeout/ErrorBoundary & CI)',
-      gateStatus: 'BLOCK P3-B VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · NO CLOUD SQL PROVISIONED)',
+      stage: 'Block P3-A & P3-B Committed · Block P3-C Complete (Correlation, Audit Export & Software TV Adapter/AURA Contracts) · TASK-P3-001 READY',
+      block: 'Block P3-C (Request Correlation, Hardened Audit Export & Software-Only TvPlatformAdapter / AURA Remote Contracts)',
+      gateStatus: 'BLOCK P3-C VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · NO CLOUD SQL PROVISIONED)',
       progressMetrics: {
         aiStudioAssignmentPct: 85,
-        softwareToStageP6Pct: 40.3,
-        overallFullAppPct: 25.0,
-        remainingUntilFullAppPct: 75.0,
+        softwareToStageP6Pct: 45.2,
+        overallFullAppPct: 28.0,
+        remainingUntilFullAppPct: 72.0,
         consentBlockedScopePct: 15,
         rubricSummary:
-          'Phase 1 Specs (6.0%) + Phase 2 Track A Complete (13.0%) + Phase 3 Block P3-A Committed (3.0%) + Block P3-B Awaiting Commit (3.0%) = 25.0% of 15-Phase Full Commercial App (85% Phase 2 AI Studio Prototype + 6.0%/12.0% Phase 3 Active; 15% Track B blocked on DEC-OPEN-01).',
+          'Phase 1 Specs (6.0%) + Phase 2 Track A Complete (13.0%) + Phase 3 Block P3-A Committed (3.0%) + Block P3-B Committed (3.0%) + Block P3-C Awaiting Commit (3.0%) = 28.0% of 15-Phase Full Commercial App (85% Phase 2 AI Studio Prototype + 9.0%/12.0% Phase 3 Active; 15% Track B blocked on DEC-OPEN-01).',
       },
       latestAuditAt: latestAudit?.createdAt ?? null,
       latestAuditAction: latestAudit?.action ?? null,

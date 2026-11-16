@@ -4,7 +4,17 @@ import express, { type Request, type Response } from 'express';
 import { createEdisonApp } from './src/server/app.ts';
 import { edisonStore } from './src/server/store.ts';
 
-const PORT = Number(process.env.PORT || 3000);
+function getCliFlag(flag: string): string | undefined {
+  const idx = process.argv.indexOf(flag);
+  if (idx !== -1 && idx + 1 < process.argv.length) {
+    return process.argv[idx + 1];
+  }
+  const eqArg = process.argv.find((arg) => arg.startsWith(`${flag}=`));
+  return eqArg ? eqArg.slice(flag.length + 1) : undefined;
+}
+
+const PORT = Number(getCliFlag('--port') || process.env.PORT || 3000);
+const HOST = getCliFlag('--host') || '0.0.0.0';
 
 async function startServer() {
   const app = createEdisonApp(edisonStore);
@@ -24,8 +34,8 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`EDISON server listening on http://0.0.0.0:${PORT}`);
+  app.listen(PORT, HOST, () => {
+    console.log(`EDISON server listening on http://${HOST}:${PORT}`);
   });
 }
 

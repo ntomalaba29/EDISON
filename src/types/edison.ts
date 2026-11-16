@@ -817,3 +817,80 @@ export interface SharedIntelPreviewState {
   auditTrail: SharedIntelAuditEntry[];
 }
 
+// --- Phase 3 Block P3-C / Phase 4 Entry Prep: Modular TvPlatformAdapter & AURA Normal TV Remote (Software-Only Simulation) ---
+
+export type TvPlatformId = 'simulation_tv' | 'android_tv_tif' | 'samsung_tizen' | 'lg_webos';
+
+export type TvRemoteCommand =
+  | 'power_toggle'
+  | 'volume_up'
+  | 'volume_down'
+  | 'mute_toggle'
+  | 'channel_up'
+  | 'channel_down'
+  | 'input_source_select'
+  | 'dpad_up'
+  | 'dpad_down'
+  | 'dpad_left'
+  | 'dpad_right'
+  | 'dpad_ok'
+  | 'back'
+  | 'home';
+
+export type TvInputSource = 'LIVE_TUNER' | 'HDMI_1' | 'HDMI_2' | 'EDISON_APP';
+
+export type TvFaultSimulationMode =
+  | 'none'
+  | 'adapter_timeout'
+  | 'hdcp_blocked'
+  | 'decoder_crash'
+  | 'network_drop';
+
+export interface TvPlatformCapabilityProfile {
+  platformId: TvPlatformId;
+  displayName: string;
+  isSimulated: true;
+  hardwareTested: false;
+  officiallyDocumentedPath: string;
+  requiresPartnerPrivilegeForGlobalTuner: boolean;
+  supportsOwnSessionOverlay: boolean;
+  supportedRemoteCommands: TvRemoteCommand[];
+  restorationGuaranteeMode: string;
+  stageP6Note: string;
+}
+
+export interface SimulatedTvDeviceState {
+  platformId: TvPlatformId;
+  powerOn: boolean;
+  volume: number;
+  muted: boolean;
+  activeInput: TvInputSource;
+  previousOrdinaryInput: Exclude<TvInputSource, 'EDISON_APP'>;
+  channelNumber: number;
+  adBreakOverlayActive: boolean;
+  lastDpadAction: string | null;
+  lastRestoredAt: string | null;
+  ordinaryTvIntact: boolean;
+}
+
+export interface TvRemoteDispatchResult {
+  ok: boolean;
+  isSoftwareSimulationOnly: true;
+  hardwareTested: false;
+  platformId: TvPlatformId;
+  intentSource: 'AURA' | 'EDISON_UI';
+  command: TvRemoteCommand;
+  faultInjected: TvFaultSimulationMode;
+  watchdogTriggered: boolean;
+  restorationOutcome:
+    | 'not_needed'
+    | 'restored_to_ordinary_tv'
+    | 'command_rejected_safely';
+  previousState: SimulatedTvDeviceState;
+  nextState: SimulatedTvDeviceState;
+  detail: string;
+  auditTraceId: string;
+  executedAt: string;
+}
+
+

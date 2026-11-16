@@ -274,3 +274,74 @@ export function apiErrorMiddleware(
   });
 }
 
+const SAFE_REQUEST_ID_RE = /^[A-Za-z0-9._-]{4,64}$/;
+
+export function sanitizeRequestId(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  return SAFE_REQUEST_ID_RE.test(trimmed) ? trimmed : null;
+}
+
+export interface CorrelatedRequest extends Request {
+  requestId?: string;
+}
+
+export interface RequestTelemetryEntry {
+  requestId: string;
+  method: string;
+  path: string;
+  statusCode: number;
+  durationMs: number;
+  timestamp: string;
+}
+
+export function requestCorrelationMiddleware(
+  onTelemetry?: (entry: RequestTelemetryEntry) => void
+) {
+  return (req: CorrelatedRequest, res: Response, next: NextFunction): void => {
+    const incoming =
+      sanitizeRequestId(req.get('x-request-id')) ??
+      sanitizeRequestId(req.get('x-correlation-id'));
+    const requestId = incoming ?? `req_${crypto.randomBytes(8).toString('hex')}`;
+    req.requestId = requestId;
+    res.setHeader('X-Request-Id', requestId);
+
+    const startNs = process.hrtime.bigint();
+    res.on('finish', () => {
+      if (!onTelemetry) return;
+      const elapsedMs = Number(process.hrtime.bigint() - startNs) / 1_000_000;
+      const safePath = (req.originalUrl || req.path || '/').split('?')[0];
+      onTelemetry({
+        requestId,
+        method: req.method.toUpperCase(),
+        path: safePath,
+        statusCode: res.statusCode,
+        durationMs: Number(elapsedMs.toFixed(2)),
+        timestamp: new Date().toISOString(),
+      });
+    });
+
+    next();
+  };
+}
+
+/**
+ * Neutralizes CSV / spreadsheet formula injection (`=`, `+`, `-`, `@`, `\t`, `\r`)
+ * by prefixing a leading single quote before standard RFC 4180 quoting.
+ */
+export function neutralizeCsvCell(value: string | number | boolean | null | undefined): string {
+  const raw = value == null ? '' : String(value);
+  const cleaned = raw.replace(/\r\n/g, ' ').replace(/[\r\n]/g, ' ');
+  const trimmedLeading = cleaned.replace(/^[\s\u0000-\u001f]+/, '');
+  const isFormulaTrigger =
+    trimmedLeading.length > 0 &&
+    (trimmedLeading.startsWith('=') ||
+      trimmedLeading.startsWith('+') ||
+      trimmedLeading.startsWith('-') ||
+      trimmedLeading.startsWith('@') ||
+      cleaned.startsWith('\t'));
+  const safe = isFormulaTrigger ? `'${cleaned}` : cleaned;
+  return `"${safe.replace(/"/g, '""')}"`;
+}
+
+

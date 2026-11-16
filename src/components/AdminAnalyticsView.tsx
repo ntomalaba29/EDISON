@@ -448,6 +448,40 @@ export function AdminAnalyticsView({
     URL.revokeObjectURL(url);
   };
 
+  const handleExportAuditLogs = async (format: 'csv' | 'json') => {
+    setFeedback(null);
+    try {
+      const qs = new URLSearchParams({
+        targetType: auditTargetFilter || 'all',
+        limit: '500',
+        format,
+      });
+      const res = await edisonFetch(`/api/admin/audit-logs/export?${qs.toString()}`, {
+        cache: 'no-store',
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setFeedback({ type: 'err', text: d.error || 'Failed to export audit logs.' });
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `edison-audit-logs-${new Date().toISOString().slice(0, 10)}.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+      const reqId = res.headers.get('x-request-id');
+      setFeedback({
+        type: 'ok',
+        text: `Audit log exported as ${format.toUpperCase()} (${reqId ? `X-Request-Id: ${reqId}` : 'hardened download'}).`,
+      });
+      await loadData();
+    } catch {
+      setFeedback({ type: 'err', text: 'Network error while exporting audit logs.' });
+    }
+  };
+
   const filteredAudits = useMemo(() => {
     const q = auditSearch.trim().toLowerCase();
     if (!q) return auditLogs;
@@ -1454,6 +1488,22 @@ export function AdminAnalyticsView({
                     onChange={(e) => setAuditSearch(e.target.value)}
                     className="px-3 py-1.5 border border-slate-200 rounded-lg"
                   />
+                  <button
+                    type="button"
+                    onClick={() => handleExportAuditLogs('csv')}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Export CSV
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleExportAuditLogs('json')}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Export JSON
+                  </button>
                 </div>
               </div>
 

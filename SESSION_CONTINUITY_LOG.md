@@ -70,3 +70,21 @@
 - **Owner Commit Confirmation (`ADR-010`)**: Project Owner confirmed `"Next"`, locking in Block 2.7 and completing Phase 2 (`Blocks 2.1–2.7`) inside AI Studio's implementation boundary (`AI_STUDIO_WORKING_BOUNDARY.md`).
 - **Handover Package & Copilot Activation**: Authored permanent `VSCODE_HANDOVER_PACKAGE.md` covering all 11 checklist items from `VSCODE_HANDOVER_PLAN.md` and transitioned `TASK-P3-001` (PostgreSQL Migration & Production Persistence Hardening) from `DRAFT` to **`READY`** in `coordination/EDISON_COMMAND_CENTER.md`.
 - **Remaining Owner Action**: Commit these Phase 3 handover activation records to GitHub, pull locally, instruct VS Code Copilot to execute `TASK-P3-001`, and run an optional physical smartphone camera QR scan via `QR QA & VS Code Handover`.
+
+---
+
+## Session Entry — 2026-11-15 (Blocks P3-A & P3-B Committed · Block P3-C Verification)
+
+- **Owner Commit Confirmations (`ADR-010`)**:
+  - **Block P3-A** (Server-Side Security Hardening: CSRF protection, PBKDF2-SHA512 hashing, session cookies, rate limiting, media magic-byte/MIME validation, security headers, 20 Vitest tests) and **Block P3-B** (Repository Abstraction + Zod Validation Schemas + Shared Intelligence Architecture Preview + Smart TV Break Scheduler & Watchdog Restoration) confirmed **COMMITTED**.
+- **Verified Block P3-C (Software-First Phase 3 Part 3 / Phase 4 Entry Prep — `VERIFIED · AWAITING COMMIT`)**:
+  1. **Request Correlation & Sanitised Telemetry**: Added `requestCorrelationMiddleware` (`X-Request-Id` / `X-Correlation-Id` echo and sanitisation) plus admin-only sanitised ring-buffer endpoint `GET /api/admin/request-telemetry`.
+  2. **Hardened Admin Audit Log Export**: Implemented `GET /api/admin/audit-logs/export?format=csv|json` with Zod validation, spreadsheet formula-injection neutralization (`neutralizeCsvCell`), strict `X-Content-Type-Options: nosniff`, `Cache-Control: no-store`, and `Content-Disposition: attachment` headers, surfaced in `AdminAnalyticsView.tsx`.
+  3. **Software-Only Modular `TvPlatformAdapter` Contracts & `AURA` Normal Everyday TV Remote Simulator**: Implemented `src/server/tvPlatformAdapter.ts` (`simulation_tv`, `android_tv_tif`, `samsung_tizen`, `lg_webos`) and `EdisonTvControlEngine` (`AURA → EDISON Control Engine → platform adapters → TV`) with deterministic watchdog restoration across fault modes (`adapter_timeout`, `hdcp_blocked`, `decoder_crash`, `network_drop`), `GET /api/tv-adapters/profiles`, `POST /api/tv-adapters/remote-simulate`, and UI integration in `TvPreviewView.tsx`. All outputs remain strictly tagged `isSimulated: true`, `hardwareTested: false`.
+  4. **QA Invariants & Migration Fix**: Added 14th automated QA invariant (`qa_p3c_correlation_export_tv_contracts`) in `getPrototypeReadinessSnapshot()`. Updated `vite.config.ts` (`import.meta.dirname`, `allowedHosts: true as const`), `server.ts` (`--port`/`--host` CLI support), and `.env.example` for clean AI Studio runtime operation.
+- **Explicit Boundaries Preserved**:
+  - **Track B (`DEC-OPEN-01`)**: Strictly **BLOCKED** pending Project Owner review (no consent epochs, `HTTP 403` revocation, household TV accounts, or 7-level geo records).
+  - **Database / Cloud SQL (`TASK-P3-001`)**: Kept `READY` in `coordination/EDISON_COMMAND_CENTER.md` for external VS Code Copilot / PostgreSQL provisioning; runtime prototype remains JSON-backed (`data/edison-store.json`).
+  - **Physical Hardware (`ADR-014` / `ADR-017`)**: Physical Smart TV integration and hardware testing remain deferred to `Stage P6`.
+- **Next Authorised Action**: Review and commit **Block P3-C** before proceeding to Phase 4 or `TASK-P3-001`.
+
