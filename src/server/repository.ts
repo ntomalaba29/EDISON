@@ -11,6 +11,9 @@ import type {
   BreakSchedulePlan,
   BroadcastRenderJobResult,
   BroadcastResolutionProfile,
+  ChaosInjectSeverity,
+  ChaosScenarioResult,
+  FailureModeId,
   CampaignContentCategory,
   CampaignPreviewGateResult,
   CampaignRecord,
@@ -48,6 +51,8 @@ import type {
   QrDestinationType,
   QrLinkRecord,
   QrLinkStatus,
+  ReliabilityChaosOverview,
+  ReliabilityChaosReport,
   RevenueLedgerSnapshot,
   SessionRecord,
   SevenStageAnalyticsSnapshot,
@@ -658,5 +663,25 @@ export interface EdisonDataRepository {
     actor: PublicUser,
     input?: { notes?: string }
   ): PrivacyRetentionReport;
+
+  // --- Phase 11 Block 11.1: Reliability, Failure-Mode & Chaos Recovery Suite ---
+  getReliabilityChaosOverview(actor: PublicUser): ReliabilityChaosOverview;
+
+  executeFailureModeChaosProbe(
+    actor: PublicUser,
+    input: { failureModeId: FailureModeId; injectSeverity?: ChaosInjectSeverity }
+  ): {
+    probe: ChaosScenarioResult;
+    overview: ReliabilityChaosOverview;
+  };
+
+  runFullReliabilityChaosSuite(
+    actor: PublicUser,
+    input?: { notes?: string; injectSeverity?: ChaosInjectSeverity }
+  ): {
+    report: ReliabilityChaosReport;
+    overview: ReliabilityChaosOverview;
+  };
 }
+
 

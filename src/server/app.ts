@@ -62,6 +62,7 @@ import {
 import { runBroadcastRenderVerificationSuite } from './broadcastRenderEngine.ts';
 import { runOpportunityOpsVerificationSuite } from './opportunityOpsEngine.ts';
 import { runPrivacyComplianceVerificationSuite } from './privacyComplianceEngine.ts';
+import { runReliabilityChaosVerificationSuite } from './reliabilityChaosEngine.ts';
 import {
   adCreativeAttachSchema,
   adCreativeSaveSchema,
@@ -119,6 +120,8 @@ import {
   qrStatusPatchSchema,
   qrValidateSchema,
   registerSchema,
+  reliabilityChaosProbeSchema,
+  reliabilityChaosSweepSchema,
   sharedIntelActionSchema,
   sharedIntelObservationSchema,
   simulatorBreakScheduleSchema,
@@ -2327,6 +2330,82 @@ export function createEdisonApp(
         'PRIVACY_COMPLIANCE_SUITE_RUN',
         'phase10_privacy_compliance',
         `[${req.requestId ?? 'req'}] Phase 10 privacy & statutory compliance suite: ${report.passedChecks}/${report.totalChecks} passed (externalPenTestCompleted=false, legalComplianceClaimed=false, hardwareTested=false).`
+      );
+      res.json({ report });
+    }
+  );
+
+  // Phase 11 Block 11.1: Reliability, Failure-Mode & Chaos Recovery Suite (Software-First)
+  app.get(
+    '/api/reliability/overview',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      res.setHeader('Cache-Control', 'no-store, private');
+      try {
+        const overview = store.getReliabilityChaosOverview(req.currentUser!);
+        res.json({ overview });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.post(
+    '/api/reliability/chaos-probe',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(reliabilityChaosProbeSchema, req.body ?? {});
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      res.setHeader('Cache-Control', 'no-store, private');
+      try {
+        const result = store.executeFailureModeChaosProbe(req.currentUser!, parsed.data);
+        res.json(result);
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.post(
+    '/api/admin/reliability/run-all-18',
+    requireAdmin,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(reliabilityChaosSweepSchema, req.body ?? {});
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      res.setHeader('Cache-Control', 'no-store, private');
+      try {
+        const result = store.runFullReliabilityChaosSuite(req.currentUser!, parsed.data);
+        res.json(result);
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.post(
+    '/api/reliability/verify-suite',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(emptyStrictSchema, req.body ?? {});
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const report = runReliabilityChaosVerificationSuite();
+      store.recordSecurityAudit(
+        req.currentUser!,
+        'RELIABILITY_CHAOS_VERIFY_SUITE_RUN',
+        'phase11_reliability_chaos',
+        `[${req.requestId ?? 'req'}] Phase 11 reliability & chaos suite: ${report.passedChecks}/${report.totalChecks} passed across 18/18 failure modes (isSoftwareSimulationOnly=true, hardwareTested=false, stageP6Deferred=true).`
       );
       res.json({ report });
     }

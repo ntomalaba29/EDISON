@@ -399,7 +399,12 @@ export default function App() {
           {activeTab === 'research' && <ResearchView />}
           {activeTab === 'docs' && <DocsBrowserView />}
           {activeTab === 'command' && <CommandCentreView />}
-          {activeTab === 'risks' && <RiskFmeaView />}
+          {activeTab === 'risks' && (
+            <RiskFmeaView
+              currentUser={currentUser}
+              onNavigateAuth={() => setActiveTab('auth')}
+            />
+          )}
         </main>
       </div>
     </div>

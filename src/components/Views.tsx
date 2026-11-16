@@ -16,9 +16,10 @@ import {
   ReportCommandType,
   generateFormalReport,
 } from '../data/phase1Data';
-import type { LiveReportSnapshot } from '../types/edison';
+import type { LiveReportSnapshot, PublicUser } from '../types/edison';
 import { CopyReportFooter } from './CopyReportFooter';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { ReliabilityChaosPanel } from './ReliabilityChaosPanel';
 import { edisonFetch } from '../lib/csrfFetch';
 
 export function ReportsView() {
@@ -535,12 +536,17 @@ export function CommandCentreView() {
   );
 }
 
-export function RiskFmeaView() {
+interface RiskFmeaViewProps {
+  currentUser: PublicUser | null;
+  onNavigateAuth: () => void;
+}
+
+export function RiskFmeaView({ currentUser, onNavigateAuth }: RiskFmeaViewProps) {
   const riskDoc = EDISON_DOCUMENTS.find((d) => d.id === 'risk-reg');
   const fmeaDoc = EDISON_DOCUMENTS.find((d) => d.id === 'fmea');
   const countryDoc = EDISON_DOCUMENTS.find((d) => d.id === 'country-reg');
 
-  const [tab, setTab] = useState<'risk' | 'fmea' | 'country'>('risk');
+  const [tab, setTab] = useState<'chaos_lab' | 'fmea' | 'risk' | 'country'>('chaos_lab');
   const activeDoc = tab === 'risk' ? riskDoc : tab === 'fmea' ? fmeaDoc : countryDoc;
 
   if (!activeDoc) return null;
@@ -552,19 +558,37 @@ export function RiskFmeaView() {
           <ShieldAlert className="w-5 h-5 text-slate-700 shrink-0" />
           <div>
             <h2 className="text-lg font-semibold text-slate-900">
-              Risk, Failure Modes & Country Compliance
+              Phase 11 Reliability Chaos Lab, Risks &amp; Failure Modes
             </h2>
             <p className="text-xs text-slate-600 mt-0.5">
-              TV-preservation fail-safe controls, trust & safety risks, and international statutory gates.
+              TV-preservation fail-safe chaos testing across all 18 failure modes (FM-01..FM-18) plus trust &amp; country statutory gates.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg self-start">
+        <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 rounded-lg self-start">
+          <button
+            type="button"
+            onClick={() => setTab('chaos_lab')}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap shrink-0 cursor-pointer ${
+              tab === 'chaos_lab' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
+            }`}
+          >
+            Chaos Lab (18 FMs)
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('fmea')}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap shrink-0 cursor-pointer ${
+              tab === 'fmea' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
+            }`}
+          >
+            18 Failure Modes Spec
+          </button>
           <button
             type="button"
             onClick={() => setTab('risk')}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md cursor-pointer ${
+            className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap shrink-0 cursor-pointer ${
               tab === 'risk' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
             }`}
           >
@@ -572,17 +596,8 @@ export function RiskFmeaView() {
           </button>
           <button
             type="button"
-            onClick={() => setTab('fmea')}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md cursor-pointer ${
-              tab === 'fmea' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
-            }`}
-          >
-            18 Failure Modes
-          </button>
-          <button
-            type="button"
             onClick={() => setTab('country')}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md cursor-pointer ${
+            className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap shrink-0 cursor-pointer ${
               tab === 'country' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
             }`}
           >
@@ -592,7 +607,11 @@ export function RiskFmeaView() {
       </div>
 
       <div className="mt-5">
-        <MarkdownRenderer content={activeDoc.content} />
+        {tab === 'chaos_lab' ? (
+          <ReliabilityChaosPanel currentUser={currentUser} onNavigateAuth={onNavigateAuth} />
+        ) : (
+          <MarkdownRenderer content={activeDoc.content} />
+        )}
       </div>
 
       <CopyReportFooter reportText={activeDoc.content} reportTitle={activeDoc.filename} />

@@ -271,13 +271,13 @@ describe('Phase 10 Block 10.1 — Privacy, Security & Statutory Compliance Readi
 
     const qaRes = await adminAgent.get('/api/qa/prototype-readiness');
     expect(qaRes.status).toBe(200);
-    expect(qaRes.body.automatedInvariantsTotal).toBe(25);
-    expect(qaRes.body.automatedInvariantsPassed).toBe(25);
+    expect(qaRes.body.automatedInvariantsTotal).toBe(26);
+    expect(qaRes.body.automatedInvariantsPassed).toBe(26);
 
     const liveRes = await request(app).get('/api/reports/live');
     expect(liveRes.status).toBe(200);
-    expect(liveRes.body.progressMetrics.overallFullAppPct).toBe(66.0);
-    expect(liveRes.body.progressMetrics.remainingUntilFullAppPct).toBe(34.0);
+    expect(liveRes.body.progressMetrics.overallFullAppPct).toBe(70.0);
+    expect(liveRes.body.progressMetrics.remainingUntilFullAppPct).toBe(30.0);
     expect(liveRes.body.progressMetrics.softwareToStageP6Pct).toBe(81.8);
   });
 });

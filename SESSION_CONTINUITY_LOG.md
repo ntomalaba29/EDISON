@@ -202,4 +202,16 @@
 - **Software-First Boundaries Preserved**: `externalPenTestCompleted: false`, `legalComplianceClaimed: false`, `noLawyerDependencyPolicy: true`, `cameraMicAttentionTrackingEnabled: false`, `hardwareTested: false`, `stageP6Deferred: true`, and JSON persistence (`schemaVersion: 8`) retained without paid Cloud SQL (`TASK-P3-001` `READY`).
 - **Next Authorised Action**: Review and manually commit **Phase 10 Block 10.1** to unlock **Phase 11 Reliability & Chaos Failure Testing (18+ Failure Modes)** (or execute `TASK-P3-001` external PostgreSQL provisioning).
 
+---
+
+## 18. Session Entry — 2026-11-16 (`Phase 10 Block 10.1` Committed · `Phase 11 · Stage 11.1 · Block 11.1` Verified & Awaiting Commit)
+
+- **Owner Commit Confirmation (`ADR-010`)**: Confirmed manual commit of **Phase 10 · Stage 10.1 · Block 10.1** (`privacyComplianceEngine`, `66.0%` Full App), unlocking **Phase 11 · Stage 11.1 · Block 11.1**.
+- **Phase 11 · Block 11.1 Implemented (`70.0%` Full App · `30.0%` Remaining · `81.8%` to `Stage P6` · `100.0%` AI Studio Scope)**:
+  1. **Deterministic 18-FMEA Chaos & Recovery Engine (`src/server/reliabilityChaosEngine.ts`)**: Exercises live programmatic fault injection across all 18 documented failure modes (`FM-01` .. `FM-18`) against EDISON core modules (`edisonTvControlEngine`, `LocalOfflineIntelCacheEngine`, `predictBreakDurationQuantiles`, `AdvertisingDeliveryInfrastructure`, `validateQrDestination`, `evaluateAdvertiserOnboardingReadiness`, `evaluateOpportunityVerificationOps`, `anonymiseHouseholdDraftData`, and `scanAnalyticsZeroPii`), verifying `100%` ordinary live TV preservation, zero stuck-off-live-TV incidents, `FM-09` dual-watchdog exit across all 4 TV adapters, Tizen WebM codec exclusion, KYC/Tier 2->3/Charity `$0` isolation, mid-break consent erasure `HTTP 403`, and idempotent replay deduplication.
+  2. **API Routes, Interactive Chaos Lab UI, Documentation & Regression Suite**: Mounted `GET /api/reliability/overview`, `POST /api/reliability/chaos-probe`, `POST /api/admin/reliability/run-all-18`, and `POST /api/reliability/verify-suite` with strict Zod, CSRF, and RBAC guards, created `src/components/ReliabilityChaosPanel.tsx` integrated into `RiskFmeaView`, added 26th automated QA invariant `qa_111_reliability_chaos_18_failure_modes`, created `tests/reliabilityChaos.test.ts` (`18/18` FMs, `8/8` checks, auth/CSRF/Zod/RBAC, `26/26` QA invariants, `70.0%` Full App), and reconciled governance records.
+- **Software-First Boundaries Preserved**: `isSoftwareSimulationOnly: true`, `hardwareTested: false`, `stageP6Deferred: true`, `realBroadcastTunerConnected: false`, `paymentCollectionActive: false`, `externalPenTestCompleted: false`, `legalComplianceClaimed: false`, and JSON persistence (`schemaVersion: 8`) retained without paid Cloud SQL (`TASK-P3-001` `READY`).
+- **Next Authorised Action**: Review and manually commit **Phase 11 Block 11.1** to unlock **Phase 12 Controlled Hardware & Viewer Pilot Readiness** (or execute `TASK-P3-001` external PostgreSQL provisioning).
+
+
 

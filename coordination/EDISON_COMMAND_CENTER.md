@@ -7,13 +7,12 @@
 
 ## 1. PROJECT OWNER MESSAGE
 
-> **Phase 9 Block 9.1 COMMITTED · Phase 10 Block 10.1 Verified & Awaiting Commit (`66.0%` Full App · `TASK-P3-001` `READY`)**:
-> - Completed **Phase 10 · Stage 10.1 · Block 10.1: Privacy, Security & Statutory Compliance Readiness (Software-First)**:
->   - **Privacy, DSR & Statutory Engine (`src/server/privacyComplianceEngine.ts`)**: Generates SHA-256 Subject Access DSR JSON exports with `pinHash` permanently redacted (`pinHashesRedacted: true`), executes Right-to-Erasure cascade anonymisation scrubbing exact addresses, member profiles/skills, and PIN locks while bumping `consentEpoch`, revoking `hqr_*` tokens to `HTTP 403`, and preserving ordinary TV (`ordinaryTvPreserved: true`).
->   - **Automated Retention Purge, Zero-PII & 6-Country ADR-015 Statutory Register**: Runs deterministic admin retention cleanup sweeps purging idle/expired sessions (`2h` window) and `>30d` stale expired household QRs, scans analytics telemetry for raw emails/GPS leaks (`piiLeaksDetectedInAnalytics === 0`), keeps camera/microphone attention tracking hard-disabled (`cameraMicAttentionTrackingEnabled: false`), and serves the 6-territory static public statutory matrix (`ZW`, `GB`, `EU`, `US`, `ZA`, `KE_NG` — all `countryActivated: false`, `legalComplianceClaimed: false`).
->   - **UI, Routes & 25/25 QA Verification**: Mounted `GET /api/compliance/overview`, `POST /api/households/:id/dsr-export`, `POST /api/households/:id/dsr-erase`, `POST /api/admin/compliance/retention-sweep`, and `POST /api/compliance/verify-suite`, integrated DSR Export/Erasure and the 6-Country Statutory Register into `HouseholdPrivacyView.tsx`, added 25th QA invariant `qa_101_privacy_dsr_statutory_compliance`, and verified `tests/privacyCompliance.test.ts` + full Vitest suite.
->   - **Software-First Boundaries Preserved**: `externalPenTestCompleted: false`, `legalComplianceClaimed: false`, `noLawyerDependencyPolicy: true`, `cameraMicAttentionTrackingEnabled: false`, `hardwareTested: false`, `stageP6Deferred: true`, and JSON persistence (`schemaVersion: 8`) retained without paid Cloud SQL.
-> - Overall progress is now **`66.0%` of the 15-Phase Full App** (**`34.0%` remaining**, **`100.0%` of Phase 2 AI Studio scope**, **`81.8%` to `Stage P6`** — Phase 10 Block 10.1 **`VERIFIED · AWAITING COMMIT`**).
+> **Phase 10 Block 10.1 COMMITTED · Phase 11 Block 11.1 Verified & Awaiting Commit (`70.0%` Full App · `TASK-P3-001` `READY`)**:
+> - Completed **Phase 11 · Stage 11.1 · Block 11.1: Reliability, Failure-Mode & Chaos Recovery Suite (Software-First)**:
+>   - **Deterministic 18-FMEA Chaos Engine (`src/server/reliabilityChaosEngine.ts`)**: Executes live programmatic fault injection across all 18 documented failure modes (`FM-01` Internet Loss through `FM-18` Control-Plane Service Outage) against EDISON engines (`tvPlatformAdapter`, `LocalOfflineIntelCacheEngine`, `breakDurationPredictor`, `AdvertisingDeliveryInfrastructure`, `qrValidator`, `advertiserOps`, `opportunityOpsEngine`, `privacyComplianceEngine`), enforcing `ordinaryTvPreservedAll: true`, `zeroStuckOffLiveTv: true`, `FM-09` return-to-TV watchdog restoration across all 4 TV adapters, Tizen WebM exclusion, KYC/Tier 2->3/Charity `$0` isolation, mid-break consent erasure `HTTP 403`, and idempotent replay deduplication.
+>   - **API Routes, Chaos Lab UI & 26/26 QA Verification**: Mounted `GET /api/reliability/overview`, `POST /api/reliability/chaos-probe`, `POST /api/admin/reliability/run-all-18`, and `POST /api/reliability/verify-suite`, integrated `ReliabilityChaosPanel.tsx` into `RiskFmeaView` (`Chaos Lab (18 FMs)`), added 26th QA invariant `qa_111_reliability_chaos_18_failure_modes`, and verified `tests/reliabilityChaos.test.ts` (`13/13` files, `76/76` tests).
+>   - **Software-First Boundaries Preserved**: `isSoftwareSimulationOnly: true`, `hardwareTested: false`, `stageP6Deferred: true`, `realBroadcastTunerConnected: false`, `paymentCollectionActive: false`, `externalPenTestCompleted: false`, `legalComplianceClaimed: false`, and JSON persistence (`schemaVersion: 8`) retained without paid Cloud SQL.
+> - Overall progress is now **`70.0%` of the 15-Phase Full App** (**`30.0%` remaining**, **`100.0%` of Phase 2 AI Studio scope**, **`81.8%` to `Stage P6`** — Phase 11 Block 11.1 **`VERIFIED · AWAITING COMMIT`**).
 
 ---
 
@@ -21,7 +20,7 @@
 
 - **Phase 2 AI Studio Prototype Scope**: **`100.0%`** (**Track A `85.0%` + Track B `15.0%` `COMMITTED`**; `0.0%` consent-blocked)
 - **Software-to-`Stage-P6` Milestone (Phases 1–6 + Stage P6 Subtotal = `66.0%` of Full App)**: **`81.8%`** (`54.0% / 66.0%`)
-- **Overall EDISON Project Progress (Until Full 15-Phase International Commercial App = `100.0%`)**: **`66.0%`** (**`34.0%` remaining**)
+- **Overall EDISON Project Progress (Until Full 15-Phase International Commercial App = `100.0%`)**: **`70.0%`** (**`30.0%` remaining**)
   - Phase 1 Specs (`v1`–`v2.2`): `6.0% / 6.0%` (**Committed**)
   - Phase 2 Prototype (Track A + Track B under `DEC-OPEN-01`): `14.0% / 14.0%` (**Committed**)
   - Phase 3 Hardening: `9.0% / 12.0%` (`Blocks P3-A`, `P3-B` & `P3-C` **Committed** `9.0%`; `TASK-P3-001` **`READY`** `3.0%` with JSON retained in AI Studio)
@@ -31,8 +30,9 @@
   - Phase 7 Advertiser & Campaign Operations (Software-First · Non-Transactional): `3.0% / 3.0%` (**`Block 7.1` `COMMITTED`**)
   - Phase 8 Advertisement Creation & Broadcast Rendering Validation (Software-First): `3.0% / 3.0%` (**`Block 8.1` `COMMITTED`**; `ffmpegBinaryExecuted: false`)
   - Phase 9 Opportunity Verification Operations Hardening (Software-First): `2.0% / 2.0%` (**`Block 9.1` `COMMITTED`**; `externalKycVendorConnected: false`)
-  - Phase 10 Privacy, Security & Statutory Compliance Readiness (Software-First): `4.0% / 4.0%` (**`Block 10.1` `VERIFIED · AWAITING COMMIT`**; `externalPenTestCompleted: false`, `legalComplianceClaimed: false`)
-  - `Stage P6` Single Final Integrated TV Test (`6%`), Phases 11–12 Chaos/Failure & Pilot Testing (`8%`), Phases 13–15 Launch/Expansion (`14%`): `0.0%` (**Not Started / Deferred**)
+  - Phase 10 Privacy, Security & Statutory Compliance Readiness (Software-First): `4.0% / 4.0%` (**`Block 10.1` `COMMITTED`**; `externalPenTestCompleted: false`, `legalComplianceClaimed: false`)
+  - Phase 11 Reliability, Failure-Mode & Chaos Recovery Suite (Software-First): `4.0% / 4.0%` (**`Block 11.1` `VERIFIED · AWAITING COMMIT`**; `hardwareTested: false`, `stageP6Deferred: true`)
+  - `Stage P6` Single Final Integrated TV Test (`6%`), Phase 12 Controlled Pilot Readiness/Execution (`4%`), Phases 13–15 Launch/Expansion (`14%`): `0.0%` (**Not Started / Deferred**)
 
 ---
 
@@ -60,23 +60,23 @@
 
 ## 5. COPILOT EXECUTION REPORT
 
-*No VS Code Copilot tasks have been executed. Phases 1–9 (`Committed`) and Phase 10 `Block 10.1` (`Awaiting Commit`) were executed software-first inside AI Studio.*
+*No VS Code Copilot tasks have been executed. Phases 1–10 (`Committed`) and Phase 11 `Block 11.1` (`Awaiting Commit`) were executed software-first inside AI Studio.*
 
 ---
 
 ## 6. AI STUDIO REVIEW
 
 - **Reviewed By**: AI Studio
-- **Phase 9 · Block 9.1 (`COMMITTED`)**: Confirmed committed by Project Owner (`"Committed, next"`).
-- **Phase 10 · Block 10.1 (`VERIFIED · AWAITING COMMIT`)**: Implemented `src/server/privacyComplianceEngine.ts`, updated `edison.ts`, `repository.ts`, `store.ts`, `validationSchemas.ts`, `app.ts`, `HouseholdPrivacyView.tsx`, `phase1Data.ts`, and `tests/privacyCompliance.test.ts` (`8/8` compliance checks, `25/25` QA invariants, SHA-256 PIN-redacted DSR export, cascade anonymisation + `HTTP 403` revocation, 2h/30d retention purge, zero-PII scanner, and honest 6-country `NOT ACTIVATED` statutory matrix).
+- **Phase 10 · Block 10.1 (`COMMITTED`)**: Confirmed committed by Project Owner (`"Committed next"`).
+- **Phase 11 · Block 11.1 (`VERIFIED · AWAITING COMMIT`)**: Implemented `src/server/reliabilityChaosEngine.ts`, updated `edison.ts`, `repository.ts`, `validationSchemas.ts`, `store.ts`, `app.ts`, created `src/components/ReliabilityChaosPanel.tsx`, wired `RiskFmeaView` (`Views.tsx` / `App.tsx`), updated `phase1Data.ts`, and verified `tests/reliabilityChaos.test.ts` (`18/18` FMs, `8/8` checks, `26/26` QA invariants, `100%` ordinary live TV preservation, `hardwareTested: false`, `stageP6Deferred: true`).
 
 ---
 
 ## 7. NEXT ACTION
 
-1. **Completed Gate**: **`BLOCK 10.1 VERIFIED — AWAITING OWNER COMMIT`** (please review and manually commit all Phase 10 Block 10.1 changes).
+1. **Completed Gate**: **`BLOCK 11.1 VERIFIED — AWAITING OWNER COMMIT`** (please review and manually commit all Phase 11 Block 11.1 changes).
 2. **Next Authorised Options (After Owner Confirms Commit)**:
-   - **Phase 11 · Block 11.1 (Software-First)**: Comprehensive Reliability & Chaos Failure Testing across all 18+ documented failure modes (`FAILURE_MODE_ANALYSIS.md`: network outage, power loss, decoder crash, CEC/HDCP fault, live TV return watchdog & consent withdrawal under concurrency).
+   - **Phase 12 · Block 12.1 (Software-First)**: Controlled Hardware & Viewer Pilot Readiness Protocol, Opt-In Telemetry Schema & `Stage P6` Physical Smart TV + Phone Verification Runbook (zero repeated physical hardware tests; `Stage P6` stays strictly once at app completion).
    - **Or Execute `TASK-P3-001`** (`READY`): Authorise external PostgreSQL provisioning/migration when ready to move beyond single-host JSON persistence.
 
 ---
@@ -102,4 +102,5 @@
 | `TASK-P2-TRACK-B` | 2026-11-16 | AI Studio -> Owner | Phase 2 / `Track B` (`DEC-OPEN-01` Locked) | **`COMMITTED`** | Track B completion (remaining 15% AI Studio): ZW-first 7-level geo households, PIN-protected multi-member profiles, required/preferred/optional opportunity matching, safe TV personalisation, bundled consent withdrawal, HTTP `403` epoch QR revocation & advertiser privacy barrier (`7/7` suite, `qa_p2b_track_b_household_consent_qr_revocation`). |
 | `TASK-P8-01` | 2026-11-16 | AI Studio -> Owner | Phase 8 / `Block 8.1` | **`COMMITTED`** | Advertisement Creation & Broadcast Rendering Validation (`broadcastRenderEngine.ts`): deterministic 1080p/4K SHA-256 blueprints, 5% overscan title-safe zones, WCAG `>=4.5:1` contrast, EBU R128 `-23 LUFS` filter graph, Samsung Tizen WebM->H.264 MP4 rules & strict fail-closed QR vision gate (`8/8` suite, `ffmpegBinaryExecuted=false`). Confirmed committed (`"Committed, next"`). |
 | `TASK-P9-01` | 2026-11-16 | AI Studio -> Owner | Phase 9 / `Block 9.1` | **`COMMITTED`** | Opportunity Verification Operations Hardening (`opportunityOpsEngine.ts`): Tier 1–3 SHA-256 AES-256-GCM blueprint vault seals + redaction, strict Tier 2->3 non-transitivity, informal employer N/A support, `$0.00` Charity zero-fee-influence guard, 90d re-verification + expiry quarantine, and 4h/24h/48h SLA escalation (`8/8` suite, `externalKycVendorConnected=false`). Confirmed committed (`"Committed, next"`). |
-| `TASK-P10-01` | 2026-11-16 | AI Studio -> Owner | Phase 10 / `Block 10.1` | **`AWAITING COMMIT`** | Privacy, Security & Statutory Compliance Readiness (`privacyComplianceEngine.ts`): Subject Access DSR JSON export (`pinHashesRedacted=true`, SHA-256), Right-to-Erasure cascade anonymisation + bundled `HTTP 403` QR revocation preserving ordinary TV, automated 2h-session/30d-QR retention purge, zero-PII analytics scanner, camera/mic hard disable & 6-country ADR-015 statutory matrix (`8/8` suite, `25/25` QA invariants, `externalPenTestCompleted=false`, `legalComplianceClaimed=false`). |
+| `TASK-P10-01` | 2026-11-16 | AI Studio -> Owner | Phase 10 / `Block 10.1` | **`COMMITTED`** | Privacy, Security & Statutory Compliance Readiness (`privacyComplianceEngine.ts`): Subject Access DSR JSON export (`pinHashesRedacted=true`, SHA-256), Right-to-Erasure cascade anonymisation + bundled `HTTP 403` QR revocation preserving ordinary TV, automated 2h-session/30d-QR retention purge, zero-PII analytics scanner, camera/mic hard disable & 6-country ADR-015 statutory matrix (`8/8` suite, `externalPenTestCompleted=false`, `legalComplianceClaimed=false`). Confirmed committed (`"Committed next"`). |
+| `TASK-P11-01` | 2026-11-16 | AI Studio -> Owner | Phase 11 / `Block 11.1` | **`AWAITING COMMIT`** | Reliability, Failure-Mode & Chaos Recovery Suite (`reliabilityChaosEngine.ts`): Deterministic fault injection across all 18 FMEA modes (`FM-01`..`FM-18`), `FM-09` return-to-TV watchdog across 4 TV adapters, network/CDN outage failover, Tizen WebM exclusion, KYC/Tier 2->3/Charity `$0` isolation, mid-break consent erasure `HTTP 403`, replay deduplication & Chaos Lab UI (`18/18` FMs, `8/8` checks, `26/26` QA invariants, `hardwareTested=false`, `stageP6Deferred=true`). |

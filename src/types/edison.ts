@@ -578,6 +578,7 @@ export interface EdisonStoreData {
   householdMembers?: HouseholdMemberProfile[];
   householdQrTokens?: HouseholdQrTokenRecord[];
   consentAuditEvents?: ConsentAuditEventRecord[];
+  lastReliabilityChaosReport?: ReliabilityChaosReport | null;
 }
 
 export interface EdisonProgressMetrics {
@@ -2265,8 +2266,116 @@ export interface PrivacyComplianceVerificationReport {
   checks: PrivacyComplianceVerifyCheckItem[];
 }
 
+// --- Phase 11 Block 11.1: Reliability, Failure-Mode & Chaos Recovery Suite (Software-First) ---
 
+export type FailureModeId =
+  | 'FM-01'
+  | 'FM-02'
+  | 'FM-03'
+  | 'FM-04'
+  | 'FM-05'
+  | 'FM-06'
+  | 'FM-07'
+  | 'FM-08'
+  | 'FM-09'
+  | 'FM-10'
+  | 'FM-11'
+  | 'FM-12'
+  | 'FM-13'
+  | 'FM-14'
+  | 'FM-15'
+  | 'FM-16'
+  | 'FM-17'
+  | 'FM-18';
 
+export type FailureModeCategory =
+  | 'transport_network'
+  | 'tv_playback_watchdog'
+  | 'trust_safety_data'
+  | 'consent_analytics';
 
+export type ChaosInjectSeverity = 'standard' | 'extreme';
 
+export interface ChaosScenarioResult {
+  failureModeId: FailureModeId;
+  title: string;
+  category: FailureModeCategory;
+  verificationStageRef: string;
+  severity: ChaosInjectSeverity;
+  trigger: string;
+  injectDetail: string;
+  expectedFailSafe: string;
+  observedOutcome: string;
+  passed: boolean;
+  ordinaryTvPreserved: true;
+  viewerStuckOffLiveTv: false;
+  adSkippedOrAbortedSafely: boolean;
+  watchdogTriggered: boolean;
+  recoveryLatencyMs: number;
+  executedAt: string;
+}
+
+export interface ReliabilityChaosReport {
+  reportId: string;
+  executedAt: string;
+  executedByEmail: string;
+  notes?: string;
+  isSoftwareSimulationOnly: true;
+  hardwareTested: false;
+  stageP6Deferred: true;
+  realBroadcastTunerConnected: false;
+  totalFailureModes: 18;
+  passedFailureModes: number;
+  failedFailureModes: number;
+  all18Passed: boolean;
+  ordinaryTvPreservedAll: boolean;
+  zeroStuckOffLiveTv: boolean;
+  maxRecoveryLatencyMs: number;
+  reportSha256: string;
+  results: ChaosScenarioResult[];
+}
+
+export interface ReliabilityChaosOverview {
+  generatedAt: string;
+  isSoftwareSimulationOnly: true;
+  hardwareTested: false;
+  stageP6Deferred: true;
+  realBroadcastTunerConnected: false;
+  totalDocumentedFailureModes: 18;
+  coveredFailureModeIds: FailureModeId[];
+  lastChaosRun: ReliabilityChaosReport | null;
+  domainSummaries: Array<{
+    category: FailureModeCategory;
+    label: string;
+    modeIds: FailureModeId[];
+    lastPassedCount: number;
+    totalCount: number;
+  }>;
+  hardInvariants: {
+    ordinaryTvPreservedGuarantee: true;
+    skipBreakWhenUncertain: true;
+    dualWatchdogReturnTimeoutMs: number;
+    maxSwitchAckLatencyMs: number;
+    paymentCollectionActive: false;
+  };
+}
+
+export interface ReliabilityChaosVerifyCheckItem {
+  checkId: string;
+  label: string;
+  passed: boolean;
+  detail: string;
+}
+
+export interface ReliabilityChaosVerificationReport {
+  generatedAt: string;
+  isSoftwareSimulationOnly: true;
+  hardwareTested: false;
+  stageP6Deferred: true;
+  realBroadcastTunerConnected: false;
+  totalChecks: number;
+  passedChecks: number;
+  allPassed: boolean;
+  checks: ReliabilityChaosVerifyCheckItem[];
+}
 

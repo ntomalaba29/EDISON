@@ -876,6 +876,39 @@ export const privacyRetentionSweepSchema = z
   })
   .strict();
 
+export const reliabilityChaosProbeSchema = z
+  .object({
+    failureModeId: z.enum([
+      'FM-01',
+      'FM-02',
+      'FM-03',
+      'FM-04',
+      'FM-05',
+      'FM-06',
+      'FM-07',
+      'FM-08',
+      'FM-09',
+      'FM-10',
+      'FM-11',
+      'FM-12',
+      'FM-13',
+      'FM-14',
+      'FM-15',
+      'FM-16',
+      'FM-17',
+      'FM-18',
+    ]),
+    injectSeverity: z.enum(['standard', 'extreme']).optional().default('standard'),
+  })
+  .strict();
+
+export const reliabilityChaosSweepSchema = z
+  .object({
+    notes: z.string().trim().max(500).optional(),
+    injectSeverity: z.enum(['standard', 'extreme']).optional().default('standard'),
+  })
+  .strict();
+
 export function parseWithZod<T extends z.ZodTypeAny>(
   schema: T,
   payload: unknown
