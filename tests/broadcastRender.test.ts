@@ -238,13 +238,13 @@ describe('Phase 8 Block 8.1 — Broadcast Rendering Validation, EBU R128 & QR Vi
       .get('/api/qa/prototype-readiness')
       .set('Authorization', `Bearer ${adminLogin.body.token}`);
     expect(qaRes.status).toBe(200);
-    expect(qaRes.body.automatedInvariantsTotal).toBe(26);
-    expect(qaRes.body.automatedInvariantsPassed).toBe(26);
+    expect(qaRes.body.automatedInvariantsTotal).toBe(27);
+    expect(qaRes.body.automatedInvariantsPassed).toBe(27);
 
     const liveRes = await request(app).get('/api/reports/live');
     expect(liveRes.status).toBe(200);
-    expect(liveRes.body.progressMetrics.overallFullAppPct).toBe(70.0);
-    expect(liveRes.body.progressMetrics.remainingUntilFullAppPct).toBe(30.0);
+    expect(liveRes.body.progressMetrics.overallFullAppPct).toBe(72.0);
+    expect(liveRes.body.progressMetrics.remainingUntilFullAppPct).toBe(28.0);
     expect(liveRes.body.progressMetrics.trackBStatus).toBe('COMMITTED');
   });
 });

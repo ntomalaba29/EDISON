@@ -7,12 +7,12 @@
 
 ## 1. PROJECT OWNER MESSAGE
 
-> **Phase 10 Block 10.1 COMMITTED · Phase 11 Block 11.1 Verified & Awaiting Commit (`70.0%` Full App · `TASK-P3-001` `READY`)**:
-> - Completed **Phase 11 · Stage 11.1 · Block 11.1: Reliability, Failure-Mode & Chaos Recovery Suite (Software-First)**:
->   - **Deterministic 18-FMEA Chaos Engine (`src/server/reliabilityChaosEngine.ts`)**: Executes live programmatic fault injection across all 18 documented failure modes (`FM-01` Internet Loss through `FM-18` Control-Plane Service Outage) against EDISON engines (`tvPlatformAdapter`, `LocalOfflineIntelCacheEngine`, `breakDurationPredictor`, `AdvertisingDeliveryInfrastructure`, `qrValidator`, `advertiserOps`, `opportunityOpsEngine`, `privacyComplianceEngine`), enforcing `ordinaryTvPreservedAll: true`, `zeroStuckOffLiveTv: true`, `FM-09` return-to-TV watchdog restoration across all 4 TV adapters, Tizen WebM exclusion, KYC/Tier 2->3/Charity `$0` isolation, mid-break consent erasure `HTTP 403`, and idempotent replay deduplication.
->   - **API Routes, Chaos Lab UI & 26/26 QA Verification**: Mounted `GET /api/reliability/overview`, `POST /api/reliability/chaos-probe`, `POST /api/admin/reliability/run-all-18`, and `POST /api/reliability/verify-suite`, integrated `ReliabilityChaosPanel.tsx` into `RiskFmeaView` (`Chaos Lab (18 FMs)`), added 26th QA invariant `qa_111_reliability_chaos_18_failure_modes`, and verified `tests/reliabilityChaos.test.ts` (`13/13` files, `76/76` tests).
->   - **Software-First Boundaries Preserved**: `isSoftwareSimulationOnly: true`, `hardwareTested: false`, `stageP6Deferred: true`, `realBroadcastTunerConnected: false`, `paymentCollectionActive: false`, `externalPenTestCompleted: false`, `legalComplianceClaimed: false`, and JSON persistence (`schemaVersion: 8`) retained without paid Cloud SQL.
-> - Overall progress is now **`70.0%` of the 15-Phase Full App** (**`30.0%` remaining**, **`100.0%` of Phase 2 AI Studio scope**, **`81.8%` to `Stage P6`** — Phase 11 Block 11.1 **`VERIFIED · AWAITING COMMIT`**).
+> **Phase 11 Block 11.1 COMMITTED · Phase 12 Block 12.1 Verified & Awaiting Commit (`72.0%` Full App · `TASK-P3-001` `READY`)**:
+> - Completed **Phase 12 · Stage 12.1 · Block 12.1: Controlled Hardware & Viewer Pilot Readiness Protocol, Zero-PII Opt-In Telemetry Schema & Single Final `Stage P6` Runbook (Software-First)**:
+>   - **Pilot Readiness & `Stage P6` Verification Engine (`src/server/pilotReadinessEngine.ts`)**: Evaluates 6 pre-pilot software gates across Phases 4–11 + Track B (`DEC-OPEN-01`), validates opt-in Zero-PII & consent-epoch pilot telemetry (blocking email/GPS leaks, withdrawn/stale consent, and forged `hardwareTested=true` claims), enforces unactivated closed cohort blueprints (`<=50` consented households, `countryActivated: false`, `paymentCollectionActive: false`), and codifies the 8-step single final `Stage P6` physical Smart TV + smartphone runbook (`P6-01`..`P6-08`, `ADR-014`).
+>   - **API Routes, Pilot UI Panel & 27/27 QA Verification**: Mounted `GET /api/pilot-readiness/overview`, `POST /api/pilot-readiness/cohorts`, `POST /api/pilot-readiness/validate-telemetry`, `POST /api/pilot-readiness/stage-p6-prep`, and `POST /api/pilot-readiness/verify-suite`, created `src/components/PilotReadinessPanel.tsx` integrated into `QaHandoverView` (`Phase 12 Pilot & Stage P6 Runbook`), added 27th QA invariant `qa_121_pilot_readiness_stage_p6_runbook`, and verified `tests/pilotReadiness.test.ts` (`15/15` test files).
+>   - **Software-First Boundaries Preserved**: `isSoftwareSimulationOnly: true`, `hardwareTested: false`, `pilotHardwareExecuted: false`, `stageP6Deferred: true`, `realBroadcastTunerConnected: false`, `countryActivated: false`, `paymentCollectionActive: false`, `externalPenTestCompleted: false`, `legalComplianceClaimed: false`, and JSON persistence (`schemaVersion: 8`) retained without paid Cloud SQL. Remaining `2.0%` of Phase 12 is strictly reserved until real hardware execution at `Stage P6`.
+> - Overall progress is now **`72.0%` of the 15-Phase Full App** (**`28.0%` remaining**, **`100.0%` of Phase 2 AI Studio scope**, **`81.8%` to `Stage P6`** — Phase 12 Block 12.1 **`VERIFIED · AWAITING COMMIT`**).
 
 ---
 
@@ -20,7 +20,7 @@
 
 - **Phase 2 AI Studio Prototype Scope**: **`100.0%`** (**Track A `85.0%` + Track B `15.0%` `COMMITTED`**; `0.0%` consent-blocked)
 - **Software-to-`Stage-P6` Milestone (Phases 1–6 + Stage P6 Subtotal = `66.0%` of Full App)**: **`81.8%`** (`54.0% / 66.0%`)
-- **Overall EDISON Project Progress (Until Full 15-Phase International Commercial App = `100.0%`)**: **`70.0%`** (**`30.0%` remaining**)
+- **Overall EDISON Project Progress (Until Full 15-Phase International Commercial App = `100.0%`)**: **`72.0%`** (**`28.0%` remaining**)
   - Phase 1 Specs (`v1`–`v2.2`): `6.0% / 6.0%` (**Committed**)
   - Phase 2 Prototype (Track A + Track B under `DEC-OPEN-01`): `14.0% / 14.0%` (**Committed**)
   - Phase 3 Hardening: `9.0% / 12.0%` (`Blocks P3-A`, `P3-B` & `P3-C` **Committed** `9.0%`; `TASK-P3-001` **`READY`** `3.0%` with JSON retained in AI Studio)
@@ -31,8 +31,9 @@
   - Phase 8 Advertisement Creation & Broadcast Rendering Validation (Software-First): `3.0% / 3.0%` (**`Block 8.1` `COMMITTED`**; `ffmpegBinaryExecuted: false`)
   - Phase 9 Opportunity Verification Operations Hardening (Software-First): `2.0% / 2.0%` (**`Block 9.1` `COMMITTED`**; `externalKycVendorConnected: false`)
   - Phase 10 Privacy, Security & Statutory Compliance Readiness (Software-First): `4.0% / 4.0%` (**`Block 10.1` `COMMITTED`**; `externalPenTestCompleted: false`, `legalComplianceClaimed: false`)
-  - Phase 11 Reliability, Failure-Mode & Chaos Recovery Suite (Software-First): `4.0% / 4.0%` (**`Block 11.1` `VERIFIED · AWAITING COMMIT`**; `hardwareTested: false`, `stageP6Deferred: true`)
-  - `Stage P6` Single Final Integrated TV Test (`6%`), Phase 12 Controlled Pilot Readiness/Execution (`4%`), Phases 13–15 Launch/Expansion (`14%`): `0.0%` (**Not Started / Deferred**)
+  - Phase 11 Reliability, Failure-Mode & Chaos Recovery Suite (Software-First): `4.0% / 4.0%` (**`Block 11.1` `COMMITTED`**; `hardwareTested: false`, `stageP6Deferred: true`)
+  - Phase 12 Controlled Hardware & Viewer Pilot Readiness (Software-First): `2.0% / 4.0%` (**`Block 12.1` `VERIFIED · AWAITING COMMIT`**; remaining `2.0%` deferred to physical `Stage P6` pilot)
+  - `Stage P6` Single Final Integrated TV Test (`6%`), Phase 12 Physical Pilot Execution (`2%`), Phases 13–15 Launch/Expansion (`14%`): `0.0%` (**Not Started / Deferred**)
 
 ---
 
@@ -60,23 +61,23 @@
 
 ## 5. COPILOT EXECUTION REPORT
 
-*No VS Code Copilot tasks have been executed. Phases 1–10 (`Committed`) and Phase 11 `Block 11.1` (`Awaiting Commit`) were executed software-first inside AI Studio.*
+*No VS Code Copilot tasks have been executed. Phases 1–11 (`Committed`) and Phase 12 `Block 12.1` (`Awaiting Commit`) were executed software-first inside AI Studio.*
 
 ---
 
 ## 6. AI STUDIO REVIEW
 
 - **Reviewed By**: AI Studio
-- **Phase 10 · Block 10.1 (`COMMITTED`)**: Confirmed committed by Project Owner (`"Committed next"`).
-- **Phase 11 · Block 11.1 (`VERIFIED · AWAITING COMMIT`)**: Implemented `src/server/reliabilityChaosEngine.ts`, updated `edison.ts`, `repository.ts`, `validationSchemas.ts`, `store.ts`, `app.ts`, created `src/components/ReliabilityChaosPanel.tsx`, wired `RiskFmeaView` (`Views.tsx` / `App.tsx`), updated `phase1Data.ts`, and verified `tests/reliabilityChaos.test.ts` (`18/18` FMs, `8/8` checks, `26/26` QA invariants, `100%` ordinary live TV preservation, `hardwareTested: false`, `stageP6Deferred: true`).
+- **Phase 11 · Block 11.1 (`COMMITTED`)**: Confirmed committed by Project Owner (`"Committed, next"`).
+- **Phase 12 · Block 12.1 (`VERIFIED · AWAITING COMMIT`)**: Implemented `src/server/pilotReadinessEngine.ts`, updated `edison.ts`, `repository.ts`, `validationSchemas.ts`, `store.ts`, `app.ts`, created `src/components/PilotReadinessPanel.tsx` integrated into `QaHandoverView.tsx`, updated `phase1Data.ts`, and verified `tests/pilotReadiness.test.ts` (`8/8` checks, `6/6` software gates, `8/8` `Stage P6` steps, `27/27` QA invariants, `hardwareTested: false`, `stageP6Deferred: true`, `countryActivated: false`).
 
 ---
 
 ## 7. NEXT ACTION
 
-1. **Completed Gate**: **`BLOCK 11.1 VERIFIED — AWAITING OWNER COMMIT`** (please review and manually commit all Phase 11 Block 11.1 changes).
+1. **Completed Gate**: **`BLOCK 12.1 VERIFIED — AWAITING OWNER COMMIT`** (please review and manually commit all Phase 12 Block 12.1 changes).
 2. **Next Authorised Options (After Owner Confirms Commit)**:
-   - **Phase 12 · Block 12.1 (Software-First)**: Controlled Hardware & Viewer Pilot Readiness Protocol, Opt-In Telemetry Schema & `Stage P6` Physical Smart TV + Phone Verification Runbook (zero repeated physical hardware tests; `Stage P6` stays strictly once at app completion).
+   - **Phase 13 · Block 13.1 (Software-First)**: Commercial Readiness Board Gate, Production SLA Matrix, Infrastructure Costing & Pre-Launch Sign-Off Checklist (keeping `paymentCollectionActive: false`, `countryActivated: false`, and `Stage P6` physical Smart TV test deferred until app completion).
    - **Or Execute `TASK-P3-001`** (`READY`): Authorise external PostgreSQL provisioning/migration when ready to move beyond single-host JSON persistence.
 
 ---
@@ -103,4 +104,5 @@
 | `TASK-P8-01` | 2026-11-16 | AI Studio -> Owner | Phase 8 / `Block 8.1` | **`COMMITTED`** | Advertisement Creation & Broadcast Rendering Validation (`broadcastRenderEngine.ts`): deterministic 1080p/4K SHA-256 blueprints, 5% overscan title-safe zones, WCAG `>=4.5:1` contrast, EBU R128 `-23 LUFS` filter graph, Samsung Tizen WebM->H.264 MP4 rules & strict fail-closed QR vision gate (`8/8` suite, `ffmpegBinaryExecuted=false`). Confirmed committed (`"Committed, next"`). |
 | `TASK-P9-01` | 2026-11-16 | AI Studio -> Owner | Phase 9 / `Block 9.1` | **`COMMITTED`** | Opportunity Verification Operations Hardening (`opportunityOpsEngine.ts`): Tier 1–3 SHA-256 AES-256-GCM blueprint vault seals + redaction, strict Tier 2->3 non-transitivity, informal employer N/A support, `$0.00` Charity zero-fee-influence guard, 90d re-verification + expiry quarantine, and 4h/24h/48h SLA escalation (`8/8` suite, `externalKycVendorConnected=false`). Confirmed committed (`"Committed, next"`). |
 | `TASK-P10-01` | 2026-11-16 | AI Studio -> Owner | Phase 10 / `Block 10.1` | **`COMMITTED`** | Privacy, Security & Statutory Compliance Readiness (`privacyComplianceEngine.ts`): Subject Access DSR JSON export (`pinHashesRedacted=true`, SHA-256), Right-to-Erasure cascade anonymisation + bundled `HTTP 403` QR revocation preserving ordinary TV, automated 2h-session/30d-QR retention purge, zero-PII analytics scanner, camera/mic hard disable & 6-country ADR-015 statutory matrix (`8/8` suite, `externalPenTestCompleted=false`, `legalComplianceClaimed=false`). Confirmed committed (`"Committed next"`). |
-| `TASK-P11-01` | 2026-11-16 | AI Studio -> Owner | Phase 11 / `Block 11.1` | **`AWAITING COMMIT`** | Reliability, Failure-Mode & Chaos Recovery Suite (`reliabilityChaosEngine.ts`): Deterministic fault injection across all 18 FMEA modes (`FM-01`..`FM-18`), `FM-09` return-to-TV watchdog across 4 TV adapters, network/CDN outage failover, Tizen WebM exclusion, KYC/Tier 2->3/Charity `$0` isolation, mid-break consent erasure `HTTP 403`, replay deduplication & Chaos Lab UI (`18/18` FMs, `8/8` checks, `26/26` QA invariants, `hardwareTested=false`, `stageP6Deferred=true`). |
+| `TASK-P11-01` | 2026-11-16 | AI Studio -> Owner | Phase 11 / `Block 11.1` | **`COMMITTED`** | Reliability, Failure-Mode & Chaos Recovery Suite (`reliabilityChaosEngine.ts`): Deterministic fault injection across all 18 FMEA modes (`FM-01`..`FM-18`), `FM-09` return-to-TV watchdog across 4 TV adapters, network/CDN outage failover, Tizen WebM exclusion, KYC/Tier 2->3/Charity `$0` isolation, mid-break consent erasure `HTTP 403`, replay deduplication & Chaos Lab UI (`18/18` FMs, `8/8` checks, `hardwareTested=false`, `stageP6Deferred=true`). Confirmed committed (`"Committed, next"`). |
+| `TASK-P12-01` | 2026-11-16 | AI Studio -> Owner | Phase 12 / `Block 12.1` | **`AWAITING COMMIT`** | Controlled Hardware & Viewer Pilot Readiness Protocol (`pilotReadinessEngine.ts`): 6-gate Phase 4–11 pre-pilot software evaluation, Zero-PII & consent-epoch telemetry validator blocking personal leaks/forged hardware claims, unactivated closed cohort blueprints & 8-step single final `Stage P6` Smart TV + phone verification runbook (`8/8` suite, `27/27` QA invariants, `hardwareTested=false`, `pilotHardwareExecuted=false`, `countryActivated=false`). |

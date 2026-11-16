@@ -855,6 +855,109 @@ export const broadcastRenderValidateSchema = z
   })
   .strict();
 
+export const renderCompileJobSchema = z
+  .object({
+    creativeId: z.string().trim().min(1, 'creativeId is required.').max(120),
+    resolutionProfile: z.enum(['1080p_fhd', '4k_uhd']).optional().default('1080p_fhd'),
+  })
+  .strict();
+
+export const opportunityOpsSweepSchema = z
+  .object({
+    notes: z.string().trim().max(500).optional(),
+  })
+  .strict();
+
+export const householdDsrEraseSchema = z
+  .object({
+    confirmationPhrase: z.literal('ERASE HOUSEHOLD DATA'),
+    reason: z.string().trim().min(5).max(500),
+  })
+  .strict();
+
+export const privacyRetentionSweepSchema = z
+  .object({
+    notes: z.string().trim().max(500).optional(),
+  })
+  .strict();
+
+export const reliabilityChaosProbeSchema = z
+  .object({
+    failureModeId: z.enum([
+      'FM-01',
+      'FM-02',
+      'FM-03',
+      'FM-04',
+      'FM-05',
+      'FM-06',
+      'FM-07',
+      'FM-08',
+      'FM-09',
+      'FM-10',
+      'FM-11',
+      'FM-12',
+      'FM-13',
+      'FM-14',
+      'FM-15',
+      'FM-16',
+      'FM-17',
+      'FM-18',
+    ]),
+    injectSeverity: z.enum(['standard', 'extreme']).optional().default('standard'),
+  })
+  .strict();
+
+export const reliabilityFullSuiteSchema = z
+  .object({
+    injectSeverity: z.enum(['standard', 'extreme']).optional().default('standard'),
+    notes: z.string().trim().max(500).optional(),
+  })
+  .strict();
+
+export const pilotArchitectureEnum = z.enum([
+  'opt_in_viewer_prompt',
+  'android_tv_tif',
+  'external_hdmi_cec',
+  'samsung_tizen_partner',
+  'lg_webos_partner',
+]);
+
+export const pilotCohortCreateSchema = z
+  .object({
+    cohortName: z.string().trim().min(3).max(120),
+    targetCountryCode: z.string().trim().min(2).max(12),
+    targetArchitectureId: pilotArchitectureEnum,
+    maxHouseholdsCap: z.coerce.number().int().min(1).max(50),
+    enrolledHouseholdIds: z.array(z.string().trim().min(2).max(120)).max(50).default([]),
+    decOpen02ShortBreakRuleAcknowledged: z.boolean(),
+    decOpen03GamMockOnlyAcknowledged: z.boolean(),
+  })
+  .strict();
+
+export const pilotTelemetryValidateSchema = z
+  .object({
+    cohortId: z.string().trim().min(2).max(120),
+    regionCode: z.string().trim().min(2).max(24),
+    architectureId: pilotArchitectureEnum,
+    householdConsentStatus: z.enum(['granted', 'withdrawn', 'pending']),
+    claimedHardwareTested: z.boolean().optional().default(false),
+    consentEpoch: z.coerce.number().int().min(0).max(1000000),
+    expectedConsentEpoch: z.coerce.number().int().min(1).max(1000000),
+    switchLatencyMs: z.coerce.number().finite().min(-1000).max(60000),
+    returnToLiveTvMs: z.coerce.number().finite().min(-1000).max(60000),
+    qrScanObservedMs: z.coerce.number().finite().min(0).max(60000).nullable().optional(),
+    ordinaryTvPreserved: z.boolean(),
+    extraPayload: z.record(z.string(), z.unknown()).optional(),
+  })
+  .strict();
+
+export const stageP6CheckPrepareSchema = z
+  .object({
+    stepId: z.enum(['P6-01', 'P6-02', 'P6-03', 'P6-04', 'P6-05', 'P6-06', 'P6-07', 'P6-08']),
+    ownerPrepNote: z.string().trim().min(3).max(500),
+  })
+  .strict();
+
 export function parseWithZod<T extends z.ZodTypeAny>(
   schema: T,
   payload: unknown

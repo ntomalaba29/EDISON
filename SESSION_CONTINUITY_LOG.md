@@ -213,5 +213,17 @@
 - **Software-First Boundaries Preserved**: `isSoftwareSimulationOnly: true`, `hardwareTested: false`, `stageP6Deferred: true`, `realBroadcastTunerConnected: false`, `paymentCollectionActive: false`, `externalPenTestCompleted: false`, `legalComplianceClaimed: false`, and JSON persistence (`schemaVersion: 8`) retained without paid Cloud SQL (`TASK-P3-001` `READY`).
 - **Next Authorised Action**: Review and manually commit **Phase 11 Block 11.1** to unlock **Phase 12 Controlled Hardware & Viewer Pilot Readiness** (or execute `TASK-P3-001` external PostgreSQL provisioning).
 
+---
+
+## 19. Session Entry — 2026-11-16 (`Phase 11 Block 11.1` Committed · `Phase 12 · Stage 12.1 · Block 12.1` Verified & Awaiting Commit)
+
+- **Owner Commit Confirmation (`ADR-010`)**: Confirmed manual commit of **Phase 11 · Stage 11.1 · Block 11.1** (`reliabilityChaosEngine`, `70.0%` Full App), unlocking **Phase 12 · Stage 12.1 · Block 12.1 (Software-First)**.
+- **Phase 12 · Block 12.1 Implemented (`72.0%` Full App · `28.0%` Remaining · `81.8%` to `Stage P6` · `100.0%` AI Studio Scope)**:
+  1. **Pilot Readiness, Zero-PII Telemetry & `Stage P6` Runbook Engine (`src/server/pilotReadinessEngine.ts`)**: Evaluates 6 live pre-pilot software gates spanning Phases 4–11 + Track B (`DEC-OPEN-01`), validates opt-in Zero-PII & consent-epoch telemetry (blocking personal PII, withdrawn consent, stale epochs, excess watchdog times `>5000ms`, and forged `hardwareTested=true` claims before `Stage P6`), enforces unactivated closed cohort blueprints (`<=50` consented households), and codifies the 8-step single final `Stage P6` physical Smart TV + smartphone verification runbook (`P6-01`..`P6-08`).
+  2. **API Routes, Pilot Readiness Panel UI, Documentation & Regression Suite**: Mounted `GET /api/pilot-readiness/overview`, `POST /api/pilot-readiness/cohorts`, `POST /api/pilot-readiness/validate-telemetry`, `POST /api/pilot-readiness/stage-p6-prep`, and `POST /api/pilot-readiness/verify-suite` with strict Zod, CSRF, and RBAC guards, created `src/components/PilotReadinessPanel.tsx` wired into `QaHandoverView.tsx`, added 27th automated QA invariant `qa_121_pilot_readiness_stage_p6_runbook`, created `tests/pilotReadiness.test.ts` (`8/8` readiness checks, telemetry Zero-PII/consent/hardware-honesty guards, auth/CSRF/Zod/RBAC, `27/27` QA invariants, `72.0%` Full App), and reconciled governance records.
+- **Software-First Boundaries Preserved**: `isSoftwareSimulationOnly: true`, `hardwareTested: false`, `pilotHardwareExecuted: false`, `stageP6Deferred: true`, `realBroadcastTunerConnected: false`, `countryActivated: false`, `paymentCollectionActive: false`, `externalKycVendorConnected: false`, `externalPenTestCompleted: false`, `legalComplianceClaimed: false`, `ffmpegBinaryExecuted: false`, and JSON persistence (`schemaVersion: 8`) retained without paid Cloud SQL (`TASK-P3-001` `READY`). Remaining `2.0%` of Phase 12 stays reserved until real hardware execution at `Stage P6`.
+- **Next Authorised Action**: Review and manually commit **Phase 12 Block 12.1** to unlock **Phase 13 Commercial Readiness (Software-First)** (or execute `TASK-P3-001` external PostgreSQL provisioning).
+
+
 
 

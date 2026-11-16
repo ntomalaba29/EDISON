@@ -41,6 +41,10 @@ import type {
   OptionAComposition,
   OptionBUploadSpec,
   PhysicalQrScanTestRecord,
+  PilotCohortBlueprintRecord,
+  PilotReadinessOverview,
+  PilotTargetArchitectureId,
+  PilotTelemetryValidationResult,
   PrimaryAdCategory,
   PrivacyComplianceOverview,
   PrivacyDsrErasureResult,
@@ -60,6 +64,7 @@ import type {
   SharedIntelObservationRecord,
   SharedIntelPreviewState,
   SharedIntelSignalType,
+  StageP6StepId,
   SupportTicketCategory,
   SupportTicketRecord,
   SupportTicketStatus,
@@ -682,6 +687,52 @@ export interface EdisonDataRepository {
     report: ReliabilityChaosReport;
     overview: ReliabilityChaosOverview;
   };
+
+  // --- Phase 12 Block 12.1: Controlled Hardware & Viewer Pilot Readiness (Software-First) ---
+  getPilotReadinessOverview(actor: PublicUser): PilotReadinessOverview;
+
+  createPilotCohortBlueprint(
+    actor: PublicUser,
+    input: {
+      cohortName: string;
+      targetCountryCode: string;
+      targetArchitectureId: PilotTargetArchitectureId;
+      maxHouseholdsCap: number;
+      enrolledHouseholdIds: string[];
+      decOpen02ShortBreakRuleAcknowledged: boolean;
+      decOpen03GamMockOnlyAcknowledged: boolean;
+    }
+  ): {
+    cohort: PilotCohortBlueprintRecord;
+    overview: PilotReadinessOverview;
+  };
+
+  validatePilotTelemetrySample(
+    actor: PublicUser,
+    input: {
+      cohortId: string;
+      regionCode: string;
+      architectureId: PilotTargetArchitectureId;
+      householdConsentStatus: 'granted' | 'withdrawn' | 'pending';
+      claimedHardwareTested?: boolean;
+      consentEpoch: number;
+      expectedConsentEpoch: number;
+      switchLatencyMs: number;
+      returnToLiveTvMs: number;
+      qrScanObservedMs?: number | null;
+      ordinaryTvPreserved: boolean;
+      extraPayload?: Record<string, unknown>;
+    }
+  ): PilotTelemetryValidationResult;
+
+  recordStageP6RunbookPrep(
+    actor: PublicUser,
+    input: {
+      stepId: StageP6StepId;
+      ownerPrepNote: string;
+    }
+  ): PilotReadinessOverview;
 }
+
 
 

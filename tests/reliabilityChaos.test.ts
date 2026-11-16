@@ -160,13 +160,13 @@ describe('Phase 11 Block 11.1 — Reliability, Failure-Mode & Chaos Recovery Sui
 
     const qaRes = await adminAgent.get('/api/qa/prototype-readiness');
     expect(qaRes.status).toBe(200);
-    expect(qaRes.body.automatedInvariantsTotal).toBe(26);
-    expect(qaRes.body.automatedInvariantsPassed).toBe(26);
+    expect(qaRes.body.automatedInvariantsTotal).toBe(27);
+    expect(qaRes.body.automatedInvariantsPassed).toBe(27);
 
     const liveRes = await request(app).get('/api/reports/live');
     expect(liveRes.status).toBe(200);
-    expect(liveRes.body.progressMetrics.overallFullAppPct).toBe(70.0);
-    expect(liveRes.body.progressMetrics.remainingUntilFullAppPct).toBe(30.0);
+    expect(liveRes.body.progressMetrics.overallFullAppPct).toBe(72.0);
+    expect(liveRes.body.progressMetrics.remainingUntilFullAppPct).toBe(28.0);
     expect(liveRes.body.progressMetrics.softwareToStageP6Pct).toBe(81.8);
     expect(liveRes.body.progressMetrics.aiStudioAssignmentPct).toBe(100);
   });

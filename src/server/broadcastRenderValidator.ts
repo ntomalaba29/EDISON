@@ -595,22 +595,21 @@ export function buildBroadcastRenderOverview(params: {
 export function runBroadcastRenderVerificationSuite(): BroadcastRenderVerificationReport {
   const now = new Date().toISOString();
   const activeQr: QrLinkRecord = {
-    id: 'qr_test_render',
     ownerId: 'usr_test',
     token: 'render-demo',
     label: 'Render Test QR',
     destinationType: 'website',
     rawInput: 'https://example.org/offer',
     resolvedUrl: 'https://example.org/offer',
+    resolvedHost: 'example.org',
+    scheme: 'https',
     status: 'active',
-    warnings: [],
     redirectRequestsTotal: 0,
     redirectIssuedTotal: 0,
     suspectedBotRequests: 0,
     deduplicatedNonBotRedirects: 0,
     lastRedirectRequestedAt: null,
     createdAt: now,
-    updatedAt: now,
   };
 
   // 1. Valid Option A 1080p studio composition

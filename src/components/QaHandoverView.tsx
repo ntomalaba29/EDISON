@@ -24,6 +24,7 @@ import type {
   QrLinkRecord,
 } from '../types/edison';
 import { QrCodePreview } from './QrCodePreview';
+import { PilotReadinessPanel } from './PilotReadinessPanel';
 import { CopyReportFooter, copyTextWithFallback } from './CopyReportFooter';
 import { edisonFetch } from '../lib/csrfFetch';
 
@@ -33,7 +34,7 @@ interface QaHandoverViewProps {
   onSummaryRefresh: () => Promise<void>;
 }
 
-type QaSubTab = 'scan_lab' | 'qa_audit' | 'handover';
+type QaSubTab = 'scan_lab' | 'qa_audit' | 'pilot_readiness' | 'handover';
 
 export function QaHandoverView({
   currentUser,
@@ -419,6 +420,18 @@ export function QaHandoverView({
           >
             <ClipboardCheck className="w-3.5 h-3.5 shrink-0" />
             <span>Final Prototype QA Audit</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSubTab('pilot_readiness')}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+              subTab === 'pilot_readiness'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+            <span>Phase 12 Pilot &amp; Stage P6 Runbook</span>
           </button>
           <button
             type="button"
@@ -988,7 +1001,16 @@ export function QaHandoverView({
         </div>
       )}
 
-      {/* SUB-TAB 3: VS CODE ENGINEERING HANDOVER PACKAGE */}
+      {/* SUB-TAB 3: PHASE 12 PILOT READINESS & STAGE P6 RUNBOOK */}
+      {subTab === 'pilot_readiness' && (
+        <PilotReadinessPanel
+          currentUser={currentUser}
+          onNavigateAuth={onNavigateAuth}
+          onSummaryRefresh={onSummaryRefresh}
+        />
+      )}
+
+      {/* SUB-TAB 4: VS CODE ENGINEERING HANDOVER PACKAGE */}
       {subTab === 'handover' && (
         <div className="bg-white border border-slate-200 rounded-lg p-6 space-y-5">
           <div className="pb-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

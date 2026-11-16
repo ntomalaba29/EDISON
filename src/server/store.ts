@@ -15,20 +15,27 @@ import type {
   AuditLogRecord,
   BillingEstimateSummary,
   BreakSchedulePlan,
+  BroadcastRenderJobResult,
+  BroadcastResolutionProfile,
   CampaignContentCategory,
   CampaignPreviewGateResult,
   CampaignRecord,
   CampaignStatus,
+  ChaosInjectSeverity,
+  ChaosScenarioResult,
   ConsentAuditAction,
   ConsentAuditEventRecord,
   DaypartSlot,
   EdisonStoreData,
+  FailureModeId,
   HouseholdInstallationRecord,
   HouseholdLocation,
   HouseholdMemberProfile,
   HouseholdOpportunityMatchResult,
   HouseholdQrTokenRecord,
   LiveReportSnapshot,
+  OpportunityOpsOverview,
+  OpportunityOpsSweepResult,
   OptionAComposition,
   OptionBUploadSpec,
   OpportunityAppealRecord,
@@ -42,14 +49,24 @@ import type {
   OpportunityStatus,
   OpportunityTierStatus,
   PhysicalQrScanTestRecord,
+  PilotCohortBlueprintRecord,
+  PilotReadinessOverview,
+  PilotTargetArchitectureId,
+  PilotTelemetryValidationResult,
   PreSubmitCheckItem,
   PrimaryAdCategory,
+  PrivacyComplianceOverview,
+  PrivacyDsrErasureResult,
+  PrivacyDsrExportPackage,
+  PrivacyRetentionReport,
   PrototypeQaCheckItem,
   PrototypeReadinessSnapshot,
   PublicUser,
   QrDestinationType,
   QrLinkRecord,
   QrLinkStatus,
+  ReliabilityChaosOverview,
+  ReliabilityChaosReport,
   RevenueLedgerSnapshot,
   RevenueStreamLedgerRow,
   SessionRecord,
@@ -58,6 +75,7 @@ import type {
   SharedIntelObservationRecord,
   SharedIntelPreviewState,
   SharedIntelSignalType,
+  StageP6StepId,
   SupportTicketCategory,
   SupportTicketRecord,
   SupportTicketStatus,
@@ -69,6 +87,31 @@ import { validateQrDestination } from './qrValidator.ts';
 import { runDeliveryInfraVerificationSuite } from './adDeliveryInfra.ts';
 import { runAdvertiserOpsVerificationSuite } from './advertiserOps.ts';
 import { runBroadcastRenderVerificationSuite } from './broadcastRenderValidator.ts';
+import { compileBroadcastRenderJob } from './broadcastRenderEngine.ts';
+import {
+  buildOpportunityOpsOverview,
+  evaluateOpportunityVerificationOps,
+  runOpportunityOpsVerificationSuite,
+} from './opportunityOpsEngine.ts';
+import {
+  anonymiseHouseholdDraftData,
+  buildHouseholdDsrExportPackage,
+  buildPrivacyComplianceOverview,
+  executeRetentionPurgeOnDraft,
+  runPrivacyComplianceVerificationSuite,
+} from './privacyComplianceEngine.ts';
+import {
+  buildReliabilityChaosOverview,
+  runFull18FailureModesChaosSuite,
+  runReliabilityChaosVerificationSuite,
+  runSingleFailureModeChaosTest,
+} from './reliabilityChaosEngine.ts';
+import {
+  buildPilotCohortBlueprintRecord,
+  buildPilotReadinessOverview,
+  runPilotReadinessVerificationSuite,
+  scanPilotTelemetryZeroPii,
+} from './pilotReadinessEngine.ts';
 import { scheduleCommercialBreak } from './breakScheduler.ts';
 import {
   buildSafeTvPersonalisationDisplay,
@@ -1211,6 +1254,7 @@ function normalizeStoreData(parsed: EdisonStoreData): EdisonStoreData {
     householdMembers,
     householdQrTokens,
     consentAuditEvents,
+    lastReliabilityChaosReport: parsed.lastReliabilityChaosReport ?? null,
     auditLogs: parsed.auditLogs || [],
   };
 }
@@ -5005,6 +5049,87 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
           '8/8 broadcast render invariants passed: 1080p 90% title-safe & QR overlap checks, Text-Only >=4.5:1 contrast & >=42px/28px scale, Samsung Tizen WebM->MP4 transcode detection, 720p/16:9 gating, QR non-overwrite policy & EBU R128 -23 LUFS blueprint (ffmpegWorkerConnected=false, hardwareTested=false).',
       },
       {
+        id: 'qa_91_opportunity_ops_hardening',
+        block: 'Block 9.1',
+        label:
+          'Phase 9 Block 9.1: Opportunity Verification Operations (SHA-256 Vault Seals, Tier 2->3 Non-Transitivity, Expiry Sweep & 4h/48h SLA)',
+        status: (() => {
+          const oppOps = runOpportunityOpsVerificationSuite();
+          return oppOps.allPassed &&
+            oppOps.passedChecks === 8 &&
+            !oppOps.externalKycVendorConnected &&
+            !oppOps.advertisingFeeInfluencesVerification &&
+            !oppOps.hardwareTested &&
+            oppOps.stageP6Deferred
+            ? 'pass'
+            : 'fail';
+        })(),
+        scope: 'automated_invariant',
+        detail:
+          '8/8 opportunity ops invariants passed: SHA-256 evidence vault seals, strict Tier 2->3 non-transitivity, $0.00 fee independence, 90d Tier 3 re-verification & expiry quarantine, scam risk scanner & 4h/48h SLA tracking (externalKycVendorConnected=false, hardwareTested=false).',
+      },
+      {
+        id: 'qa_101_privacy_statutory_compliance',
+        block: 'Block 10.1',
+        label:
+          'Phase 10 Block 10.1: Privacy, DSR Export/Erasure Cascade, Automated Retention Purge, Zero-PII & 6-Market Statutory Register',
+        status: (() => {
+          const priv = runPrivacyComplianceVerificationSuite();
+          return priv.allPassed &&
+            priv.passedChecks === 8 &&
+            !priv.externalPenTestCompleted &&
+            !priv.legalComplianceClaimed &&
+            !priv.cameraMicAttentionTrackingEnabled &&
+            !priv.hardwareTested &&
+            priv.stageP6Deferred
+            ? 'pass'
+            : 'fail';
+        })(),
+        scope: 'automated_invariant',
+        detail:
+          '8/8 privacy & statutory invariants passed: SHA-256 DSR export PIN redaction, Right-to-Erasure cascade + HTTP 403 QR revocation, 2h/30d retention purge, Zero-PII analytics scanner, camera/mic hard disable & 6-market ADR-015 statutory register (hardwareTested=false).',
+      },
+      {
+        id: 'qa_111_reliability_chaos_18_fms',
+        block: 'Block 11.1',
+        label:
+          'Phase 11 Block 11.1: Reliability, Failure-Mode & Chaos Recovery Suite (All 18 FMEA Modes FM-01..FM-18 & 100% Live TV Watchdog)',
+        status: (() => {
+          const rel = runReliabilityChaosVerificationSuite();
+          return rel.allPassed &&
+            rel.passedChecks === 8 &&
+            !rel.hardwareTested &&
+            rel.stageP6Deferred &&
+            !rel.realBroadcastTunerConnected
+            ? 'pass'
+            : 'fail';
+        })(),
+        scope: 'automated_invariant',
+        detail:
+          '8/8 reliability chaos invariants passed across FM-01..FM-18 under extreme fault injection: 100% ordinary live TV preservation, dual <=500ms return-to-TV watchdog, LKG SHA-256 rollback & zero-inflation telemetry dedup (hardwareTested=false).',
+      },
+      {
+        id: 'qa_121_pilot_readiness_stage_p6_runbook',
+        block: 'Block 12.1',
+        label:
+          'Phase 12 Block 12.1: Software-First Pilot Readiness, Zero-PII Telemetry Schema & Single Final Stage P6 Runbook',
+        status: (() => {
+          const p12 = runPilotReadinessVerificationSuite();
+          return p12.allPassed &&
+            p12.passedChecks === 8 &&
+            !p12.hardwareTested &&
+            !p12.pilotHardwareExecuted &&
+            p12.stageP6Deferred &&
+            !p12.countryActivated &&
+            !p12.paymentCollectionActive
+            ? 'pass'
+            : 'fail';
+        })(),
+        scope: 'automated_invariant',
+        detail:
+          '8/8 Phase 12 pilot readiness invariants passed: Phase 4–11 pre-pilot software gates, Zero-PII opt-in telemetry guard, consent-epoch lock, 8-step Stage P6 physical runbook & non-commercial boundaries (hardwareTested=false, stageP6Deferred=true).',
+      },
+      {
         id: 'qa_27_physical_qr_scan',
         block: 'Block 2.7',
         label: 'Physical smartphone camera scan verification on real mobile device',
@@ -5022,8 +5147,8 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
 
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 8 — Advertisement Creation and Broadcast Rendering Validation (Software-First)',
-      block: 'Block 8.1 (1080p Safe Margins, WCAG Contrast, TV Codec Matrix, EBU R128 Loudness & QR Render Gate)',
+      phase: 'Phase 12 — Controlled Hardware & Viewer Pilot Readiness (Software-First)',
+      block: 'Block 12.1 (Pre-Pilot Software Gates, Opt-In Zero-PII Telemetry Schema & Single Final Stage P6 Runbook)',
       automatedInvariantsPassed,
       automatedInvariantsTotal: autoChecks.length,
       physicalQrScanStatus:
@@ -5238,19 +5363,19 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     const latestAudit = this.data.auditLogs[0] ?? null;
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 8 — Advertisement Creation & Broadcast Rendering Validation (Software-First)',
-      stage: 'Phases 1–7 Committed · Phase 2 Track A+B 100% Committed · Phase 8 Block 8.1 Verified · TASK-P3-001 READY',
-      block: 'Block 8.1 (Broadcast Rendering Gate: 90% Safe Margins, WCAG Contrast, TV Codec Matrix, EBU R128 Loudness & QR Non-Overwrite)',
-      gateStatus: 'BLOCK 8.1 VERIFIED — AWAITING OWNER COMMIT (STAGE P6 HARDWARE & FFMPEG WORKERS DEFERRED)',
+      phase: 'Phase 12 — Controlled Hardware & Viewer Pilot Readiness (Software-First)',
+      stage: 'Phases 1–11 Committed (Inc. Track B DEC-OPEN-01) · Phase 12 Block 12.1 Software-First Readiness Complete · Stage P6 Hardware & Launch Markets Deferred',
+      block: 'Block 12.1 (Pre-Pilot Software Gates, Opt-In Zero-PII Telemetry Schema & Single Final Stage P6 Runbook)',
+      gateStatus: 'BLOCK 12.1 VERIFIED — AWAITING OWNER COMMIT (STAGE P6 HARDWARE & COMMERCIAL LAUNCH DEFERRED)',
       progressMetrics: {
         aiStudioAssignmentPct: 100,
         softwareToStageP6Pct: 81.8,
-        overallFullAppPct: 60.0,
-        remainingUntilFullAppPct: 40.0,
+        overallFullAppPct: 72.0,
+        remainingUntilFullAppPct: 28.0,
         consentBlockedScopePct: 0,
-        trackBStatus: 'COMMITTED_DEC_OPEN_01_LOCKED',
+        trackBStatus: 'COMMITTED',
         rubricSummary:
-          'Phase 1 Specs (6.0%) + Phase 2 Track A+B Committed (14.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Complete Committed (12.0%) + Phase 6 Delivery Infra Committed (4.0%) + Phase 7 Block 7.1 Committed (3.0%) + Phase 8 Block 8.1 Broadcast Render Validation (3.0%) = 60.0% of 15-Phase Full Commercial App (81.8% to Stage P6; 100% of original Phase 2 AI Studio scope).',
+          'Phase 1 Specs (6.0%) + Phase 2 Track A+B Committed (14.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Complete Committed (12.0%) + Phase 6 Delivery Infra Committed (4.0%) + Phase 7 Block 7.1 Committed (3.0%) + Phase 8 Block 8.1 Committed (3.0%) + Phase 9 Block 9.1 Committed (2.0%) + Phase 10 Block 10.1 Committed (4.0%) + Phase 11 Block 11.1 Committed (4.0%) + Phase 12 Block 12.1 Software-First Pilot Readiness (2.0% / 4.0%) = 72.0% of 15-Phase Full Commercial App (81.8% to Stage P6; 100% of original Phase 2 AI Studio scope).',
       },
       latestAuditAt: latestAudit?.createdAt ?? null,
       latestAuditAction: latestAudit?.action ?? null,
@@ -5981,7 +6106,471 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     // Strictly returns only non-identifying coarse city/province household counts (never addresses or profiles).
     return computeAdvertiserGeoAggregates(this.data.households || []);
   }
+
+  // --- Phase 8 Block 8.1: Broadcast Render Job Compilation ---
+
+  compileCreativeBroadcastRenderJob(
+    actor: PublicUser,
+    creativeId: string,
+    resolutionProfile: BroadcastResolutionProfile = '1080p_fhd'
+  ): BroadcastRenderJobResult {
+    this.syncIfDiskNewer();
+    const creative = this.data.adCreatives.find((c) => c.id === creativeId);
+    if (!creative) {
+      throw new Error('Ad creative not found.');
+    }
+    if (actor.role !== 'admin' && creative.ownerId !== actor.id) {
+      throw new Error('FORBIDDEN: You do not own this ad creative.');
+    }
+    const qrLink = creative.qrToken
+      ? this.data.qrLinks.find((q) => q.token === creative.qrToken) ?? null
+      : null;
+
+    return compileBroadcastRenderJob({
+      creative,
+      qrLink,
+      resolutionProfile,
+    });
+  }
+
+  // --- Phase 9 Block 9.1: Opportunity Verification Operations Hardening ---
+
+  getOpportunityOpsOverview(actor: PublicUser): OpportunityOpsOverview {
+    this.syncIfDiskNewer();
+    return buildOpportunityOpsOverview({
+      actor,
+      opportunities: this.data.opportunities,
+      complaints: this.data.opportunityComplaints,
+      appeals: this.data.opportunityAppeals,
+      campaigns: this.data.campaigns,
+    });
+  }
+
+  runOpportunityExpiryAndReverificationSweep(
+    actor: PublicUser,
+    input?: { notes?: string }
+  ): OpportunityOpsSweepResult {
+    if (actor.role !== 'admin') {
+      throw new Error(
+        'FORBIDDEN: Only administrators may run opportunity expiry and verification sweeps.'
+      );
+    }
+
+    return this.withWriteTransaction((draft) => {
+      const nowMs = Date.now();
+      const nowIso = new Date(nowMs).toISOString();
+      const campaignById = new Map(draft.campaigns.map((c) => [c.id, c]));
+
+      let evidenceSealsVerifiedCount = 0;
+      let expiredTransitionedCount = 0;
+      let flaggedForReverificationCount = 0;
+      let feeIndependenceVerified = true;
+      let nonTransitivityVerified = true;
+
+      for (const opp of draft.opportunities) {
+        const assessment = evaluateOpportunityVerificationOps({
+          opportunity: opp,
+          complaints: draft.opportunityComplaints,
+          linkedCampaign: opp.linkedCampaignId
+            ? campaignById.get(opp.linkedCampaignId) ?? null
+            : null,
+          nowMs,
+        });
+
+        evidenceSealsVerifiedCount += assessment.vaultSeals.length;
+        if (!assessment.feeIndependenceVerified) feeIndependenceVerified = false;
+        if (!assessment.nonTransitivityVerified) nonTransitivityVerified = false;
+
+        if (
+          assessment.expiredByDate &&
+          opp.status !== 'expired' &&
+          opp.status !== 'rejected' &&
+          opp.status !== 'revoked'
+        ) {
+          opp.status = 'expired';
+          opp.updatedAt = nowIso;
+          expiredTransitionedCount += 1;
+        }
+
+        if (assessment.reverificationRequired) {
+          flaggedForReverificationCount += 1;
+        }
+      }
+
+      const sweepId = `oswp_${crypto.randomBytes(5).toString('hex')}`;
+      const overview = buildOpportunityOpsOverview({
+        actor,
+        opportunities: draft.opportunities,
+        complaints: draft.opportunityComplaints,
+        appeals: draft.opportunityAppeals,
+        campaigns: draft.campaigns,
+        nowMs,
+      });
+
+      const notes =
+        input?.notes?.trim() ||
+        'Scheduled opportunity expiry & 90d/180d/365d Tier 1–3 re-verification sweep.';
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'OPPORTUNITY_OPS_SWEEP_EXECUTED',
+        'opportunity',
+        sweepId,
+        `Sweep ${sweepId}: ${evidenceSealsVerifiedCount} vault seals verified, ${expiredTransitionedCount} expired, ${flaggedForReverificationCount} pending re-verification (${notes}).`
+      );
+
+      return {
+        sweepId,
+        executedAt: nowIso,
+        notes,
+        evidenceSealsVerifiedCount,
+        expiredTransitionedCount,
+        flaggedForReverificationCount,
+        feeIndependenceVerified,
+        nonTransitivityVerified,
+        overview,
+      };
+    });
+  }
+
+  // --- Phase 10 Block 10.1: Privacy, Security & Statutory Compliance Readiness ---
+
+  getPrivacyComplianceOverview(actor: PublicUser): PrivacyComplianceOverview {
+    this.syncIfDiskNewer();
+    return buildPrivacyComplianceOverview({
+      actor,
+      households: this.data.households || [],
+      sessions: this.data.sessions,
+      householdQrTokens: this.data.householdQrTokens || [],
+      analyticsEvents: this.data.analyticsEvents,
+    });
+  }
+
+  exportHouseholdDsrPackage(actor: PublicUser, householdId: string): PrivacyDsrExportPackage {
+    this.syncIfDiskNewer();
+    const hh = (this.data.households || []).find((h) => h.id === householdId);
+    if (!hh) {
+      throw new Error('Household installation not found.');
+    }
+    this.assertHouseholdReadAccess(actor, hh);
+
+    return buildHouseholdDsrExportPackage({
+      household: hh,
+      members: this.data.householdMembers || [],
+      householdQrTokens: this.data.householdQrTokens || [],
+      consentAuditEvents: this.data.consentAuditEvents || [],
+    });
+  }
+
+  anonymiseHouseholdDsr(
+    actor: PublicUser,
+    householdId: string,
+    input: { confirmationPhrase: string; reason: string }
+  ): PrivacyDsrErasureResult {
+    if (input.confirmationPhrase !== 'ERASE HOUSEHOLD DATA') {
+      throw new Error('Confirmation phrase must be exactly "ERASE HOUSEHOLD DATA".');
+    }
+
+    return this.withWriteTransaction((draft) => {
+      const nowIso = new Date().toISOString();
+      const hh = (draft.households || []).find((h) => h.id === householdId);
+      if (!hh) {
+        throw new Error('Household installation not found.');
+      }
+      this.assertHouseholdReadAccess(actor, hh);
+
+      const { erasureResult } = anonymiseHouseholdDraftData({
+        household: hh,
+        members: draft.householdMembers || [],
+        householdQrTokens: draft.householdQrTokens || [],
+        nowIso,
+      });
+
+      draft.consentAuditEvents = draft.consentAuditEvents || [];
+      draft.consentAuditEvents.unshift({
+        id: `caud_${crypto.randomBytes(6).toString('hex')}`,
+        householdId: hh.id,
+        actorId: actor.id,
+        actorRole: actor.role,
+        action: 'CONSENT_WITHDRAWN_BUNDLED',
+        previousEpoch: erasureResult.previousEpoch,
+        newEpoch: erasureResult.newEpoch,
+        reason: `DSR Right-to-Erasure (${erasureResult.erasureId}): ${input.reason.trim()}`,
+        affectedQrTokensInvalidated: erasureResult.qrTokensRevokedCount,
+        ordinaryTvPreserved: true,
+        createdAt: nowIso,
+      });
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'HOUSEHOLD_DSR_ERASURE_EXECUTED',
+        'consent',
+        hh.id,
+        `DSR erasure ${erasureResult.erasureId} scrubbed ${erasureResult.membersAnonymisedCount} profile(s), revoked ${erasureResult.qrTokensRevokedCount} QR token(s), epoch ${erasureResult.previousEpoch} -> ${erasureResult.newEpoch} (ordinary TV preserved).`
+      );
+
+      return erasureResult;
+    });
+  }
+
+  runPrivacyRetentionCleanupSweep(
+    actor: PublicUser,
+    input?: { notes?: string }
+  ): PrivacyRetentionReport {
+    if (actor.role !== 'admin') {
+      throw new Error(
+        'FORBIDDEN: Only administrators may run privacy retention cleanup sweeps.'
+      );
+    }
+
+    return this.withWriteTransaction((draft) => {
+      const { report, keptSessions, keptQrTokens } = executeRetentionPurgeOnDraft({
+        sessions: draft.sessions,
+        householdQrTokens: draft.householdQrTokens || [],
+        analyticsEvents: draft.analyticsEvents,
+      });
+
+      draft.sessions = keptSessions;
+      draft.householdQrTokens = keptQrTokens;
+
+      const notes = input?.notes?.trim() || 'Automated retention purge sweep.';
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'PRIVACY_RETENTION_SWEEP_EXECUTED',
+        'system',
+        report.sweepId,
+        `Retention sweep ${report.sweepId}: purged ${report.expiredSessionsPurged} expired session(s) and ${report.staleExpiredQrTokensPurged} >30d stale QR token(s) (${notes}).`
+      );
+
+      return report;
+    });
+  }
+
+  // --- Phase 11 Block 11.1: Reliability, Failure-Mode & Chaos Recovery Suite ---
+
+  getReliabilityChaosOverview(actor: PublicUser): ReliabilityChaosOverview {
+    this.syncIfDiskNewer();
+    if (!actor) throw new Error('Authentication required.');
+    return buildReliabilityChaosOverview(this.data.lastReliabilityChaosReport ?? null);
+  }
+
+  executeFailureModeChaosProbe(
+    actor: PublicUser,
+    input: { failureModeId: FailureModeId; injectSeverity?: ChaosInjectSeverity }
+  ): {
+    probe: ChaosScenarioResult;
+    overview: ReliabilityChaosOverview;
+  } {
+    this.syncIfDiskNewer();
+    if (!actor) throw new Error('Authentication required.');
+    const probe = runSingleFailureModeChaosTest(input.failureModeId, {
+      injectSeverity: input.injectSeverity,
+    });
+    this.recordSecurityAudit(
+      actor,
+      'RELIABILITY_CHAOS_PROBE_RUN',
+      input.failureModeId,
+      `Executed ${input.failureModeId} (${probe.severity}) chaos probe: passed=${probe.passed}, ordinaryTvPreserved=${probe.ordinaryTvPreserved}, latency=${probe.recoveryLatencyMs}ms.`
+    );
+    return {
+      probe,
+      overview: buildReliabilityChaosOverview(this.data.lastReliabilityChaosReport ?? null),
+    };
+  }
+
+  runFullReliabilityChaosSuite(
+    actor: PublicUser,
+    input?: { notes?: string; injectSeverity?: ChaosInjectSeverity }
+  ): {
+    report: ReliabilityChaosReport;
+    overview: ReliabilityChaosOverview;
+  } {
+    if (actor.role !== 'admin') {
+      throw new Error(
+        'FORBIDDEN: Only administrators may run and persist the full 18-FM reliability chaos suite.'
+      );
+    }
+
+    return this.withWriteTransaction((draft) => {
+      const report = runFull18FailureModesChaosSuite({
+        executedByEmail: actor.email,
+        notes: input?.notes,
+        injectSeverity: input?.injectSeverity,
+      });
+      draft.lastReliabilityChaosReport = report;
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'RELIABILITY_FULL_18_CHAOS_RUN',
+        'system',
+        report.reportId,
+        `Full 18-FM chaos suite ${report.reportId} (${input?.injectSeverity ?? 'standard'}): ${report.passedFailureModes}/18 passed, ordinaryTvPreservedAll=${report.ordinaryTvPreservedAll}, sha256=${report.reportSha256.slice(0, 12)}.`
+      );
+
+      return {
+        report,
+        overview: buildReliabilityChaosOverview(report),
+      };
+    });
+  }
+
+  // --- Phase 12 Block 12.1: Controlled Hardware & Viewer Pilot Readiness (Software-First) ---
+
+  getPilotReadinessOverview(actor: PublicUser): PilotReadinessOverview {
+    this.syncIfDiskNewer();
+    if (!actor) throw new Error('Authentication required.');
+    return buildPilotReadinessOverview({
+      households: this.data.households || [],
+      campaigns: this.data.campaigns,
+      creatives: this.data.adCreatives,
+      opportunities: this.data.opportunities,
+      qrLinks: this.data.qrLinks,
+      physicalQrScanTests: this.data.physicalQrScanTests,
+      lastReliabilityChaosReport: this.data.lastReliabilityChaosReport ?? null,
+      cohorts: this.data.pilotCohorts || [],
+      stageP6PrepNotes: this.data.stageP6PrepNotes || {},
+    });
+  }
+
+  createPilotCohortBlueprint(
+    actor: PublicUser,
+    input: {
+      cohortName: string;
+      targetCountryCode: string;
+      targetArchitectureId: PilotTargetArchitectureId;
+      maxHouseholdsCap: number;
+      enrolledHouseholdIds: string[];
+      decOpen02ShortBreakRuleAcknowledged: boolean;
+      decOpen03GamMockOnlyAcknowledged: boolean;
+    }
+  ): {
+    cohort: PilotCohortBlueprintRecord;
+    overview: PilotReadinessOverview;
+  } {
+    if (actor.role !== 'admin') {
+      throw new Error(
+        'FORBIDDEN: Only administrators may author or register closed pilot cohort blueprints.'
+      );
+    }
+
+    return this.withWriteTransaction((draft) => {
+      const cohort = buildPilotCohortBlueprintRecord({
+        ...input,
+        households: draft.households || [],
+        createdByEmail: actor.email,
+      });
+      draft.pilotCohorts = draft.pilotCohorts || [];
+      draft.pilotCohorts.unshift(cohort);
+      if (draft.pilotCohorts.length > 50) {
+        draft.pilotCohorts.length = 50;
+      }
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'PILOT_COHORT_BLUEPRINT_CREATED',
+        'system',
+        cohort.id,
+        `Created software-first pilot cohort blueprint "${cohort.cohortName}" (${cohort.targetCountryCode}/${cohort.targetArchitectureId}, ${cohort.enrolledHouseholdIds.length} household(s), status=${cohort.status}, hardwareTested=false, countryActivated=false).`
+      );
+
+      return {
+        cohort,
+        overview: buildPilotReadinessOverview({
+          households: draft.households || [],
+          campaigns: draft.campaigns,
+          creatives: draft.adCreatives,
+          opportunities: draft.opportunities,
+          qrLinks: draft.qrLinks,
+          physicalQrScanTests: draft.physicalQrScanTests,
+          lastReliabilityChaosReport: draft.lastReliabilityChaosReport ?? null,
+          cohorts: draft.pilotCohorts,
+          stageP6PrepNotes: draft.stageP6PrepNotes || {},
+        }),
+      };
+    });
+  }
+
+  validatePilotTelemetrySample(
+    actor: PublicUser,
+    input: {
+      cohortId: string;
+      regionCode: string;
+      architectureId: PilotTargetArchitectureId;
+      householdConsentStatus: 'granted' | 'withdrawn' | 'pending';
+      claimedHardwareTested?: boolean;
+      consentEpoch: number;
+      expectedConsentEpoch: number;
+      switchLatencyMs: number;
+      returnToLiveTvMs: number;
+      qrScanObservedMs?: number | null;
+      ordinaryTvPreserved: boolean;
+      extraPayload?: Record<string, unknown>;
+    }
+  ): PilotTelemetryValidationResult {
+    this.syncIfDiskNewer();
+    if (!actor) throw new Error('Authentication required.');
+    const result = scanPilotTelemetryZeroPii(input);
+    this.recordSecurityAudit(
+      actor,
+      result.valid ? 'PILOT_TELEMETRY_SCHEMA_VALIDATED' : 'PILOT_TELEMETRY_SCHEMA_REJECTED',
+      input.cohortId,
+      `Pilot Zero-PII telemetry check (${input.architectureId}): valid=${result.valid}, piiFlags=${result.piiDetectedFields.length}, consentValid=${result.consentValid}, forgedHwBlocked=${result.forgedHardwareClaimBlocked}, hardwareTested=false.`
+    );
+    return result;
+  }
+
+  recordStageP6RunbookPrep(
+    actor: PublicUser,
+    input: {
+      stepId: StageP6StepId;
+      ownerPrepNote: string;
+    }
+  ): PilotReadinessOverview {
+    if (actor.role !== 'admin') {
+      throw new Error(
+        'FORBIDDEN: Only administrators may update Stage P6 pre-flight runbook preparation notes.'
+      );
+    }
+
+    return this.withWriteTransaction((draft) => {
+      draft.stageP6PrepNotes = draft.stageP6PrepNotes || {};
+      draft.stageP6PrepNotes[input.stepId] = input.ownerPrepNote.trim();
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'STAGE_P6_RUNBOOK_PREP_UPDATED',
+        'qa_handover',
+        input.stepId,
+        `Updated Stage P6 runbook pre-flight note for ${input.stepId} (physical hardware execution strictly deferred to final Stage P6).`
+      );
+
+      return buildPilotReadinessOverview({
+        households: draft.households || [],
+        campaigns: draft.campaigns,
+        creatives: draft.adCreatives,
+        opportunities: draft.opportunities,
+        qrLinks: draft.qrLinks,
+        physicalQrScanTests: draft.physicalQrScanTests,
+        lastReliabilityChaosReport: draft.lastReliabilityChaosReport ?? null,
+        cohorts: draft.pilotCohorts || [],
+        stageP6PrepNotes: draft.stageP6PrepNotes,
+      });
+    });
+  }
 }
 
 export const edisonStore = new EdisonPrototypeStore();
+
 
