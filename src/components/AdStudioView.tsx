@@ -23,6 +23,9 @@ import {
 import type {
   AdCreativeRecord,
   AdStudioMode,
+  BroadcastRenderJobResult,
+  BroadcastRenderVerificationReport,
+  BroadcastResolutionProfile,
   CampaignRecord,
   CanvasElementLayout,
   ExternalQrInspectionStatus,
@@ -677,6 +680,15 @@ export function AdStudioView({
   );
   const [savingCreative, setSavingCreative] = useState(false);
 
+  // Phase 8 Block 8.1 Broadcast Render Blueprint State (Software-First; ffmpegBinaryExecuted: false)
+  const [renderTargetCreativeId, setRenderTargetCreativeId] = useState('');
+  const [renderResolution, setRenderResolution] = useState<BroadcastResolutionProfile>('1080p_fhd');
+  const [renderJobResult, setRenderJobResult] = useState<BroadcastRenderJobResult | null>(null);
+  const [renderVerifyReport, setRenderVerifyReport] =
+    useState<BroadcastRenderVerificationReport | null>(null);
+  const [runningRenderCompile, setRunningRenderCompile] = useState(false);
+  const [runningRenderSuite, setRunningRenderSuite] = useState(false);
+
   const hasInitializedQr = useRef(false);
 
   const loadAll = useCallback(async () => {
@@ -721,6 +733,14 @@ export function AdStudioView({
   useEffect(() => {
     loadAll();
   }, [loadAll]);
+
+  useEffect(() => {
+    if (editingId) {
+      setRenderTargetCreativeId(editingId);
+    } else if (creatives.length > 0 && !creatives.some((c) => c.id === renderTargetCreativeId)) {
+      setRenderTargetCreativeId(creatives[0].id);
+    }
+  }, [editingId, creatives, renderTargetCreativeId]);
 
   const activeQrRedirectUrl = useMemo(() => {
     const token = qrToken || 'edison-demo';
@@ -1186,6 +1206,81 @@ export function AdStudioView({
     setSaveFeedback({ type: 'ok', text: `Deleted ad creative ${crtId}.` });
     await loadAll();
     await onSummaryRefresh();
+  };
+
+  const handleCompileRenderBlueprint = async () => {
+    const targetId = renderTargetCreativeId || editingId || creatives[0]?.id;
+    if (!targetId) {
+      setSaveFeedback({
+        type: 'err',
+        text: 'Save or select an ad creative before running broadcast render validation.',
+      });
+      return;
+    }
+    setRunningRenderCompile(true);
+    setSaveFeedback(null);
+    try {
+      const res = await edisonFetch('/api/render/validate-and-compile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          creativeId: targetId,
+          resolutionProfile: renderResolution,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSaveFeedback({
+          type: 'err',
+          text: data.error || 'Broadcast render blueprint validation failed.',
+        });
+        return;
+      }
+      setRenderJobResult(data.job);
+      setSaveFeedback({
+        type: data.job.renderStatus === 'RENDER_BLUEPRINT_VERIFIED' ? 'ok' : 'err',
+        text: `Render Job ${data.job.renderJobId} (${data.job.resolutionProfile}): ${data.job.renderStatus}.`,
+      });
+    } catch (err) {
+      setSaveFeedback({
+        type: 'err',
+        text: err instanceof Error ? err.message : 'Render blueprint request failed.',
+      });
+    } finally {
+      setRunningRenderCompile(false);
+    }
+  };
+
+  const handleRunRenderVerifySuite = async () => {
+    setRunningRenderSuite(true);
+    setSaveFeedback(null);
+    try {
+      const res = await edisonFetch('/api/render/verify-suite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSaveFeedback({
+          type: 'err',
+          text: data.error || 'Broadcast render suite failed.',
+        });
+        return;
+      }
+      setRenderVerifyReport(data.report);
+      setSaveFeedback({
+        type: data.report.allPassed ? 'ok' : 'err',
+        text: `Phase 8 Render Verification Suite: ${data.report.passedChecks}/${data.report.totalChecks} checks passed (ffmpegBinaryExecuted: false).`,
+      });
+    } catch (err) {
+      setSaveFeedback({
+        type: 'err',
+        text: err instanceof Error ? err.message : 'Render verification suite error.',
+      });
+    } finally {
+      setRunningRenderSuite(false);
+    }
   };
 
   if (!currentUser) {
@@ -2684,6 +2779,223 @@ export function AdStudioView({
           </div>
         </div>
       )}
+
+      {/* Phase 8 Block 8.1: Broadcast Rendering, EBU R128 & QR Vision Validation (Software-First) */}
+      <div className="bg-white border border-slate-200 rounded-lg p-6 space-y-5">
+        <div className="pb-3 border-b border-slate-200 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+          <div>
+            <h3 className="text-base font-semibold text-slate-900">
+              Broadcast Rendering, EBU R128 &amp; QR Vision Gate (Block 8.1)
+            </h3>
+            <p className="text-xs text-slate-600 mt-0.5">
+              Software-First Blueprint · ffmpegBinaryExecuted: false · hardwareTested: false · Stage P6 Deferred
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={renderTargetCreativeId}
+              onChange={(e) => setRenderTargetCreativeId(e.target.value)}
+              aria-label="Select creative for broadcast render validation"
+              className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg max-w-[220px]"
+            >
+              {creatives.length === 0 ? (
+                <option value="">Save a creative first...</option>
+              ) : (
+                creatives.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.title} ({c.mode === 'option_a_studio' ? 'Opt A' : c.mode === 'option_b_upload' ? 'Opt B' : 'Text'})
+                  </option>
+                ))
+              )}
+            </select>
+            <select
+              value={renderResolution}
+              onChange={(e) => setRenderResolution(e.target.value as BroadcastResolutionProfile)}
+              aria-label="Broadcast target resolution profile"
+              className="px-2.5 py-1.5 text-xs font-mono bg-white border border-slate-200 rounded-lg"
+            >
+              <option value="1080p_fhd">1080p FHD (H.264 High@L4.1)</option>
+              <option value="4k_uhd">4K UHD (HEVC Main10@L5.0)</option>
+            </select>
+            <button
+              type="button"
+              disabled={runningRenderCompile || creatives.length === 0}
+              onClick={handleCompileRenderBlueprint}
+              className="px-3.5 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg disabled:opacity-50 cursor-pointer whitespace-nowrap"
+            >
+              {runningRenderCompile ? 'Validating...' : 'Validate & Compile Blueprint'}
+            </button>
+            <button
+              type="button"
+              disabled={runningRenderSuite}
+              onClick={handleRunRenderVerifySuite}
+              className="px-3.5 py-1.5 text-xs font-semibold text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg disabled:opacity-50 cursor-pointer whitespace-nowrap"
+            >
+              {runningRenderSuite ? 'Running Suite...' : 'Run 8/8 Render Suite'}
+            </button>
+          </div>
+        </div>
+
+        {renderJobResult ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 py-2 border-b border-slate-200 text-xs">
+              <div>
+                <p className="text-slate-500">Render Blueprint Status</p>
+                <p
+                  className={`font-mono font-semibold mt-0.5 ${
+                    renderJobResult.renderStatus === 'RENDER_BLUEPRINT_VERIFIED'
+                      ? 'text-emerald-700'
+                      : 'text-red-700'
+                  }`}
+                >
+                  {renderJobResult.renderStatus}
+                </p>
+                <p className="font-mono text-[11px] text-slate-500 mt-0.5 tabular-nums">
+                  {renderJobResult.renderJobId} · {renderJobResult.targetDimensions.width}×{renderJobResult.targetDimensions.height}
+                </p>
+              </div>
+              <div>
+                <p className="text-slate-500">TV Safe Margin &amp; Contrast</p>
+                <p className="font-mono font-semibold text-slate-900 mt-0.5 tabular-nums">
+                  {renderJobResult.safeMarginPassed ? '5%–95% PASS' : 'OVERSCAN FAIL'} ·{' '}
+                  {renderJobResult.contrastRatio !== null ? `${renderJobResult.contrastRatio}:1` : 'Media Asset'}
+                </p>
+                <p className="text-[11px] text-slate-500 mt-0.5 tabular-nums">
+                  Duration: {renderJobResult.durationSeconds}s · {renderJobResult.blockingIssuesCount} blocking
+                </p>
+              </div>
+              <div>
+                <p className="text-slate-500">QR Vision Gate</p>
+                <p
+                  className={`font-mono font-semibold mt-0.5 ${
+                    renderJobResult.qrVisionGate.passed ? 'text-emerald-700' : 'text-red-700'
+                  }`}
+                >
+                  {renderJobResult.qrVisionGate.passed ? 'VERIFIED' : 'BLOCKED'} ({renderJobResult.qrVisionGate.inspectionStatus})
+                </p>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Silent overwrite blocked: {String(renderJobResult.qrVisionGate.silentOverwriteBlocked)}
+                </p>
+              </div>
+              <div>
+                <p className="text-slate-500">Audio Loudness Norm</p>
+                <p className="font-mono font-semibold text-slate-900 mt-0.5 tabular-nums">
+                  {renderJobResult.audioLoudnessSpec.hasAudioTrack
+                    ? `${renderJobResult.audioLoudnessSpec.targetIntegratedLufs} LUFS / ${renderJobResult.audioLoudnessSpec.maxTruePeakDbtp} dBTP`
+                    : 'SILENT CARD'}
+                </p>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  {renderJobResult.audioLoudnessSpec.standard}
+                </p>
+              </div>
+            </div>
+
+            {renderJobResult.issues.length > 0 && (
+              <div className="p-3.5 rounded-lg border border-amber-200 bg-amber-50 text-xs text-amber-950 space-y-1">
+                <p className="font-semibold">
+                  Validation Diagnostics ({renderJobResult.blockingIssuesCount} blocking · {renderJobResult.warningIssuesCount} warning)
+                </p>
+                {renderJobResult.issues.map((issue, idx) => (
+                  <p key={`${issue.code}-${idx}`} className="font-mono text-[11px]">
+                    [{issue.severity.toUpperCase()} · {issue.code}] {issue.message}
+                  </p>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-1.5 text-xs">
+              <p className="text-slate-600 font-medium">
+                Deterministic Filter Graph &amp; SHA-256 Manifest
+              </p>
+              <p className="font-mono text-[11px] text-slate-800 bg-slate-50 border border-slate-200 rounded px-3 py-2 break-all">
+                {renderJobResult.ffmpegFilterGraphSpec}
+              </p>
+              <p className="font-mono text-[11px] text-slate-500 break-all">
+                manifestSha256: {renderJobResult.manifestSha256}
+              </p>
+            </div>
+
+            <div className="overflow-x-auto border border-slate-200 rounded-lg">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="px-3 py-2 font-semibold text-slate-700">TV Platform Target</th>
+                    <th className="px-3 py-2 font-semibold text-slate-700">Codec &amp; Container</th>
+                    <th className="px-3 py-2 font-semibold text-slate-700">Bitrate &amp; Audio</th>
+                    <th className="px-3 py-2 font-semibold text-slate-700">Transcode Policy</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {renderJobResult.platformTargets.map((target) => (
+                    <tr key={target.platformId}>
+                      <td className="px-3 py-2 font-mono font-semibold text-slate-900">
+                        {target.platformId}
+                      </td>
+                      <td className="px-3 py-2 font-mono text-slate-700">
+                        {target.targetVideoCodec} · {target.targetContainer}
+                      </td>
+                      <td className="px-3 py-2 font-mono tabular-nums text-slate-700">
+                        {target.maxVideoBitrateKbps} kbps · {target.audioProfile}
+                      </td>
+                      <td className="px-3 py-2 text-slate-600">
+                        {target.transcodeRequired ? 'Transcode Required · ' : 'Direct · '}
+                        {target.notes}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-slate-500">
+            Select a saved creative and click &ldquo;Validate &amp; Compile Blueprint&rdquo; to inspect 16:9 overscan safe margins (5%–95%), WCAG contrast (&ge; 4.5:1), non-overwrite QR vision checks, EBU R128 loudness filter specs, and Samsung Tizen / Android TV / LG webOS transcode rules.
+          </p>
+        )}
+
+        {renderVerifyReport && (
+          <div className="pt-3 border-t border-slate-200 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span className="font-semibold text-slate-900">
+                Block 8.1 Automated Render Suite: {renderVerifyReport.passedChecks}/{renderVerifyReport.totalChecks} Passed
+              </span>
+              <span className="font-mono text-[11px] text-slate-500">
+                ffmpegBinaryExecuted: {String(renderVerifyReport.ffmpegBinaryExecuted)} · hardwareTested: {String(renderVerifyReport.hardwareTested)} · stageP6Deferred: {String(renderVerifyReport.stageP6Deferred)}
+              </span>
+            </div>
+            <div className="overflow-x-auto border border-slate-200 rounded-lg">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="px-3 py-2 font-semibold text-slate-700">Check</th>
+                    <th className="px-3 py-2 font-semibold text-slate-700">Rule</th>
+                    <th className="px-3 py-2 font-semibold text-slate-700">Result</th>
+                    <th className="px-3 py-2 font-semibold text-slate-700">Detail</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {renderVerifyReport.checks.map((chk) => (
+                    <tr key={chk.checkId}>
+                      <td className="px-3 py-2 font-mono text-slate-700 whitespace-nowrap">
+                        {chk.checkId}
+                      </td>
+                      <td className="px-3 py-2 font-medium text-slate-900">{chk.label}</td>
+                      <td
+                        className={`px-3 py-2 font-mono font-semibold whitespace-nowrap ${
+                          chk.passed ? 'text-emerald-700' : 'text-red-700'
+                        }`}
+                      >
+                        {chk.passed ? 'PASS' : 'FAIL'}
+                      </td>
+                      <td className="px-3 py-2 text-slate-600">{chk.detail}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Persisted Ad Creatives Registry */}
       <div className="bg-white border border-slate-200 rounded-lg p-6 space-y-4">

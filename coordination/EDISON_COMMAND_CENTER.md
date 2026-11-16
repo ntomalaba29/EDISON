@@ -7,38 +7,39 @@
 
 ## 1. PROJECT OWNER MESSAGE
 
-> **Phase 2 Track B Complete (`100%` AI Studio Assignment · `DEC-OPEN-01` Locked) + Phase 7 Block 7.1 Verified (`TASK-P3-001` `READY` — JSON Persistence Retained)**:
-> - Under locked **`DEC-OPEN-01`** (**Scope B — Full EDISON Model** + **Bundled Consent Withdrawal**), completed the remaining **15% Track B** of the Phase 2 AI Studio scope:
->   - **Household Registration & Geo Hierarchy (`src/server/trackBHouseholdConsent.ts`)**: Zimbabwe (`ZW`) initial launch market + international country configs (`ZA`, `GB`, `KE`, `NG`, `DE`, `US`), all `countryActivated: false`. Strict 7-level hierarchy validation keeps exact household addresses private while invalid/missing location disables targeted advertising without impacting ordinary TV.
->   - **Multi-Member Profiles & Opportunity Matching**: Optional `scrypt` PIN isolation per profile (`Tariro Moyo` PIN `'4321'`, `Tinashe Moyo`), distinguished household vs individual consent, `neutralDisplayMode`, and required/preferred/optional opportunity matching with zero/one/multi member support and non-guarantee notices.
->   - **Safe TV Personalisation, Bundled Consent Enforcement & Epoch `HTTP 403` QR Revocation**: Server-side versioned `consentEpoch` + bundled withdrawal suspending commercial ads, charity ads, opportunities, personalisation, preload manifests, and break schedules while preserving ordinary TV & `AURA` remote operation. Revoked, withdrawn, stale-epoch, or expired `hqr_*` tokens immediately return **`HTTP 403`** with `Cache-Control: no-store, private`.
->   - **Advertiser Privacy Barrier**: Advertisers & opportunity submitters receive `HTTP 403` on `/api/households*` and may only view coarse aggregate counts at `/api/advertiser/targeting-aggregates`.
-> - Overall progress is now **`57.0%` of the 15-Phase Full App** (**`100.0%` of Phase 2 AI Studio scope**, **`81.8%` to `Stage P6`** — Track B & Block 7.1 **`VERIFIED · AWAITING COMMIT`**).
+> **Phase 2 Track B + Phase 7 Block 7.1 COMMITTED · Phase 8 Block 8.1 Verified & Awaiting Commit (`60.0%` Full App · `TASK-P3-001` `READY`)**:
+> - Completed **Phase 8 · Stage 8.1 · Block 8.1: Advertisement Creation & Broadcast Rendering Validation (Software-First)**:
+>   - **Broadcast Render & QR Vision Engine (`src/server/broadcastRenderEngine.ts`)**: Compiles deterministic SHA-256 `1080p_fhd` (`1920x1080`, `H.264 High@L4.1`) and `4k_uhd` (`3840x2160`, `HEVC Main10@L5.0`) render blueprints across Option A Studio compositions, Option B external media uploads, and zero-media Text-Only commercial cards.
+>   - **Fail-Closed TV Legibility, Overscan & Zero-Overwrite QR Rules**: Enforces 5%–95% TV overscan title-safe rectangles, minimum 12% QR box width, WCAG AA `>= 4.5:1` contrast, ITU-R BS.1770-4 / EBU R128 `-23.0 LUFS / -1.0 dBTP` loudness filter graphs for audio-bearing video vs silent cards, mandatory Samsung Tizen AVPlay `WebM -> H.264 MP4` transcode flags, and strict non-overwrite rejection of conflicting external QR uploads (`silentOverwriteBlocked: true`).
+>   - **UI, Routes & 23/23 QA Verification**: Mounted strict-Zod CSRF-protected `POST /api/render/validate-and-compile` and `POST /api/render/verify-suite`, integrated the interactive **Broadcast Rendering, EBU R128 & QR Vision Gate (Block 8.1)** panel into `AdStudioView.tsx`, added 23rd QA invariant `qa_81_broadcast_render_validation`, and verified `tests/broadcastRender.test.ts` + full regression suite.
+>   - **Software-First Boundaries Preserved**: `ffmpegBinaryExecuted: false`, `isSoftwareSimulationOnly: true`, `hardwareTested: false`, `stageP6Deferred: true`, `paymentCollectionActive: false`, and JSON persistence (`schemaVersion: 8`) retained without paid Cloud SQL.
+> - Overall progress is now **`60.0%` of the 15-Phase Full App** (**`40.0%` remaining**, **`100.0%` of Phase 2 AI Studio scope**, **`81.8%` to `Stage P6`** — Phase 8 Block 8.1 **`VERIFIED · AWAITING COMMIT`**).
 
 ---
 
 ## 2. PROGRESS PERCENTAGES UNTIL FULL APP
 
-- **Phase 2 AI Studio Prototype Scope**: **`100.0%`** (**Track A `85.0%` committed + Track B `15.0%` `VERIFIED · AWAITING COMMIT`**; `0.0%` consent-blocked)
+- **Phase 2 AI Studio Prototype Scope**: **`100.0%`** (**Track A `85.0%` + Track B `15.0%` `COMMITTED`**; `0.0%` consent-blocked)
 - **Software-to-`Stage-P6` Milestone (Phases 1–6 + Stage P6 Subtotal = `66.0%` of Full App)**: **`81.8%`** (`54.0% / 66.0%`)
-- **Overall EDISON Project Progress (Until Full 15-Phase International Commercial App = `100.0%`)**: **`57.0%`** (**`43.0%` remaining**)
+- **Overall EDISON Project Progress (Until Full 15-Phase International Commercial App = `100.0%`)**: **`60.0%`** (**`40.0%` remaining**)
   - Phase 1 Specs (`v1`–`v2.2`): `6.0% / 6.0%` (**Committed**)
-  - Phase 2 Prototype: `14.0% / 14.0%` (Track A `13.0%` **Committed** + Track B `1.0%` **`VERIFIED · AWAITING COMMIT`**)
+  - Phase 2 Prototype (Track A + Track B under `DEC-OPEN-01`): `14.0% / 14.0%` (**Committed**)
   - Phase 3 Hardening: `9.0% / 12.0%` (`Blocks P3-A`, `P3-B` & `P3-C` **Committed** `9.0%`; `TASK-P3-001` **`READY`** `3.0%` with JSON retained in AI Studio)
   - Phase 4 Smart TV OS Adapters & Normal TV Remote: `9.0% / 12.0%` (**`Blocks 4.1–4.3` `COMMITTED`**; remaining `3.0%` reserved for OEM partner SDK bindings & `Stage P6` hardware test)
   - Phase 5 Break Detection, ML Duration Predictor & Shared Ad Intelligence: `12.0% / 12.0%` (**`Blocks 5.1–5.2` `COMMITTED`**)
   - Phase 6 Advertising Delivery Infrastructure (Software-First): `4.0% / 4.0%` (**`Block 6.1` `COMMITTED`**)
-  - Phase 7 Advertiser & Campaign Operations (Software-First · Non-Transactional): `3.0% / 3.0%` (**`Block 7.1` `VERIFIED · AWAITING COMMIT`**)
-  - `Stage P6` Single Final Integrated TV Test (`6%`), Phase 8 Ad Rendering (`3%`), Phase 9 Opportunity Ops (`2%`), Phases 10–12 Legal/Failure Testing (`12%`), Phases 13–15 Launch/Expansion (`14%`): `0.0%` (**Not Started / Deferred**)
+  - Phase 7 Advertiser & Campaign Operations (Software-First · Non-Transactional): `3.0% / 3.0%` (**`Block 7.1` `COMMITTED`**)
+  - Phase 8 Advertisement Creation & Broadcast Rendering Validation (Software-First): `3.0% / 3.0%` (**`Block 8.1` `VERIFIED · AWAITING COMMIT`**; `ffmpegBinaryExecuted: false`)
+  - `Stage P6` Single Final Integrated TV Test (`6%`), Phase 9 Opportunity Verification Ops (`2%`), Phases 10–12 Legal/Failure Testing (`12%`), Phases 13–15 Launch/Expansion (`14%`): `0.0%` (**Not Started / Deferred**)
 
 ---
 
 ## 3. AI STUDIO INSTRUCTIONS
 
-1. Preserve all committed Blocks `2.1`–`2.7`, `P2-FIX.6`, `v2.1`, `v2.2`, `P2-V2.1`–`P2-V2.4`, `P3-A`–`P3-C`, Phase 4, Phase 5, Phase 6, Block 7.1, and Track B guarantees.
+1. Preserve all committed Blocks `2.1`–`2.7`, `P2-FIX.6`, `v2.1`, `v2.2`, `P2-V2.1`–`P2-V2.4`, `Track B` (`DEC-OPEN-01`), `P3-A`–`P3-C`, Phase 4, Phase 5, Phase 6, Phase 7, and verified Block 8.1 guarantees.
 2. **`DEC-OPEN-01` is LOCKED**: Scope B (Full EDISON Model) + Bundled Commercial/Charity Consent Withdrawal + Epoch `HTTP 403` QR Revocation.
 3. Retain locked atomic JSON persistence (`data/edison-store.json`, `schemaVersion: 8`) in AI Studio; do **NOT** provision Cloud SQL, create paid infrastructure, or incur external costs without explicit separate authorisation.
-4. Keep `Network-Wide Shared Ad Intelligence` (`ADR-016` / `PRD-19`) clearly labelled **`SOFTWARE-FIRST SIMULATION / SERVICE`**, and keep `Normal Everyday TV Remote Control` (`AURA → EDISON Control Engine → platform adapters → TV`, `ADR-017` / `PRD-20`) strictly marked **software-only simulation (`hardwareTested: false`, `Stage P6` deferred)** with zero physical hardware compatibility claimed.
+4. Keep `BroadcastRenderEngine` (`ffmpegBinaryExecuted: false`), `Network-Wide Shared Ad Intelligence` (`ADR-016` / `PRD-19`), and `Normal Everyday TV Remote Control` (`AURA → EDISON Control Engine → platform adapters → TV`, `ADR-017` / `PRD-20`) strictly labelled **software-only simulation / blueprints (`hardwareTested: false`, `Stage P6` deferred)** with zero physical hardware compatibility claimed.
 5. Enforce software-first testing with **strictly one planned final physical TV test at app completion (`Stage P6`)**, `$0.00 / FREE` Charity & employer job listings, locked commercial business outreach/automated emailing, and independent public statutory research without lawyer dependency.
 
 ---
@@ -50,43 +51,30 @@
 - **Sender**: `AI Studio (Chief Software Architect)`
 - **Recipient**: `VS Code Copilot / External Postgres Execution Environment` *(when Owner executes external PostgreSQL provisioning)*
 - **Phase, Stage, and Substage**: `Phase 3 / Stage 3.1 / PostgreSQL Migration & Track A Production Hardening`
-- **Objective**: Execute the PostgreSQL 16+ migration of the 14 Track A collections when ready to move beyond single-host JSON persistence (`data/edison-store.json`, `schemaVersion: 8`), following the complete SQL blueprint and backfill requirements in **`docs/migration/TASK_P3_001_POSTGRES_MIGRATION_REQUIREMENTS.md`**.
-- **Scope & Migration Requirements (`docs/migration/TASK_P3_001_POSTGRES_MIGRATION_REQUIREMENTS.md`)**:
-  - Provision PostgreSQL 16+ tables covering all 14 Track A collections (`users`, hashed `sessions` with `token_hash` & `idle_expires_at`, `qr_links`, `advertiser_profiles`, `campaigns` with DB-enforced `$0.00` Charity constraint, `ad_creatives`, `support_tickets`, `opportunities`, `opportunity_complaints`, `opportunity_appeals`, `analytics_events`, `physical_qr_scan_tests`, `shared_intel_*`, append-only `audit_logs`).
-  - Keep Track B consent/household/multi-profile/epoch-`403` tables **strictly excluded** while `DEC-OPEN-01` remains unresolved.
-  - Preserve all `Block P3-A`/`P3-B`/`P3-C` security controls (`zod`, cookie/header CSRF + same-origin, rate limiters, hashed/rotated sessions, `X-Request-Id` correlation, CSV formula-neutralized audit export) via `EdisonDataRepository`.
-- **Prerequisites (`DRAFT` -> `READY`)**:
-  1. Project Owner reviewed and confirmed manual Git commit of `Block P2-V2.4`: **MET (`2026-11-15`)**.
-  2. Project Owner explicitly authorised Phase 3 activation and `TASK-P3-001` transition to `READY`: **MET (`2026-11-15`)**.
+- **Objective**: Execute the PostgreSQL 16+ migration when ready to move beyond single-host JSON persistence (`data/edison-store.json`, `schemaVersion: 8`), following the SQL blueprint and backfill requirements in **`docs/migration/TASK_P3_001_POSTGRES_MIGRATION_REQUIREMENTS.md`** (plus Track B household/consent tables locked under `DEC-OPEN-01`).
 - **Status**: **`READY`** *(PostgreSQL requirements blueprint prepared; AI Studio continues software-first blocks on JSON persistence without provisioning paid Cloud SQL.)*
-- **Expected Report**: Exact files, migration SQL applied, backfill verification counts, Vitest/Supertest exit codes (`0`), and remaining limitations.
 
 ---
 
 ## 5. COPILOT EXECUTION REPORT
 
-*No VS Code Copilot tasks have been executed. Phases 3–6 (`Committed`) and Phase 7 `Block 7.1` (`Awaiting Commit`) were executed software-first inside AI Studio.*
+*No VS Code Copilot tasks have been executed. Phases 1–7 (`Committed`) and Phase 8 `Block 8.1` (`Awaiting Commit`) were executed software-first inside AI Studio.*
 
 ---
 
 ## 6. AI STUDIO REVIEW
 
 - **Reviewed By**: AI Studio
-- **Phase 3 (`P3-A`, `P3-B` & `P3-C` — `COMMITTED`)**: API hardening, `EdisonDataRepository`, `X-Request-Id` telemetry, CSV formula-neutralized audit export, and modular TV/AURA contracts.
-- **Phase 4 · Blocks `4.1`–`4.3` (`COMMITTED`)**: Platform harnesses, 16-case fault suite, SHA-256 offline cache/queue deduplication, cadence simulator, 8-vector conformance, cue fixtures, companion policy guardrails & 10-check software exit suite.
-- **Phase 5 · Blocks `5.1`–`5.2` (`COMMITTED`)**: Fleet Shared Ad Intelligence Service (`11/11` Scenarios `25`–`35`) and Per-Channel `p10`/`p5` ML Break Predictor & 10-Fixture Calibration Benchmark (`10/10` passed, `0%` FPR).
-- **Phase 6 · Block `6.1` (`COMMITTED`)**: Advertising Delivery Infrastructure (`adDeliveryInfra.ts`) with SHA-256 preload manifests, `$0.00` Charity lock, coarse regional/QR/Tizen codec filtering, daily frequency caps, edge failover recovery & idempotent event ingestion (`8/8` checks passed).
-- **Phase 7 · Block `7.1` (`VERIFIED · AWAITING COMMIT`)**:
-- **Phase 2 · Track B (`VERIFIED · AWAITING COMMIT`)**:
-  - Locked `DEC-OPEN-01` (`Scope B + Bundled Withdrawal`): created `src/server/trackBHouseholdConsent.ts`, updated `schemaVersion: 8` normalization + repository/store/app routes, built `HouseholdPrivacyView.tsx`, wired household consent & safe personalisation into `TvPreviewView.tsx`, added 22nd QA invariant `qa_p2b_track_b_household_consent_qr_revocation`, and verified `tests/trackB.test.ts` + full test suite.
+- **Phase 2 · Track B & Phase 7 · Block 7.1 (`COMMITTED`)**: Confirmed committed by Project Owner (`"Committed, next"` -> `"Finish what you were doing"` -> `"Continue"`).
+- **Phase 8 · Block 8.1 (`VERIFIED · AWAITING COMMIT`)**: Implemented `src/server/broadcastRenderEngine.ts`, updated `repository.ts`, `store.ts`, `app.ts`, `AdStudioView.tsx`, `phase1Data.ts`, and `tests/broadcastRender.test.ts` (`8/8` render checks, `23/23` QA invariants, zero FFmpeg binary execution, zero silent QR overwrites).
 
 ---
 
 ## 7. NEXT ACTION
 
-1. **Completed Gate**: **`VERIFIED — TRACK B COMPLETE — AWAITING OWNER COMMIT`** (alongside `Block 7.1`; please review and manually commit all changes, completing `100%` of the Phase 2 AI Studio scope).
+1. **Completed Gate**: **`BLOCK 8.1 VERIFIED — AWAITING OWNER COMMIT`** (please review and manually commit all Phase 8 Block 8.1 changes).
 2. **Next Authorised Options (After Owner Confirms Commit)**:
-   - **Phase 8 Software-First Prep**: Advertisement Creation & Broadcast Rendering Validation (codec/bitrate/safe-margin/QR vision validation while keeping physical `Stage P6` Smart TV test deferred until app completion).
+   - **Phase 9 · Block 9.1 (Software-First)**: Opportunity Verification Operations Hardening (3-tier verification evidence vault, automated expiry & employer re-verification, complaint/investigation/appeal workflow hardening, zero fee influence).
    - **Or Execute `TASK-P3-001`** (`READY`): Authorise external PostgreSQL provisioning/migration when ready to move beyond single-host JSON persistence.
 
 ---
@@ -108,7 +96,6 @@
 | `TASK-P5-01` | 2026-11-15 | AI Studio -> Owner | Phase 5 / `Block 5.1` | **`COMMITTED`** | Fleet Shared Ad Intelligence Service (`ADR-016` / `PRD-19`), Ed25519 device & manifest attestation, conflict split guard, scoped delta sync, `>2.5%` FPR auto-rollback & 11/11 Scenarios `25`–`35` (`qa_51_shared_intel_fleet_scenarios_25_35`). |
 | `TASK-P5-02` | 2026-11-16 | AI Studio -> Owner | Phase 5 / `Block 5.2` | **`COMMITTED`** | Per-channel `p5`/`p10`/`p50`/`mean` break-duration ML predictor rejecting mean overestimation & 10-fixture recorded stream benchmark (`10/10` passed, `0%` FPR, `qa_52_break_duration_predictor_calibration`). |
 | `TASK-P6-01` | 2026-11-16 | AI Studio -> Owner | Phase 6 / `Block 6.1` | **`COMMITTED`** | Advertising Delivery Infrastructure (`adDeliveryInfra.ts`): SHA-256 preload manifests, `$0.00` Charity lock, coarse regional/QR/Tizen codec gates, daily frequency caps, edge CDN failover & idempotent ingestion (`8/8` checks, `qa_61_advertising_delivery_infrastructure`). |
-| `TASK-P7-01` | 2026-11-16 | AI Studio -> Owner | Phase 7 / `Block 7.1` | **`AWAITING COMMIT`** | Advertiser & Campaign Operations (`advertiserOps.ts`): 6-gate KYC readiness evaluation, automated campaign pacing, non-transactional SHA-256 Pro-Forma blueprints (`paymentCollectionActive=false`, `$0.00` Charity lock), SLA breach triage & `8/8` verification suite (`qa_71_advertiser_ops_billing_boundary`). |
-| `TASK-P2-TRACK-B` | 2026-11-16 | AI Studio -> Owner | Phase 2 / `Track B` (`DEC-OPEN-01` Locked) | **`AWAITING COMMIT`** | Track B completion (remaining 15% AI Studio): ZW-first 7-level geo households, PIN-protected multi-member profiles, required/preferred/optional opportunity matching, safe TV personalisation, bundled consent withdrawal, HTTP `403` epoch QR revocation & advertiser privacy barrier (`7/7` suite, `qa_p2b_track_b_household_consent_qr_revocation`). |
-
-
+| `TASK-P7-01` | 2026-11-16 | AI Studio -> Owner | Phase 7 / `Block 7.1` | **`COMMITTED`** | Advertiser & Campaign Operations (`advertiserOps.ts`): 6-gate KYC readiness evaluation, automated campaign pacing, non-transactional SHA-256 Pro-Forma blueprints (`paymentCollectionActive=false`, `$0.00` Charity lock), SLA breach triage & `8/8` verification suite (`qa_71_advertiser_ops_billing_boundary`). |
+| `TASK-P2-TRACK-B` | 2026-11-16 | AI Studio -> Owner | Phase 2 / `Track B` (`DEC-OPEN-01` Locked) | **`COMMITTED`** | Track B completion (remaining 15% AI Studio): ZW-first 7-level geo households, PIN-protected multi-member profiles, required/preferred/optional opportunity matching, safe TV personalisation, bundled consent withdrawal, HTTP `403` epoch QR revocation & advertiser privacy barrier (`7/7` suite, `qa_p2b_track_b_household_consent_qr_revocation`). |
+| `TASK-P8-01` | 2026-11-16 | AI Studio -> Owner | Phase 8 / `Block 8.1` | **`AWAITING COMMIT`** | Advertisement Creation & Broadcast Rendering Validation (`broadcastRenderEngine.ts`): deterministic 1080p/4K SHA-256 blueprints, 5% overscan title-safe zones, WCAG `>=4.5:1` contrast, EBU R128 `-23 LUFS` filter graph, Samsung Tizen WebM->H.264 MP4 rules & strict fail-closed QR vision gate (`8/8` suite, `23/23` QA invariants, `ffmpegBinaryExecuted=false`). |

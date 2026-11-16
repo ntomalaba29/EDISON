@@ -848,6 +848,13 @@ export const householdQrIssueSchema = z
   })
   .strict();
 
+export const broadcastRenderJobRequestSchema = z
+  .object({
+    creativeId: z.string().trim().min(2).max(120),
+    resolutionProfile: z.enum(['1080p_fhd', '4k_uhd']).optional().default('1080p_fhd'),
+  })
+  .strict();
+
 export function parseWithZod<T extends z.ZodTypeAny>(
   schema: T,
   payload: unknown

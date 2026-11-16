@@ -15,6 +15,8 @@ import type {
   AuditLogRecord,
   BillingEstimateSummary,
   BreakSchedulePlan,
+  BroadcastRenderJobResult,
+  BroadcastResolutionProfile,
   CampaignContentCategory,
   CampaignPreviewGateResult,
   CampaignRecord,
@@ -98,6 +100,10 @@ import { localOfflineIntelCache } from './offlineIntelCache.ts';
 import { runPhase4SoftwareExitSuite } from './broadcastMetadataParser.ts';
 import { sharedIntelFleetService } from './sharedIntelFleetService.ts';
 import { runRecordedStreamCalibrationBenchmark } from './breakDurationPredictor.ts';
+import {
+  compileBroadcastRenderJob,
+  runBroadcastRenderVerificationSuite,
+} from './broadcastRenderEngine.ts';
 
 const DEFAULT_DATA_DIR = path.resolve(process.cwd(), 'data');
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days absolute cap
@@ -3025,6 +3031,46 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     });
   }
 
+  compileCreativeBroadcastRenderJob(
+    actor: PublicUser,
+    creativeId: string,
+    resolutionProfile: BroadcastResolutionProfile = '1080p_fhd'
+  ): BroadcastRenderJobResult {
+    this.syncIfDiskNewer();
+    const creative = this.data.adCreatives.find((cr) => cr.id === creativeId);
+    if (!creative) {
+      throw new Error('Ad creative not found.');
+    }
+    if (actor.role !== 'admin' && creative.ownerId !== actor.id) {
+      throw new Error('FORBIDDEN: You do not own this ad creative.');
+    }
+    const qrLink = creative.qrToken
+      ? this.data.qrLinks.find((q) => q.token === creative.qrToken) ?? null
+      : null;
+
+    const job = compileBroadcastRenderJob({
+      creative,
+      qrLink,
+      resolutionProfile,
+    });
+
+    this.withWriteTransaction((draft) => {
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        job.renderStatus === 'RENDER_BLUEPRINT_VERIFIED'
+          ? 'BROADCAST_RENDER_BLUEPRINT_COMPILED'
+          : 'BROADCAST_RENDER_BLUEPRINT_BLOCKED',
+        'ad_creative',
+        creative.id,
+        `Compiled ${resolutionProfile} broadcast render blueprint (${job.renderJobId}): ${job.renderStatus}, blocking=${job.blockingIssuesCount}, warnings=${job.warningIssuesCount} (ffmpegBinaryExecuted=false, hardwareTested=false).`
+      );
+    });
+
+    return job;
+  }
+
   private computePreviewGateFromData(
     data: EdisonStoreData,
     campaign: CampaignRecord
@@ -4985,6 +5031,25 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
           'DEC-OPEN-01 Locked (Scope B + Bundled Withdrawal): 7/7 Track B invariants verified (ZW initial launch config + international configs, geo hierarchy fail-closed, scrypt profile PINs, non-guaranteed matching, TV zero-CV privacy, bundled withdrawal suspending commercial + charity + QR HTTP 403).',
       },
       {
+        id: 'qa_81_broadcast_render_validation',
+        block: 'Block 8.1',
+        label:
+          'Phase 8 Block 8.1: Broadcast Rendering Validation, EBU R128 Audio Filter Graph & QR Vision Gate',
+        status: (() => {
+          const rnd = runBroadcastRenderVerificationSuite();
+          return rnd.allPassed &&
+            rnd.passedChecks === 8 &&
+            rnd.ffmpegBinaryExecuted === false &&
+            !rnd.hardwareTested &&
+            rnd.stageP6Deferred
+            ? 'pass'
+            : 'fail';
+        })(),
+        scope: 'automated_invariant',
+        detail:
+          '8/8 broadcast render checks passed: 1080p/4K 16:9 margins (5%-95%), >=4.5:1 contrast, fail-closed conflicting QR block (zero silent overwrite), Tizen WebM->H.264 MP4 rule, EBU R128 -23 LUFS filter graph & $0.00 Charity isolation (ffmpegBinaryExecuted=false, hardwareTested=false).',
+      },
+      {
         id: 'qa_27_physical_qr_scan',
         block: 'Block 2.7',
         label: 'Physical smartphone camera scan verification on real mobile device',
@@ -5002,8 +5067,8 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
 
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 7 — Advertiser and Campaign Operations (Software-First · Non-Transactional Billing)',
-      block: 'Block 7.1 (Advertiser Onboarding Gates, Campaign Pacing, Pro-Forma Invoice Blueprint & Support SLA Triage)',
+      phase: 'Phase 8 — Advertisement Creation & Broadcast Rendering Validation (Software-First)',
+      block: 'Block 8.1 (1080p/4K Target Profiles, 5% Overscan Margins, EBU R128 Loudness Spec, QR Vision Integrity & Platform Transcode Blueprints)',
       automatedInvariantsPassed,
       automatedInvariantsTotal: autoChecks.length,
       physicalQrScanStatus:
@@ -5218,19 +5283,19 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     const latestAudit = this.data.auditLogs[0] ?? null;
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 2 Track B Complete · Phase 7 Block 7.1 Active (Software-First · Non-Transactional Billing)',
-      stage: 'Phases 1–6 Committed · Phase 2 Track B 100% Complete · Phase 7 Block 7.1 Verified · TASK-P3-001 READY',
-      block: 'Track B (DEC-OPEN-01 Locked: Household Registration, Multi-Profile, Personalisation, Bundled Consent & HTTP 403 QR Revocation) + Block 7.1',
-      gateStatus: 'TRACK B VERIFIED — AWAITING OWNER COMMIT (DEC-OPEN-01 LOCKED · STAGE P6 HARDWARE DEFERRED)',
+      phase: 'Phase 8 — Advertisement Creation & Broadcast Rendering Validation (Software-First)',
+      stage: 'Phases 1–7 Committed (Inc. Track B DEC-OPEN-01) · Phase 8 Block 8.1 Verified & Awaiting Commit · TASK-P3-001 READY',
+      block: 'Block 8.1 (Broadcast 1080p/4K Blueprint Validation, 5% Overscan Safe Zones, EBU R128 Audio Filter Graph & Zero-Overwrite QR Vision Gate)',
+      gateStatus: 'BLOCK 8.1 VERIFIED — AWAITING OWNER COMMIT (FFMPEG BINARY NOT EXECUTED · STAGE P6 HARDWARE DEFERRED)',
       progressMetrics: {
         aiStudioAssignmentPct: 100,
         softwareToStageP6Pct: 81.8,
-        overallFullAppPct: 57.0,
-        remainingUntilFullAppPct: 43.0,
+        overallFullAppPct: 60.0,
+        remainingUntilFullAppPct: 40.0,
         consentBlockedScopePct: 0,
-        trackBStatus: 'VERIFIED_AWAITING_COMMIT',
+        trackBStatus: 'COMMITTED',
         rubricSummary:
-          'Phase 1 Specs (6.0%) + Phase 2 Track A+B Complete (14.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Complete Committed (12.0%) + Phase 6 Delivery Infra Committed (4.0%) + Phase 7 Block 7.1 Advertiser Ops (3.0%) = 57.0% of 15-Phase Full Commercial App (81.8% to Stage P6; 100% of original Phase 2 AI Studio scope).',
+          'Phase 1 Specs (6.0%) + Phase 2 Track A+B Complete (14.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Complete Committed (12.0%) + Phase 6 Delivery Infra Committed (4.0%) + Phase 7 Advertiser Ops Committed (3.0%) + Phase 8 Block 8.1 Broadcast Render Validation (3.0%) = 60.0% of 15-Phase Full Commercial App (81.8% to Stage P6; 100% of original Phase 2 AI Studio scope).',
       },
       latestAuditAt: latestAudit?.createdAt ?? null,
       latestAuditAction: latestAudit?.action ?? null,

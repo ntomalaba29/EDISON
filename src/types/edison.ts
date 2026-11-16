@@ -1956,5 +1956,91 @@ export interface TrackBVerificationReport {
   checks: TrackBVerificationCheckItem[];
 }
 
+// --- Phase 8 Block 8.1: Advertisement Creation & Broadcast Rendering Validation (Software-First) ---
+
+export type BroadcastResolutionProfile = '1080p_fhd' | '4k_uhd';
+
+export interface BroadcastValidationIssue {
+  code:
+    | 'QR_MISSING_OR_INACTIVE'
+    | 'QR_DESTINATION_MISMATCH_BLOCK'
+    | 'QR_OVERLAY_MISSING'
+    | 'QR_SIZE_TOO_SMALL'
+    | 'OVERSCAN_SAFE_MARGIN_VIOLATION'
+    | 'LOW_CONTRAST_RATIO'
+    | 'DURATION_OUT_OF_RANGE'
+    | 'EXTERNAL_ASPECT_WARNING';
+  severity: 'blocking' | 'warning';
+  message: string;
+}
+
+export interface PlatformRenderTarget {
+  platformId: TvPlatformId;
+  targetVideoCodec: string;
+  targetContainer: 'mp4' | 'hls_fmp4' | 'png_still_h264';
+  maxVideoBitrateKbps: number;
+  audioProfile: string;
+  transcodeRequired: boolean;
+  notes: string;
+}
+
+export interface BroadcastRenderJobResult {
+  renderJobId: string;
+  generatedAt: string;
+  creativeId: string;
+  creativeTitle: string;
+  creativeMode: AdStudioMode;
+  resolutionProfile: BroadcastResolutionProfile;
+  targetDimensions: { width: number; height: number; aspectRatio: '16:9' };
+  renderStatus: 'RENDER_BLUEPRINT_VERIFIED' | 'BLOCKED_FAILED_VALIDATION';
+  ffmpegBinaryExecuted: false;
+  isSoftwareSimulationOnly: true;
+  hardwareTested: false;
+  stageP6Deferred: true;
+  durationSeconds: number;
+  contrastRatio: number | null;
+  safeMarginPassed: boolean;
+  qrVisionGate: {
+    passed: boolean;
+    qrToken: string | null;
+    inspectionStatus: string;
+    resolvedUrl: string | null;
+    silentOverwriteBlocked: true;
+  };
+  audioLoudnessSpec: {
+    hasAudioTrack: boolean;
+    standard: 'ITU-R BS.1770-4 / EBU R128' | 'SILENT_VIDEO_LESS_CARD';
+    targetIntegratedLufs: number | null;
+    maxTruePeakDbtp: number | null;
+    filterExpression: string;
+  };
+  platformTargets: PlatformRenderTarget[];
+  issues: BroadcastValidationIssue[];
+  blockingIssuesCount: number;
+  warningIssuesCount: number;
+  manifestSha256: string;
+  ffmpegFilterGraphSpec: string;
+}
+
+export interface BroadcastRenderVerifyCheckItem {
+  checkId: string;
+  label: string;
+  passed: boolean;
+  detail: string;
+}
+
+export interface BroadcastRenderVerificationReport {
+  generatedAt: string;
+  isSoftwareSimulationOnly: true;
+  ffmpegBinaryExecuted: false;
+  hardwareTested: false;
+  stageP6Deferred: true;
+  totalChecks: number;
+  passedChecks: number;
+  allPassed: boolean;
+  checks: BroadcastRenderVerifyCheckItem[];
+}
+
+
 
 

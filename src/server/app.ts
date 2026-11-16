@@ -59,6 +59,7 @@ import {
   listCountryGeoConfigs,
   runTrackBVerificationSuite,
 } from './trackBHouseholdConsent.ts';
+import { runBroadcastRenderVerificationSuite } from './broadcastRenderEngine.ts';
 import {
   adCreativeAttachSchema,
   adCreativeSaveSchema,
@@ -74,6 +75,7 @@ import {
   auditLogQuerySchema,
   breakDurationPredictSchema,
   broadcastCueParseSchema,
+  broadcastRenderJobRequestSchema,
   campaignCreateSchema,
   campaignQuerySchema,
   campaignTransitionSchema,
@@ -2122,6 +2124,50 @@ export function createEdisonApp(
         `[${req.requestId ?? 'req'}] Phase 7 advertiser ops suite: ${report.passedChecks}/${report.totalChecks} passed (paymentCollectionActive=false, hardwareTested=false).`
       );
       res.json(report);
+    }
+  );
+
+  // Phase 8 Block 8.1: Advertisement Creation & Broadcast Rendering Validation (Software-First)
+  app.post(
+    '/api/render/validate-and-compile',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(broadcastRenderJobRequestSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        const job = store.compileCreativeBroadcastRenderJob(
+          req.currentUser!,
+          parsed.data.creativeId,
+          parsed.data.resolutionProfile
+        );
+        res.json({ job });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.post(
+    '/api/render/verify-suite',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(emptyStrictSchema, req.body ?? {});
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const report = runBroadcastRenderVerificationSuite();
+      store.recordSecurityAudit(
+        req.currentUser!,
+        'BROADCAST_RENDER_SUITE_RUN',
+        'phase8_broadcast_render',
+        `[${req.requestId ?? 'req'}] Phase 8 broadcast render suite: ${report.passedChecks}/${report.totalChecks} passed (ffmpegBinaryExecuted=false, hardwareTested=false).`
+      );
+      res.json({ report });
     }
   );
 

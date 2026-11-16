@@ -9,6 +9,8 @@ import type {
   AnalyticsEventRecord,
   AuditLogRecord,
   BreakSchedulePlan,
+  BroadcastRenderJobResult,
+  BroadcastResolutionProfile,
   CampaignContentCategory,
   CampaignPreviewGateResult,
   CampaignRecord,
@@ -264,6 +266,12 @@ export interface EdisonDataRepository {
     mimeType: string,
     sizeBytes: number
   ): void;
+
+  compileCreativeBroadcastRenderJob(
+    actor: PublicUser,
+    creativeId: string,
+    resolutionProfile?: BroadcastResolutionProfile
+  ): BroadcastRenderJobResult;
 
   // --- TV Preview Gate & Break Simulator ---
   evaluateCampaignPreSubmitGate(
