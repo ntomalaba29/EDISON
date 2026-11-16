@@ -1,0 +1,16 @@
+{
+  "regionId": "africa_east_west_ke_ng",
+  "displayName": "East & West Africa Sovereign Cluster (KE + NG)",
+  "sovereignResidencyZone": "af-east-west-nairobi-lagos",
+  "countries": ["KE", "NG"],
+  "languages": ["en", "sw"],
+  "currencyCode": "KES",
+  "dsnEnvVar": "EDISON_PG_DSN_AF_EAST_WEST",
+  "mediaBucketEnvVar": "EDISON_MEDIA_BUCKET_AF_EAST_WEST",
+  "cdnOriginEnvVar": "EDISON_CDN_ORIGIN_AF_EAST_WEST",
+  "prohibitCrossBorderPiiTransfer": true,
+  "countryActivated": false,
+  "regionalExpansionActive": false,
+  "charityFeeUsd": 0,
+  "paymentCollectionActive": false
+}

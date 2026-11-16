@@ -85,13 +85,15 @@ import type {
   TextOnlyCommercialSpec,
 } from '../types/edison.ts';
 
-export type EdisonStorageBackend = 'json_file_store' | 'postgresql_planned';
+export type EdisonStorageBackend = 'json_file_store' | 'postgresql_pg' | 'postgresql_planned';
 
 export interface StorageBackendMetadata {
   backend: EdisonStorageBackend;
   schemaVersion: number;
   persistenceLabel: string;
   postgresMigrationReady: boolean;
+  postgresSqlMigrationsCount?: number;
+  postgresUrlConfigured?: boolean;
   migrationBlueprintPath: string;
 }
 

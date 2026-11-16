@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    exclude: ['tests/e2e/**'],
     clearMocks: true,
     testTimeout: 15000,
   },

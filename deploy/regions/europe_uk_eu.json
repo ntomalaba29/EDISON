@@ -1,0 +1,16 @@
+{
+  "regionId": "europe_uk_eu",
+  "displayName": "Europe & UK Sovereign Cluster (GB + EU)",
+  "sovereignResidencyZone": "eu-west-london-frankfurt",
+  "countries": ["GB", "EU"],
+  "languages": ["en", "fr", "de", "pt", "es"],
+  "currencyCode": "GBP",
+  "dsnEnvVar": "EDISON_PG_DSN_EU_UK",
+  "mediaBucketEnvVar": "EDISON_MEDIA_BUCKET_EU_UK",
+  "cdnOriginEnvVar": "EDISON_CDN_ORIGIN_EU_UK",
+  "prohibitCrossBorderPiiTransfer": true,
+  "countryActivated": false,
+  "regionalExpansionActive": false,
+  "charityFeeUsd": 0,
+  "paymentCollectionActive": false
+}

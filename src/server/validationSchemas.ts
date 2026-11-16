@@ -1055,6 +1055,124 @@ export const internationalExpansionDecisionSchema = z
   })
   .strict();
 
+// --- Phase 3 Media Worker, Phase 4 AURA / HDMI-CEC & Commercial Disputes ---
+
+const tvPlatformIdEnum = z.enum(['simulation_tv', 'android_tv_tif', 'samsung_tizen', 'lg_webos']);
+const tvRemoteCommandEnum = z.enum([
+  'power_toggle',
+  'volume_up',
+  'volume_down',
+  'mute_toggle',
+  'channel_up',
+  'channel_down',
+  'input_source_select',
+  'dpad_up',
+  'dpad_down',
+  'dpad_left',
+  'dpad_right',
+  'dpad_ok',
+  'back',
+  'home',
+]);
+const tvInputSourceEnum = z.enum(['LIVE_TUNER', 'HDMI_1', 'HDMI_2', 'EDISON_APP']);
+
+export const mediaWorkerProbeSchema = z
+  .object({
+    sourceFilename: z.string().trim().min(3).max(160).regex(/^[a-zA-Z0-9._-]+$/),
+  })
+  .strict();
+
+export const mediaWorkerTranscodeSchema = z
+  .object({
+    creativeId: z.string().trim().min(2).max(80).nullable().optional(),
+    sourceFilename: z.string().trim().min(3).max(160).regex(/^[a-zA-Z0-9._-]+$/),
+    kind: z.enum([
+      'transcode_h264_mp4',
+      'transcode_hls',
+      'encode_still_slate',
+      'loudness_ebu_r128',
+    ]),
+    targetPlatform: tvPlatformIdEnum.optional(),
+    durationSeconds: z.coerce.number().int().min(2).max(60).optional(),
+  })
+  .strict();
+
+export const auraPlatformEnum = z.enum([
+  'simulation_tv',
+  'android_tv_tif',
+  'samsung_tizen',
+  'lg_webos',
+  'hdmi_cec_stb',
+]);
+
+export const auraInitiatePairingSchema = z
+  .object({
+    householdId: z.string().trim().min(2).max(80).nullable().optional(),
+    tvLabel: z.string().trim().min(2).max(80),
+    platformId: auraPlatformEnum,
+  })
+  .strict();
+
+export const auraConfirmPairingSchema = z
+  .object({
+    deviceId: z.string().trim().min(4).max(80),
+    pairingCode: z.string().trim().regex(/^\d{6}$/),
+    activeProfileId: z.string().trim().min(2).max(80).nullable().optional(),
+  })
+  .strict();
+
+export const auraHeartbeatSchema = z
+  .object({
+    networkOnline: z.boolean(),
+  })
+  .strict();
+
+export const auraCommandSchema = z
+  .object({
+    command: tvRemoteCommandEnum,
+    targetInput: tvInputSourceEnum.optional(),
+  })
+  .strict();
+
+export const auraBindProfileSchema = z
+  .object({
+    profileId: z.string().trim().min(2).max(80).nullable(),
+  })
+  .strict();
+
+export const hdmiCecEvaluateSchema = z
+  .object({
+    action: z.enum(['active_source_claim', 'inactive_source_release', 'standby_yield', 'hdcp_probe']),
+    targetInput: tvInputSourceEnum,
+    viewerPressedRemoteKey: z.boolean().optional(),
+    hdcpProtectedSurface: z.boolean().optional(),
+    breakWindowActive: z.boolean().optional(),
+  })
+  .strict();
+
+export const commercialDisputeCreateSchema = z
+  .object({
+    campaignId: z.string().trim().min(2).max(80).nullable().optional(),
+    billingPeriodLabel: z.string().trim().min(4).max(40),
+    disputeType: z.enum([
+      'rate_card_adjustment',
+      'delivery_shortfall_credit',
+      'pro_forma_dispute',
+      'charity_fee_zero_audit',
+    ]),
+    disputedAmountUsd: z.coerce.number().finite().min(0).max(500000),
+    reason: z.string().trim().min(8).max(800),
+  })
+  .strict();
+
+export const commercialDisputeResolveSchema = z
+  .object({
+    decision: z.enum(['credit_approved_simulated', 'rejected', 'closed']),
+    approvedCreditUsd: z.coerce.number().finite().min(0).max(500000),
+    resolutionNote: z.string().trim().min(5).max(800),
+  })
+  .strict();
+
 export function parseWithZod<T extends z.ZodTypeAny>(
   schema: T,
   payload: unknown

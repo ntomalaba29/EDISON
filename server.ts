@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import http from 'node:http';
 import path from 'node:path';
 import express, { type Request, type Response } from 'express';
 import { createEdisonApp } from './src/server/app.ts';
@@ -18,11 +19,15 @@ const HOST = getCliFlag('--host') || '0.0.0.0';
 
 async function startServer() {
   const app = createEdisonApp(edisonStore);
+  const httpServer = http.createServer(app);
 
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        ws: process.env.DISABLE_HMR === 'true' ? false : { server: httpServer },
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
@@ -34,7 +39,12 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, HOST, () => {
+  httpServer.on('error', (err) => {
+    console.error('EDISON HTTP server error:', err);
+    process.exit(1);
+  });
+
+  httpServer.listen(PORT, HOST, () => {
     console.log(`EDISON server listening on http://${HOST}:${PORT}`);
   });
 }

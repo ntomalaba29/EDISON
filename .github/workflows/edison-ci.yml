@@ -8,8 +8,23 @@ on:
 
 jobs:
   verify:
-    name: TypeScript, Vitest Security/API Suite & Production Vite Build
+    name: TypeScript, PG16 Migrations, FFmpeg Worker, Vitest, Playwright Chromium & Vite Build
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: edison
+          POSTGRES_PASSWORD: edison_ci_password
+          POSTGRES_DB: edison_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout repository
@@ -19,20 +34,38 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: '1.4.4'
+      - name: Install FFmpeg & FFprobe
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+      - name: Install npm dependencies
+        run: npm ci
 
-      - name: TypeScript typecheck
-        run: bun run lint
+      - name: Install Playwright Chromium browser
+        run: npx playwright install --with-deps chromium
 
-      - name: Run Vitest unit & Supertest security suite
-        run: bun run test
+      - name: TypeScript strict typecheck
+        run: npm run lint
+
+      - name: Apply & verify PostgreSQL 16 migrations against service container
+        env:
+          DATABASE_URL: postgresql://edison:edison_ci_password@localhost:5432/edison_ci
+        run: npx tsx src/server/postgres/cli.ts up && npm run migrate:status
+
+      - name: Run full Vitest suite (Unit, Security, PG16 PGlite, FFmpeg Worker, AURA, Reliability)
+        run: npm test
+
+      - name: Run Playwright Chromium end-to-end tests
+        run: npm run test:e2e
 
       - name: Build production frontend bundle
-        run: bun run build
+        run: npm run build
+
+      - name: Upload Playwright HTML report on completion
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: edison-playwright-report
+          path: playwright-report/
+          retention-days: 14

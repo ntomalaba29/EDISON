@@ -1,0 +1,40 @@
+{
+  "service": "edison-edge-cdn-routing",
+  "version": "1.0.0",
+  "ordinaryTvPreserved": true,
+  "rules": [
+    {
+      "pathPattern": "/r/*",
+      "cacheControl": "no-store, no-cache, must-revalidate, private",
+      "edgeCacheBypass": true,
+      "notes": "QR redirect /r/:token MUST always reach origin to enforce consent-epoch HTTP 403 revocation and accurate redirect telemetry."
+    },
+    {
+      "pathPattern": "/api/*",
+      "cacheControl": "no-store",
+      "edgeCacheBypass": true,
+      "rateLimitZone": "edison_api_origin"
+    },
+    {
+      "pathPattern": "/uploads/*",
+      "cacheControl": "public, max-age=86400, immutable",
+      "headers": {
+        "Content-Security-Policy": "default-src 'none'; sandbox",
+        "X-Content-Type-Options": "nosniff",
+        "Cross-Origin-Resource-Policy": "same-origin"
+      }
+    },
+    {
+      "pathPattern": "/rendered/*",
+      "cacheControl": "public, max-age=604800, immutable",
+      "headers": {
+        "X-Content-Type-Options": "nosniff",
+        "Cross-Origin-Resource-Policy": "same-origin"
+      }
+    },
+    {
+      "pathPattern": "/assets/*",
+      "cacheControl": "public, max-age=31536000, immutable"
+    }
+  ]
+}

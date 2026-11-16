@@ -75,8 +75,8 @@ export function HouseholdPrivacyView({
   const [selectedHouseholdId, setSelectedHouseholdId] = useState<string>('');
   const [members, setMembers] = useState<HouseholdMemberProfile[]>([]);
   const [matchesData, setMatchesData] = useState<{
-    household: PublicHouseholdInstallationView;
-    personalisationDisplay: TvBreakPersonalisationDisplay;
+    household?: PublicHouseholdInstallationView;
+    personalisationDisplay?: TvBreakPersonalisationDisplay;
     matches: HouseholdOpportunityMatchResult[];
   } | null>(null);
   const [qrTokens, setQrTokens] = useState<HouseholdQrTokenRecord[]>([]);
@@ -239,7 +239,7 @@ export function HouseholdPrivacyView({
           if (targetId) {
             setSelectedHouseholdId(targetId);
             const target = list.find((h) => h.id === targetId);
-            if (target) {
+            if (target?.publicLocation) {
               setEditCountry(target.publicLocation.countryCode);
               setEditProvince(target.publicLocation.provinceOrRegion);
               setEditMetro(target.publicLocation.metroArea);
@@ -266,7 +266,7 @@ export function HouseholdPrivacyView({
   const handleSelectHousehold = async (id: string) => {
     setSelectedHouseholdId(id);
     const target = households.find((h) => h.id === id);
-    if (target) {
+    if (target?.publicLocation) {
       setEditCountry(target.publicLocation.countryCode);
       setEditProvince(target.publicLocation.provinceOrRegion);
       setEditMetro(target.publicLocation.metroArea);
@@ -760,7 +760,7 @@ export function HouseholdPrivacyView({
     `DEC-OPEN-01 Policy: LOCKED — Scope B Full Model + Bundled Commercial/Charity Withdrawal`,
     `Initial Launch Market: Zimbabwe (ZW) + International Country Geo Configurations (${countries.length} countries, all NOT ACTIVATED)`,
     selectedHousehold
-      ? `Active Household: ${selectedHousehold.householdLabel} (${selectedHousehold.id}) | Epoch v${selectedHousehold.consentEpoch} | Commercial: ${selectedHousehold.commercialConsentStatus} | Charity/Opportunities: ${selectedHousehold.charityAndOpportunityStatus} | Targeting Area: ${selectedHousehold.publicLocation.targetingKey}`
+      ? `Active Household: ${selectedHousehold.householdLabel} (${selectedHousehold.id}) | Epoch v${selectedHousehold.consentEpoch} | Commercial: ${selectedHousehold.commercialConsentStatus} | Charity/Opportunities: ${selectedHousehold.charityAndOpportunityStatus} | Targeting Area: ${selectedHousehold.publicLocation?.targetingKey ?? 'N/A'}`
       : 'Active Household: Advertiser / Submitter aggregate-only view',
     `Suite Verification: ${suiteReport ? `${suiteReport.passedChecks}/${suiteReport.totalChecks} checks passed` : 'Click Verify Track B Suite to run'}`,
   ].join('\n');
@@ -930,7 +930,7 @@ export function HouseholdPrivacyView({
                 {selectedHousehold?.householdLabel ?? 'None Registered'}
               </p>
               <p className="mt-1 text-xs font-mono text-slate-600 truncate">
-                {selectedHousehold ? selectedHousehold.publicLocation.targetingKey : 'Register below'}
+                {selectedHousehold ? (selectedHousehold.publicLocation?.targetingKey ?? 'N/A') : 'Register below'}
               </p>
             </div>
 
@@ -980,7 +980,7 @@ export function HouseholdPrivacyView({
                 ) : (
                   households.map((h) => (
                     <option key={h.id} value={h.id}>
-                      {h.householdLabel} ({h.publicLocation.countryCode} · Epoch v{h.consentEpoch})
+                      {h.householdLabel} ({h.publicLocation?.countryCode ?? 'ZW'} · Epoch v{h.consentEpoch})
                     </option>
                   ))
                 )}
@@ -1312,7 +1312,7 @@ export function HouseholdPrivacyView({
                   <div className="flex justify-between gap-2">
                     <dt className="text-slate-500">Public Targeting Key</dt>
                     <dd className="font-mono text-slate-900">
-                      {selectedHousehold.publicLocation.targetingKey}
+                      {selectedHousehold.publicLocation?.targetingKey ?? 'N/A'}
                     </dd>
                   </div>
                   <div className="flex justify-between gap-2">
@@ -1676,24 +1676,29 @@ export function HouseholdPrivacyView({
           {subTab === 'matches' && selectedHousehold && (
             <div className="space-y-6">
               {/* Simulated Safe TV Display Preview */}
-              {matchesData && (
-                <div className="bg-slate-950 text-white border border-slate-800 rounded-lg p-6 space-y-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-slate-400">
-                    <span>
-                      SAFE TV PERSONALISATION OUTPUT · MODE: {matchesData.personalisationDisplay.mode.toUpperCase()}
-                    </span>
-                    <span>
-                      PRIVATE QUALIFICATIONS / SKILLS / ADDRESS EXPOSED: FALSE
-                    </span>
+              {(() => {
+                const activeTvDisplay =
+                  matchesData?.personalisationDisplay ?? matchesData?.matches?.[0]?.tvDisplay ?? null;
+                if (!activeTvDisplay) return null;
+                return (
+                  <div className="bg-slate-950 text-white border border-slate-800 rounded-lg p-6 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-slate-400">
+                      <span>
+                        SAFE TV PERSONALISATION OUTPUT · MODE: {activeTvDisplay.mode.toUpperCase()}
+                      </span>
+                      <span>
+                        PRIVATE QUALIFICATIONS / SKILLS / ADDRESS EXPOSED: FALSE
+                      </span>
+                    </div>
+                    <p className="text-xl font-bold text-white">
+                      {activeTvDisplay.tvHeadline}
+                    </p>
+                    <p className="text-sm text-slate-300">
+                      {activeTvDisplay.tvSubline}
+                    </p>
                   </div>
-                  <p className="text-xl font-bold text-white">
-                    {matchesData.personalisationDisplay.tvHeadline}
-                  </p>
-                  <p className="text-sm text-slate-300">
-                    {matchesData.personalisationDisplay.tvSubline}
-                  </p>
-                </div>
-              )}
+                );
+              })()}
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                 <div className="lg:col-span-7 bg-white border border-slate-200 rounded-lg p-6 space-y-4">

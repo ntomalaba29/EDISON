@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: edison
+      POSTGRES_USER: edison_app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGE_ME_BEFORE_DEPLOYMENT}
+    volumes:
+      - edison_pg16_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U edison_app -d edison"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  edison-app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://edison_app:${POSTGRES_PASSWORD:-CHANGE_ME_BEFORE_DEPLOYMENT}@postgres:5432/edison
+      EDISON_STORAGE_BACKEND: postgresql_pg
+      SESSION_SECRET: ${SESSION_SECRET:-REPLACE_WITH_64_HEX_BYTES_BEFORE_START}
+      FFMPEG_BIN: /usr/bin/ffmpeg
+      FFPROBE_BIN: /usr/bin/ffprobe
+      EDISON_REGION_MANIFEST_ID: africa_south_zw_za
+    volumes:
+      - edison_uploads:/app/public/uploads
+      - edison_rendered:/app/public/rendered
+
+volumes:
+  edison_pg16_data:
+  edison_uploads:
+  edison_rendered:

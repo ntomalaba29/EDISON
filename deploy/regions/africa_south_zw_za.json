@@ -1,0 +1,16 @@
+{
+  "regionId": "africa_south_zw_za",
+  "displayName": "Southern Africa Sovereign Cluster (ZW Initial + ZA)",
+  "sovereignResidencyZone": "af-south-johannesburg-harare",
+  "countries": ["ZW", "ZA"],
+  "languages": ["en", "sn", "nd", "zu"],
+  "currencyCode": "USD",
+  "dsnEnvVar": "EDISON_PG_DSN_AF_SOUTH",
+  "mediaBucketEnvVar": "EDISON_MEDIA_BUCKET_AF_SOUTH",
+  "cdnOriginEnvVar": "EDISON_CDN_ORIGIN_AF_SOUTH",
+  "prohibitCrossBorderPiiTransfer": true,
+  "countryActivated": false,
+  "regionalExpansionActive": false,
+  "charityFeeUsd": 0,
+  "paymentCollectionActive": false
+}

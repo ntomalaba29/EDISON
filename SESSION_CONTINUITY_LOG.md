@@ -257,4 +257,26 @@
 - **Software-First Boundaries Preserved**: `isSoftwareSimulationOnly: true`, `regionalExpansionActive: false`, `activeExpandedRegionsCount: 0`, `countryActivated: false`, `activeLaunchedMarketsCount: 0`, `commercialLaunchAuthorized: false`, `paymentCollectionActive: false`, `hardwareTested: false`, `pilotHardwareExecuted: false`, `stageP6Deferred: true`, `legalComplianceClaimed: false`, `noLawyerDependencyPolicy: true`, `prohibitCrossBorderPiiTransfer: true`, `charityListingFeeUsd: 0`, and JSON persistence (`schemaVersion: 8`) retained without paid Cloud SQL (`TASK-P3-001` `READY`). Remaining `2.0%` of Phase 15 stays reserved for live sovereign DB/edge clusters & acquirer rollouts.
 - **Next Authorised Action**: Review and manually commit **Phase 15 Block 15.1** before executing external post-software milestones (`TASK-P3-001` Postgres, `Stage P6` single final physical TV + phone test, external pen-test, regulator filings, and acquirer onboarding).
 
+---
 
+## 23. Session Entry — 2026-11-16 (`Phase 15 Block 15.1` Committed · Complete 15-Phase Software-First Baseline & Handover Gate)
+
+- **Owner Commit Confirmation (`ADR-010`)**: Confirmed manual commit of **Phase 15 · Stage 15.1 · Block 15.1** (`"Committed next"`), bringing **all software-first implementation blocks across Phases 1–15** to **`COMMITTED`** (`81.0%` Full App, `81.8%` to `Stage P6`, `100.0%` AI Studio scope, `30/30` automated QA invariants, `18/18` Vitest suites / `84/84` tests).
+- **Runtime Hardening Included at Import**: Fixed `server.ts` to bind Vite middleware WebSocket connections (`server.ws`) to the shared `http.Server` (`0.0.0.0:3000`, disabling standalone port `24678` conflicts) and removed residual `bun.lock`.
+- **Remaining `19.0%` (Strictly External / Hardware / Regulatory Milestones)**:
+  1. `TASK-P3-001` (`3.0%`, `READY`): External PostgreSQL 16+ persistence (`docs/migration/TASK_P3_001_POSTGRES_MIGRATION_REQUIREMENTS.md`) + `TASK-P3-004` FFmpeg worker + `TASK-P3-003` Playwright E2E CI in VS Code / Cloud environment (requires explicit owner DB authorisation if Cloud SQL is ever requested).
+  2. `Stage P6` (`6.0%`, `DEFERRED`), Phase 4 OEM SDKs (`3.0%`), & Phase 12 Physical Pilot (`2.0%`): Single final integrated Smart TV + smartphone camera physical test (`P6-01`..`P6-08`).
+  3. Phase 13 Live Board Sign-Off (`1.0%`), Phase 14 Market Activation (`2.0%`), & Phase 15 Live Sovereign Clusters & Acquirers (`2.0%`): External pen-test, regulator filings, payment acquirer onboarding, and `DEC-OPEN-02` / `DEC-OPEN-03` resolution.
+
+---
+
+## 24. Session Entry — 2026-11-16 (Master Completion Directive: Workstreams A–K Complete · `85.0%` Full App · `87.1%` to `Stage P6`)
+
+- **Autonomous Completion Executed (`ACT` Mode)**:
+  1. **Workstream A1 (`TASK-P3-001` PostgreSQL 16+ Infrastructure)**: Added versioned `.up`/`.down` SQL migrations (`migrations/0001..0003`), `PgQueryExecutor` (supporting both `pg.Pool` and PG16 `@electric-sql/pglite` WASM), ACID JSON-to-Postgres backfill & export CLI (`src/server/postgres/jsonToPostgresMigrator.ts`, `cli.ts`), `$0.00` Charity DB `CHECK`, fee-independence `CHECK`, append-only `audit_logs` trigger, and `tests/postgresMigration.test.ts`.
+  2. **Workstream A2 (`TASK-P3-003` Playwright E2E + CI)**: Added `playwright.config.ts`, `tests/e2e/edison.spec.ts` (real Chromium auth/CSRF/PG16/FFmpeg/AURA/desktop+mobile overflow checks), and updated `.github/workflows/edison-ci.yml`.
+  3. **Workstream A3 (`TASK-P3-004` Real FFmpeg Media Worker)**: Added `src/server/mediaWorker.ts` running `/usr/bin/ffmpeg` & `/usr/bin/ffprobe` (`concurrency=2`, `60s` `SIGKILL` timeout, pre-`basename` path confinement, Samsung Tizen WebM->`H.264 High@L4.1 MP4`, HLS segments, `-23 LUFS` normalization) + `tests/mediaWorker.test.ts`.
+  4. **Workstream B (AURA Companion Remote, HDMI-CEC & 5 OEM Contracts)**: Added `src/server/auraRemoteEngine.ts`, `tests/auraAndOemAdapters.test.ts`, `deploy/tv-packaging-manifests.md`, and `deploy/mobile-packaging-config.md`.
+  5. **Workstreams C–J (Disputes, 9-Language i18n, Sovereign Manifests, Observability, Security, Deployment & Stage P6 Runbook)**: Added `commercialDisputeEngine.ts`, `src/i18n/translations.ts` (9 locales), `deploy/regions/*.json` (4 sovereign manifests locking `prohibitCrossBorderPiiTransfer: true`), `logger.ts`, `reliabilityMonitor.ts`, `RuntimeInfraPanel.tsx`, `deploy/Dockerfile`, `deploy/docker-compose.yml`, `.env.production.example`, `deploy/cdn-static-routing.json`, `docs/ops/DEPLOYMENT_AND_OPERATIONS_RUNBOOK.md`, `docs/security/SECURITY_TEST_REPORT.md` (`0` prod CVEs via `npm audit --omit=dev`), `FM-19`/`FM-20` in `FAILURE_MODE_ANALYSIS.md`, and `docs/testing/STAGE_P6_PHYSICAL_TEST_RUNBOOK.md`.
+- **Progress Breakdown**: **85.0% Full App (`15.0%` remaining)** · **87.1% to `Stage P6`** · **100.0% Phase 2 AI Studio Scope** · **`34/34` Automated QA Invariants**.
+- **Strict Governance Locks Preserved**: `countryActivated: false`, `regionalExpansionActive: false`, `paymentCollectionActive: false`, `commercialLaunchAuthorized: false`, `externalPenTestCompleted: false`, `legalComplianceClaimed: false`, `hardwareTested: false`, `realBroadcastTunerConnected: false`.

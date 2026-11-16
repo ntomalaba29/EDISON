@@ -1,0 +1,16 @@
+{
+  "regionId": "north_america_us",
+  "displayName": "North America Sovereign Cluster (US)",
+  "sovereignResidencyZone": "us-east-virginia",
+  "countries": ["US"],
+  "languages": ["en", "es"],
+  "currencyCode": "USD",
+  "dsnEnvVar": "EDISON_PG_DSN_US",
+  "mediaBucketEnvVar": "EDISON_MEDIA_BUCKET_US",
+  "cdnOriginEnvVar": "EDISON_CDN_ORIGIN_US",
+  "prohibitCrossBorderPiiTransfer": true,
+  "countryActivated": false,
+  "regionalExpansionActive": false,
+  "charityFeeUsd": 0,
+  "paymentCollectionActive": false
+}

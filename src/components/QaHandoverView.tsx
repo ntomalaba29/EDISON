@@ -28,6 +28,7 @@ import { PilotReadinessPanel } from './PilotReadinessPanel';
 import { CommercialReadinessPanel } from './CommercialReadinessPanel';
 import { CountryLaunchPanel } from './CountryLaunchPanel';
 import { InternationalExpansionPanel } from './InternationalExpansionPanel';
+import { RuntimeInfraPanel } from './RuntimeInfraPanel';
 import { CopyReportFooter, copyTextWithFallback } from './CopyReportFooter';
 import { edisonFetch } from '../lib/csrfFetch';
 
@@ -44,6 +45,7 @@ type QaSubTab =
   | 'commercial_readiness'
   | 'country_launch'
   | 'intl_expansion'
+  | 'runtime_infra'
   | 'handover';
 
 export function QaHandoverView({
@@ -478,6 +480,18 @@ export function QaHandoverView({
           >
             <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
             <span>Phase 15 Intl Expansion</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSubTab('runtime_infra')}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+              subTab === 'runtime_infra'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <ClipboardCheck className="w-3.5 h-3.5 shrink-0" />
+            <span>Runtime Infra (PG16 / FFmpeg / AURA)</span>
           </button>
           <button
             type="button"
@@ -1081,6 +1095,11 @@ export function QaHandoverView({
           onNavigateAuth={onNavigateAuth}
           onSummaryRefresh={onSummaryRefresh}
         />
+      )}
+
+      {/* SUB-TAB 7: PHASE 3 & 4 RUNTIME INFRASTRUCTURE */}
+      {subTab === 'runtime_infra' && currentUser && (
+        <RuntimeInfraPanel currentUser={currentUser} />
       )}
 
       {/* SUB-TAB 4: VS CODE ENGINEERING HANDOVER PACKAGE */}

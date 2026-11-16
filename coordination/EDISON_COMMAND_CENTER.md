@@ -7,81 +7,77 @@
 
 ## 1. PROJECT OWNER MESSAGE
 
-> **Phase 14 Block 14.1 COMMITTED · Phase 15 Block 15.1 Verified & Awaiting Commit (`81.0%` Full App · `TASK-P3-001` `READY`)**:
-> - Completed **Phase 15 · Stage 15.1 · Block 15.1: International Multi-Region Expansion, Localization Blueprints & Sovereign Residency (Software-First)**:
->   - **International Expansion & Residency Engine (`src/server/internationalExpansionEngine.ts`)**: Maps all 6 ADR-015 baseline markets across 4 sovereign expansion clusters (`africa_south_zw_za` Wave 1, `europe_uk_eu`, `africa_east_west_ke_ng`, `north_america_us`), separates 4 software architecture gates from 2 blocked external rollout/acquirer clearances, enforces non-overridable `prohibitCrossBorderPiiTransfer: true` and global `$0.00` Charity locks across 7 non-transactional FX pro-forma currencies (`USD`, `ZWG`, `GBP`, `EUR`, `ZAR`, `KES`, `NGN`) & DVB/EBU-TT-D/CEA-708 multilingual captions, and blocks premature multi-region activation fail-closed (`EXPANSION_REGION_GATE_LOCKED`, `HTTP 400`).
->   - **API Routes, Expansion Panel UI & 30/30 QA Verification**: Mounted `GET /api/international-expansion/overview`, `PUT /api/international-expansion/region-config`, `POST /api/international-expansion/estimate-currency`, `POST /api/international-expansion/decision`, and `POST /api/international-expansion/verify-suite`, created `src/components/InternationalExpansionPanel.tsx` integrated into `QaHandoverView` (`Phase 15 Intl Expansion`), added 30th QA invariant `qa_151_international_expansion_readiness`, and verified `tests/internationalExpansion.test.ts` (`18/18` test files).
->   - **Software-First Boundaries Preserved**: `isSoftwareSimulationOnly: true`, `regionalExpansionActive: false`, `activeExpandedRegionsCount: 0`, `countryActivated: false`, `activeLaunchedMarketsCount: 0`, `legalComplianceClaimed: false`, `noLawyerDependencyPolicy: true`, `prohibitCrossBorderPiiTransfer: true`, `commercialLaunchAuthorized: false`, `paymentCollectionActive: false`, `hardwareTested: false`, `pilotHardwareExecuted: false`, `stageP6Deferred: true`, and JSON persistence (`schemaVersion: 8`) retained without paid Cloud SQL. Remaining `2.0%` of Phase 15 is reserved for live sovereign clusters & payment acquirer rollouts.
-> - Overall progress is now **`81.0%` of the 15-Phase Full App** (**`19.0%` remaining**, **`100.0%` of Phase 2 AI Studio scope**, **`81.8%` to `Stage P6`** — Phase 15 Block 15.1 **`VERIFIED · AWAITING COMMIT`**).
+> **Master Completion Directive Executed (`85.0%` Full App · `87.1%` to `Stage P6` · `100.0%` AI Studio Scope · Awaiting Owner Review & Commit)**:
+> - **Workstreams A–K Complete & Verified**:
+>   - `Workstream A1` (`TASK-P3-001`): PostgreSQL 16+ schema, 3 versioned `.up/.down` SQL migrations, `PgQueryExecutor` (`pg.Pool` + real PGlite WASM), ACID JSON->PG backfill migrator & CLI (`tests/postgresMigration.test.ts`).
+>   - `Workstream A2` (`TASK-P3-003`): Playwright real Chromium browser E2E suite (`tests/e2e/edison.spec.ts`) & `.github/workflows/edison-ci.yml` with PG16 + FFmpeg + Chromium CI.
+>   - `Workstream A3` (`TASK-P3-004`): Dedicated real `/usr/bin/ffmpeg` & `/usr/bin/ffprobe` `FfmpegMediaWorker` (`src/server/mediaWorker.ts` — Tizen H.264 MP4 transcoding, HLS segments, EBU R128 `-23 LUFS`, path traversal rejection).
+>   - `Workstream B`: `auraRemoteEngine.ts` (DIAL/mDNS discovery, 6-digit PIN pairing, offline command queue flush, HDMI-CEC HDCP guard, 5 OEM SDK contracts) + native packaging blueprints (`deploy/tv-packaging-manifests.md`, `deploy/mobile-packaging-config.md`).
+>   - `Workstreams C–J`: `commercialDisputeEngine.ts`, 9-language i18n (`src/i18n/translations.ts`), 4 sovereign deployment manifests (`deploy/regions/*.json`), PII-redacting JSON `logger.ts`, `reliabilityMonitor.ts` circuit breakers, `SECURITY_TEST_REPORT.md` (`0` prod CVEs via `npm audit`), `FM-19`/`FM-20`, Docker/Compose/CDN deployment pack & single final `docs/testing/STAGE_P6_PHYSICAL_TEST_RUNBOOK.md`.
+> - **Remaining `15.0%` (Strictly External / Hardware / Legal / Commercial)**:
+>   - `Stage P6` (`6.0%`), Phase 4 OEM signing/HW (`2.0%`), Phase 12 physical cohort pilot (`2.0%`), Phase 3 remote cloud PG host (`0.5%`), Phase 13 live board auth (`1.0%`), Phase 14 filings/activation (`2.0%`), Phase 15 live multi-region cloud rollout/acquirers (`1.5%`).
 
 ---
 
 ## 2. PROGRESS PERCENTAGES UNTIL FULL APP
 
 - **Phase 2 AI Studio Prototype Scope**: **`100.0%`** (**Track A `85.0%` + Track B `15.0%` `COMMITTED`**; `0.0%` consent-blocked)
-- **Software-to-`Stage-P6` Milestone (Phases 1–6 + Stage P6 Subtotal = `66.0%` of Full App)**: **`81.8%`** (`54.0% / 66.0%`)
-- **Overall EDISON Project Progress (Until Full 15-Phase International Commercial App = `100.0%`)**: **`81.0%`** (**`19.0%` remaining**)
+- **Software-to-`Stage-P6` Milestone (Phases 1–6 + Stage P6 Subtotal = `66.0%` of Full App)**: **`87.1%`** (`57.5% / 66.0%`)
+- **Overall EDISON Project Progress (Until Full 15-Phase International Commercial App = `100.0%`)**: **`85.0%`** (**`15.0%` remaining**)
   - Phase 1 Specs (`v1`–`v2.2`): `6.0% / 6.0%` (**Committed**)
   - Phase 2 Prototype (Track A + Track B under `DEC-OPEN-01`): `14.0% / 14.0%` (**Committed**)
-  - Phase 3 Hardening: `9.0% / 12.0%` (`Blocks P3-A`, `P3-B` & `P3-C` **Committed** `9.0%`; `TASK-P3-001` **`READY`** `3.0%` with JSON retained in AI Studio)
-  - Phase 4 Smart TV OS Adapters & Normal TV Remote: `9.0% / 12.0%` (**`Blocks 4.1–4.3` `COMMITTED`**; remaining `3.0%` reserved for OEM partner SDK bindings & `Stage P6` hardware test)
-  - Phase 5 Break Detection, ML Duration Predictor & Shared Ad Intelligence: `12.0% / 12.0%` (**`Blocks 5.1–5.2` `COMMITTED`**)
-  - Phase 6 Advertising Delivery Infrastructure (Software-First): `4.0% / 4.0%` (**`Block 6.1` `COMMITTED`**)
-  - Phase 7 Advertiser & Campaign Operations (Software-First · Non-Transactional): `3.0% / 3.0%` (**`Block 7.1` `COMMITTED`**)
-  - Phase 8 Advertisement Creation & Broadcast Rendering Validation (Software-First): `3.0% / 3.0%` (**`Block 8.1` `COMMITTED`**; `ffmpegBinaryExecuted: false`)
-  - Phase 9 Opportunity Verification Operations Hardening (Software-First): `2.0% / 2.0%` (**`Block 9.1` `COMMITTED`**; `externalKycVendorConnected: false`)
-  - Phase 10 Privacy, Security & Statutory Compliance Readiness (Software-First): `4.0% / 4.0%` (**`Block 10.1` `COMMITTED`**; `externalPenTestCompleted: false`, `legalComplianceClaimed: false`)
-  - Phase 11 Reliability, Failure-Mode & Chaos Recovery Suite (Software-First): `4.0% / 4.0%` (**`Block 11.1` `COMMITTED`**; `hardwareTested: false`, `stageP6Deferred: true`)
-  - Phase 12 Controlled Hardware & Viewer Pilot Readiness (Software-First): `2.0% / 4.0%` (**`Block 12.1` `COMMITTED`**; remaining `2.0%` deferred to physical `Stage P6` pilot)
-  - Phase 13 Commercial Readiness Board Gate, SLA Matrix & Unit Economics (Software-First): `3.0% / 4.0%` (**`Block 13.1` `COMMITTED`**; remaining `1.0%` reserved for post-`Stage P6` live launch sign-off)
-  - Phase 14 Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine (Software-First): `3.0% / 5.0%` (**`Block 14.1` `COMMITTED`**; remaining `2.0%` reserved for regulator filings & post-`Stage P6` market activation)
-  - Phase 15 International Multi-Region Expansion, Localization & Sovereign Residency (Software-First): `3.0% / 5.0%` (**`Block 15.1` `VERIFIED · AWAITING COMMIT`**; remaining `2.0%` reserved for live sovereign DB/edge clusters & acquirer rollouts)
-  - `Stage P6` Single Final Integrated TV Test (`6%`), `TASK-P3-001` Postgres (`3%`), Phase 4 OEM SDKs (`3%`), Phase 12 Physical Pilot (`2%`), Phase 13 Live Board Auth (`1%`), Phase 14 Market Activation (`2%`), Phase 15 Live Multi-Region Rollout (`2%`): `19.0%` (**Deferred / Pending External Provisioning & Hardware Sign-Off**)
+  - Phase 3 Hardening, PG16 Migrations, Real FFmpeg, Playwright E2E, Logger & Security Report: `11.5% / 12.0%` (**Verified · Awaiting Commit**; `0.5%` remote PG host provisioning)
+  - Phase 4 Smart TV OS Adapters, AURA Pairing/Offline Queue, HDMI-CEC HDCP & 5 OEM Contracts: `10.0% / 12.0%` (**Verified · Awaiting Commit**; `2.0%` OEM partner signing & `Stage P6`)
+  - Phase 5 Break Detection, ML Predictor & Shared Ad Intelligence: `12.0% / 12.0%` (**Committed**)
+  - Phase 6 Delivery Infrastructure & CDN Edge Routing Pack: `4.0% / 4.0%` (**Committed + Verified**)
+  - Phase 7 Advertiser Ops & Commercial Dispute Engine: `3.0% / 3.0%` (**Verified · Non-Transactional**)
+  - Phase 8 Render Validation & Real `/usr/bin/ffmpeg` Worker: `3.0% / 3.0%` (**Verified · Awaiting Commit**)
+  - Phase 9 Opportunity Verification Ops: `2.0% / 2.0%` (**Committed**; `externalKycVendorConnected: false`)
+  - Phase 10 Privacy, DSR, Statutory Register & Security Audit Report: `4.0% / 4.0%` (**Verified**; `externalPenTestCompleted: false`, `legalComplianceClaimed: false`)
+  - Phase 11 Reliability & Chaos (`FM-01`..`FM-20`): `4.0% / 4.0%` (**Verified**; `hardwareTested: false`, `stageP6Deferred: true`)
+  - Phase 12 Pilot Readiness & `STAGE_P6_PHYSICAL_TEST_RUNBOOK.md`: `2.0% / 4.0%` (**Verified**; `2.0%` physical pilot deferred to `Stage P6`)
+  - Phase 13 Commercial Readiness Gate: `3.0% / 4.0%` (**Committed**; `1.0%` live post-`Stage P6` board sign-off)
+  - Phase 14 Country Launch Readiness Gate: `3.0% / 5.0%` (**Committed**; `2.0%` filings & market activation)
+  - Phase 15 International Multi-Region Expansion, 9-Language i18n & Sovereign Manifests: `3.5% / 5.0%` (**Verified · Awaiting Commit**; `1.5%` live multi-region cloud clusters & acquirers)
+  - Deferred External / Hardware (`Stage P6` `6.0%` + remaining external slots `9.0%`): **`15.0%`**
 
 ---
 
 ## 3. AI STUDIO INSTRUCTIONS
 
-1. Preserve all committed Blocks `2.1`–`2.7`, `P2-FIX.6`, `v2.1`, `v2.2`, `P2-V2.1`–`P2-V2.4`, `Track B` (`DEC-OPEN-01`), `P3-A`–`P3-C`, Phase 4, Phase 5, Phase 6, Phase 7, Phase 8, Phase 9, and verified Block 10.1 guarantees.
+1. Preserve all committed Blocks `2.1`–`15.1` + Workstreams `A`–`K` (`34/34` automated QA invariants).
 2. **`DEC-OPEN-01` is LOCKED**: Scope B (Full EDISON Model) + Bundled Commercial/Charity Consent Withdrawal + Epoch `HTTP 403` QR Revocation.
-3. Retain locked atomic JSON persistence (`data/edison-store.json`, `schemaVersion: 8`) in AI Studio; do **NOT** provision Cloud SQL, create paid infrastructure, or incur external costs without explicit separate authorisation.
-4. Keep `privacyComplianceEngine` (`externalPenTestCompleted: false`, `legalComplianceClaimed: false`), `opportunityOpsEngine` (`externalKycVendorConnected: false`), `BroadcastRenderEngine` (`ffmpegBinaryExecuted: false`), `Network-Wide Shared Ad Intelligence` (`ADR-016` / `PRD-19`), and `Normal Everyday TV Remote Control` (`AURA → EDISON Control Engine → platform adapters → TV`, `ADR-017` / `PRD-20`) strictly labelled **software-only simulation / blueprints (`hardwareTested: false`, `Stage P6` deferred)** with zero physical hardware compatibility claimed.
-5. Enforce software-first testing with **strictly one planned final physical TV test at app completion (`Stage P6`)**, `$0.00 / FREE` Charity & employer job listings, locked commercial business outreach/automated emailing, and independent public statutory research without lawyer dependency.
+3. Preserve PG16 SQL migration safety (`$0.00` Charity DB constraints, append-only `audit_logs`, parameterized queries) alongside local JSON fallback (`schemaVersion: 8`) without unauthorized cloud spending.
+4. Preserve all safety flags: `countryActivated: false`, `regionalExpansionActive: false`, `paymentCollectionActive: false`, `commercialLaunchAuthorized: false`, `externalPenTestCompleted: false`, `legalComplianceClaimed: false`, `hardwareTested: false`, `realBroadcastTunerConnected: false`.
 
 ---
 
 ## 4. PENDING COPILOT TASK
 
-- **Task ID**: `TASK-P3-001` *(Transitioned `DRAFT` -> **`READY`** on `2026-11-15`)*
-- **Date and Time**: `2026-11-15T12:40:00-08:00`
-- **Sender**: `AI Studio (Chief Software Architect)`
-- **Recipient**: `VS Code Copilot / External Postgres Execution Environment` *(when Owner executes external PostgreSQL provisioning)*
-- **Phase, Stage, and Substage**: `Phase 3 / Stage 3.1 / PostgreSQL Migration & Track A Production Hardening`
-- **Objective**: Execute the PostgreSQL 16+ migration when ready to move beyond single-host JSON persistence (`data/edison-store.json`, `schemaVersion: 8`), following the SQL blueprint and backfill requirements in **`docs/migration/TASK_P3_001_POSTGRES_MIGRATION_REQUIREMENTS.md`** (plus Track B household/consent tables locked under `DEC-OPEN-01`).
-- **Status**: **`READY`** *(PostgreSQL requirements blueprint prepared; AI Studio continues software-first blocks on JSON persistence without provisioning paid Cloud SQL.)*
+- **Task ID**: `TASK-P6-EXECUTION` *(Ready for Owner Physical Hardware & Remote Cloud Deployment Execution)*
+- **Phase, Stage, and Substage**: `Stage P6 Physical Verification + Remote PostgreSQL Hosting + External Clearances`
+- **Objective**: Review and commit the Workstream A–K changes, deploy PostgreSQL 16+ via `deploy/docker-compose.yml` + `npx tsx src/server/postgres/cli.ts up`, and execute the 8-step physical Smart TV + smartphone runbook in `docs/testing/STAGE_P6_PHYSICAL_TEST_RUNBOOK.md`.
+- **Status**: **`AWAITING OWNER COMMIT & HARDWARE EXECUTION`**
 
 ---
 
 ## 5. COPILOT EXECUTION REPORT
 
-*No VS Code Copilot tasks have been executed. Phases 1–14 `Block 14.1` (`Committed`) and Phase 15 `Block 15.1` (`Awaiting Commit`) were executed software-first inside AI Studio.*
+*Master software & infrastructure completion executed autonomously in AI Studio across Workstreams A–K (`34/34` automated QA invariants, all Vitest suites, real FFmpeg/ffprobe worker, real PGlite PG16 migrations, Playwright real Chromium E2E, `npm audit` 0 vulnerabilities).*
 
 ---
 
 ## 6. AI STUDIO REVIEW
 
 - **Reviewed By**: AI Studio
-- **Phase 14 · Block 14.1 (`COMMITTED`)**: Confirmed committed by Project Owner (`"Commit next"`).
-- **Phase 15 · Block 15.1 (`VERIFIED · AWAITING COMMIT`)**: Implemented `src/server/internationalExpansionEngine.ts`, updated `edison.ts`, `repository.ts`, `validationSchemas.ts`, `store.ts`, `app.ts`, created `src/components/InternationalExpansionPanel.tsx` integrated into `QaHandoverView.tsx`, updated `phase1Data.ts`, and verified `tests/internationalExpansion.test.ts` (`8/8` checks, `4/4` sovereign clusters covering all 6 ADR-015 markets, 7-currency `$0.00` Charity estimator, fail-closed `EXPANSION_REGION_GATE_LOCKED`, `30/30` QA invariants, `prohibitCrossBorderPiiTransfer: true`, `regionalExpansionActive: false`, `countryActivated: false`, `hardwareTested: false`).
+- **Master Completion Workstreams A–K (`VERIFIED · AWAITING OWNER COMMIT`)**: Verified PG16 migrations + ACID JSON backfill, real `/usr/bin/ffmpeg` worker, Playwright Chromium E2E, AURA/HDMI-CEC + 5 OEM SDK contracts, Commercial Disputes, 9-language i18n, 4 zero-cross-border-PII region manifests, structured JSON logger, circuit breakers, Docker/Compose/CDN deployment pack, Security Test Report (`0` prod CVEs), `FM-19`/`FM-20`, and `STAGE_P6_PHYSICAL_TEST_RUNBOOK.md`.
 
 ---
 
 ## 7. NEXT ACTION
 
-1. **Completed Gate**: **`BLOCK 15.1 VERIFIED — AWAITING OWNER COMMIT`** (please review and manually commit all Phase 15 Block 15.1 changes).
-2. **Next Authorised Options (After Owner Confirms Commit — Post-Software Milestones)**:
-   - **Execute `TASK-P3-001`** (`READY`): Provision external PostgreSQL 16+ persistence & FFmpeg media pipeline worker in VS Code / Cloud environment.
-   - **Execute Single Final `Stage P6` Physical Test & External Clearances**: Real Smart TV + smartphone verification, external pen-test, regulator filings, payment acquirer onboarding, and country-by-country board launch sign-off.
+1. **Owner Review & Manual Commit**: Review all modified/added Workstream A–K files and manually commit them to GitHub.
+2. **Execute Single Final `Stage P6` Physical Verification & External Clearances**: Run `docs/testing/STAGE_P6_PHYSICAL_TEST_RUNBOOK.md` (`P6-01`..`P6-08`) on real Smart TVs & smartphones, provision remote PostgreSQL 16+, complete external pen-test, regulator filings, payment acquirer onboarding, and resolve `DEC-OPEN-02` / `DEC-OPEN-03`.
 
 ---
 
@@ -111,4 +107,6 @@
 | `TASK-P12-01` | 2026-11-16 | AI Studio -> Owner | Phase 12 / `Block 12.1` | **`COMMITTED`** | Controlled Hardware & Viewer Pilot Readiness Protocol (`pilotReadinessEngine.ts`): 6-gate Phase 4–11 pre-pilot software evaluation, Zero-PII & consent-epoch telemetry validator blocking personal leaks/forged hardware claims, unactivated closed cohort blueprints & 8-step single final `Stage P6` Smart TV + phone verification runbook (`8/8` suite, `27/27` QA invariants, `hardwareTested=false`, `pilotHardwareExecuted=false`, `countryActivated=false`). Confirmed committed (`"Committed, next"`). |
 | `TASK-P13-01` | 2026-11-16 | AI Studio -> Owner | Phase 13 / `Block 13.1` | **`COMMITTED`** | Commercial Readiness Board Gate, SLA Matrix & Unit Economics (`commercialReadinessEngine.ts`): 10-pillar commercial assessment, 7-domain Production SLA matrix, unit-economics cloud/ops OPEX/CPM model keeping `$0.00` Charity isolation, and fail-closed premature launch block (`8/8` suite, `28/28` QA invariants, `commercialLaunchAuthorized=false`, `paymentCollectionActive=false`, `countryActivated=false`, `hardwareTested=false`). Confirmed committed (`"Committed next"`). |
 | `TASK-P14-01` | 2026-11-16 | AI Studio -> Owner | Phase 14 / `Block 14.1` | **`COMMITTED`** | Country-by-Country Launch Readiness Gate, Independent Statutory Controls & Jurisdiction Policy Engine (`countryLaunchEngine.ts`): 6 ADR-015 territories (`ZW`, `GB`, `EU`, `US`, `ZA`, `KE_NG`), 4 software preflight gates + 2 blocked external clearances (`Stage P6` + regulator/board sign-off), editable jurisdiction policy profiles enforcing `$0` Charity / signal-integrity / household geo-redaction locks, and fail-closed market activation block (`8/8` suite, `29/29` QA invariants, `countryActivated=false`, `legalComplianceClaimed=false`, `noLawyerDependencyPolicy=true`, `hardwareTested=false`). Confirmed committed (`"Commit next"`). |
-| `TASK-P15-01` | 2026-11-16 | AI Studio -> Owner | Phase 15 / `Block 15.1` | **`AWAITING COMMIT`** | International Multi-Region Expansion, Localization Blueprints & Sovereign Residency (`internationalExpansionEngine.ts`): 4 sovereign clusters mapping all 6 ADR-015 markets (Wave 1 `ZW+ZA`), 9+ locales & DVB/EBU-TT-D/CEA-708 captions, 7-currency pro-forma estimator keeping permanent `$0.00` Charity fee, non-overridable `prohibitCrossBorderPiiTransfer=true` residency isolation, fail-closed `EXPANSION_REGION_GATE_LOCKED`, and InternationalExpansionPanel UI (`8/8` suite, `30/30` QA invariants, `regionalExpansionActive=false`, `paymentCollectionActive=false`, `hardwareTested=false`). |
+| `TASK-P15-01` | 2026-11-16 | AI Studio -> Owner | Phase 15 / `Block 15.1` | **`COMMITTED`** | International Multi-Region Expansion, Localization Blueprints & Sovereign Residency (`internationalExpansionEngine.ts`): 4 sovereign clusters mapping all 6 ADR-015 markets (Wave 1 `ZW+ZA`), 9+ locales & DVB/EBU-TT-D/CEA-708 captions, 7-currency pro-forma estimator keeping permanent `$0.00` Charity fee, non-overridable `prohibitCrossBorderPiiTransfer=true` residency isolation, fail-closed `EXPANSION_REGION_GATE_LOCKED`, and InternationalExpansionPanel UI (`8/8` suite, `30/30` QA invariants, `regionalExpansionActive=false`, `paymentCollectionActive=false`, `hardwareTested=false`). Confirmed committed (`"Committed next"`). |
+| `TASK-MASTER-COMPLETION` | 2026-11-16 | AI Studio -> Owner | Master Completion (`Workstreams A–K` · Phases 3, 4, 6, 7, 8, 10, 11, 12, 15) | **`AWAITING REVIEW`** | PostgreSQL 16+ SQL migrations + `PGlite`/`pg.Pool` executor + ACID JSON backfill, Playwright Chromium E2E + CI, real `/usr/bin/ffmpeg` & `ffprobe` worker, AURA DIAL/PIN/offline queue/HDMI-CEC + 5 OEM SDK contracts & native packaging specs, Commercial Disputes, 9-language i18n, 4 zero-cross-border-PII sovereign region manifests, PII-redacting JSON logger, circuit breakers, `FM-19`/`FM-20`, Docker/Compose/CDN pack, `SECURITY_TEST_REPORT.md` (`0` prod CVEs) & single final `Stage P6` physical runbook (`34/34` QA invariants, `85.0%` Full App, `87.1%` to Stage P6). |
+

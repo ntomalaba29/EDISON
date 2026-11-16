@@ -88,9 +88,7 @@
 2. Project Owner explicitly authorises Phase 3 activation: **MET (`2026-11-15`)**.
 
 **Ordered Task Queue**:
-1. **`Block P3-A` / former `TASK-P3-002` (`Status: COMMITTED`)**: API Zod validation schemas, cookie/header CSRF & same-origin enforcement, `edisonFetch`, rate limiting (`429`), hashed/rotated sessions (`schemaVersion: 8`), security headers, and `tests/securityHardening.test.ts`.
-2. **`Block P3-B` (`Status: VERIFIED · AWAITING COMMIT` in AI Studio)**: Extracted `EdisonDataRepository` storage port (`src/server/repository.ts`), hardened `/uploads/:filename` CSP/CORP/symlink/polyglot controls, API timeout (`504`) & opaque JSON error middleware, React `AppErrorBoundary`, and `.github/workflows/edison-ci.yml`.
-3. **`TASK-P3-001` (`Status: READY` — Blueprint Prepared, Execution Deferred Pending DB Provisioning Decision)**: Migrate `EdisonDataRepository` (Track A baseline schema) to PostgreSQL 16+ per `docs/migration/TASK_P3_001_POSTGRES_MIGRATION_REQUIREMENTS.md`. *(JSON retained in AI Studio without paid Cloud SQL; Track B excluded while `DEC-OPEN-01` unresolved.)*
-4. **`Block P3-C` (`Next Software-First AI Studio Block`)**: Structured request logging/telemetry correlation & audit export hardening + software-only Phase 4 modular `TvPlatformAdapter` contract & Normal Everyday TV Remote (`AURA → EDISON Control Engine → platform adapters → TV`) software test suite (zero physical TV claims).
-5. **`TASK-P3-003`**: Add Playwright browser E2E suite in CI covering desktop & mobile responsive UI alongside existing Vitest + Supertest tests.
-6. **`TASK-P3-004`**: Build background media worker pipeline (FFmpeg 1080p/720p transcode, EBU R128 loudness normalisation, multi-frame QR extraction).
+1. **`TASK-P3-001` (`IMPLEMENTED & VERIFIED`)**: PostgreSQL 16+ schema & migrations (`migrations/0001..0003` `.sql`/`.down.sql`), `PgQueryExecutor` (`pg.Pool` + PGlite PG16 WASM), ACID JSON-to-Postgres backfill & export CLI (`src/server/postgres/`), verified via `tests/postgresMigration.test.ts`.
+2. **`TASK-P3-003` (`IMPLEMENTED & VERIFIED`)**: Playwright real Chromium browser E2E suite (`tests/e2e/edison.spec.ts`) & `.github/workflows/edison-ci.yml`.
+3. **`TASK-P3-004` (`IMPLEMENTED & VERIFIED`)**: Real `/usr/bin/ffmpeg` & `/usr/bin/ffprobe` `FfmpegMediaWorker` (`src/server/mediaWorker.ts` + `tests/mediaWorker.test.ts`).
+4. **Deployment & `Stage P6` Physical Verification (`NEXT EXTERNAL STEP`)**: Provision remote PostgreSQL 16+ via `deploy/docker-compose.yml` + `docs/ops/DEPLOYMENT_AND_OPERATIONS_RUNBOOK.md`, execute the single final 8-step physical Smart TV + smartphone runbook at `docs/testing/STAGE_P6_PHYSICAL_TEST_RUNBOOK.md`, and complete external pen-test/filings/acquirers.

@@ -172,7 +172,7 @@ export default function App() {
         <nav className="p-3 space-y-5" aria-label="EDISON navigation">
           <div>
             <p className="px-3 mb-1.5 text-xs font-semibold text-slate-500">
-              Phase 2 Track A + Track B Complete
+              EDISON Software Modules
             </p>
             <div className="space-y-1">
               {PROTOTYPE_NAV.map((item) => {
@@ -201,7 +201,7 @@ export default function App() {
 
           <div>
             <p className="px-3 mb-1.5 text-xs font-semibold text-slate-500">
-              Governance & Specifications
+              Governance &amp; Specifications
             </p>
             <div className="space-y-1">
               {GOVERNANCE_NAV.map((item) => {
@@ -230,9 +230,9 @@ export default function App() {
         </nav>
 
         <div className="p-4 m-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-1">
-          <p className="font-semibold text-slate-800">Prototype Boundary</p>
+          <p className="font-semibold text-slate-800">Operational Boundary</p>
           <p className="leading-relaxed">
-            Phases 1–7 and Phase 2 Track A+B committed (DEC-OPEN-01 locked; 100% AI Studio scope). Phase 8 Block 8.1 broadcast rendering validation verified (software-first preflight; FFmpeg workers, real payments &amp; Stage P6 hardware test deferred).
+            Phases 1–15 software-first baseline + PG16 SQL migrations, FFmpeg worker &amp; Chromium E2E complete. Physical TV/smartphone tests (Stage P6), live payments &amp; country launches remain locked/deferred.
           </p>
         </div>
       </aside>
@@ -254,7 +254,7 @@ export default function App() {
               <span className="text-slate-500 whitespace-nowrap">EDISON</span>
               <span className="text-slate-300" aria-hidden="true">/</span>
               <span className="text-slate-500 whitespace-nowrap hidden sm:inline">
-                {isPrototypeTab ? 'Phase 2 Complete (Track A + B)' : 'Governance'}
+                {isPrototypeTab ? 'Phases 1–15 Software Platform' : 'Governance'}
               </span>
               <span className="text-slate-300 hidden sm:inline" aria-hidden="true">/</span>
               <h1 className="font-semibold text-slate-900 truncate">{currentItem.label}</h1>

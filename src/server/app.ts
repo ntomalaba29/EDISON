@@ -58,6 +58,7 @@ import {
 import {
   listCountryGeoConfigs,
   runTrackBVerificationSuite,
+  toPublicHouseholdView,
 } from './trackBHouseholdConsent.ts';
 import {
   buildBroadcastRenderOverview,
@@ -74,6 +75,21 @@ import { runPilotReadinessVerificationSuite } from './pilotReadinessEngine.ts';
 import { runCommercialReadinessVerificationSuite } from './commercialReadinessEngine.ts';
 import { runCountryLaunchVerificationSuite } from './countryLaunchEngine.ts';
 import { runInternationalExpansionVerificationSuite } from './internationalExpansionEngine.ts';
+import fs from 'node:fs';
+import path from 'node:path';
+import { auraRemoteEngine } from './auraRemoteEngine.ts';
+import { commercialDisputeEngine } from './commercialDisputeEngine.ts';
+import { EDISON_I18N_BUNDLES, getTranslationBundle } from '../i18n/translations.ts';
+import { logStructured } from './logger.ts';
+import { FfmpegMediaWorker, edisonMediaWorker } from './mediaWorker.ts';
+import { createPgliteExecutor } from './postgres/executor.ts';
+import {
+  exportPostgresBackupSql,
+  importJsonStoreToPostgres,
+  probePostgresReadiness,
+} from './postgres/jsonToPostgresMigrator.ts';
+import { loadMigrationDescriptors } from './postgres/migrator.ts';
+import { reliabilityMonitor } from './reliabilityMonitor.ts';
 import {
   adCreativeAttachSchema,
   adCreativeSaveSchema,
@@ -87,6 +103,11 @@ import {
   appealCreateSchema,
   auditLogExportQuerySchema,
   auditLogQuerySchema,
+  auraBindProfileSchema,
+  auraCommandSchema,
+  auraConfirmPairingSchema,
+  auraHeartbeatSchema,
+  auraInitiatePairingSchema,
   breakDurationPredictSchema,
   broadcastCueParseSchema,
   broadcastRenderValidateSchema,
@@ -96,6 +117,8 @@ import {
   campaignUpdateSchema,
   commercialBoardDecisionSchema,
   commercialCostAssumptionsSchema,
+  commercialDisputeCreateSchema,
+  commercialDisputeResolveSchema,
   companionPolicyEvalSchema,
   complaintCreateSchema,
   countryLaunchDecisionSchema,
@@ -107,6 +130,7 @@ import {
   fleetDeviceRegisterSchema,
   fleetFprReportSchema,
   fleetObservationSubmitSchema,
+  hdmiCecEvaluateSchema,
   householdConsentRestoreSchema,
   householdConsentWithdrawSchema,
   householdCreateSchema,
@@ -120,6 +144,8 @@ import {
   internationalExpansionDecisionSchema,
   loginSchema,
   mediaUploadSchema,
+  mediaWorkerProbeSchema,
+  mediaWorkerTranscodeSchema,
   multiCurrencyEstimateSchema,
   offlineCacheEvaluateBreakSchema,
   offlineCacheRollbackSchema,
@@ -252,12 +278,31 @@ export function createEdisonApp(
   app.disable('x-powered-by');
 
   const recentTelemetry: RequestTelemetryEntry[] = [];
+  const mediaWorker =
+    options?.uploadsDir
+      ? new FfmpegMediaWorker({ uploadsDir: options.uploadsDir })
+      : edisonMediaWorker;
+
   const recordRequestTelemetry = (entry: RequestTelemetryEntry) => {
+    reliabilityMonitor.recordHttpRequest(
+      entry.statusCode,
+      entry.durationMs,
+      entry.path.startsWith('/r/')
+    );
     if (entry.path.startsWith('/api') || entry.path.startsWith('/r/')) {
       recentTelemetry.unshift(entry);
       if (recentTelemetry.length > 200) {
         recentTelemetry.length = 200;
       }
+    }
+    if (entry.statusCode >= 500) {
+      logStructured({
+        level: 'error',
+        component: 'http-api',
+        event: 'HTTP_5XX',
+        requestId: entry.requestId,
+        detail: { method: entry.method, path: entry.path, statusCode: entry.statusCode },
+      });
     }
   };
 
@@ -2814,7 +2859,7 @@ export function createEdisonApp(
     res.setHeader('Cache-Control', 'no-store, private');
     try {
       const items = store.listHouseholdsForUser(req.currentUser!);
-      res.json({ items });
+      res.json({ items: items.map(toPublicHouseholdView) });
     } catch (err) {
       const { code, message } = mapErrorStatus(err);
       res.status(code).json({ error: message });
@@ -2829,7 +2874,7 @@ export function createEdisonApp(
     }
     try {
       const item = store.createHousehold(req.currentUser!, parsed.data);
-      res.status(201).json({ item });
+      res.status(201).json({ item: toPublicHouseholdView(item) });
     } catch (err) {
       const { code, message } = mapErrorStatus(err);
       res.status(code).json({ error: message });
@@ -2840,7 +2885,7 @@ export function createEdisonApp(
     res.setHeader('Cache-Control', 'no-store, private');
     try {
       const item = store.getHouseholdForActor(req.currentUser!, req.params.id);
-      res.json({ item });
+      res.json({ item: toPublicHouseholdView(item) });
     } catch (err) {
       const { code, message } = mapErrorStatus(err);
       res.status(code).json({ error: message });
@@ -2855,7 +2900,7 @@ export function createEdisonApp(
     }
     try {
       const item = store.updateHouseholdLocation(req.currentUser!, req.params.id, parsed.data);
-      res.json({ item });
+      res.json({ item: toPublicHouseholdView(item) });
     } catch (err) {
       const { code, message } = mapErrorStatus(err);
       res.status(code).json({ error: message });
@@ -2874,7 +2919,7 @@ export function createEdisonApp(
         req.params.id,
         parsed.data
       );
-      res.json({ item });
+      res.json({ item: toPublicHouseholdView(item) });
     } catch (err) {
       const { code, message } = mapErrorStatus(err);
       res.status(code).json({ error: message });
@@ -2897,7 +2942,7 @@ export function createEdisonApp(
           parsed.data.reason
         );
         res.setHeader('Cache-Control', 'no-store, private');
-        res.json(result);
+        res.json({ ...result, household: toPublicHouseholdView(result.household) });
       } catch (err) {
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
@@ -2921,7 +2966,7 @@ export function createEdisonApp(
           parsed.data
         );
         res.setHeader('Cache-Control', 'no-store, private');
-        res.json(result);
+        res.json({ ...result, household: toPublicHouseholdView(result.household) });
       } catch (err) {
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
@@ -3192,6 +3237,345 @@ export function createEdisonApp(
       });
     }
   );
+
+  // --- Phase 3: PostgreSQL 16+ Database Migration & Backup Status ---
+  app.get('/api/admin/database/status', requireAdmin, async (_req: AuthenticatedRequest, res: Response) => {
+    const descriptors = loadMigrationDescriptors();
+    const backendMeta = store.getStorageBackendMetadata();
+    const probe = await probePostgresReadiness(null);
+    res.json({
+      storageBackend: backendMeta,
+      migrationsAvailable: descriptors.map((d) => ({
+        version: d.version,
+        filename: d.filename,
+        hasDownScript: Boolean(d.downFilename),
+        checksumSha256: d.checksumSha256,
+      })),
+      probe,
+    });
+  });
+
+  app.post('/api/admin/database/verify-pglite', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+    const executor = await createPgliteExecutor();
+    try {
+      const dataPath = path.resolve(process.cwd(), 'data', 'edison-store.json');
+      const snapshot = fs.existsSync(dataPath)
+        ? JSON.parse(fs.readFileSync(dataPath, 'utf8'))
+        : {
+            schemaVersion: 8,
+            users: [],
+            sessions: [],
+            qrLinks: store.listQrLinksForUser(req.currentUser!),
+            advertiserProfiles: [],
+            campaigns: store.listCampaignsForUser(req.currentUser!),
+            adCreatives: store.listAdCreativesForUser(req.currentUser!),
+            supportTickets: [],
+            opportunities: store.listOpportunitiesForUser(req.currentUser!),
+            opportunityComplaints: [],
+            opportunityAppeals: [],
+            analyticsEvents: [],
+            physicalQrScanTests: [],
+            auditLogs: [],
+          };
+      const importSummary = await importJsonStoreToPostgres(executor, snapshot);
+      const probe = await probePostgresReadiness(executor);
+      const backup = await exportPostgresBackupSql(executor);
+      reliabilityMonitor.recordDependencySuccess('postgres_primary');
+      res.json({
+        ok: true,
+        verifiedWithEngine: 'pglite_postgresql_16_wasm',
+        importSummary,
+        probe,
+        backup,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Postgres verification failed.';
+      reliabilityMonitor.recordDependencyFailure('postgres_primary', msg);
+      res.status(500).json({ error: msg });
+    } finally {
+      await executor.close();
+    }
+  });
+
+  // --- Phase 3: Dedicated FFmpeg & FFprobe Broadcast Media Worker ---
+  app.get('/api/media/worker/status', requireAuth, (_req: AuthenticatedRequest, res: Response) => {
+    res.json({
+      diagnostics: mediaWorker.getWorkerDiagnostics(),
+      recentJobs: mediaWorker.listJobs(20),
+    });
+  });
+
+  app.post('/api/media/worker/probe', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    const parsed = parseWithZod(mediaWorkerProbeSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
+      return;
+    }
+    try {
+      const probe = await mediaWorker.probeMediaFile(parsed.data.sourceFilename);
+      reliabilityMonitor.recordDependencySuccess('ffmpeg_worker');
+      res.json({ probe });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err, 400);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.post('/api/media/worker/transcode', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    const parsed = parseWithZod(mediaWorkerTranscodeSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
+      return;
+    }
+    try {
+      const job = await mediaWorker.enqueueTranscodeJob({
+        requestedByUserId: req.currentUser!.id,
+        creativeId: parsed.data.creativeId ?? null,
+        sourceFilename: parsed.data.sourceFilename,
+        kind: parsed.data.kind,
+        targetPlatform: parsed.data.targetPlatform,
+        durationSeconds: parsed.data.durationSeconds,
+      });
+      reliabilityMonitor.recordDependencySuccess('ffmpeg_worker');
+      res.status(201).json({ job });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err, 400);
+      reliabilityMonitor.recordDependencyFailure('ffmpeg_worker', message);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  // --- Phase 4: AURA Companion Remote Pairing, Commands, Offline Queue & HDMI-CEC Contracts ---
+  app.get('/api/aura/contracts', requireAuth, (_req: AuthenticatedRequest, res: Response) => {
+    res.json({
+      oemContracts: auraRemoteEngine.listOemContracts(),
+      hardwareTested: false,
+      stageP6Deferred: true,
+    });
+  });
+
+  app.get('/api/aura/discover', requireAuth, (_req: AuthenticatedRequest, res: Response) => {
+    res.json({
+      isSimulationDiscovery: true,
+      devices: auraRemoteEngine.discoverNearbyDevices(),
+    });
+  });
+
+  app.get('/api/aura/devices', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    res.json({
+      items: auraRemoteEngine.listUserDevices(req.currentUser!.id),
+    });
+  });
+
+  app.post('/api/aura/pair/initiate', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const parsed = parseWithZod(auraInitiatePairingSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
+      return;
+    }
+    const device = auraRemoteEngine.initiatePairing({
+      ownerUserId: req.currentUser!.id,
+      householdId: parsed.data.householdId ?? null,
+      tvLabel: parsed.data.tvLabel,
+      platformId: parsed.data.platformId,
+    });
+    res.status(201).json({ device });
+  });
+
+  app.post('/api/aura/pair/confirm', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const parsed = parseWithZod(auraConfirmPairingSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
+      return;
+    }
+    try {
+      const device = auraRemoteEngine.confirmPairing({
+        deviceId: parsed.data.deviceId,
+        ownerUserId: req.currentUser!.id,
+        pairingCode: parsed.data.pairingCode,
+        activeProfileId: parsed.data.activeProfileId ?? null,
+      });
+      res.json({ device });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err, 400);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.post('/api/aura/devices/:deviceId/heartbeat', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const parsed = parseWithZod(auraHeartbeatSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
+      return;
+    }
+    try {
+      const device = auraRemoteEngine.recordHeartbeat({
+        deviceId: req.params.deviceId,
+        ownerUserId: req.currentUser!.id,
+        networkOnline: parsed.data.networkOnline,
+      });
+      res.json({ device });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err, 404);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.post('/api/aura/devices/:deviceId/command', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const parsed = parseWithZod(auraCommandSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
+      return;
+    }
+    try {
+      const result = auraRemoteEngine.dispatchAuraCommand({
+        deviceId: req.params.deviceId,
+        ownerUserId: req.currentUser!.id,
+        command: parsed.data.command,
+        targetInput: parsed.data.targetInput,
+      });
+      res.json(result);
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err, 400);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.patch('/api/aura/devices/:deviceId/profile', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const parsed = parseWithZod(auraBindProfileSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
+      return;
+    }
+    try {
+      const device = auraRemoteEngine.bindActiveProfile({
+        deviceId: req.params.deviceId,
+        ownerUserId: req.currentUser!.id,
+        profileId: parsed.data.profileId,
+      });
+      res.json({ device });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err, 404);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.post('/api/aura/devices/:deviceId/disconnect', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const device = auraRemoteEngine.disconnectDevice({
+        deviceId: req.params.deviceId,
+        ownerUserId: req.currentUser!.id,
+      });
+      res.json({ device });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err, 404);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.post('/api/tv/hdmi-cec/evaluate', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const parsed = parseWithZod(hdmiCecEvaluateSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
+      return;
+    }
+    const result = auraRemoteEngine.evaluateHdmiCecAction(parsed.data);
+    res.json(result);
+  });
+
+  // --- Phase 7: Commercial Operations Disputes, Credit Ledger & Stream Reconciliation ---
+  app.get('/api/advertiser-ops/disputes', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const user = req.currentUser!;
+    const items =
+      user.role === 'admin'
+        ? commercialDisputeEngine.listDisputes()
+        : commercialDisputeEngine.listDisputes({ advertiserUserId: user.id });
+    const ledger = store.getRevenueLedgerSnapshot(user);
+    const reconciliation = commercialDisputeEngine.reconcileRevenueStreams(ledger);
+    res.json({ items, reconciliation });
+  });
+
+  app.post('/api/advertiser-ops/disputes', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    const parsed = parseWithZod(commercialDisputeCreateSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
+      return;
+    }
+    try {
+      const user = req.currentUser!;
+      const campaign = parsed.data.campaignId
+        ? store.listCampaignsForUser(user).find((c) => c.id === parsed.data.campaignId) ?? null
+        : null;
+      const item = commercialDisputeEngine.submitDispute({
+        advertiserUserId: user.id,
+        campaign,
+        billingPeriodLabel: parsed.data.billingPeriodLabel,
+        disputeType: parsed.data.disputeType,
+        disputedAmountUsd: parsed.data.disputedAmountUsd,
+        reason: parsed.data.reason,
+      });
+      res.status(201).json({ item });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err, 400);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  app.patch('/api/advertiser-ops/disputes/:id/resolve', requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+    const parsed = parseWithZod(commercialDisputeResolveSchema, req.body);
+    if (!parsed.ok) {
+      sendValidationError(res, parsed);
+      return;
+    }
+    try {
+      const item = commercialDisputeEngine.resolveDispute({
+        disputeId: req.params.id,
+        decision: parsed.data.decision,
+        approvedCreditUsd: parsed.data.approvedCreditUsd,
+        resolutionNote: parsed.data.resolutionNote,
+      });
+      res.json({ item });
+    } catch (err) {
+      const { code, message } = mapErrorStatus(err, 404);
+      res.status(code).json({ error: message });
+    }
+  });
+
+  // --- Phase 15 & Reliability: i18n UI Translation Bundles, Sovereign Deployment Manifests & Observability ---
+  app.get('/api/i18n/bundles', (_req: Request, res: Response) => {
+    const locale = typeof _req.query.locale === 'string' ? _req.query.locale : undefined;
+    if (locale) {
+      res.json({ bundle: getTranslationBundle(locale) });
+      return;
+    }
+    res.json({
+      supportedLocales: Object.keys(EDISON_I18N_BUNDLES),
+      bundles: EDISON_I18N_BUNDLES,
+    });
+  });
+
+  app.get('/api/international-expansion/deployment-manifests', requireAuth, (_req: AuthenticatedRequest, res: Response) => {
+    const regionsDir = path.resolve(process.cwd(), 'deploy', 'regions');
+    const manifests = fs.existsSync(regionsDir)
+      ? fs
+          .readdirSync(regionsDir)
+          .filter((f) => f.endsWith('.json'))
+          .sort()
+          .map((file) => JSON.parse(fs.readFileSync(path.join(regionsDir, file), 'utf8')))
+      : [];
+    res.json({
+      count: manifests.length,
+      prohibitCrossBorderPiiTransfer: true,
+      regionalExpansionActive: false,
+      countryActivated: false,
+      manifests,
+    });
+  });
+
+  app.get('/api/admin/observability/metrics', requireAdmin, (_req: AuthenticatedRequest, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(reliabilityMonitor.getMetricsSnapshot());
+  });
 
   app.get('/api/qr/events', requireAuth, (req: AuthenticatedRequest, res: Response) => {
     const user = req.currentUser!;
