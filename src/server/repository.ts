@@ -27,13 +27,19 @@ import type {
   CountryLaunchDecisionRecord,
   CountryLaunchOverview,
   DaypartSlot,
+  ExpansionCurrencyCode,
+  ExpansionRegionId,
   HouseholdInstallationRecord,
   HouseholdLocation,
   HouseholdMemberProfile,
   HouseholdOpportunityMatchResult,
   HouseholdQrTokenRecord,
+  InternationalExpansionDecisionOutcome,
+  InternationalExpansionDecisionRecord,
+  InternationalExpansionOverview,
   LaunchMarketCode,
   LiveReportSnapshot,
+  MultiCurrencyProFormaEstimate,
   OpportunityAppealRecord,
   OpportunityAppealStatus,
   OpportunityCategory,
@@ -787,8 +793,43 @@ export interface EdisonDataRepository {
     decision: CountryLaunchDecisionRecord;
     overview: CountryLaunchOverview;
   };
+
+  // --- Phase 15 Block 15.1: International Multi-Region Expansion, Localization & Residency ---
+  getInternationalExpansionOverview(actor: PublicUser): InternationalExpansionOverview;
+
+  updateRegionalLocalizationConfig(
+    actor: PublicUser,
+    input: {
+      regionId: ExpansionRegionId;
+      primaryLanguageCode: string;
+      supportedLanguageCodes: string[];
+      captionAccessibilityStandard: string;
+      multiCurrencyCode: ExpansionCurrencyCode;
+      proFormaCpmRateLocal: number;
+    }
+  ): InternationalExpansionOverview;
+
+  estimateRegionalMultiCurrencyProForma(
+    actor: PublicUser,
+    input: {
+      regionId: ExpansionRegionId;
+      currencyCode: ExpansionCurrencyCode;
+      proFormaCpmRateLocal: number;
+      directCommercialImpressions: number;
+      charityImpressions: number;
+    }
+  ): MultiCurrencyProFormaEstimate;
+
+  submitInternationalExpansionDecision(
+    actor: PublicUser,
+    input: {
+      regionId: ExpansionRegionId;
+      decisionOutcome: InternationalExpansionDecisionOutcome;
+      requestedRegionActivation: boolean;
+      summaryNote: string;
+    }
+  ): {
+    decision: InternationalExpansionDecisionRecord;
+    overview: InternationalExpansionOverview;
+  };
 }
-
-
-
-

@@ -588,7 +588,7 @@ describe('EDISON Non-Consent API & Domain Regression Suite (Block P2-V2.3)', () 
     const liveReport = await request(app).get('/api/reports/live');
     expect(liveReport.status).toBe(200);
     expect(liveReport.body.progressMetrics.aiStudioAssignmentPct).toBe(100);
-    expect(liveReport.body.progressMetrics.overallFullAppPct).toBe(78);
+    expect(liveReport.body.progressMetrics.overallFullAppPct).toBe(81);
     expect(liveReport.body.progressMetrics.consentBlockedScopePct).toBe(0);
   });
 });

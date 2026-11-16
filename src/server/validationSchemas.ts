@@ -1005,6 +1005,56 @@ export const countryLaunchDecisionSchema = z
   })
   .strict();
 
+export const expansionRegionIdEnum = z.enum([
+  'africa_south_zw_za',
+  'europe_uk_eu',
+  'africa_east_west_ke_ng',
+  'north_america_us',
+]);
+
+export const expansionCurrencyCodeEnum = z.enum([
+  'USD',
+  'ZWG',
+  'GBP',
+  'EUR',
+  'ZAR',
+  'KES',
+  'NGN',
+]);
+
+export const regionalLocalizationUpdateSchema = z
+  .object({
+    regionId: expansionRegionIdEnum,
+    primaryLanguageCode: z.string().trim().min(2).max(12),
+    supportedLanguageCodes: z.array(z.string().trim().min(2).max(12)).min(1).max(15),
+    captionAccessibilityStandard: z.string().trim().min(4).max(200),
+    multiCurrencyCode: expansionCurrencyCodeEnum,
+    proFormaCpmRateLocal: z.coerce.number().finite().min(0.1).max(100000),
+  })
+  .strict();
+
+export const multiCurrencyEstimateSchema = z
+  .object({
+    regionId: expansionRegionIdEnum,
+    currencyCode: expansionCurrencyCodeEnum,
+    proFormaCpmRateLocal: z.coerce.number().finite().min(0.1).max(100000),
+    directCommercialImpressions: z.coerce.number().int().min(1000).max(500000000),
+    charityImpressions: z.coerce.number().int().min(0).max(500000000),
+  })
+  .strict();
+
+export const internationalExpansionDecisionSchema = z
+  .object({
+    regionId: expansionRegionIdEnum,
+    decisionOutcome: z.enum([
+      'hold_regions_unactivated_pending_p6_and_p14',
+      'stage_multi_region_blueprint_for_post_launch',
+    ]),
+    requestedRegionActivation: z.boolean(),
+    summaryNote: z.string().trim().min(10).max(800),
+  })
+  .strict();
+
 export function parseWithZod<T extends z.ZodTypeAny>(
   schema: T,
   payload: unknown

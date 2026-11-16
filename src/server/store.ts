@@ -34,14 +34,20 @@ import type {
   CountryLaunchOverview,
   DaypartSlot,
   EdisonStoreData,
+  ExpansionCurrencyCode,
+  ExpansionRegionId,
   FailureModeId,
   HouseholdInstallationRecord,
   HouseholdLocation,
   HouseholdMemberProfile,
   HouseholdOpportunityMatchResult,
   HouseholdQrTokenRecord,
+  InternationalExpansionDecisionOutcome,
+  InternationalExpansionDecisionRecord,
+  InternationalExpansionOverview,
   LaunchMarketCode,
   LiveReportSnapshot,
+  MultiCurrencyProFormaEstimate,
   OpportunityOpsOverview,
   OpportunityOpsSweepResult,
   OptionAComposition,
@@ -131,6 +137,13 @@ import {
   buildUpdatedCountryPolicyConfig,
   runCountryLaunchVerificationSuite,
 } from './countryLaunchEngine.ts';
+import {
+  buildInternationalExpansionDecision,
+  buildInternationalExpansionOverview,
+  buildUpdatedRegionalLocalizationConfig,
+  computeMultiCurrencyProFormaEstimate,
+  runInternationalExpansionVerificationSuite,
+} from './internationalExpansionEngine.ts';
 import { scheduleCommercialBreak } from './breakScheduler.ts';
 import {
   buildSafeTvPersonalisationDisplay,
@@ -1289,6 +1302,14 @@ function normalizeStoreData(parsed: EdisonStoreData): EdisonStoreData {
         : {},
     countryLaunchDecisions: Array.isArray(parsed.countryLaunchDecisions)
       ? parsed.countryLaunchDecisions
+      : [],
+    regionalLocalizationProfiles:
+      parsed.regionalLocalizationProfiles &&
+      typeof parsed.regionalLocalizationProfiles === 'object'
+        ? parsed.regionalLocalizationProfiles
+        : {},
+    internationalExpansionDecisions: Array.isArray(parsed.internationalExpansionDecisions)
+      ? parsed.internationalExpansionDecisions
       : [],
     auditLogs: parsed.auditLogs || [],
   };
@@ -5210,6 +5231,31 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
           '8/8 Phase 14 country launch readiness invariants passed: 6/6 ADR-015 markets inventoried (ZW Initial Launch Market), 4/4 software controls separated from 2 external clearances, fail-closed COUNTRY_LAUNCH_GATE_LOCKED on activation (countryActivated=false, legalComplianceClaimed=false).',
       },
       {
+        id: 'qa_151_international_expansion_readiness',
+        block: 'Block 15.1',
+        label:
+          'Phase 15 Block 15.1: International Multi-Region Expansion, Sovereign Residency & Multi-Currency Pro-Forma Gate',
+        status: (() => {
+          const p15 = runInternationalExpansionVerificationSuite();
+          return p15.allPassed &&
+            p15.passedChecks === 8 &&
+            p15.regionalExpansionActive === false &&
+            p15.activeExpandedRegionsCount === 0 &&
+            p15.countryActivated === false &&
+            p15.commercialLaunchAuthorized === false &&
+            p15.paymentCollectionActive === false &&
+            p15.hardwareTested === false &&
+            p15.stageP6Deferred &&
+            p15.legalComplianceClaimed === false &&
+            p15.prohibitCrossBorderPiiTransfer === true
+            ? 'pass'
+            : 'fail';
+        })(),
+        scope: 'automated_invariant',
+        detail:
+          '8/8 Phase 15 international multi-region expansion invariants passed: 4 sovereign clusters mapped across 7 currencies & >=7 languages, permanent 0 Charity cost, cross-border PII lock & fail-closed EXPANSION_REGION_GATE_LOCKED.',
+      },
+      {
         id: 'qa_27_physical_qr_scan',
         block: 'Block 2.7',
         label: 'Physical smartphone camera scan verification on real mobile device',
@@ -5227,8 +5273,8 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
 
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 14 — Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine (Software-First)',
-      block: 'Block 14.1 (6-Territory Statutory Gate Matrix, ZW Initial Market Software Preflight, Jurisdiction Policies & Fail-Closed Activation Lock)',
+      phase: 'Phase 15 — International Multi-Region Expansion, Localization & Sovereign Residency (Software-First)',
+      block: 'Block 15.1 (4 Sovereign Expansion Regions, Multilingual TV Captions, 7-Currency $0 Charity Pro-Forma Estimator & Fail-Closed Expansion Gate)',
       automatedInvariantsPassed,
       automatedInvariantsTotal: autoChecks.length,
       physicalQrScanStatus:
@@ -5443,19 +5489,19 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     const latestAudit = this.data.auditLogs[0] ?? null;
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 14 — Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine (Software-First)',
-      stage: 'Phases 1–13 Block 13.1 Committed (Inc. Track B DEC-OPEN-01) · Phase 14 Block 14.1 Verified & Awaiting Commit · All Markets Unactivated & Stage P6 Deferred',
-      block: 'Block 14.1 (6-Territory Statutory Gate Matrix, ZW Initial Market Software Preflight, Jurisdiction Policies & Fail-Closed Activation Lock)',
-      gateStatus: 'BLOCK 14.1 VERIFIED — AWAITING OWNER COMMIT (ALL 6 MARKETS UNACTIVATED, STAGE P6 & COMMERCIAL LAUNCH DEFERRED)',
+      phase: 'Phase 15 — International Multi-Region Expansion, Localization & Sovereign Residency (Software-First)',
+      stage: 'Phases 1–14 Block 14.1 Committed (Inc. Track B DEC-OPEN-01) · Phase 15 Block 15.1 Verified & Awaiting Commit · All Regions Unactivated & Stage P6 Deferred',
+      block: 'Block 15.1 (4 Sovereign Expansion Regions, Multilingual TV Captions, 7-Currency $0 Charity Pro-Forma Estimator & Fail-Closed Expansion Gate)',
+      gateStatus: 'BLOCK 15.1 VERIFIED — AWAITING OWNER COMMIT (ALL 4 REGIONS & 6 MARKETS UNACTIVATED, STAGE P6 & COMMERCIAL LAUNCH DEFERRED)',
       progressMetrics: {
         aiStudioAssignmentPct: 100,
         softwareToStageP6Pct: 81.8,
-        overallFullAppPct: 78.0,
-        remainingUntilFullAppPct: 22.0,
+        overallFullAppPct: 81.0,
+        remainingUntilFullAppPct: 19.0,
         consentBlockedScopePct: 0,
         trackBStatus: 'COMMITTED',
         rubricSummary:
-          'Phase 1 Specs (6.0%) + Phase 2 Track A+B Committed (14.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Complete Committed (12.0%) + Phase 6 Delivery Infra Committed (4.0%) + Phase 7 Block 7.1 Committed (3.0%) + Phase 8 Block 8.1 Committed (3.0%) + Phase 9 Block 9.1 Committed (2.0%) + Phase 10 Block 10.1 Committed (4.0%) + Phase 11 Block 11.1 Committed (4.0%) + Phase 12 Block 12.1 Committed (2.0% / 4.0%) + Phase 13 Block 13.1 Committed (3.0% / 4.0%) + Phase 14 Block 14.1 Software-First Country Launch Readiness (3.0% / 5.0%) = 78.0% of 15-Phase Full Commercial App (81.8% to Stage P6; 100% of original Phase 2 AI Studio scope).',
+          'Phase 1 Specs (6.0%) + Phase 2 Track A+B Committed (14.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Complete Committed (12.0%) + Phase 6 Delivery Infra Committed (4.0%) + Phase 7 Block 7.1 Committed (3.0%) + Phase 8 Block 8.1 Committed (3.0%) + Phase 9 Block 9.1 Committed (2.0%) + Phase 10 Block 10.1 Committed (4.0%) + Phase 11 Block 11.1 Committed (4.0%) + Phase 12 Block 12.1 Committed (2.0% / 4.0%) + Phase 13 Block 13.1 Committed (3.0% / 4.0%) + Phase 14 Block 14.1 Committed (3.0% / 5.0%) + Phase 15 Block 15.1 Software-First International Expansion (3.0% / 5.0%) = 81.0% of 15-Phase Full Commercial App (81.8% to Stage P6; 100% of original Phase 2 AI Studio scope).',
       },
       latestAuditAt: latestAudit?.createdAt ?? null,
       latestAuditAction: latestAudit?.action ?? null,
@@ -6879,9 +6925,158 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
       };
     });
   }
+
+  // --- Phase 15 Block 15.1: International Multi-Region Expansion, Localization & Sovereign Residency ---
+  getInternationalExpansionOverview(actor: PublicUser): InternationalExpansionOverview {
+    this.syncIfDiskNewer();
+    if (!actor?.id) {
+      throw new Error('Authentication required to inspect Phase 15 international expansion readiness.');
+    }
+    return buildInternationalExpansionOverview({
+      households: this.data.households || [],
+      campaigns: this.data.campaigns,
+      opportunities: this.data.opportunities,
+      qrLinks: this.data.qrLinks,
+      storedPolicyProfiles: this.data.countryPolicyProfiles,
+      countryLaunchDecisions: this.data.countryLaunchDecisions || [],
+      storedLocalizationProfiles: this.data.regionalLocalizationProfiles,
+      expansionDecisions: this.data.internationalExpansionDecisions || [],
+    });
+  }
+
+  updateRegionalLocalizationConfig(
+    actor: PublicUser,
+    input: {
+      regionId: ExpansionRegionId;
+      primaryLanguageCode: string;
+      supportedLanguageCodes: string[];
+      captionAccessibilityStandard: string;
+      multiCurrencyCode: ExpansionCurrencyCode;
+      proFormaCpmRateLocal: number;
+    }
+  ): InternationalExpansionOverview {
+    if (actor.role !== 'admin') {
+      throw new Error(
+        'FORBIDDEN: Only administrators may update Phase 15 regional localization and residency blueprints.'
+      );
+    }
+
+    const updatedConfig = buildUpdatedRegionalLocalizationConfig({
+      regionId: input.regionId,
+      primaryLanguageCode: input.primaryLanguageCode,
+      supportedLanguageCodes: input.supportedLanguageCodes,
+      captionAccessibilityStandard: input.captionAccessibilityStandard,
+      multiCurrencyCode: input.multiCurrencyCode,
+      proFormaCpmRateLocal: input.proFormaCpmRateLocal,
+      actorEmail: actor.email,
+    });
+
+    return this.withWriteTransaction((draft) => {
+      draft.regionalLocalizationProfiles = draft.regionalLocalizationProfiles || {};
+      draft.regionalLocalizationProfiles[input.regionId] = updatedConfig;
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'REGIONAL_LOCALIZATION_UPDATED',
+        'system',
+        input.regionId,
+        `Updated Phase 15 localization blueprint for ${input.regionId} (primaryLang=${updatedConfig.primaryLanguageCode}, currency=${updatedConfig.multiCurrencyCode}, proFormaCPM=${updatedConfig.proFormaCpmRateLocal}): prohibitCrossBorderPiiTransfer=true, charityZeroCostLocked=true, regionalExpansionActive=false.`
+      );
+
+      return buildInternationalExpansionOverview({
+        households: draft.households || [],
+        campaigns: draft.campaigns,
+        opportunities: draft.opportunities,
+        qrLinks: draft.qrLinks,
+        storedPolicyProfiles: draft.countryPolicyProfiles,
+        countryLaunchDecisions: draft.countryLaunchDecisions,
+        storedLocalizationProfiles: draft.regionalLocalizationProfiles,
+        expansionDecisions: draft.internationalExpansionDecisions,
+      });
+    });
+  }
+
+  estimateRegionalMultiCurrencyProForma(
+    actor: PublicUser,
+    input: {
+      regionId: ExpansionRegionId;
+      currencyCode: ExpansionCurrencyCode;
+      proFormaCpmRateLocal: number;
+      directCommercialImpressions: number;
+      charityImpressions: number;
+    }
+  ): MultiCurrencyProFormaEstimate {
+    if (!actor?.id) {
+      throw new Error('Authentication required to run multi-currency pro-forma estimates.');
+    }
+    return computeMultiCurrencyProFormaEstimate(input);
+  }
+
+  submitInternationalExpansionDecision(
+    actor: PublicUser,
+    input: {
+      regionId: ExpansionRegionId;
+      decisionOutcome: InternationalExpansionDecisionOutcome;
+      requestedRegionActivation: boolean;
+      summaryNote: string;
+    }
+  ): {
+    decision: InternationalExpansionDecisionRecord;
+    overview: InternationalExpansionOverview;
+  } {
+    if (actor.role !== 'admin') {
+      throw new Error(
+        'FORBIDDEN: Only administrators may record international expansion governance decisions.'
+      );
+    }
+
+    // Fail-closed activation guard executes BEFORE mutating persisted store state
+    const decision = buildInternationalExpansionDecision({
+      regionId: input.regionId,
+      actorEmail: actor.email,
+      decisionOutcome: input.decisionOutcome,
+      requestedRegionActivation: input.requestedRegionActivation,
+      summaryNote: input.summaryNote,
+    });
+
+    return this.withWriteTransaction((draft) => {
+      draft.internationalExpansionDecisions = draft.internationalExpansionDecisions || [];
+      draft.internationalExpansionDecisions.unshift(decision);
+      if (draft.internationalExpansionDecisions.length > 50) {
+        draft.internationalExpansionDecisions.length = 50;
+      }
+
+      this.addAudit(
+        draft,
+        actor.id,
+        actor.role,
+        'INTERNATIONAL_EXPANSION_DECISION_LOGGED',
+        'system',
+        decision.id,
+        `Logged Phase 15 expansion review for ${decision.regionId} (${decision.decisionOutcome}): regionalExpansionActive=false, countryActivated=false, commercialLaunchAuthorized=false, paymentCollectionActive=false, hardwareTested=false, legalComplianceClaimed=false.`
+      );
+
+      return {
+        decision,
+        overview: buildInternationalExpansionOverview({
+          households: draft.households || [],
+          campaigns: draft.campaigns,
+          opportunities: draft.opportunities,
+          qrLinks: draft.qrLinks,
+          storedPolicyProfiles: draft.countryPolicyProfiles,
+          countryLaunchDecisions: draft.countryLaunchDecisions,
+          storedLocalizationProfiles: draft.regionalLocalizationProfiles,
+          expansionDecisions: draft.internationalExpansionDecisions,
+        }),
+      };
+    });
+  }
 }
 
 export const edisonStore = new EdisonPrototypeStore();
+
 
 
 

@@ -585,6 +585,8 @@ export interface EdisonStoreData {
   commercialCostAssumptions?: CommercialCostAssumptionsInput;
   countryPolicyProfiles?: Partial<Record<LaunchMarketCode, CountryJurisdictionPolicyConfig>>;
   countryLaunchDecisions?: CountryLaunchDecisionRecord[];
+  regionalLocalizationProfiles?: Partial<Record<ExpansionRegionId, RegionalLocalizationConfig>>;
+  internationalExpansionDecisions?: InternationalExpansionDecisionRecord[];
 }
 
 export interface EdisonProgressMetrics {
@@ -2892,10 +2894,143 @@ export interface CountryLaunchVerificationReport {
   checks: CountryLaunchVerifyCheckItem[];
 }
 
+// --- Phase 15 Block 15.1: International Multi-Region Expansion, Localization & Residency Architecture (Software-First) ---
 
+export type ExpansionRegionId =
+  | 'africa_south_zw_za'
+  | 'europe_uk_eu'
+  | 'africa_east_west_ke_ng'
+  | 'north_america_us';
 
+export type ExpansionCurrencyCode = 'USD' | 'ZWG' | 'GBP' | 'EUR' | 'ZAR' | 'KES' | 'NGN';
 
+export interface RegionalLocalizationConfig {
+  regionId: ExpansionRegionId;
+  primaryLanguageCode: string;
+  supportedLanguageCodes: string[];
+  captionAccessibilityStandard: string;
+  multiCurrencyCode: ExpansionCurrencyCode;
+  proFormaCpmRateLocal: number;
+  dataResidencyZone: string;
+  prohibitCrossBorderPiiTransfer: true;
+  charityZeroCostLocked: true;
+  updatedAt: string;
+  updatedByEmail: string;
+}
 
+export interface ExpansionPreflightItem {
+  gateId: string;
+  label: string;
+  scope: 'software_architecture' | 'external_rollout_or_acquirer';
+  passed: boolean;
+  detail: string;
+}
 
+export interface InternationalRegionProfileAssessment {
+  regionId: ExpansionRegionId;
+  regionName: string;
+  targetMarketCodes: LaunchMarketCode[];
+  sovereignResidencyZone: string;
+  cdnEdgeClusterTarget: string;
+  regionalExpansionActive: false;
+  localizationConfig: RegionalLocalizationConfig;
+  proFormaCpmRateUsd: number;
+  charityListingFeeLocal: 0;
+  softwareGatesReadyCount: number;
+  softwareGatesTotalCount: number;
+  externalClearancesBlockedCount: number;
+  preflightChecks: ExpansionPreflightItem[];
+  blockers: string[];
+  assessmentSha256: string;
+}
 
+export interface MultiCurrencyProFormaEstimate {
+  regionId: ExpansionRegionId;
+  currencyCode: ExpansionCurrencyCode;
+  fxReferenceRateToUsd: number;
+  fxAssumptionNote: string;
+  directCommercialImpressions: number;
+  proFormaCpmRateLocal: number;
+  commercialGrossLocal: number;
+  commercialGrossUsd: number;
+  charityImpressions: number;
+  charityCostLocal: 0;
+  charityCostUsd: 0;
+  charityZeroCostLocked: true;
+  paymentCollectionActive: false;
+  isSimulatedEstimateOnly: true;
+  estimateSha256: string;
+  generatedAt: string;
+}
 
+export type InternationalExpansionDecisionOutcome =
+  | 'hold_regions_unactivated_pending_p6_and_p14'
+  | 'stage_multi_region_blueprint_for_post_launch';
+
+export interface InternationalExpansionDecisionRecord {
+  id: string;
+  regionId: ExpansionRegionId;
+  reviewerEmail: string;
+  decisionOutcome: InternationalExpansionDecisionOutcome;
+  summaryNote: string;
+  regionalExpansionActive: false;
+  countryActivated: false;
+  commercialLaunchAuthorized: false;
+  paymentCollectionActive: false;
+  hardwareTested: false;
+  legalComplianceClaimed: false;
+  decisionSha256: string;
+  createdAt: string;
+}
+
+export interface InternationalExpansionOverview {
+  generatedAt: string;
+  primaryExpansionWaveRegion: 'africa_south_zw_za';
+  activeExpandedRegionsCount: 0;
+  totalRegionsInventoriedCount: 4;
+  softwareReadyRegionsCount: number;
+  supportedLanguagesTotalCount: number;
+  supportedCurrenciesCount: 7;
+  isSoftwareSimulationOnly: true;
+  regionalExpansionActive: false;
+  countryActivated: false;
+  commercialLaunchAuthorized: false;
+  paymentCollectionActive: false;
+  hardwareTested: false;
+  pilotHardwareExecuted: false;
+  stageP6Deferred: true;
+  legalComplianceClaimed: false;
+  noLawyerDependencyPolicy: true;
+  prohibitCrossBorderPiiTransfer: true;
+  charityListingFeeUsd: 0;
+  charityJobFeeLockEnforced: true;
+  regions: InternationalRegionProfileAssessment[];
+  expansionDecisions: InternationalExpansionDecisionRecord[];
+  globalExpansionBlockers: string[];
+  manifestSha256: string;
+}
+
+export interface InternationalExpansionVerifyCheckItem {
+  checkId: string;
+  label: string;
+  passed: boolean;
+  detail: string;
+}
+
+export interface InternationalExpansionVerificationReport {
+  generatedAt: string;
+  isSoftwareSimulationOnly: true;
+  regionalExpansionActive: false;
+  activeExpandedRegionsCount: 0;
+  countryActivated: false;
+  commercialLaunchAuthorized: false;
+  paymentCollectionActive: false;
+  hardwareTested: false;
+  stageP6Deferred: true;
+  legalComplianceClaimed: false;
+  prohibitCrossBorderPiiTransfer: true;
+  totalChecks: number;
+  passedChecks: number;
+  allPassed: boolean;
+  checks: InternationalExpansionVerifyCheckItem[];
+}

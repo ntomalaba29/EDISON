@@ -47,7 +47,7 @@ describe('EDISON Phase 14 Block 14.1 — Country-by-Country Launch Readiness Gat
     expect(report.noLawyerDependencyPolicy).toBe(true);
   });
 
-  it('enforces auth (401), CSRF (403), admin RBAC (403), strict Zod (400), fail-closed COUNTRY_LAUNCH_GATE_LOCKED (400), 29/29 QA & 78.0% Full App', async () => {
+  it('enforces auth (401), CSRF (403), admin RBAC (403), strict Zod (400), fail-closed COUNTRY_LAUNCH_GATE_LOCKED (400), 30/30 QA & 81.0% Full App', async () => {
     // 1. Unauthenticated POST without CSRF -> 403
     const unauthPost = await request(app).post('/api/country-launch/verify-suite').send({});
     expect(unauthPost.status).toBe(403);
@@ -200,16 +200,16 @@ describe('EDISON Phase 14 Block 14.1 — Country-by-Country Launch Readiness Gat
     expect(suiteRes.body.report.passedChecks).toBe(8);
     expect(suiteRes.body.report.allPassed).toBe(true);
 
-    // 11. Verify 29/29 QA invariants and 78.0% Full App / 22.0% remaining / 81.8% Stage P6
+    // 11. Verify 30/30 QA invariants and 81.0% Full App / 19.0% remaining / 81.8% Stage P6
     const qaRes = await adminAgent.get('/api/qa/prototype-readiness');
     expect(qaRes.status).toBe(200);
-    expect(qaRes.body.automatedInvariantsTotal).toBe(29);
-    expect(qaRes.body.automatedInvariantsPassed).toBe(29);
+    expect(qaRes.body.automatedInvariantsTotal).toBe(30);
+    expect(qaRes.body.automatedInvariantsPassed).toBe(30);
 
     const liveRes = await request(app).get('/api/reports/live');
     expect(liveRes.status).toBe(200);
-    expect(liveRes.body.progressMetrics.overallFullAppPct).toBe(78.0);
-    expect(liveRes.body.progressMetrics.remainingUntilFullAppPct).toBe(22.0);
+    expect(liveRes.body.progressMetrics.overallFullAppPct).toBe(81.0);
+    expect(liveRes.body.progressMetrics.remainingUntilFullAppPct).toBe(19.0);
     expect(liveRes.body.progressMetrics.softwareToStageP6Pct).toBe(81.8);
     expect(liveRes.body.progressMetrics.aiStudioAssignmentPct).toBe(100);
   });

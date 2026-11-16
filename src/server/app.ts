@@ -73,6 +73,7 @@ import { runReliabilityChaosVerificationSuite } from './reliabilityChaosEngine.t
 import { runPilotReadinessVerificationSuite } from './pilotReadinessEngine.ts';
 import { runCommercialReadinessVerificationSuite } from './commercialReadinessEngine.ts';
 import { runCountryLaunchVerificationSuite } from './countryLaunchEngine.ts';
+import { runInternationalExpansionVerificationSuite } from './internationalExpansionEngine.ts';
 import {
   adCreativeAttachSchema,
   adCreativeSaveSchema,
@@ -116,8 +117,10 @@ import {
   householdMemberDeleteSchema,
   householdMemberUpdateSchema,
   householdQrIssueSchema,
+  internationalExpansionDecisionSchema,
   loginSchema,
   mediaUploadSchema,
+  multiCurrencyEstimateSchema,
   offlineCacheEvaluateBreakSchema,
   offlineCacheRollbackSchema,
   offlineCacheStageSchema,
@@ -135,6 +138,7 @@ import {
   qrCreateSchema,
   qrStatusPatchSchema,
   qrValidateSchema,
+  regionalLocalizationUpdateSchema,
   registerSchema,
   reliabilityChaosProbeSchema,
   reliabilityFullSuiteSchema,
@@ -2667,6 +2671,100 @@ export function createEdisonApp(
         'COUNTRY_LAUNCH_SUITE_RUN',
         'phase14_country_launch',
         `[${req.requestId ?? 'req'}] Phase 14 country launch readiness suite: ${report.passedChecks}/${report.totalChecks} passed (countryActivated=false, activeLaunchedMarketsCount=0, legalComplianceClaimed=false, hardwareTested=false).`
+      );
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.json({ report });
+    }
+  );
+
+  // --- Phase 15 Block 15.1: International Multi-Region Expansion, Localization & Residency (Software-First) ---
+  app.get(
+    '/api/international-expansion/overview',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.json({ overview: store.getInternationalExpansionOverview(req.currentUser!) });
+    }
+  );
+
+  app.put(
+    '/api/international-expansion/region-config',
+    requireAdmin,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(regionalLocalizationUpdateSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        const overview = store.updateRegionalLocalizationConfig(req.currentUser!, parsed.data);
+        res.setHeader('Cache-Control', 'no-store, private');
+        res.json({ overview });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.post(
+    '/api/international-expansion/estimate-currency',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(multiCurrencyEstimateSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        const estimate = store.estimateRegionalMultiCurrencyProForma(
+          req.currentUser!,
+          parsed.data
+        );
+        res.setHeader('Cache-Control', 'no-store, private');
+        res.json({ estimate });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.post(
+    '/api/international-expansion/decision',
+    requireAdmin,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(internationalExpansionDecisionSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        const result = store.submitInternationalExpansionDecision(req.currentUser!, parsed.data);
+        res.setHeader('Cache-Control', 'no-store, private');
+        res.status(201).json(result);
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }
+  );
+
+  app.post(
+    '/api/international-expansion/verify-suite',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(emptyStrictSchema, req.body ?? {});
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const report = runInternationalExpansionVerificationSuite();
+      store.recordSecurityAudit(
+        req.currentUser!,
+        'INTERNATIONAL_EXPANSION_SUITE_RUN',
+        'phase15_international_expansion',
+        `[${req.requestId ?? 'req'}] Phase 15 international expansion suite: ${report.passedChecks}/${report.totalChecks} passed (regionalExpansionActive=false, activeExpandedRegionsCount=0, prohibitCrossBorderPiiTransfer=true, stageP6Deferred=true).`
       );
       res.setHeader('Cache-Control', 'no-store, private');
       res.json({ report });

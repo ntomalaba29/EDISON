@@ -27,6 +27,7 @@ import { QrCodePreview } from './QrCodePreview';
 import { PilotReadinessPanel } from './PilotReadinessPanel';
 import { CommercialReadinessPanel } from './CommercialReadinessPanel';
 import { CountryLaunchPanel } from './CountryLaunchPanel';
+import { InternationalExpansionPanel } from './InternationalExpansionPanel';
 import { CopyReportFooter, copyTextWithFallback } from './CopyReportFooter';
 import { edisonFetch } from '../lib/csrfFetch';
 
@@ -42,6 +43,7 @@ type QaSubTab =
   | 'pilot_readiness'
   | 'commercial_readiness'
   | 'country_launch'
+  | 'intl_expansion'
   | 'handover';
 
 export function QaHandoverView({
@@ -364,7 +366,7 @@ export function QaHandoverView({
               ? 'Loading...'
               : 'Sign in to run'}
           </p>
-          <p className="mt-1 text-xs text-slate-600">Blocks 2.1–14.1 &amp; Track B rules</p>
+          <p className="mt-1 text-xs text-slate-600">Blocks 2.1–15.1 &amp; Track B rules</p>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-lg p-5">
@@ -464,6 +466,18 @@ export function QaHandoverView({
           >
             <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
             <span>Phase 14 Country Launch</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSubTab('intl_expansion')}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+              subTab === 'intl_expansion'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+            <span>Phase 15 Intl Expansion</span>
           </button>
           <button
             type="button"
@@ -1054,6 +1068,15 @@ export function QaHandoverView({
       {/* SUB-TAB 5: PHASE 14 COUNTRY-BY-COUNTRY LAUNCH READINESS GATE */}
       {subTab === 'country_launch' && (
         <CountryLaunchPanel
+          currentUser={currentUser}
+          onNavigateAuth={onNavigateAuth}
+          onSummaryRefresh={onSummaryRefresh}
+        />
+      )}
+
+      {/* SUB-TAB 6: PHASE 15 INTERNATIONAL MULTI-REGION EXPANSION & RESIDENCY */}
+      {subTab === 'intl_expansion' && (
+        <InternationalExpansionPanel
           currentUser={currentUser}
           onNavigateAuth={onNavigateAuth}
           onSummaryRefresh={onSummaryRefresh}

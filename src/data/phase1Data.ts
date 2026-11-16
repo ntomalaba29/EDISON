@@ -117,17 +117,17 @@ export const ROADMAP_PHASES: RoadmapPhaseItem[] = [
     phase: 14,
     title: 'Country-by-Country Launch',
     summary:
-      'Block 14.1 VERIFIED & AWAITING COMMIT (3.0% / 5.0% Software-First Country Launch Readiness Gate & Jurisdiction Policy Engine: all 6 ADR-015 territories ZW Initial + GB/EU/US/ZA/KE-NG mapped with 4/4 software controls separated from 2 external clearances, editable tax/consent notices locking $0 Charity & no signal hijacking, and fail-closed COUNTRY_LAUNCH_GATE_LOCKED on activation; 2.0% live filing/Stage P6 activation reserved).',
+      'Block 14.1 COMMITTED (3.0% / 5.0% Software-First Country Launch Readiness Gate & Jurisdiction Policy Engine: all 6 ADR-015 territories ZW Initial + GB/EU/US/ZA/KE-NG mapped with 4/4 software controls separated from 2 external clearances, editable tax/consent notices locking $0 Charity & no signal hijacking, and fail-closed COUNTRY_LAUNCH_GATE_LOCKED on activation; 2.0% live filing/Stage P6 activation reserved).',
     milestoneGate: 'Approved Country Activation Register entry per territory (after Stage P6 & filings).',
-    status: 'AWAITING COMMIT',
+    status: 'COMMITTED',
   },
   {
     phase: 15,
     title: 'International Expansion',
     summary:
-      'Multi-region localization, cross-border compliance scaling, multi-currency billing.',
+      'Block 15.1 VERIFIED & AWAITING COMMIT (3.0% / 5.0% Software-First International Multi-Region Expansion, Localization & Sovereign Residency: 4 sovereign expansion clusters covering all 6 ADR-015 markets with Wave 1 ZW+ZA, 9+ locales & DVB/EBU-TT-D/CEA-708 captions, 7-currency pro-forma estimator locking $0.00 Charity, prohibitCrossBorderPiiTransfer=true & fail-closed EXPANSION_REGION_GATE_LOCKED; 2.0% live multi-region clusters & acquirers reserved).',
     milestoneGate: 'Sustained SLA, compliance, and unit economics in launched territories.',
-    status: 'NOT STARTED',
+    status: 'AWAITING COMMIT',
   },
 ];
 
@@ -246,7 +246,7 @@ export function generateFormalReport(
   const pm = liveSnapshot?.progressMetrics;
   const pctBlock = pm
     ? `${pm.overallFullAppPct}% of Full 15-Phase App (${pm.remainingUntilFullAppPct}% remaining) · ${pm.softwareToStageP6Pct}% of Software-to-Stage-P6 Milestone · ${pm.aiStudioAssignmentPct}% of Phase 2 AI Studio Scope (${pm.consentBlockedScopePct}% blocked on DEC-OPEN-01)`
-    : '78.0% of Full 15-Phase App (22.0% remaining) · 81.8% of Software-to-Stage-P6 · 100% of Phase 2 AI Studio Scope (DEC-OPEN-01 Locked: 0% blocked)';
+    : '81.0% of Full 15-Phase App (19.0% remaining) · 81.8% of Software-to-Stage-P6 · 100% of Phase 2 AI Studio Scope (DEC-OPEN-01 Locked: 0% blocked)';
 
   if (command === 'STATUS') {
     return {
@@ -255,14 +255,14 @@ export function generateFormalReport(
       body: [
         'EDISON — PROJECT STATUS REPORT',
         `Generated: ${generatedAt}`,
-        `Current Phase: ${liveSnapshot?.phase ?? 'Phase 14 — Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine (Software-First)'}`,
-        `Current Stage: ${liveSnapshot?.stage ?? 'Phases 1–13 Committed (Inc. Track B DEC-OPEN-01) · Phase 14 Block 14.1 Verified & Awaiting Commit · TASK-P3-001 READY'}`,
-        `Current Block: ${liveSnapshot?.block ?? 'Block 14.1 (6-Territory Statutory Gate Matrix, ZW Initial Market Software Preflight, Jurisdiction Policies & Fail-Closed Activation Lock)'}`,
-        `Commit Gate: ${liveSnapshot?.gateStatus ?? 'BLOCK 14.1 VERIFIED — AWAITING OWNER COMMIT'}`,
+        `Current Phase: ${liveSnapshot?.phase ?? 'Phase 15 — International Expansion, Localization & Sovereign Residency (Software-First)'}`,
+        `Current Stage: ${liveSnapshot?.stage ?? 'Phases 1–14 Committed (Inc. Track B DEC-OPEN-01) · Phase 15 Block 15.1 Verified & Awaiting Commit · TASK-P3-001 READY'}`,
+        `Current Block: ${liveSnapshot?.block ?? 'Block 15.1 (4-Cluster Sovereign Residency, Multilingual Captions, 7-Currency $0 Charity Pro-Forma & Fail-Closed Expansion Gate)'}`,
+        `Commit Gate: ${liveSnapshot?.gateStatus ?? 'BLOCK 15.1 VERIFIED — AWAITING OWNER COMMIT'}`,
         '',
         `PROGRESS UNTIL FULL APP: ${pctBlock}`,
         '',
-        'PHASE 2 TO PHASE 14 PROGRESS:',
+        'PHASE 1 TO PHASE 15 PROGRESS:',
         '- Phase 1 + Blueprint v2.1 + v2.2 Shared Ad Intelligence Specs: COMMITTED (6.0% Full App)',
         '- Phase 2 Track A + Track B Complete (DEC-OPEN-01 Locked, 100% AI Studio): COMMITTED (14.0% / 14.0% Full App)',
         '- Phase 3 Software-First Hardening (Blocks P3-A, P3-B, P3-C): COMMITTED (9.0% / 12.0% Full App)',
@@ -276,18 +276,19 @@ export function generateFormalReport(
         '- Phase 11 Block 11.1 (Reliability, Failure-Mode & Chaos Recovery Suite FM-01..FM-18): COMMITTED (4.0% / 4.0%; hardwareTested=false, stageP6Deferred=true)',
         '- Phase 12 Block 12.1 (Controlled Pilot Readiness, Zero-PII Telemetry & Stage P6 Runbook): COMMITTED (2.0% / 4.0% Software-First; 2.0% physical pilot deferred to Stage P6)',
         '- Phase 13 Block 13.1 (Commercial Readiness Board Gate, 7-SLA Matrix & Unit Economics): COMMITTED (3.0% / 4.0% Software-First; commercialLaunchAuthorized=false)',
-        '- Phase 14 Block 14.1 (Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine): VERIFIED · AWAITING COMMIT (3.0% / 5.0% Software-First; activeLaunchedMarketsCount=0, countryActivated=false)',
+        '- Phase 14 Block 14.1 (Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine): COMMITTED (3.0% / 5.0% Software-First; activeLaunchedMarketsCount=0, countryActivated=false)',
+        '- Phase 15 Block 15.1 (International Multi-Region Expansion, Localization & Sovereign Residency): VERIFIED · AWAITING COMMIT (3.0% / 5.0% Software-First; activeExpandedRegionsCount=0, regionalExpansionActive=false, prohibitCrossBorderPiiTransfer=true)',
         '- TASK-P3-001 PostgreSQL 16+ Migration Requirements Blueprint: READY (JSON persistence retained in AI Studio without Cloud SQL)',
         '',
         'OVERALL EDISON PROJECT PROGRESS:',
-        `- ${pm?.rubricSummary ?? 'Phase 1 Specs (6.0%) + Phase 2 Complete (14.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Complete Committed (12.0%) + Phase 6 Delivery Infra Committed (4.0%) + Phase 7 Advertiser Ops Committed (3.0%) + Phase 8 Broadcast Render Committed (3.0%) + Phase 9 Opportunity Ops Committed (2.0%) + Phase 10 Privacy & Statutory Committed (4.0%) + Phase 11 Reliability & Chaos Committed (4.0%) + Phase 12 Block 12.1 Committed (2.0% / 4.0%) + Phase 13 Block 13.1 Committed (3.0% / 4.0%) + Phase 14 Block 14.1 Software-First Country Launch Readiness (3.0% / 5.0%) = 78.0% of 15-Phase Full Commercial App (81.8% to Stage P6; 22.0% remaining).'}`,
-        '- Software-first invariant checks verified cleanly with zero real payments activated, zero external KYC vendor APIs connected, zero external penetration tests claimed, zero formal legal compliance claimed, zero country launches activated, and zero physical hardware tested (Stage P6 strictly deferred until app completion).',
+        `- ${pm?.rubricSummary ?? 'Phase 1 Specs (6.0%) + Phase 2 Complete (14.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Complete Committed (12.0%) + Phase 6 Delivery Infra Committed (4.0%) + Phase 7 Advertiser Ops Committed (3.0%) + Phase 8 Broadcast Render Committed (3.0%) + Phase 9 Opportunity Ops Committed (2.0%) + Phase 10 Privacy & Statutory Committed (4.0%) + Phase 11 Reliability & Chaos Committed (4.0%) + Phase 12 Block 12.1 Committed (2.0% / 4.0%) + Phase 13 Block 13.1 Committed (3.0% / 4.0%) + Phase 14 Block 14.1 Committed (3.0% / 5.0%) + Phase 15 Block 15.1 Software-First International Expansion (3.0% / 5.0%) = 81.0% of 15-Phase Full Commercial App (81.8% to Stage P6; 19.0% remaining).'}`,
+        '- Software-first invariant checks verified cleanly with zero real payments activated, zero external KYC vendor APIs connected, zero external penetration tests claimed, zero formal legal compliance claimed, zero country launches or expansion regions activated, and zero physical hardware tested (Stage P6 strictly deferred until app completion).',
         '',
         'LIVE STORE COUNTS:',
         countsLine,
         '',
         'NEXT AUTHORISED ACTION:',
-        'Review and commit Phase 14 Block 14.1 changes, then confirm commit to unlock Phase 15 Block 15.1 International Multi-Region Scaling (Software-First).',
+        'Review and commit Phase 15 Block 15.1 changes, then confirm commit before external database (TASK-P3-001), Stage P6 hardware, regulatory filings, and live commercial rollout work.',
       ].join('\n'),
     };
   }
@@ -323,7 +324,8 @@ export function generateFormalReport(
         '- Phase 13 Block 13.1 Commercial Readiness Board Gate, 7-SLA Matrix & Unit Economics: 10-pillar commercial board evaluation, 7 operational SLAs, $0.00 Charity unit-economics budget model & fail-closed premature launch authorization lock (commercialLaunchAuthorized=false, paymentCollectionActive=false)',
         '- Track B (DEC-OPEN-01 Locked: Scope B + Bundled Withdrawal): ZW-first 7-level geo households, PIN-isolated multi-member profiles, required/preferred/optional matching, safe TV personalisation, bundled withdrawal & HTTP 403 epoch QR revocation (7/7 checks)',
         '- Phase 14 Block 14.1 Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine: 6 ADR-015 markets (ZW Initial Launch Market + GB, EU, US, ZA, KE/NG) with 4/4 software controls separated from 2 external clearances, non-overridable $0 Charity/no-hijack policy locks & fail-closed COUNTRY_LAUNCH_GATE_LOCKED on activation (8/8 checks, countryActivated=false, legalComplianceClaimed=false)',
-        '- Vitest + Supertest Automated Suite (npx vitest run — 29/29 automated QA invariants across Phases 2–14 & Track B)',
+        '- Phase 15 Block 15.1 International Multi-Region Expansion, Localization & Sovereign Residency: 4 sovereign clusters mapping all 6 ADR-015 markets (Wave 1 ZW+ZA), 9+ locales & DVB/EBU-TT-D/CEA-708 captions, 7-currency pro-forma estimator keeping permanent 0 Charity fee, prohibitCrossBorderPiiTransfer=true & fail-closed EXPANSION_REGION_GATE_LOCKED (8/8 checks, regionalExpansionActive=false)',
+        '- Vitest + Supertest Automated Suite (npx vitest run — 30/30 automated QA invariants across Phases 2–15 & Track B)',
         '',
         'OUTSTANDING CHECKS & POST-PROTOTYPE CORE REQUIREMENTS:',
         '- Physical smartphone camera scan verification logged by Project Owner on real mobile hardware.',
@@ -336,20 +338,20 @@ export function generateFormalReport(
   if (command === 'NEXT') {
     return {
       title: 'EDISON — NEXT AUTHORISED ACTION',
-      subtitle: 'Phase 14 Block 14.1 verified & awaiting commit; Phase 15 international scaling follows commit',
+      subtitle: 'Phase 15 Block 15.1 verified & awaiting commit; software-first 15-phase roadmap complete pending Stage P6 & external clearances',
       body: [
         'EDISON — NEXT GATE EVALUATION',
         `Generated: ${generatedAt}`,
-        `Current Gate: ${liveSnapshot?.gateStatus ?? 'BLOCK 14.1 VERIFIED — AWAITING OWNER COMMIT'}`,
+        `Current Gate: ${liveSnapshot?.gateStatus ?? 'BLOCK 15.1 VERIFIED — AWAITING OWNER COMMIT'}`,
         `Progress Until Full App: ${pctBlock}`,
         '',
         'GATE STATUS & NEXT BLOCK:',
-        'Phase 14 Block 14.1 (Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine) is VERIFIED & AWAITING COMMIT. Phases 1–13 Block 13.1 (including Track B DEC-OPEN-01) are committed, activeLaunchedMarketsCount=0 (all 6 markets unactivated), commercialLaunchAuthorized, paymentCollectionActive, hardwareTested, pilotHardwareExecuted, countryActivated, legalComplianceClaimed, and realBroadcastTunerConnected remain false, and TASK-P3-001 PostgreSQL blueprint remains READY.',
+        'Phase 15 Block 15.1 (International Multi-Region Expansion, Localization & Sovereign Residency) is VERIFIED & AWAITING COMMIT. Phases 1–14 Block 14.1 (including Track B DEC-OPEN-01) are committed, activeExpandedRegionsCount=0 and activeLaunchedMarketsCount=0, commercialLaunchAuthorized, paymentCollectionActive, hardwareTested, pilotHardwareExecuted, countryActivated, regionalExpansionActive, legalComplianceClaimed, and realBroadcastTunerConnected remain false, and TASK-P3-001 PostgreSQL blueprint remains READY.',
         '',
-        'AFTER COMMIT CONFIRMATION:',
-        '- Next Software-First Milestone (Phase 15 · Block 15.1): International Multi-Region Scaling, Localization Blueprints & Cross-Border Compliance Matrix (Software-First; keeping countryActivated=false & paymentCollectionActive=false until Stage P6 & approvals).',
-        '- DEC-OPEN-02: Confirm k=1 short-break alternating rule.',
-        '- DEC-OPEN-03: Google Ad Manager CTV account / format confirmation (mock adapter active until resolved).',
+        'AFTER COMMIT CONFIRMATION (POST-SOFTWARE MILESTONES):',
+        '- Execute TASK-P3-001 PostgreSQL 16+ production persistence & FFmpeg media pipeline worker in VS Code / Cloud environment.',
+        '- Execute single integrated physical Smart TV + smartphone camera test (Stage P6) and closed controlled pilot.',
+        '- Resolve DEC-OPEN-02 (k=1 short-break confirmation) & DEC-OPEN-03 (GAM CTV production contract), complete external pen-test, regulatory filings, and acquirer onboarding.',
       ].join('\n'),
     };
   }
@@ -357,40 +359,40 @@ export function generateFormalReport(
   if (command === 'COMMIT') {
     return {
       title: 'EDISON — COMMIT CHECKPOINT',
-      subtitle: 'Phase 14 Block 14.1 verified and awaiting manual owner commit',
+      subtitle: 'Phase 15 Block 15.1 verified and awaiting manual owner commit',
       body: [
-        'EDISON — COMMIT CHECKPOINT (PHASE 14 BLOCK 14.1)',
+        'EDISON — COMMIT CHECKPOINT (PHASE 15 BLOCK 15.1)',
         `Generated: ${generatedAt}`,
         `Progress Metrics: ${pctBlock}`,
         `Live Store Telemetry: ${countsLine}`,
         '',
-        'STATUS: BLOCK 14.1 VERIFIED — AWAITING OWNER COMMIT',
-        'REQUIRED USER ACTION: Review Phase 14 Block 14.1 changes and manually commit them before proceeding to Phase 15.',
+        'STATUS: BLOCK 15.1 VERIFIED — AWAITING OWNER COMMIT',
+        'REQUIRED USER ACTION: Review Phase 15 Block 15.1 changes and manually commit them to complete the 15-phase software-first baseline.',
       ].join('\n'),
     };
   }
 
   return {
-    title: 'EDISON — PHASE 14 BLOCK 14.1 & FULL-APP PROGRESS REPORT',
+    title: 'EDISON — PHASE 15 BLOCK 15.1 & FULL-APP PROGRESS REPORT',
     subtitle: 'Formal status report with live server telemetry and progress breakdown',
     body: [
       'EDISON — IMPLEMENTATION BLOCK COMPLETION REPORT',
       '',
       'Project: EDISON — International Smart TV Advertising & Opportunities Network',
-      `Production Phase: ${liveSnapshot?.phase ?? 'Phase 14 — Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine (Software-First)'}`,
-      `Stage: ${liveSnapshot?.stage ?? 'Phases 1–13 Committed (Inc. Track B DEC-OPEN-01) · Phase 14 Block 14.1 Verified & Awaiting Commit · TASK-P3-001 READY'}`,
-      `Implementation Block: ${liveSnapshot?.block ?? 'Block 14.1 (6-Territory Statutory Gate Matrix, ZW Initial Market Software Preflight, Jurisdiction Policies & Fail-Closed Activation Lock)'}`,
-      `Status: ${liveSnapshot?.gateStatus ?? 'BLOCK 14.1 VERIFIED — AWAITING OWNER COMMIT'}`,
+      `Production Phase: ${liveSnapshot?.phase ?? 'Phase 15 — International Expansion, Localization & Sovereign Residency (Software-First)'}`,
+      `Stage: ${liveSnapshot?.stage ?? 'Phases 1–14 Committed (Inc. Track B DEC-OPEN-01) · Phase 15 Block 15.1 Verified & Awaiting Commit · TASK-P3-001 READY'}`,
+      `Implementation Block: ${liveSnapshot?.block ?? 'Block 15.1 (4-Cluster Sovereign Residency, Multilingual Captions, 7-Currency $0 Charity Pro-Forma & Fail-Closed Expansion Gate)'}`,
+      `Status: ${liveSnapshot?.gateStatus ?? 'BLOCK 15.1 VERIFIED — AWAITING OWNER COMMIT'}`,
       '',
       `PHASE 2 AI STUDIO SCOPE: ${pm?.aiStudioAssignmentPct ?? 100}% (Track A & Track B Committed; 0% Blocked)`,
-      `OVERALL EDISON PROJECT PROGRESS: ${pm?.overallFullAppPct ?? 78.0}% of Full 15-Phase App (${pm?.remainingUntilFullAppPct ?? 22.0}% remaining) · ${pm?.softwareToStageP6Pct ?? 81.8}% of Software-to-Stage-P6 Milestone`,
+      `OVERALL EDISON PROJECT PROGRESS: ${pm?.overallFullAppPct ?? 81.0}% of Full 15-Phase App (${pm?.remainingUntilFullAppPct ?? 19.0}% remaining) · ${pm?.softwareToStageP6Pct ?? 81.8}% of Software-to-Stage-P6 Milestone`,
       '',
       'LIVE STORE TELEMETRY:',
       countsLine,
       `Latest Audit: ${liveSnapshot?.latestAuditAction ?? 'N/A'} (${liveSnapshot?.latestAuditAt ?? 'N/A'})`,
       '',
       'REQUIRED USER ACTION:',
-      'Review Phase 14 Block 14.1 changes and manually commit them to unlock Phase 15 International Expansion (Software-First).',
+      'Review Phase 15 Block 15.1 changes and manually commit them before proceeding to post-software engineering (TASK-P3-001) and Stage P6 hardware validation.',
       '',
       'PRODUCTION GATE:',
       'LOCKED UNTIL COMMIT CONFIRMATION.',
