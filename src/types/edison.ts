@@ -578,7 +578,6 @@ export interface EdisonStoreData {
   householdMembers?: HouseholdMemberProfile[];
   householdQrTokens?: HouseholdQrTokenRecord[];
   consentAuditEvents?: ConsentAuditEventRecord[];
-  lastReliabilityChaosReport?: ReliabilityChaosReport | null;
 }
 
 export interface EdisonProgressMetrics {
@@ -1913,9 +1912,7 @@ export type ConsentAuditAction =
   | 'MEMBER_CONSENT_UPDATED'
   | 'LOCATION_UPDATED'
   | 'QR_EPOCH_REVOKED_403'
-  | 'BYPASS_ATTEMPT_BLOCKED'
-  | 'DSR_DATA_EXPORTED'
-  | 'DSR_HOUSEHOLD_ERASED';
+  | 'BYPASS_ATTEMPT_BLOCKED';
 
 export interface ConsentAuditEventRecord {
   id: string;
@@ -1961,68 +1958,116 @@ export interface TrackBVerificationReport {
 
 // --- Phase 8 Block 8.1: Advertisement Creation & Broadcast Rendering Validation (Software-First) ---
 
-export type BroadcastResolutionProfile = '1080p_fhd' | '4k_uhd';
+export type BroadcastQrIntegrityDecision =
+  | 'PASS_MATCHED_OR_OVERLAY'
+  | 'FLAG_ADMIN_HUMAN_REVIEW'
+  | 'BLOCK_MISMATCH'
+  | 'BLOCK_UNCONFIRMED_NO_QR'
+  | 'WARN_NO_QR_ATTACHED';
 
-export interface BroadcastValidationIssue {
-  code:
-    | 'QR_MISSING_OR_INACTIVE'
-    | 'QR_DESTINATION_MISMATCH_BLOCK'
-    | 'QR_OVERLAY_MISSING'
-    | 'QR_SIZE_TOO_SMALL'
-    | 'OVERSCAN_SAFE_MARGIN_VIOLATION'
-    | 'LOW_CONTRAST_RATIO'
-    | 'DURATION_OUT_OF_RANGE'
-    | 'EXTERNAL_ASPECT_WARNING';
-  severity: 'blocking' | 'warning';
-  message: string;
-}
-
-export interface PlatformRenderTarget {
+export interface BroadcastTargetPlatformStatus {
   platformId: TvPlatformId;
-  targetVideoCodec: string;
-  targetContainer: 'mp4' | 'hls_fmp4' | 'png_still_h264';
-  maxVideoBitrateKbps: number;
-  audioProfile: string;
-  transcodeRequired: boolean;
-  notes: string;
+  platformName: string;
+  compatible: boolean;
+  requiresTranscodeToH264Mp4: boolean;
+  preferredProfile: string;
+  reason: string;
 }
 
-export interface BroadcastRenderJobResult {
-  renderJobId: string;
+export interface BroadcastSafeMarginIssue {
+  elementId: string;
+  label: string;
+  issueType: 'title_safe_violation' | 'qr_overlap' | 'qr_too_small' | 'qr_missing';
+  detail: string;
+}
+
+export interface BroadcastContrastDiagnostic {
+  pairLabel: string;
+  foregroundHex: string;
+  backgroundHex: string;
+  contrastRatio: number;
+  requiredMinRatio: number;
+  passed: boolean;
+}
+
+export interface BroadcastLoudnessSpec {
+  targetStandard: 'EBU_R128_AND_ATSC_A85';
+  targetIntegratedLufs: number;
+  truePeakMaxDbtp: number;
+  audioRequired: boolean;
+  hasAudioTrack: boolean | null;
+  loudnessNote: string;
+}
+
+export interface BroadcastRenderFrameElement {
+  id: string;
+  kind: string;
+  label: string;
+  xPx: number;
+  yPx: number;
+  widthPx: number;
+  heightPx: number;
+  fontSizePx1080p: number;
+}
+
+export interface BroadcastRenderFrameSpec {
+  canvasWidthPx: 1920;
+  canvasHeightPx: 1080;
+  titleSafeInsetPct: 5;
+  actionSafeInsetPct: 3.5;
+  headlineScalePx: number;
+  bodyScalePx: number;
+  qrQuietZonePct: number;
+  elements: BroadcastRenderFrameElement[];
+}
+
+export interface BroadcastRenderBlueprint {
+  blueprintId: string;
+  creativeId: string;
   generatedAt: string;
+  outputProfile: string;
+  ffmpegWorkerConnected: false;
+  simulatedTranscodeCommand: string;
+  renderSpecSha256: string;
+  frameSpec: BroadcastRenderFrameSpec;
+}
+
+export interface BroadcastRenderValidationReport {
   creativeId: string;
   creativeTitle: string;
-  creativeMode: AdStudioMode;
-  resolutionProfile: BroadcastResolutionProfile;
-  targetDimensions: { width: number; height: number; aspectRatio: '16:9' };
-  renderStatus: 'RENDER_BLUEPRINT_VERIFIED' | 'BLOCKED_FAILED_VALIDATION';
-  ffmpegBinaryExecuted: false;
+  mode: AdStudioMode;
+  evaluatedAt: string;
   isSoftwareSimulationOnly: true;
   hardwareTested: false;
   stageP6Deferred: true;
+  ffmpegWorkerConnected: false;
+  broadcastReady: boolean;
+  requiresAdminReview: boolean;
+  blockingReasons: string[];
+  warnings: string[];
+  resolutionLabel: string;
+  aspectRatioValid: boolean;
   durationSeconds: number;
-  contrastRatio: number | null;
-  safeMarginPassed: boolean;
-  qrVisionGate: {
-    passed: boolean;
-    qrToken: string | null;
-    inspectionStatus: string;
-    resolvedUrl: string | null;
-    silentOverwriteBlocked: true;
-  };
-  audioLoudnessSpec: {
-    hasAudioTrack: boolean;
-    standard: 'ITU-R BS.1770-4 / EBU R128' | 'SILENT_VIDEO_LESS_CARD';
-    targetIntegratedLufs: number | null;
-    maxTruePeakDbtp: number | null;
-    filterExpression: string;
-  };
-  platformTargets: PlatformRenderTarget[];
-  issues: BroadcastValidationIssue[];
-  blockingIssuesCount: number;
-  warningIssuesCount: number;
-  manifestSha256: string;
-  ffmpegFilterGraphSpec: string;
+  durationValid: boolean;
+  contrastDiagnostics: BroadcastContrastDiagnostic[];
+  safeMarginIssues: BroadcastSafeMarginIssue[];
+  qrIntegrityDecision: BroadcastQrIntegrityDecision;
+  loudnessSpec: BroadcastLoudnessSpec;
+  platformMatrix: BroadcastTargetPlatformStatus[];
+  renderBlueprint: BroadcastRenderBlueprint;
+}
+
+export interface BroadcastRenderOverviewSnapshot {
+  generatedAt: string;
+  isSoftwareSimulationOnly: true;
+  hardwareTested: false;
+  stageP6Deferred: true;
+  ffmpegWorkerConnected: false;
+  totalCreatives: number;
+  broadcastReadyCount: number;
+  flaggedForReviewCount: number;
+  blockedCount: number;
+  items: BroadcastRenderValidationReport[];
 }
 
 export interface BroadcastRenderVerifyCheckItem {
@@ -2035,347 +2080,15 @@ export interface BroadcastRenderVerifyCheckItem {
 export interface BroadcastRenderVerificationReport {
   generatedAt: string;
   isSoftwareSimulationOnly: true;
-  ffmpegBinaryExecuted: false;
   hardwareTested: false;
   stageP6Deferred: true;
+  ffmpegWorkerConnected: false;
   totalChecks: number;
   passedChecks: number;
   allPassed: boolean;
   checks: BroadcastRenderVerifyCheckItem[];
 }
 
-// --- Phase 9 Block 9.1: Opportunity Verification Operations Hardening (Software-First) ---
 
-export type OpportunityEvidenceTierKey =
-  | 'tier1_identity'
-  | 'tier2_organisation'
-  | 'tier3_specific_opportunity';
 
-export interface OpportunityVaultSealRecord {
-  opportunityId: string;
-  tier: OpportunityEvidenceTierKey;
-  tierStatus: OpportunityTierStatus;
-  verifiedAt: string | null;
-  redactedRef: string;
-  vaultSealSha256: string;
-  encryptionEnvelope: {
-    algorithm: 'AES-256-GCM';
-    keyAlias: string;
-    sealedInSoftwareBlueprint: true;
-  };
-  staleOrExpired: boolean;
-}
-
-export interface OpportunityVerificationAssessment {
-  opportunityId: string;
-  title: string;
-  providerType: OpportunityProviderType;
-  status: OpportunityStatus;
-  closingDate: string;
-  expiryDate: string;
-  eligibleForTvSchedule: boolean;
-  expiredByDate: boolean;
-  reverificationRequired: boolean;
-  reverificationReasons: string[];
-  feeIndependenceVerified: boolean;
-  nonTransitivityVerified: boolean;
-  riskFlags: string[];
-  vaultSeals: OpportunityVaultSealRecord[];
-  openComplaintsCount: number;
-  criticalComplaintsCount: number;
-  recommendImmediateSuspension: boolean;
-}
-
-export interface OpportunityOpsSlaItem {
-  itemType: 'complaint' | 'appeal';
-  id: string;
-  opportunityId: string;
-  status: string;
-  categoryOrReason: string;
-  slaHoursTarget: number;
-  elapsedHours: number;
-  slaBreached: boolean;
-  createdAt: string;
-}
-
-export interface OpportunityOpsOverview {
-  generatedAt: string;
-  isSoftwareSimulationOnly: true;
-  externalKycVendorConnected: false;
-  hardwareTested: false;
-  stageP6Deferred: true;
-  automatedOutreachBlocked: true;
-  advertisingFeeInfluencesVerification: false;
-  summary: {
-    totalEvaluated: number;
-    verifiedLiveCount: number;
-    eligibleForTvCount: number;
-    reverificationRequiredCount: number;
-    expiredCount: number;
-    feeIndependenceViolations: number;
-    nonTransitivityViolations: number;
-    openComplaintsCount: number;
-    slaBreachedComplaintsCount: number;
-    openAppealsCount: number;
-    slaBreachedAppealsCount: number;
-    immediateSuspensionRecommendedCount: number;
-  };
-  assessments: OpportunityVerificationAssessment[];
-  slaItems: OpportunityOpsSlaItem[];
-}
-
-export interface OpportunityOpsSweepResult {
-  sweepId: string;
-  executedAt: string;
-  triggeredByUserId: string;
-  expiredTransitionedCount: number;
-  flaggedForReverificationCount: number;
-  immediateSuspensionRecommendedIds: string[];
-  evidenceSealsVerifiedCount: number;
-  feeIndependenceVerified: true;
-  nonTransitivityVerified: true;
-  overview: OpportunityOpsOverview;
-}
-
-export interface OpportunityOpsVerifyCheckItem {
-  checkId: string;
-  label: string;
-  passed: boolean;
-  detail: string;
-}
-
-export interface OpportunityOpsVerificationReport {
-  generatedAt: string;
-  isSoftwareSimulationOnly: true;
-  externalKycVendorConnected: false;
-  advertisingFeeInfluencesVerification: false;
-  hardwareTested: false;
-  stageP6Deferred: true;
-  totalChecks: number;
-  passedChecks: number;
-  allPassed: boolean;
-  checks: OpportunityOpsVerifyCheckItem[];
-}
-
-// --- Phase 10 Block 10.1: Privacy, Security & Statutory Compliance Readiness (Software-First) ---
-
-export interface CountryStatutoryComplianceRecord {
-  countryCode: string;
-  countryName: string;
-  isInitialLaunchMarket: boolean;
-  countryActivated: false;
-  legalComplianceClaimed: false;
-  noLawyerDependencyPolicy: true;
-  statutesResearched: string[];
-  enforcedTechnicalControls: {
-    bundledConsentWithdrawal: boolean;
-    epoch403QrRevocation: boolean;
-    zeroApplicantFeesEnforced: boolean;
-    piiRedactedFromTvAndUrls: boolean;
-    externalSignalIntegrityProhibited: boolean;
-    cameraMicAttentionTrackingDisabled: true;
-  };
-  unresolvedRegulatoryUncertainties: string[];
-}
-
-export interface PrivacyDsrExportPackage {
-  exportId: string;
-  generatedAt: string;
-  householdId: string;
-  exportFormat: 'json_dsr_v1';
-  pinHashesRedacted: true;
-  packageSha256: string;
-  household: PublicHouseholdInstallationView;
-  members: Array<
-    Omit<HouseholdMemberProfile, 'pinHash'> & {
-      hasPinSet: boolean;
-    }
-  >;
-  householdQrTokens: HouseholdQrTokenRecord[];
-  consentAuditEvents: ConsentAuditEventRecord[];
-}
-
-export interface PrivacyDsrErasureResult {
-  erasureId: string;
-  executedAt: string;
-  householdId: string;
-  previousEpoch: number;
-  newEpoch: number;
-  membersAnonymisedCount: number;
-  qrTokensRevokedCount: number;
-  ordinaryTvPreserved: true;
-  commercialConsentStatus: HouseholdInstallationRecord['commercialConsentStatus'];
-  charityAndOpportunityStatus: HouseholdInstallationRecord['charityAndOpportunityStatus'];
-  tombstoneSha256: string;
-}
-
-export interface PrivacyRetentionReport {
-  sweepId: string;
-  executedAt: string;
-  expiredSessionsPurged: number;
-  staleExpiredQrTokensPurged: number;
-  piiLeaksDetectedInAnalytics: number;
-  cameraMicAttentionTrackingEnabled: false;
-  retentionPolicyWindows: {
-    sessionMaxIdleHours: number;
-    expiredHouseholdQrRetentionDays: number;
-    auditLogRetentionDays: number;
-  };
-}
-
-export interface PrivacyComplianceOverview {
-  generatedAt: string;
-  isSoftwareSimulationOnly: true;
-  externalPenTestCompleted: false;
-  hardwareTested: false;
-  stageP6Deferred: true;
-  noLawyerDependencyPolicy: true;
-  legalComplianceClaimed: false;
-  cameraMicAttentionTrackingEnabled: false;
-  posture: {
-    decOpen01Status: 'LOCKED_SCOPE_B_BUNDLED_WITHDRAWAL';
-    totalHouseholdsEvaluated: number;
-    withdrawnOrErasedHouseholds: number;
-    activeSessionsCount: number;
-    expiredSessionsPendingPurge: number;
-    staleExpiredQrTokensPendingPurge: number;
-    analyticsZeroPiiVerified: boolean;
-    piiLeaksDetectedInAnalytics: number;
-  };
-  countries: CountryStatutoryComplianceRecord[];
-}
-
-export interface PrivacyComplianceVerifyCheckItem {
-  checkId: string;
-  label: string;
-  passed: boolean;
-  detail: string;
-}
-
-export interface PrivacyComplianceVerificationReport {
-  generatedAt: string;
-  isSoftwareSimulationOnly: true;
-  externalPenTestCompleted: false;
-  legalComplianceClaimed: false;
-  cameraMicAttentionTrackingEnabled: false;
-  hardwareTested: false;
-  stageP6Deferred: true;
-  totalChecks: number;
-  passedChecks: number;
-  allPassed: boolean;
-  checks: PrivacyComplianceVerifyCheckItem[];
-}
-
-// --- Phase 11 Block 11.1: Reliability, Failure-Mode & Chaos Recovery Suite (Software-First) ---
-
-export type FailureModeId =
-  | 'FM-01'
-  | 'FM-02'
-  | 'FM-03'
-  | 'FM-04'
-  | 'FM-05'
-  | 'FM-06'
-  | 'FM-07'
-  | 'FM-08'
-  | 'FM-09'
-  | 'FM-10'
-  | 'FM-11'
-  | 'FM-12'
-  | 'FM-13'
-  | 'FM-14'
-  | 'FM-15'
-  | 'FM-16'
-  | 'FM-17'
-  | 'FM-18';
-
-export type FailureModeCategory =
-  | 'transport_network'
-  | 'tv_playback_watchdog'
-  | 'trust_safety_data'
-  | 'consent_analytics';
-
-export type ChaosInjectSeverity = 'standard' | 'extreme';
-
-export interface ChaosScenarioResult {
-  failureModeId: FailureModeId;
-  title: string;
-  category: FailureModeCategory;
-  verificationStageRef: string;
-  severity: ChaosInjectSeverity;
-  trigger: string;
-  injectDetail: string;
-  expectedFailSafe: string;
-  observedOutcome: string;
-  passed: boolean;
-  ordinaryTvPreserved: true;
-  viewerStuckOffLiveTv: false;
-  adSkippedOrAbortedSafely: boolean;
-  watchdogTriggered: boolean;
-  recoveryLatencyMs: number;
-  executedAt: string;
-}
-
-export interface ReliabilityChaosReport {
-  reportId: string;
-  executedAt: string;
-  executedByEmail: string;
-  notes?: string;
-  isSoftwareSimulationOnly: true;
-  hardwareTested: false;
-  stageP6Deferred: true;
-  realBroadcastTunerConnected: false;
-  totalFailureModes: 18;
-  passedFailureModes: number;
-  failedFailureModes: number;
-  all18Passed: boolean;
-  ordinaryTvPreservedAll: boolean;
-  zeroStuckOffLiveTv: boolean;
-  maxRecoveryLatencyMs: number;
-  reportSha256: string;
-  results: ChaosScenarioResult[];
-}
-
-export interface ReliabilityChaosOverview {
-  generatedAt: string;
-  isSoftwareSimulationOnly: true;
-  hardwareTested: false;
-  stageP6Deferred: true;
-  realBroadcastTunerConnected: false;
-  totalDocumentedFailureModes: 18;
-  coveredFailureModeIds: FailureModeId[];
-  lastChaosRun: ReliabilityChaosReport | null;
-  domainSummaries: Array<{
-    category: FailureModeCategory;
-    label: string;
-    modeIds: FailureModeId[];
-    lastPassedCount: number;
-    totalCount: number;
-  }>;
-  hardInvariants: {
-    ordinaryTvPreservedGuarantee: true;
-    skipBreakWhenUncertain: true;
-    dualWatchdogReturnTimeoutMs: number;
-    maxSwitchAckLatencyMs: number;
-    paymentCollectionActive: false;
-  };
-}
-
-export interface ReliabilityChaosVerifyCheckItem {
-  checkId: string;
-  label: string;
-  passed: boolean;
-  detail: string;
-}
-
-export interface ReliabilityChaosVerificationReport {
-  generatedAt: string;
-  isSoftwareSimulationOnly: true;
-  hardwareTested: false;
-  stageP6Deferred: true;
-  realBroadcastTunerConnected: false;
-  totalChecks: number;
-  passedChecks: number;
-  allPassed: boolean;
-  checks: ReliabilityChaosVerifyCheckItem[];
-}
 

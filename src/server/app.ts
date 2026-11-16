@@ -59,10 +59,11 @@ import {
   listCountryGeoConfigs,
   runTrackBVerificationSuite,
 } from './trackBHouseholdConsent.ts';
-import { runBroadcastRenderVerificationSuite } from './broadcastRenderEngine.ts';
-import { runOpportunityOpsVerificationSuite } from './opportunityOpsEngine.ts';
-import { runPrivacyComplianceVerificationSuite } from './privacyComplianceEngine.ts';
-import { runReliabilityChaosVerificationSuite } from './reliabilityChaosEngine.ts';
+import {
+  buildBroadcastRenderOverview,
+  runBroadcastRenderVerificationSuite,
+  validateCreativeForBroadcastRender,
+} from './broadcastRenderValidator.ts';
 import {
   adCreativeAttachSchema,
   adCreativeSaveSchema,
@@ -78,7 +79,7 @@ import {
   auditLogQuerySchema,
   breakDurationPredictSchema,
   broadcastCueParseSchema,
-  broadcastRenderJobRequestSchema,
+  broadcastRenderValidateSchema,
   campaignCreateSchema,
   campaignQuerySchema,
   campaignTransitionSchema,
@@ -109,19 +110,14 @@ import {
   offlineQueueDrainSchema,
   offlineQueueEnqueueSchema,
   opportunityCreateSchema,
-  opportunityOpsSweepSchema,
   parseWithZod,
   phase4ExitSuiteSchema,
   physicalQrTestCreateSchema,
-  privacyDsrEraseSchema,
-  privacyRetentionSweepSchema,
   proFormaBlueprintRequestSchema,
   qrCreateSchema,
   qrStatusPatchSchema,
   qrValidateSchema,
   registerSchema,
-  reliabilityChaosProbeSchema,
-  reliabilityChaosSweepSchema,
   sharedIntelActionSchema,
   sharedIntelObservationSchema,
   simulatorBreakScheduleSchema,
@@ -2135,32 +2131,73 @@ export function createEdisonApp(
     }
   );
 
-  // Phase 8 Block 8.1: Advertisement Creation & Broadcast Rendering Validation (Software-First)
-  app.post(
-    '/api/render/validate-and-compile',
+  // --- Phase 8 Block 8.1: Advertisement Creation & Broadcast Rendering Validation (Software-First) ---
+  app.get(
+    '/api/broadcast-render/overview',
     requireAuth,
     (req: AuthenticatedRequest, res: Response) => {
-      const parsed = parseWithZod(broadcastRenderJobRequestSchema, req.body);
-      if (!parsed.ok) {
-        sendValidationError(res, parsed);
-        return;
-      }
-      try {
-        const job = store.compileCreativeBroadcastRenderJob(
-          req.currentUser!,
-          parsed.data.creativeId,
-          parsed.data.resolutionProfile
-        );
-        res.json({ job });
-      } catch (err) {
-        const { code, message } = mapErrorStatus(err);
-        res.status(code).json({ error: message });
-      }
+      res.setHeader('Cache-Control', 'no-store, private');
+      const user = req.currentUser!;
+      const overview = buildBroadcastRenderOverview({
+        creatives: store.listAdCreativesForUser(user),
+        qrLinks: store.listQrLinksForUser(user),
+      });
+      res.json(overview);
     }
   );
 
   app.post(
-    '/api/render/verify-suite',
+    '/api/broadcast-render/validate',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(broadcastRenderValidateSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const user = req.currentUser!;
+      const visibleCreatives = store.listAdCreativesForUser(user);
+      let creative = visibleCreatives.find((c) => c.id === parsed.data.creativeId) ?? null;
+
+      if (!creative && user.role !== 'admin') {
+        const allAsAdmin = store.listAdCreativesForUser({ ...user, role: 'admin' });
+        if (allAsAdmin.some((c) => c.id === parsed.data.creativeId)) {
+          res.status(403).json({
+            error: 'FORBIDDEN: You do not own this ad creative.',
+          });
+          return;
+        }
+      }
+
+      if (!creative) {
+        res.status(404).json({ error: 'Ad creative not found.' });
+        return;
+      }
+
+      const qrLinks = store.listQrLinksForUser({ ...user, role: 'admin' });
+      const qrLink = creative.qrToken
+        ? qrLinks.find((q) => q.token === creative!.qrToken) ?? null
+        : null;
+
+      const report = validateCreativeForBroadcastRender({
+        creative,
+        qrLink,
+        referenceIso: parsed.data.referenceIso,
+      });
+
+      store.recordSecurityAudit(
+        user,
+        'BROADCAST_RENDER_VALIDATED',
+        creative.id,
+        `[${req.requestId ?? 'req'}] Validated creative ${creative.id} (${creative.mode}): broadcastReady=${report.broadcastReady}, requiresAdminReview=${report.requiresAdminReview}, ffmpegWorkerConnected=false, hardwareTested=false.`
+      );
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.json({ report });
+    }
+  );
+
+  app.post(
+    '/api/broadcast-render/verify-suite',
     requireAuth,
     (req: AuthenticatedRequest, res: Response) => {
       const parsed = parseWithZod(emptyStrictSchema, req.body ?? {});
@@ -2173,241 +2210,9 @@ export function createEdisonApp(
         req.currentUser!,
         'BROADCAST_RENDER_SUITE_RUN',
         'phase8_broadcast_render',
-        `[${req.requestId ?? 'req'}] Phase 8 broadcast render suite: ${report.passedChecks}/${report.totalChecks} passed (ffmpegBinaryExecuted=false, hardwareTested=false).`
+        `[${req.requestId ?? 'req'}] Phase 8 broadcast render suite: ${report.passedChecks}/${report.totalChecks} passed (ffmpegWorkerConnected=false, hardwareTested=false).`
       );
-      res.json({ report });
-    }
-  );
-
-  // Phase 9 Block 9.1: Opportunity Verification Operations Hardening (Software-First)
-  app.get(
-    '/api/opportunity-ops/overview',
-    requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
-      try {
-        const overview = store.getOpportunityOpsOverview(req.currentUser!);
-        res.json({ overview });
-      } catch (err) {
-        const { code, message } = mapErrorStatus(err);
-        res.status(code).json({ error: message });
-      }
-    }
-  );
-
-  app.post(
-    '/api/admin/opportunity-ops/sweep',
-    requireAdmin,
-    (req: AuthenticatedRequest, res: Response) => {
-      const parsed = parseWithZod(opportunityOpsSweepSchema, req.body ?? {});
-      if (!parsed.ok) {
-        sendValidationError(res, parsed);
-        return;
-      }
-      try {
-        const sweep = store.runOpportunityExpiryAndReverificationSweep(
-          req.currentUser!,
-          parsed.data
-        );
-        res.json({ sweep });
-      } catch (err) {
-        const { code, message } = mapErrorStatus(err);
-        res.status(code).json({ error: message });
-      }
-    }
-  );
-
-  app.post(
-    '/api/opportunity-ops/verify-suite',
-    requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
-      const parsed = parseWithZod(emptyStrictSchema, req.body ?? {});
-      if (!parsed.ok) {
-        sendValidationError(res, parsed);
-        return;
-      }
-      const report = runOpportunityOpsVerificationSuite();
-      store.recordSecurityAudit(
-        req.currentUser!,
-        'OPPORTUNITY_OPS_SUITE_RUN',
-        'phase9_opportunity_ops',
-        `[${req.requestId ?? 'req'}] Phase 9 opportunity verification ops suite: ${report.passedChecks}/${report.totalChecks} passed (externalKycVendorConnected=false, advertisingFeeInfluencesVerification=false, hardwareTested=false).`
-      );
-      res.json({ report });
-    }
-  );
-
-  // Phase 10 Block 10.1: Privacy, Security & Statutory Compliance Readiness (Software-First)
-  app.get(
-    '/api/compliance/overview',
-    requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
-      res.setHeader('Cache-Control', 'no-store, private');
-      try {
-        const overview = store.getPrivacyComplianceOverview(req.currentUser!);
-        res.json({ overview });
-      } catch (err) {
-        const { code, message } = mapErrorStatus(err);
-        res.status(code).json({ error: message });
-      }
-    }
-  );
-
-  app.post(
-    '/api/households/:id/dsr-export',
-    requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
-      const parsed = parseWithZod(emptyStrictSchema, req.body ?? {});
-      if (!parsed.ok) {
-        sendValidationError(res, parsed);
-        return;
-      }
-      res.setHeader('Cache-Control', 'no-store, private');
-      try {
-        const pkg = store.exportHouseholdDsrPackage(req.currentUser!, req.params.id);
-        res.json({ package: pkg });
-      } catch (err) {
-        const { code, message } = mapErrorStatus(err);
-        res.status(code).json({ error: message });
-      }
-    }
-  );
-
-  app.post(
-    '/api/households/:id/dsr-erase',
-    requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
-      const parsed = parseWithZod(privacyDsrEraseSchema, req.body ?? {});
-      if (!parsed.ok) {
-        sendValidationError(res, parsed);
-        return;
-      }
-      res.setHeader('Cache-Control', 'no-store, private');
-      try {
-        const erasure = store.anonymiseHouseholdDsr(
-          req.currentUser!,
-          req.params.id,
-          parsed.data
-        );
-        res.json({ erasure });
-      } catch (err) {
-        const { code, message } = mapErrorStatus(err);
-        res.status(code).json({ error: message });
-      }
-    }
-  );
-
-  app.post(
-    '/api/admin/compliance/retention-sweep',
-    requireAdmin,
-    (req: AuthenticatedRequest, res: Response) => {
-      const parsed = parseWithZod(privacyRetentionSweepSchema, req.body ?? {});
-      if (!parsed.ok) {
-        sendValidationError(res, parsed);
-        return;
-      }
-      try {
-        const report = store.runPrivacyRetentionCleanupSweep(req.currentUser!, parsed.data);
-        res.json({ report });
-      } catch (err) {
-        const { code, message } = mapErrorStatus(err);
-        res.status(code).json({ error: message });
-      }
-    }
-  );
-
-  app.post(
-    '/api/compliance/verify-suite',
-    requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
-      const parsed = parseWithZod(emptyStrictSchema, req.body ?? {});
-      if (!parsed.ok) {
-        sendValidationError(res, parsed);
-        return;
-      }
-      const report = runPrivacyComplianceVerificationSuite();
-      store.recordSecurityAudit(
-        req.currentUser!,
-        'PRIVACY_COMPLIANCE_SUITE_RUN',
-        'phase10_privacy_compliance',
-        `[${req.requestId ?? 'req'}] Phase 10 privacy & statutory compliance suite: ${report.passedChecks}/${report.totalChecks} passed (externalPenTestCompleted=false, legalComplianceClaimed=false, hardwareTested=false).`
-      );
-      res.json({ report });
-    }
-  );
-
-  // Phase 11 Block 11.1: Reliability, Failure-Mode & Chaos Recovery Suite (Software-First)
-  app.get(
-    '/api/reliability/overview',
-    requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
-      res.setHeader('Cache-Control', 'no-store, private');
-      try {
-        const overview = store.getReliabilityChaosOverview(req.currentUser!);
-        res.json({ overview });
-      } catch (err) {
-        const { code, message } = mapErrorStatus(err);
-        res.status(code).json({ error: message });
-      }
-    }
-  );
-
-  app.post(
-    '/api/reliability/chaos-probe',
-    requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
-      const parsed = parseWithZod(reliabilityChaosProbeSchema, req.body ?? {});
-      if (!parsed.ok) {
-        sendValidationError(res, parsed);
-        return;
-      }
-      res.setHeader('Cache-Control', 'no-store, private');
-      try {
-        const result = store.executeFailureModeChaosProbe(req.currentUser!, parsed.data);
-        res.json(result);
-      } catch (err) {
-        const { code, message } = mapErrorStatus(err);
-        res.status(code).json({ error: message });
-      }
-    }
-  );
-
-  app.post(
-    '/api/admin/reliability/run-all-18',
-    requireAdmin,
-    (req: AuthenticatedRequest, res: Response) => {
-      const parsed = parseWithZod(reliabilityChaosSweepSchema, req.body ?? {});
-      if (!parsed.ok) {
-        sendValidationError(res, parsed);
-        return;
-      }
-      res.setHeader('Cache-Control', 'no-store, private');
-      try {
-        const result = store.runFullReliabilityChaosSuite(req.currentUser!, parsed.data);
-        res.json(result);
-      } catch (err) {
-        const { code, message } = mapErrorStatus(err);
-        res.status(code).json({ error: message });
-      }
-    }
-  );
-
-  app.post(
-    '/api/reliability/verify-suite',
-    requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
-      const parsed = parseWithZod(emptyStrictSchema, req.body ?? {});
-      if (!parsed.ok) {
-        sendValidationError(res, parsed);
-        return;
-      }
-      const report = runReliabilityChaosVerificationSuite();
-      store.recordSecurityAudit(
-        req.currentUser!,
-        'RELIABILITY_CHAOS_VERIFY_SUITE_RUN',
-        'phase11_reliability_chaos',
-        `[${req.requestId ?? 'req'}] Phase 11 reliability & chaos suite: ${report.passedChecks}/${report.totalChecks} passed across 18/18 failure modes (isSoftwareSimulationOnly=true, hardwareTested=false, stageP6Deferred=true).`
-      );
-      res.json({ report });
+      res.json(report);
     }
   );
 

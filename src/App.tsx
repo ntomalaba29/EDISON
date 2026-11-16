@@ -232,7 +232,7 @@ export default function App() {
         <div className="p-4 m-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-1">
           <p className="font-semibold text-slate-800">Prototype Boundary</p>
           <p className="leading-relaxed">
-            Phase 2 Track B verified (DEC-OPEN-01 locked: Scope B + Bundled Withdrawal; 100% AI Studio scope) alongside Phases 1–7 software-first milestones (TASK-P3-001 READY, JSON retained). Non-transactional billing only; zero physical TV hardware tested (Stage P6 deferred).
+            Phases 1–7 and Phase 2 Track A+B committed (DEC-OPEN-01 locked; 100% AI Studio scope). Phase 8 Block 8.1 broadcast rendering validation verified (software-first preflight; FFmpeg workers, real payments &amp; Stage P6 hardware test deferred).
           </p>
         </div>
       </aside>

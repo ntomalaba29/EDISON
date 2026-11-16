@@ -15,12 +15,7 @@ import type {
   AuditLogRecord,
   BillingEstimateSummary,
   BreakSchedulePlan,
-  BroadcastRenderJobResult,
-  BroadcastResolutionProfile,
   CampaignContentCategory,
-  ChaosInjectSeverity,
-  ChaosScenarioResult,
-  FailureModeId,
   CampaignPreviewGateResult,
   CampaignRecord,
   CampaignStatus,
@@ -42,8 +37,6 @@ import type {
   OpportunityComplaintReason,
   OpportunityComplaintRecord,
   OpportunityComplaintStatus,
-  OpportunityOpsOverview,
-  OpportunityOpsSweepResult,
   OpportunityProviderType,
   OpportunityRecord,
   OpportunityStatus,
@@ -51,18 +44,12 @@ import type {
   PhysicalQrScanTestRecord,
   PreSubmitCheckItem,
   PrimaryAdCategory,
-  PrivacyComplianceOverview,
-  PrivacyDsrErasureResult,
-  PrivacyDsrExportPackage,
-  PrivacyRetentionReport,
   PrototypeQaCheckItem,
   PrototypeReadinessSnapshot,
   PublicUser,
   QrDestinationType,
   QrLinkRecord,
   QrLinkStatus,
-  ReliabilityChaosOverview,
-  ReliabilityChaosReport,
   RevenueLedgerSnapshot,
   RevenueStreamLedgerRow,
   SessionRecord,
@@ -81,6 +68,7 @@ import type {
 import { validateQrDestination } from './qrValidator.ts';
 import { runDeliveryInfraVerificationSuite } from './adDeliveryInfra.ts';
 import { runAdvertiserOpsVerificationSuite } from './advertiserOps.ts';
+import { runBroadcastRenderVerificationSuite } from './broadcastRenderValidator.ts';
 import { scheduleCommercialBreak } from './breakScheduler.ts';
 import {
   buildSafeTvPersonalisationDisplay,
@@ -111,27 +99,6 @@ import { localOfflineIntelCache } from './offlineIntelCache.ts';
 import { runPhase4SoftwareExitSuite } from './broadcastMetadataParser.ts';
 import { sharedIntelFleetService } from './sharedIntelFleetService.ts';
 import { runRecordedStreamCalibrationBenchmark } from './breakDurationPredictor.ts';
-import {
-  compileBroadcastRenderJob,
-  runBroadcastRenderVerificationSuite,
-} from './broadcastRenderEngine.ts';
-import {
-  buildOpportunityOpsOverview,
-  runOpportunityOpsVerificationSuite,
-} from './opportunityOpsEngine.ts';
-import {
-  anonymiseHouseholdDraftData,
-  buildHouseholdDsrExportPackage,
-  buildPrivacyComplianceOverview,
-  executeRetentionPurgeOnDraft,
-  runPrivacyComplianceVerificationSuite,
-} from './privacyComplianceEngine.ts';
-import {
-  buildReliabilityChaosOverview,
-  runFull18FailureModesChaosSuite,
-  runReliabilityChaosVerificationSuite,
-  runSingleFailureModeChaosTest,
-} from './reliabilityChaosEngine.ts';
 
 const DEFAULT_DATA_DIR = path.resolve(process.cwd(), 'data');
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days absolute cap
@@ -3059,46 +3026,6 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     });
   }
 
-  compileCreativeBroadcastRenderJob(
-    actor: PublicUser,
-    creativeId: string,
-    resolutionProfile: BroadcastResolutionProfile = '1080p_fhd'
-  ): BroadcastRenderJobResult {
-    this.syncIfDiskNewer();
-    const creative = this.data.adCreatives.find((cr) => cr.id === creativeId);
-    if (!creative) {
-      throw new Error('Ad creative not found.');
-    }
-    if (actor.role !== 'admin' && creative.ownerId !== actor.id) {
-      throw new Error('FORBIDDEN: You do not own this ad creative.');
-    }
-    const qrLink = creative.qrToken
-      ? this.data.qrLinks.find((q) => q.token === creative.qrToken) ?? null
-      : null;
-
-    const job = compileBroadcastRenderJob({
-      creative,
-      qrLink,
-      resolutionProfile,
-    });
-
-    this.withWriteTransaction((draft) => {
-      this.addAudit(
-        draft,
-        actor.id,
-        actor.role,
-        job.renderStatus === 'RENDER_BLUEPRINT_VERIFIED'
-          ? 'BROADCAST_RENDER_BLUEPRINT_COMPILED'
-          : 'BROADCAST_RENDER_BLUEPRINT_BLOCKED',
-        'ad_creative',
-        creative.id,
-        `Compiled ${resolutionProfile} broadcast render blueprint (${job.renderJobId}): ${job.renderStatus}, blocking=${job.blockingIssuesCount}, warnings=${job.warningIssuesCount} (ffmpegBinaryExecuted=false, hardwareTested=false).`
-      );
-    });
-
-    return job;
-  }
-
   private computePreviewGateFromData(
     data: EdisonStoreData,
     campaign: CampaignRecord
@@ -5062,81 +4989,20 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
         id: 'qa_81_broadcast_render_validation',
         block: 'Block 8.1',
         label:
-          'Phase 8 Block 8.1: Broadcast Rendering Validation, EBU R128 Audio Filter Graph & QR Vision Gate',
+          'Phase 8 Block 8.1: Broadcast Rendering Validation (90% Title-Safe, WCAG Contrast, TV Codec Matrix, EBU R128 Loudness & QR Non-Overwrite)',
         status: (() => {
-          const rnd = runBroadcastRenderVerificationSuite();
-          return rnd.allPassed &&
-            rnd.passedChecks === 8 &&
-            rnd.ffmpegBinaryExecuted === false &&
-            !rnd.hardwareTested &&
-            rnd.stageP6Deferred
+          const br = runBroadcastRenderVerificationSuite();
+          return br.allPassed &&
+            br.passedChecks === 8 &&
+            br.ffmpegWorkerConnected === false &&
+            !br.hardwareTested &&
+            br.stageP6Deferred
             ? 'pass'
             : 'fail';
         })(),
         scope: 'automated_invariant',
         detail:
-          '8/8 broadcast render checks passed: 1080p/4K 16:9 margins (5%-95%), >=4.5:1 contrast, fail-closed conflicting QR block (zero silent overwrite), Tizen WebM->H.264 MP4 rule, EBU R128 -23 LUFS filter graph & $0.00 Charity isolation (ffmpegBinaryExecuted=false, hardwareTested=false).',
-      },
-      {
-        id: 'qa_91_opportunity_verification_ops',
-        block: 'Block 9.1',
-        label:
-          'Phase 9 Block 9.1: Opportunity Verification Ops Hardening (SHA-256 Vault Seals, 90d Re-Verification, 4h/48h SLAs & Zero Fee Influence)',
-        status: (() => {
-          const ops = runOpportunityOpsVerificationSuite();
-          return ops.allPassed &&
-            ops.passedChecks === 8 &&
-            ops.advertisingFeeInfluencesVerification === false &&
-            ops.externalKycVendorConnected === false &&
-            !ops.hardwareTested &&
-            ops.stageP6Deferred
-            ? 'pass'
-            : 'fail';
-        })(),
-        scope: 'automated_invariant',
-        detail:
-          '8/8 opportunity verification ops invariants passed: Tier 1-3 AES-256-GCM/SHA-256 vault seals + redaction, strict Tier 2->3 non-transitivity, informal employer N/A support, $0.00 Charity fee independence, 90d re-verification + expiry quarantine, and 4h/48h SLA escalation (externalKycVendorConnected=false, hardwareTested=false).',
-      },
-      {
-        id: 'qa_101_privacy_dsr_statutory_compliance',
-        block: 'Block 10.1',
-        label:
-          'Phase 10 Block 10.1: Privacy, Security & Statutory Compliance Readiness (DSR Export/Erasure, Retention Purge, Zero-PII & 6-Country Register)',
-        status: (() => {
-          const p10 = runPrivacyComplianceVerificationSuite();
-          return p10.allPassed &&
-            p10.passedChecks === 8 &&
-            p10.externalPenTestCompleted === false &&
-            p10.legalComplianceClaimed === false &&
-            p10.cameraMicAttentionTrackingEnabled === false &&
-            !p10.hardwareTested &&
-            p10.stageP6Deferred
-            ? 'pass'
-            : 'fail';
-        })(),
-        scope: 'automated_invariant',
-        detail:
-          '8/8 privacy & statutory checks passed: SHA-256 DSR export PIN-hash redaction, Right-to-Erasure cascade anonymisation + bundled HTTP 403 QR revocation (ordinary TV preserved), session/30d-QR retention purge, zero-PII analytics scanner, camera/mic hard disable, advertiser cross-tenant isolation & 6-country ADR-015 statutory register (externalPenTestCompleted=false, legalComplianceClaimed=false).',
-      },
-      {
-        id: 'qa_111_reliability_chaos_18_failure_modes',
-        block: 'Block 11.1',
-        label:
-          'Phase 11 Block 11.1: Reliability, Failure-Mode & Chaos Recovery Suite (All 18 Failure Modes FM-01..FM-18)',
-        status: (() => {
-          const p11 = runReliabilityChaosVerificationSuite();
-          return p11.allPassed &&
-            p11.passedChecks === 8 &&
-            p11.isSoftwareSimulationOnly &&
-            !p11.hardwareTested &&
-            p11.stageP6Deferred &&
-            !p11.realBroadcastTunerConnected
-            ? 'pass'
-            : 'fail';
-        })(),
-        scope: 'automated_invariant',
-        detail:
-          '8/8 chaos checks covering all 18/18 FMEA failure modes (FM-01..FM-18) under extreme injection: 100% ordinary live TV preserved (0 stuck-off-live-TV), FM-09 watchdog across 4 TV adapters, network/CDN outage failover, Tizen WebM exclusion, KYC/Tier 2->3/Charity $0 isolation, mid-break consent erasure 403 & replay dedup (hardwareTested=false, stageP6Deferred=true).',
+          '8/8 broadcast render invariants passed: 1080p 90% title-safe & QR overlap checks, Text-Only >=4.5:1 contrast & >=42px/28px scale, Samsung Tizen WebM->MP4 transcode detection, 720p/16:9 gating, QR non-overwrite policy & EBU R128 -23 LUFS blueprint (ffmpegWorkerConnected=false, hardwareTested=false).',
       },
       {
         id: 'qa_27_physical_qr_scan',
@@ -5156,8 +5022,8 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
 
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 11 — Reliability, Failure-Mode & Chaos Recovery Suite (Software-First)',
-      block: 'Block 11.1 (Deterministic Fault Injection & Live-TV Preservation Across All 18 FMEA Modes FM-01..FM-18)',
+      phase: 'Phase 8 — Advertisement Creation and Broadcast Rendering Validation (Software-First)',
+      block: 'Block 8.1 (1080p Safe Margins, WCAG Contrast, TV Codec Matrix, EBU R128 Loudness & QR Render Gate)',
       automatedInvariantsPassed,
       automatedInvariantsTotal: autoChecks.length,
       physicalQrScanStatus:
@@ -5372,19 +5238,19 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     const latestAudit = this.data.auditLogs[0] ?? null;
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 11 — Reliability, Failure-Mode & Chaos Recovery Suite (Software-First)',
-      stage: 'Phases 1–10 Committed (Inc. Track B DEC-OPEN-01) · Phase 11 Block 11.1 Verified & Awaiting Commit · TASK-P3-001 READY',
-      block: 'Block 11.1 (Deterministic Fault Injection & Live-TV Preservation Across All 18 FMEA Modes FM-01..FM-18)',
-      gateStatus: 'BLOCK 11.1 VERIFIED — AWAITING OWNER COMMIT (SOFTWARE CHAOS SUITE PASSED 18/18 · STAGE P6 HARDWARE DEFERRED)',
+      phase: 'Phase 8 — Advertisement Creation & Broadcast Rendering Validation (Software-First)',
+      stage: 'Phases 1–7 Committed · Phase 2 Track A+B 100% Committed · Phase 8 Block 8.1 Verified · TASK-P3-001 READY',
+      block: 'Block 8.1 (Broadcast Rendering Gate: 90% Safe Margins, WCAG Contrast, TV Codec Matrix, EBU R128 Loudness & QR Non-Overwrite)',
+      gateStatus: 'BLOCK 8.1 VERIFIED — AWAITING OWNER COMMIT (STAGE P6 HARDWARE & FFMPEG WORKERS DEFERRED)',
       progressMetrics: {
         aiStudioAssignmentPct: 100,
         softwareToStageP6Pct: 81.8,
-        overallFullAppPct: 70.0,
-        remainingUntilFullAppPct: 30.0,
+        overallFullAppPct: 60.0,
+        remainingUntilFullAppPct: 40.0,
         consentBlockedScopePct: 0,
-        trackBStatus: 'COMMITTED',
+        trackBStatus: 'COMMITTED_DEC_OPEN_01_LOCKED',
         rubricSummary:
-          'Phase 1 Specs (6.0%) + Phase 2 Complete (14.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Complete Committed (12.0%) + Phase 6 Delivery Infra Committed (4.0%) + Phase 7 Advertiser Ops Committed (3.0%) + Phase 8 Broadcast Render Committed (3.0%) + Phase 9 Opportunity Ops Committed (2.0%) + Phase 10 Privacy & Statutory Committed (4.0%) + Phase 11 Reliability & Chaos 18-FM Suite (4.0%) = 70.0% of 15-Phase Full Commercial App (81.8% to Stage P6; 100% of original Phase 2 AI Studio scope).',
+          'Phase 1 Specs (6.0%) + Phase 2 Track A+B Committed (14.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Software Exit Committed (9.0%) + Phase 5 Complete Committed (12.0%) + Phase 6 Delivery Infra Committed (4.0%) + Phase 7 Block 7.1 Committed (3.0%) + Phase 8 Block 8.1 Broadcast Render Validation (3.0%) = 60.0% of 15-Phase Full Commercial App (81.8% to Stage P6; 100% of original Phase 2 AI Studio scope).',
       },
       latestAuditAt: latestAudit?.createdAt ?? null,
       latestAuditAction: latestAudit?.action ?? null,
@@ -6115,305 +5981,7 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     // Strictly returns only non-identifying coarse city/province household counts (never addresses or profiles).
     return computeAdvertiserGeoAggregates(this.data.households || []);
   }
-
-  // --- Phase 9 Block 9.1: Opportunity Verification Operations Hardening ---
-
-  getOpportunityOpsOverview(actor: PublicUser): OpportunityOpsOverview {
-    this.syncIfDiskNewer();
-    return buildOpportunityOpsOverview({
-      actor,
-      opportunities: this.data.opportunities,
-      complaints: this.data.opportunityComplaints,
-      appeals: this.data.opportunityAppeals,
-      campaigns: this.data.campaigns,
-    });
-  }
-
-  runOpportunityExpiryAndReverificationSweep(
-    actor: PublicUser,
-    input: { notes?: string } = {}
-  ): OpportunityOpsSweepResult {
-    if (actor.role !== 'admin') {
-      throw new Error('FORBIDDEN: Only administrators can execute fleet-wide opportunity verification sweeps.');
-    }
-
-    return this.withWriteTransaction((draft) => {
-      const expiredTransitionedCount = this.expireOpportunitiesInDraft(draft);
-      const overview = buildOpportunityOpsOverview({
-        actor,
-        opportunities: draft.opportunities,
-        complaints: draft.opportunityComplaints,
-        appeals: draft.opportunityAppeals,
-        campaigns: draft.campaigns,
-      });
-
-      const immediateSuspensionRecommendedIds = overview.assessments
-        .filter((a) => a.recommendImmediateSuspension)
-        .map((a) => a.opportunityId);
-
-      const flaggedForReverificationCount = overview.summary.reverificationRequiredCount;
-      const evidenceSealsVerifiedCount = overview.assessments.reduce(
-        (acc, a) => acc + a.vaultSeals.filter((s) => s.vaultSealSha256.length === 64).length,
-        0
-      );
-
-      const sweepId = `oswp_${crypto.randomBytes(5).toString('hex')}`;
-      const executedAt = new Date().toISOString();
-      const noteText = input.notes?.trim() ? ` Note: ${input.notes.trim()}` : '';
-
-      this.addAudit(
-        draft,
-        actor.id,
-        actor.role,
-        'OPPORTUNITY_OPS_SWEEP_EXECUTED',
-        'opportunity',
-        sweepId,
-        `Executed Phase 9 Block 9.1 verification sweep: expiredTransitioned=${expiredTransitionedCount}, reverificationRequired=${flaggedForReverificationCount}, suspensionRecommended=${immediateSuspensionRecommendedIds.length}, sealsVerified=${evidenceSealsVerifiedCount}.${noteText}`
-      );
-
-      return {
-        sweepId,
-        executedAt,
-        triggeredByUserId: actor.id,
-        expiredTransitionedCount,
-        flaggedForReverificationCount,
-        immediateSuspensionRecommendedIds,
-        evidenceSealsVerifiedCount,
-        feeIndependenceVerified: true,
-        nonTransitivityVerified: true,
-        overview,
-      };
-    });
-  }
-
-  // --- Phase 10 Block 10.1: Privacy, Security & Statutory Compliance Readiness (Software-First) ---
-
-  getPrivacyComplianceOverview(actor: PublicUser): PrivacyComplianceOverview {
-    this.syncIfDiskNewer();
-    return buildPrivacyComplianceOverview({
-      actor,
-      households: this.data.households ?? [],
-      sessions: this.data.sessions,
-      householdQrTokens: this.data.householdQrTokens ?? [],
-      analyticsEvents: this.data.analyticsEvents,
-    });
-  }
-
-  exportHouseholdDsrPackage(actor: PublicUser, householdId: string): PrivacyDsrExportPackage {
-    this.syncIfDiskNewer();
-    const existing = (this.data.households ?? []).find((h) => h.id === householdId);
-    if (!existing) {
-      throw new Error('NOT_FOUND: Household installation not found.');
-    }
-    this.assertHouseholdReadAccess(actor, existing);
-
-    return this.withWriteTransaction((draft) => {
-      draft.households = draft.households || [];
-      draft.householdMembers = draft.householdMembers || [];
-      draft.householdQrTokens = draft.householdQrTokens || [];
-      draft.consentAuditEvents = draft.consentAuditEvents || [];
-
-      const hh = draft.households.find((h) => h.id === householdId);
-      if (!hh) {
-        throw new Error('NOT_FOUND: Household installation not found.');
-      }
-      this.assertHouseholdReadAccess(actor, hh);
-
-      const pkg = buildHouseholdDsrExportPackage({
-        household: hh,
-        members: draft.householdMembers,
-        householdQrTokens: draft.householdQrTokens,
-        consentAuditEvents: draft.consentAuditEvents,
-      });
-
-      this.pushConsentAudit(draft, {
-        householdId: hh.id,
-        actorId: actor.id,
-        actorRole: actor.role,
-        action: 'DSR_DATA_EXPORTED',
-        previousEpoch: hh.consentEpoch,
-        newEpoch: hh.consentEpoch,
-        reason: `Subject access DSR JSON export (${pkg.exportId}, sha256=${pkg.packageSha256.slice(0, 12)}...).`,
-        affectedQrTokensInvalidated: 0,
-      });
-
-      this.addAudit(
-        draft,
-        actor.id,
-        actor.role,
-        'PRIVACY_DSR_EXPORT_GENERATED',
-        'household',
-        hh.id,
-        `Generated PIN-redacted DSR export ${pkg.exportId} for household ${hh.id} (members=${pkg.members.length}, tokens=${pkg.householdQrTokens.length}).`
-      );
-
-      return pkg;
-    });
-  }
-
-  anonymiseHouseholdDsr(
-    actor: PublicUser,
-    householdId: string,
-    input: { confirmationPhrase: string; reason: string }
-  ): PrivacyDsrErasureResult {
-    if (input.confirmationPhrase !== 'ERASE HOUSEHOLD DATA') {
-      throw new Error('VALIDATION_ERROR: confirmationPhrase must match "ERASE HOUSEHOLD DATA".');
-    }
-
-    this.syncIfDiskNewer();
-    const existing = (this.data.households ?? []).find((h) => h.id === householdId);
-    if (!existing) {
-      throw new Error('NOT_FOUND: Household installation not found.');
-    }
-    this.assertHouseholdReadAccess(actor, existing);
-
-    return this.withWriteTransaction((draft) => {
-      draft.households = draft.households || [];
-      draft.householdMembers = draft.householdMembers || [];
-      draft.householdQrTokens = draft.householdQrTokens || [];
-
-      const hh = draft.households.find((h) => h.id === householdId);
-      if (!hh) {
-        throw new Error('NOT_FOUND: Household installation not found.');
-      }
-      this.assertHouseholdReadAccess(actor, hh);
-
-      const { erasureResult } = anonymiseHouseholdDraftData({
-        household: hh,
-        members: draft.householdMembers,
-        householdQrTokens: draft.householdQrTokens,
-      });
-
-      this.pushConsentAudit(draft, {
-        householdId: hh.id,
-        actorId: actor.id,
-        actorRole: actor.role,
-        action: 'DSR_HOUSEHOLD_ERASED',
-        previousEpoch: erasureResult.previousEpoch,
-        newEpoch: erasureResult.newEpoch,
-        reason: `Right-to-Erasure DSR anonymisation: ${input.reason.trim()}`,
-        affectedQrTokensInvalidated: erasureResult.qrTokensRevokedCount,
-      });
-
-      this.addAudit(
-        draft,
-        actor.id,
-        actor.role,
-        'PRIVACY_DSR_HOUSEHOLD_ANONYMISED',
-        'household',
-        hh.id,
-        `Anonymised household ${hh.id} (members=${erasureResult.membersAnonymisedCount}, revokedQrs=${erasureResult.qrTokensRevokedCount}, epoch v${erasureResult.previousEpoch}->v${erasureResult.newEpoch}, ordinaryTvPreserved=true).`
-      );
-
-      return erasureResult;
-    });
-  }
-
-  runPrivacyRetentionCleanupSweep(
-    actor: PublicUser,
-    input: { notes?: string } = {}
-  ): PrivacyRetentionReport {
-    if (actor.role !== 'admin') {
-      throw new Error('FORBIDDEN: Only administrators can execute privacy retention cleanup sweeps.');
-    }
-
-    return this.withWriteTransaction((draft) => {
-      draft.householdQrTokens = draft.householdQrTokens || [];
-      const { report, keptSessions, keptQrTokens } = executeRetentionPurgeOnDraft({
-        sessions: draft.sessions,
-        householdQrTokens: draft.householdQrTokens,
-        analyticsEvents: draft.analyticsEvents,
-      });
-
-      draft.sessions = keptSessions;
-      draft.householdQrTokens = keptQrTokens;
-
-      const noteText = input.notes?.trim() ? ` Note: ${input.notes.trim()}` : '';
-      this.addAudit(
-        draft,
-        actor.id,
-        actor.role,
-        'PRIVACY_RETENTION_SWEEP_EXECUTED',
-        'system',
-        report.sweepId,
-        `Executed Phase 10 Block 10.1 retention cleanup sweep: expiredSessionsPurged=${report.expiredSessionsPurged}, staleExpiredQrTokensPurged=${report.staleExpiredQrTokensPurged}, piiLeaks=${report.piiLeaksDetectedInAnalytics}.${noteText}`
-      );
-
-      return report;
-    });
-  }
-
-  // --- Phase 11 Block 11.1: Reliability, Failure-Mode & Chaos Recovery Suite (Software-First) ---
-
-  getReliabilityChaosOverview(_actor: PublicUser): ReliabilityChaosOverview {
-    this.syncIfDiskNewer();
-    return buildReliabilityChaosOverview(this.data.lastReliabilityChaosReport ?? null);
-  }
-
-  executeFailureModeChaosProbe(
-    actor: PublicUser,
-    input: { failureModeId: FailureModeId; injectSeverity?: ChaosInjectSeverity }
-  ): {
-    probe: ChaosScenarioResult;
-    overview: ReliabilityChaosOverview;
-  } {
-    const probe = runSingleFailureModeChaosTest(input.failureModeId, {
-      injectSeverity: input.injectSeverity,
-    });
-    const overview = this.withWriteTransaction((draft) => {
-      this.addAudit(
-        draft,
-        actor.id,
-        actor.role,
-        'RELIABILITY_CHAOS_PROBE_EXECUTED',
-        'system',
-        probe.failureModeId,
-        `Executed ${probe.failureModeId} (${probe.severity}) chaos probe: passed=${probe.passed}, ordinaryTvPreserved=${probe.ordinaryTvPreserved}, latencyMs=${probe.recoveryLatencyMs}.`
-      );
-      return buildReliabilityChaosOverview(draft.lastReliabilityChaosReport ?? null);
-    });
-    return { probe, overview };
-  }
-
-  runFullReliabilityChaosSuite(
-    actor: PublicUser,
-    input: { notes?: string; injectSeverity?: ChaosInjectSeverity } = {}
-  ): {
-    report: ReliabilityChaosReport;
-    overview: ReliabilityChaosOverview;
-  } {
-    if (actor.role !== 'admin') {
-      throw new Error(
-        'FORBIDDEN: Only administrators can run and persist full 18-FM chaos verification suites.'
-      );
-    }
-
-    const report = runFull18FailureModesChaosSuite({
-      executedByEmail: actor.email,
-      notes: input.notes,
-      injectSeverity: input.injectSeverity,
-    });
-
-    const overview = this.withWriteTransaction((draft) => {
-      draft.lastReliabilityChaosReport = report;
-      const noteText = input.notes?.trim() ? ` Note: ${input.notes.trim()}` : '';
-      this.addAudit(
-        draft,
-        actor.id,
-        actor.role,
-        'RELIABILITY_CHAOS_FULL_18_RUN',
-        'system',
-        report.reportId,
-        `Executed full 18-FM chaos suite: ${report.passedFailureModes}/18 passed, ordinaryTvPreservedAll=${report.ordinaryTvPreservedAll}, sha256=${report.reportSha256.slice(0, 16)}.${noteText}`
-      );
-      return buildReliabilityChaosOverview(draft.lastReliabilityChaosReport);
-    });
-
-    return { report, overview };
-  }
 }
 
 export const edisonStore = new EdisonPrototypeStore();
-
-
 

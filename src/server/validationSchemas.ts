@@ -848,64 +848,10 @@ export const householdQrIssueSchema = z
   })
   .strict();
 
-export const broadcastRenderJobRequestSchema = z
+export const broadcastRenderValidateSchema = z
   .object({
-    creativeId: z.string().trim().min(2).max(120),
-    resolutionProfile: z.enum(['1080p_fhd', '4k_uhd']).optional().default('1080p_fhd'),
-  })
-  .strict();
-
-export const opportunityOpsSweepSchema = z
-  .object({
-    notes: z.string().trim().max(500).optional(),
-  })
-  .strict();
-
-export const privacyDsrEraseSchema = z
-  .object({
-    confirmationPhrase: z.literal('ERASE HOUSEHOLD DATA', {
-      message: 'confirmationPhrase must equal exact string "ERASE HOUSEHOLD DATA".',
-    }),
-    reason: z.string().trim().min(5, 'reason must be at least 5 characters.').max(300),
-  })
-  .strict();
-
-export const privacyRetentionSweepSchema = z
-  .object({
-    notes: z.string().trim().max(500).optional(),
-  })
-  .strict();
-
-export const reliabilityChaosProbeSchema = z
-  .object({
-    failureModeId: z.enum([
-      'FM-01',
-      'FM-02',
-      'FM-03',
-      'FM-04',
-      'FM-05',
-      'FM-06',
-      'FM-07',
-      'FM-08',
-      'FM-09',
-      'FM-10',
-      'FM-11',
-      'FM-12',
-      'FM-13',
-      'FM-14',
-      'FM-15',
-      'FM-16',
-      'FM-17',
-      'FM-18',
-    ]),
-    injectSeverity: z.enum(['standard', 'extreme']).optional().default('standard'),
-  })
-  .strict();
-
-export const reliabilityChaosSweepSchema = z
-  .object({
-    notes: z.string().trim().max(500).optional(),
-    injectSeverity: z.enum(['standard', 'extreme']).optional().default('standard'),
+    creativeId: z.string().trim().min(1, 'creativeId is required.').max(120),
+    referenceIso: z.string().trim().max(64).optional(),
   })
   .strict();
 
