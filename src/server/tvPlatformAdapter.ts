@@ -1,9 +1,14 @@
 import crypto from 'node:crypto';
 import type {
   SimulatedTvDeviceState,
+  TvAdapterHarnessPhase,
+  TvBreakLifecycleResult,
   TvFaultSimulationMode,
+  TvFaultSuiteCaseResult,
+  TvFaultSuiteReport,
   TvInputSource,
   TvPlatformCapabilityProfile,
+  TvPlatformHarnessTelemetry,
   TvPlatformId,
   TvRemoteCommand,
   TvRemoteDispatchResult,
@@ -41,8 +46,42 @@ export const ALL_TV_FAULT_MODES: readonly TvFaultSimulationMode[] = [
   'network_drop',
 ] as const;
 
+export const ALL_ACTIVE_FAULT_MODES: readonly Exclude<TvFaultSimulationMode, 'none'>[] = [
+  'adapter_timeout',
+  'hdcp_blocked',
+  'decoder_crash',
+  'network_drop',
+] as const;
+
 export interface TvPlatformAdapter {
   getCapabilityProfile(): TvPlatformCapabilityProfile;
+  getHarnessTelemetry(phase: TvAdapterHarnessPhase): TvPlatformHarnessTelemetry;
+  enterAdBreakSession(
+    state: SimulatedTvDeviceState,
+    options?: {
+      faultMode?: TvFaultSimulationMode;
+    }
+  ): {
+    ok: boolean;
+    watchdogTriggered: boolean;
+    simulatedLatencyMs: number;
+    harnessPhase: TvAdapterHarnessPhase;
+    nextState: SimulatedTvDeviceState;
+    detail: string;
+  };
+  exitToOrdinaryTv(
+    state: SimulatedTvDeviceState,
+    options?: {
+      faultMode?: TvFaultSimulationMode;
+    }
+  ): {
+    ok: boolean;
+    watchdogTriggered: boolean;
+    simulatedLatencyMs: number;
+    harnessPhase: TvAdapterHarnessPhase;
+    nextState: SimulatedTvDeviceState;
+    detail: string;
+  };
   executeNormalRemoteCommand(
     state: SimulatedTvDeviceState,
     command: TvRemoteCommand,
@@ -79,10 +118,14 @@ function applyWatchdogRestoration(
   next.lastRestoredAt = nowIso;
 
   const reasonMap: Record<Exclude<TvFaultSimulationMode, 'none'>, string> = {
-    adapter_timeout: 'Adapter execution timed out — watchdog safely exited ad overlay and restored ordinary TV.',
-    hdcp_blocked: 'HDCP/DRM protected surface detected — EDISON refused frame interception and preserved ordinary TV.',
-    decoder_crash: 'Ad decoder fault injected — watchdog isolated crash and restored ordinary live TV input.',
-    network_drop: 'Network outage injected — EDISON aborted break overlay without interrupting ordinary TV viewing.',
+    adapter_timeout:
+      'Adapter execution timed out — watchdog safely exited ad overlay and restored ordinary TV.',
+    hdcp_blocked:
+      'HDCP/DRM protected surface detected — EDISON refused frame interception and preserved ordinary TV.',
+    decoder_crash:
+      'Ad decoder fault injected — watchdog isolated crash and restored ordinary live TV input.',
+    network_drop:
+      'Network outage injected — EDISON aborted break overlay without interrupting ordinary TV viewing.',
   };
 
   return {
@@ -129,7 +172,7 @@ function executeStandardRemoteMutation(
       watchdogTriggered: false,
       restorationOutcome: 'command_rejected_safely',
       nextState: cloneTvState(prev),
-      detail: `[${profile.displayName}] Command "${command}" is not permitted by this platform's capability profile.`,
+      detail: `[${profile.displayName}] Command "${command}" is blocked by this platform's consumer capability profile (fails closed cleanly).`,
     };
   }
 
@@ -305,12 +348,127 @@ function executeStandardRemoteMutation(
   }
 }
 
-function buildAdapter(profile: TvPlatformCapabilityProfile): TvPlatformAdapter {
+interface HarnessConfig {
+  profile: TvPlatformCapabilityProfile;
+  harnessName: string;
+  nativeSurfaceId: string;
+  enterLatencyMs: number;
+  exitLatencyMs: number;
+  enterDetail: string;
+  exitDetail: string;
+}
+
+function buildPlatformHarness(cfg: HarnessConfig): TvPlatformAdapter {
+  const { profile } = cfg;
+
+  const getHarnessTelemetry = (phase: TvAdapterHarnessPhase): TvPlatformHarnessTelemetry => ({
+    platformId: profile.platformId,
+    harnessName: cfg.harnessName,
+    harnessPhase: phase,
+    nativeSurfaceId: cfg.nativeSurfaceId,
+    lifecycleNotes: profile.officiallyDocumentedPath,
+    privilegeBoundaryEnforced: true,
+    isSimulated: true,
+    hardwareTested: false,
+  });
+
+  const enterAdBreakSession: TvPlatformAdapter['enterAdBreakSession'] = (prev, options) => {
+    const nowIso = new Date().toISOString();
+    const faultMode = options?.faultMode ?? 'none';
+
+    if (faultMode !== 'none') {
+      const restored = applyWatchdogRestoration(prev, faultMode, nowIso);
+      return {
+        ok: false,
+        watchdogTriggered: true,
+        simulatedLatencyMs: cfg.exitLatencyMs,
+        harnessPhase: 'fault_recovered',
+        nextState: restored.nextState,
+        detail: `[${cfg.harnessName}] Fault during ad-break entry (${faultMode}) -> ${restored.detail}`,
+      };
+    }
+
+    if (!prev.powerOn) {
+      return {
+        ok: false,
+        watchdogTriggered: false,
+        simulatedLatencyMs: 25,
+        harnessPhase: 'idle',
+        nextState: cloneTvState(prev),
+        detail: `[${cfg.harnessName}] TV is in standby; declined ad-break overlay safely.`,
+      };
+    }
+
+    // Fail-closed capability boundary (e.g. LG webOS without partner Luna privilege)
+    if (!profile.supportsOwnSessionOverlay) {
+      return {
+        ok: false,
+        watchdogTriggered: false,
+        simulatedLatencyMs: 60,
+        harnessPhase: 'tuned_ordinary',
+        nextState: {
+          ...cloneTvState(prev),
+          adBreakOverlayActive: false,
+          activeInput: prev.previousOrdinaryInput || 'LIVE_TUNER',
+          ordinaryTvIntact: true,
+        },
+        detail: `[${cfg.harnessName}] Own-session overlay blocked without partner privilege (fail-closed): ordinary TV kept undisturbed.`,
+      };
+    }
+
+    const next = cloneTvState(prev);
+    if (prev.activeInput !== 'EDISON_APP') {
+      next.previousOrdinaryInput = prev.activeInput;
+    }
+    next.activeInput = 'EDISON_APP';
+    next.adBreakOverlayActive = true;
+    next.ordinaryTvIntact = true;
+
+    return {
+      ok: true,
+      watchdogTriggered: false,
+      simulatedLatencyMs: cfg.enterLatencyMs,
+      harnessPhase: 'ad_overlay_active',
+      nextState: next,
+      detail: `[${cfg.harnessName}] ${cfg.enterDetail}`,
+    };
+  };
+
+  const exitToOrdinaryTv: TvPlatformAdapter['exitToOrdinaryTv'] = (prev, options) => {
+    const nowIso = new Date().toISOString();
+    const faultMode = options?.faultMode ?? 'none';
+
+    if (faultMode !== 'none') {
+      const restored = applyWatchdogRestoration(prev, faultMode, nowIso);
+      return {
+        ok: false,
+        watchdogTriggered: true,
+        simulatedLatencyMs: cfg.exitLatencyMs,
+        harnessPhase: 'fault_recovered',
+        nextState: restored.nextState,
+        detail: `[${cfg.harnessName}] Watchdog forced safe recovery -> ${restored.detail}`,
+      };
+    }
+
+    const restored = applyWatchdogRestoration(prev, 'none', nowIso);
+    return {
+      ok: true,
+      watchdogTriggered: false,
+      simulatedLatencyMs: cfg.exitLatencyMs,
+      harnessPhase: 'yielded_to_ordinary',
+      nextState: restored.nextState,
+      detail: `[${cfg.harnessName}] ${cfg.exitDetail} (${restored.nextState.activeInput}).`,
+    };
+  };
+
   return {
     getCapabilityProfile: () => ({
       ...profile,
       supportedRemoteCommands: [...profile.supportedRemoteCommands],
     }),
+    getHarnessTelemetry,
+    enterAdBreakSession,
+    exitToOrdinaryTv,
     executeNormalRemoteCommand: (state, command, options) =>
       executeStandardRemoteMutation(profile, state, command, options),
   };
@@ -352,22 +510,7 @@ const CAPABILITY_PROFILES: Record<TvPlatformId, TvPlatformCapabilityProfile> = {
       'tizen.tvwindow.show() foreground window + LAN remote key injection + org.tizen.tv-viewer launch return.',
     requiresPartnerPrivilegeForGlobalTuner: true,
     supportsOwnSessionOverlay: true,
-    supportedRemoteCommands: [
-      'power_toggle',
-      'volume_up',
-      'volume_down',
-      'mute_toggle',
-      'channel_up',
-      'channel_down',
-      'input_source_select',
-      'dpad_up',
-      'dpad_down',
-      'dpad_left',
-      'dpad_right',
-      'dpad_ok',
-      'back',
-      'home',
-    ],
+    supportedRemoteCommands: [...ALL_TV_REMOTE_COMMANDS],
     restorationGuaranteeMode: 'Foreground app yield back to org.tizen.tv-viewer',
     stageP6Note: 'Secondary modular adapter contract only; zero Samsung Tizen hardware tested.',
   },
@@ -400,15 +543,54 @@ const CAPABILITY_PROFILES: Record<TvPlatformId, TvPlatformCapabilityProfile> = {
   },
 };
 
+const HARNESS_CONFIGS: Record<TvPlatformId, HarnessConfig> = {
+  simulation_tv: {
+    profile: CAPABILITY_PROFILES.simulation_tv,
+    harnessName: 'SimulationTvHarness',
+    nativeSurfaceId: 'sim://tv-stage/16x9',
+    enterLatencyMs: 120,
+    exitLatencyMs: 95,
+    enterDetail: 'Entered deterministic 16:9 simulation ad-break slot.',
+    exitDetail: 'Exited simulation ad-break slot cleanly to ordinary TV',
+  },
+  android_tv_tif: {
+    profile: CAPABILITY_PROFILES.android_tv_tif,
+    harnessName: 'AndroidTvTifHarness',
+    nativeSurfaceId: 'tif://TvInputService.Session/overlay-view',
+    enterLatencyMs: 360,
+    exitLatencyMs: 280,
+    enterDetail: 'Attached EDISON TvInputService.Session.onCreateOverlayView() without intercepting global tuner.',
+    exitDetail: 'Detached TIF Session overlay & restored ordinary TV channel via TIF Session.onRelease()',
+  },
+  samsung_tizen: {
+    profile: CAPABILITY_PROFILES.samsung_tizen,
+    harnessName: 'SamsungTizenHarness',
+    nativeSurfaceId: 'tizen://tvwindow/foreground-ad-rect',
+    enterLatencyMs: 410,
+    exitLatencyMs: 320,
+    enterDetail: 'Activated bounded foreground window via tizen.tvwindow.show() software contract.',
+    exitDetail: 'Hid tizen.tvwindow overlay and yielded foreground cleanly to org.tizen.tv-viewer',
+  },
+  lg_webos: {
+    profile: CAPABILITY_PROFILES.lg_webos,
+    harnessName: 'LgWebOsHarness',
+    nativeSurfaceId: 'webos://ssap-lan/partner-luna-gated',
+    enterLatencyMs: 460,
+    exitLatencyMs: 350,
+    enterDetail: 'Activated partner-authorised webOS surface.',
+    exitDetail: 'Restored ordinary TV via SSAP/Luna fail-safe exit handler',
+  },
+};
+
 export class EdisonTvControlEngine {
   private readonly adapters: Record<TvPlatformId, TvPlatformAdapter>;
 
   constructor() {
     this.adapters = {
-      simulation_tv: buildAdapter(CAPABILITY_PROFILES.simulation_tv),
-      android_tv_tif: buildAdapter(CAPABILITY_PROFILES.android_tv_tif),
-      samsung_tizen: buildAdapter(CAPABILITY_PROFILES.samsung_tizen),
-      lg_webos: buildAdapter(CAPABILITY_PROFILES.lg_webos),
+      simulation_tv: buildPlatformHarness(HARNESS_CONFIGS.simulation_tv),
+      android_tv_tif: buildPlatformHarness(HARNESS_CONFIGS.android_tv_tif),
+      samsung_tizen: buildPlatformHarness(HARNESS_CONFIGS.samsung_tizen),
+      lg_webos: buildPlatformHarness(HARNESS_CONFIGS.lg_webos),
     };
   }
 
@@ -482,6 +664,90 @@ export class EdisonTvControlEngine {
       executedAt: new Date().toISOString(),
     };
   }
+
+  runBreakLifecycle(params: {
+    platformId: TvPlatformId;
+    action: 'enter_ad_session' | 'exit_to_ordinary_tv';
+    faultMode?: TvFaultSimulationMode;
+    currentState?: SimulatedTvDeviceState;
+  }): TvBreakLifecycleResult {
+    const adapter = this.getAdapter(params.platformId);
+    const previousState = params.currentState
+      ? { ...params.currentState, platformId: params.platformId }
+      : this.createDefaultTvState(params.platformId);
+    const faultInjected: TvFaultSimulationMode = params.faultMode ?? 'none';
+
+    const outcome =
+      params.action === 'enter_ad_session'
+        ? adapter.enterAdBreakSession(previousState, { faultMode: faultInjected })
+        : adapter.exitToOrdinaryTv(previousState, { faultMode: faultInjected });
+
+    return {
+      ok: outcome.ok,
+      isSoftwareSimulationOnly: true,
+      hardwareTested: false,
+      platformId: params.platformId,
+      action: params.action,
+      faultInjected,
+      watchdogTriggered: outcome.watchdogTriggered,
+      simulatedLatencyMs: outcome.simulatedLatencyMs,
+      harnessTelemetry: adapter.getHarnessTelemetry(outcome.harnessPhase),
+      previousState,
+      nextState: outcome.nextState,
+      detail: outcome.detail,
+      auditTraceId: `tvlife_${crypto.randomBytes(6).toString('hex')}`,
+      executedAt: new Date().toISOString(),
+    };
+  }
+
+  runDeterministicFaultSuite(targetPlatformId?: TvPlatformId): TvFaultSuiteReport {
+    const platforms: readonly TvPlatformId[] = targetPlatformId
+      ? [targetPlatformId]
+      : ALL_TV_PLATFORM_IDS;
+    const cases: TvFaultSuiteCaseResult[] = [];
+
+    for (const platformId of platforms) {
+      const adapter = this.getAdapter(platformId);
+      for (const faultMode of ALL_ACTIVE_FAULT_MODES) {
+        const activeAdState: SimulatedTvDeviceState = {
+          ...this.createDefaultTvState(platformId),
+          activeInput: 'EDISON_APP',
+          previousOrdinaryInput: 'LIVE_TUNER',
+          adBreakOverlayActive: true,
+        };
+
+        const recovery = adapter.exitToOrdinaryTv(activeAdState, { faultMode });
+        const ordinaryTvIntact = recovery.nextState.ordinaryTvIntact === true;
+        const adOverlayCleared = recovery.nextState.adBreakOverlayActive === false;
+        const restoredToOrdinary = recovery.nextState.activeInput === 'LIVE_TUNER';
+        const passed =
+          recovery.watchdogTriggered && ordinaryTvIntact && adOverlayCleared && restoredToOrdinary;
+
+        cases.push({
+          platformId,
+          faultMode,
+          watchdogTriggered: recovery.watchdogTriggered,
+          ordinaryTvIntact,
+          adOverlayCleared,
+          restoredInput: recovery.nextState.activeInput,
+          passed,
+          detail: recovery.detail,
+        });
+      }
+    }
+
+    const passedCases = cases.filter((c) => c.passed).length;
+    return {
+      generatedAt: new Date().toISOString(),
+      isSoftwareSimulationOnly: true,
+      hardwareTested: false,
+      totalCases: cases.length,
+      passedCases,
+      allPassed: passedCases === cases.length,
+      cases,
+    };
+  }
 }
 
 export const edisonTvControlEngine = new EdisonTvControlEngine();
+

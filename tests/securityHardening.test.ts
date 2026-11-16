@@ -444,8 +444,8 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
       .get('/api/qa/prototype-readiness')
       .set('Authorization', `Bearer ${adminLogin.body.token}`);
     expect(readinessRes.status).toBe(200);
-    expect(readinessRes.body.automatedInvariantsPassed).toBe(14);
-    expect(readinessRes.body.automatedInvariantsTotal).toBe(14);
+    expect(readinessRes.body.automatedInvariantsPassed).toBe(15);
+    expect(readinessRes.body.automatedInvariantsTotal).toBe(15);
   });
 
   it('hardens /api/media/upload against SVG/HTML polyglots & invalid base64 and locks down /uploads/* headers & symlinks', async () => {
@@ -632,7 +632,99 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
     expect(simRes.body.nextState.ordinaryTvIntact).toBe(true);
     expect(simRes.body.hardwareTested).toBe(false);
   });
+
+  it('Block 4.1: verifies break-lifecycle harnesses, 16-case fault-suite endpoint & SHA-256 offline cache atomic swap / rollback HTTP gates', async () => {
+    // 1. Unauthenticated access must return 401
+    const unauthCache = await request(app).get('/api/offline-intel-cache/state');
+    expect(unauthCache.status).toBe(401);
+
+    const advLogin = await request(app).post('/api/auth/login').send({
+      email: 'advertiser@edison.demo',
+      password: 'EdisonProto!2026',
+    });
+    const advToken = advLogin.body.token as string;
+
+    // 2. Enter & Exit Ad Overlay on Android TV TIF Harness
+    const enterRes = await request(app)
+      .post('/api/tv-adapters/break-lifecycle')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({ platformId: 'android_tv_tif', action: 'enter_ad_session' });
+    expect(enterRes.status).toBe(200);
+    expect(enterRes.body.ok).toBe(true);
+    expect(enterRes.body.hardwareTested).toBe(false);
+    expect(enterRes.body.harnessTelemetry.harnessName).toBe('AndroidTvTifHarness');
+    expect(enterRes.body.nextState.adBreakOverlayActive).toBe(true);
+
+    const exitRes = await request(app)
+      .post('/api/tv-adapters/break-lifecycle')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({
+        platformId: 'android_tv_tif',
+        action: 'exit_to_ordinary_tv',
+        currentState: enterRes.body.nextState,
+      });
+    expect(exitRes.status).toBe(200);
+    expect(exitRes.body.nextState.adBreakOverlayActive).toBe(false);
+    expect(exitRes.body.nextState.activeInput).toBe('LIVE_TUNER');
+
+    // 3. Deterministic 16-case Fault Suite
+    const suiteRes = await request(app)
+      .post('/api/tv-adapters/fault-suite')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({});
+    expect(suiteRes.status).toBe(200);
+    expect(suiteRes.body.totalCases).toBe(16);
+    expect(suiteRes.body.passedCases).toBe(16);
+    expect(suiteRes.body.allPassed).toBe(true);
+    expect(suiteRes.body.hardwareTested).toBe(false);
+
+    // 4. Offline Cache State + Corrupt SHA-256 Fail-Closed + Atomic Swap + Rollback
+    const cacheInit = await request(app)
+      .get('/api/offline-intel-cache/state')
+      .set('Authorization', `Bearer ${advToken}`);
+    expect(cacheInit.status).toBe(200);
+    expect(cacheInit.body.zeroPiiEnforced).toBe(true);
+    const scopeId = cacheInit.body.bundles[0].scopeId as string;
+    const baseVer = cacheInit.body.bundles[0].version as number;
+
+    const corruptSwap = await request(app)
+      .post('/api/offline-intel-cache/stage-swap')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({
+        scopeId,
+        nextVersion: baseVer + 1,
+        p10BreakDurationSec: 80,
+        p50BreakDurationSec: 115,
+        switchingLatencyMs: 360,
+        simulateCorruptManifest: true,
+      });
+    expect(corruptSwap.status).toBe(400);
+    expect(corruptSwap.body.atomicSwapApplied).toBe(false);
+    expect(corruptSwap.body.bundle.version).toBe(baseVer);
+
+    const validSwap = await request(app)
+      .post('/api/offline-intel-cache/stage-swap')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({
+        scopeId,
+        nextVersion: baseVer + 1,
+        p10BreakDurationSec: 80,
+        p50BreakDurationSec: 115,
+        switchingLatencyMs: 360,
+      });
+    expect(validSwap.status).toBe(200);
+    expect(validSwap.body.atomicSwapApplied).toBe(true);
+    expect(validSwap.body.bundle.version).toBe(baseVer + 1);
+
+    const rollbackRes = await request(app)
+      .post('/api/offline-intel-cache/rollback')
+      .set('Authorization', `Bearer ${advToken}`)
+      .send({ scopeId });
+    expect(rollbackRes.status).toBe(200);
+    expect(rollbackRes.body.bundle.version).toBe(baseVer);
+  });
 });
+
 
 
 

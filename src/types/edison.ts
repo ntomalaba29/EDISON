@@ -893,4 +893,113 @@ export interface TvRemoteDispatchResult {
   executedAt: string;
 }
 
+// --- Phase 4 Block 4.1: Software-First Smart TV Adapter Harnesses & Offline Intelligence Cache ---
+
+export type TvAdapterHarnessPhase =
+  | 'idle'
+  | 'session_created'
+  | 'tuned_ordinary'
+  | 'ad_overlay_active'
+  | 'restoring_ordinary'
+  | 'yielded_to_ordinary'
+  | 'fault_recovered';
+
+export interface TvPlatformHarnessTelemetry {
+  platformId: TvPlatformId;
+  harnessName: string;
+  harnessPhase: TvAdapterHarnessPhase;
+  nativeSurfaceId: string;
+  lifecycleNotes: string;
+  privilegeBoundaryEnforced: boolean;
+  isSimulated: true;
+  hardwareTested: false;
+}
+
+export interface TvBreakLifecycleResult {
+  ok: boolean;
+  isSoftwareSimulationOnly: true;
+  hardwareTested: false;
+  platformId: TvPlatformId;
+  action: 'enter_ad_session' | 'exit_to_ordinary_tv';
+  faultInjected: TvFaultSimulationMode;
+  watchdogTriggered: boolean;
+  simulatedLatencyMs: number;
+  harnessTelemetry: TvPlatformHarnessTelemetry;
+  previousState: SimulatedTvDeviceState;
+  nextState: SimulatedTvDeviceState;
+  detail: string;
+  auditTraceId: string;
+  executedAt: string;
+}
+
+export interface TvFaultSuiteCaseResult {
+  platformId: TvPlatformId;
+  faultMode: Exclude<TvFaultSimulationMode, 'none'>;
+  watchdogTriggered: boolean;
+  ordinaryTvIntact: boolean;
+  adOverlayCleared: boolean;
+  restoredInput: TvInputSource;
+  passed: boolean;
+  detail: string;
+}
+
+export interface TvFaultSuiteReport {
+  generatedAt: string;
+  isSoftwareSimulationOnly: true;
+  hardwareTested: false;
+  totalCases: number;
+  passedCases: number;
+  allPassed: boolean;
+  cases: TvFaultSuiteCaseResult[];
+}
+
+export interface OfflineCacheBundleEntry {
+  scopeId: string;
+  displayName: string;
+  country: string;
+  broadcaster: string;
+  channel: string;
+  platform: string;
+  version: number;
+  previousGoodVersion: number | null;
+  p10BreakDurationSec: number;
+  p50BreakDurationSec: number;
+  switchingLatencyMs: number;
+  sha256Manifest: string;
+  previousGoodManifest: string | null;
+  previousGoodP10Sec: number | null;
+  previousGoodP50Sec: number | null;
+  lastSwappedAt: string;
+  status: 'active_verified' | 'rolled_back_safe';
+}
+
+export interface OfflineCacheOperationResult {
+  ok: boolean;
+  action: 'stage_swap' | 'rollback' | 'evaluate_break' | 'queue_offline';
+  scopeId: string;
+  atomicSwapApplied: boolean;
+  rejectedReason: string | null;
+  bundle: OfflineCacheBundleEntry | null;
+  detail: string;
+  executedAt: string;
+}
+
+export interface OfflineCacheStateSnapshot {
+  isSoftwareSimulationOnly: true;
+  hardwareTested: false;
+  zeroPiiEnforced: true;
+  offlineResilient: boolean;
+  bundles: OfflineCacheBundleEntry[];
+  queuedObservationsCount: number;
+  recentOperations: Array<{
+    id: string;
+    action: string;
+    scopeId: string;
+    detail: string;
+    ok: boolean;
+    createdAt: string;
+  }>;
+}
+
+
 

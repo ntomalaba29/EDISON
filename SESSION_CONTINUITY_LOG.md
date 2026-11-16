@@ -88,3 +88,15 @@
   - **Physical Hardware (`ADR-014` / `ADR-017`)**: Physical Smart TV integration and hardware testing remain deferred to `Stage P6`.
 - **Next Authorised Action**: Review and commit **Block P3-C** before proceeding to Phase 4 or `TASK-P3-001`.
 
+---
+
+## Session Entry — 2026-11-15 (Block P3-C Committed · Phase 4 Block 4.1 Verification)
+
+- **Owner Commit Confirmation (`ADR-010`)**: Project Owner confirmed `"Committed, next"`, locking **Block P3-C** and unlocking **Phase 4 · Stage 4.1 · Block 4.1**.
+- **Verified Block 4.1 (Software-First Smart TV Adapter Harnesses & Local Offline Intelligence Cache — `VERIFIED · AWAITING COMMIT`)**:
+  1. **Platform-Specific Software Harnesses (`src/server/tvPlatformAdapter.ts`)**: Added `SimulationTvHarness`, `AndroidTvTifHarness`, `SamsungTizenHarness`, and `LgWebOsHarness` supporting `enterAdBreakSession`, `exitToOrdinaryTv`, fail-closed consumer privilege boundaries (`LgWebOsHarness` rejects own-session overlay without partner privilege), and a **16-case deterministic fault-injection suite** across all 4 adapters × 4 fault modes (`hardwareTested: false`, `Stage P6` strictly deferred).
+  2. **Local Offline Intelligence Cache Engine (`src/server/offlineIntelCache.ts`)**: Built `LocalOfflineIntelCacheEngine` enforcing zero-PII scoped broadcast bundles, SHA-256 manifest verification (rejecting corrupted manifests fail-closed), anti-downgrade guard, atomic swap, instant rollback to `previousGoodVersion`, and offline `P10` break-duration eligibility evaluation.
+  3. **API Routes, UI Controls & Regression Suite**: Added authenticated endpoints (`/api/tv-adapters/break-lifecycle`, `/api/tv-adapters/fault-suite`, `/api/offline-intel-cache/*`), interactive controls in `TvPreviewView.tsx`, 4 unit/integration tests in `tests/phase4AdaptersAndCache.test.ts`, HTTP security tests in `tests/securityHardening.test.ts`, and 15th QA invariant `qa_41_tv_harnesses_and_offline_cache`.
+- **Next Authorised Action**: Review and commit **Block 4.1** before proceeding to Phase 4 Block 4.2 or `TASK-P3-001`.
+
+

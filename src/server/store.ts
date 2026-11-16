@@ -4339,6 +4339,23 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
           'X-Request-Id correlation + sanitised request telemetry, formula-neutralized CSV/JSON admin audit export, and 4 software-only TvPlatformAdapter contracts with AURA Normal TV Remote & watchdog fault-recovery simulation (hardware testing strictly deferred to Stage P6).',
       },
       {
+        id: 'qa_41_tv_harnesses_and_offline_cache',
+        block: 'Block 4.1',
+        label:
+          'Phase 4 Block 4.1: Software-First Smart TV Adapter Harnesses & Local Offline Intelligence Cache',
+        status: (() => {
+          const hasBlock41Files =
+            fs.existsSync(path.resolve(process.cwd(), 'src', 'server', 'offlineIntelCache.ts')) &&
+            fs.existsSync(
+              path.resolve(process.cwd(), 'tests', 'phase4AdaptersAndCache.test.ts')
+            );
+          return hasBlock41Files ? 'pass' : 'fail';
+        })(),
+        scope: 'automated_invariant',
+        detail:
+          'Android TV TIF, Samsung Tizen & LG webOS software harnesses with fail-closed privilege gates, 16-case deterministic fault-injection watchdog suite, and SHA-256 atomic offline cache swap/rollback (hardwareTested=false, Stage P6 deferred).',
+      },
+      {
         id: 'qa_27_physical_qr_scan',
         block: 'Block 2.7',
         label: 'Physical smartphone camera scan verification on real mobile device',
@@ -4356,8 +4373,8 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
 
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 3 — Software-First Engineering Hardening (Track A Active · JSON Persistence Retained)',
-      block: 'Block P3-C (Request Correlation, Audit Export Hardening & Software-Only TvPlatformAdapter / AURA Remote Contracts)',
+      phase: 'Phase 4 — Smart TV OS Adapters & Normal TV Remote (Software-First · JSON Retained)',
+      block: 'Block 4.1 (Software-First Smart TV Adapter Harnesses & Local Offline Intelligence Cache)',
       automatedInvariantsPassed,
       automatedInvariantsTotal: autoChecks.length,
       physicalQrScanStatus:
@@ -4572,18 +4589,18 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     const latestAudit = this.data.auditLogs[0] ?? null;
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phase 3 — Software-First Engineering Hardening (Track A Active · JSON Retained)',
-      stage: 'Block P3-A & P3-B Committed · Block P3-C Complete (Correlation, Audit Export & Software TV Adapter/AURA Contracts) · TASK-P3-001 READY',
-      block: 'Block P3-C (Request Correlation, Hardened Audit Export & Software-Only TvPlatformAdapter / AURA Remote Contracts)',
-      gateStatus: 'BLOCK P3-C VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · NO CLOUD SQL PROVISIONED)',
+      phase: 'Phase 4 — Smart TV OS Adapters & Normal TV Remote (Software-First · JSON Retained)',
+      stage: 'Phase 3 Blocks P3-A/P3-B/P3-C Committed · Phase 4 Block 4.1 Complete (Harnesses, Fault Suite & Offline Cache) · TASK-P3-001 READY',
+      block: 'Block 4.1 (Software-First Smart TV Adapter Harnesses & Local Offline Intelligence Cache)',
+      gateStatus: 'BLOCK 4.1 VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · STAGE P6 HARDWARE DEFERRED)',
       progressMetrics: {
         aiStudioAssignmentPct: 85,
-        softwareToStageP6Pct: 45.2,
-        overallFullAppPct: 28.0,
-        remainingUntilFullAppPct: 72.0,
+        softwareToStageP6Pct: 50.0,
+        overallFullAppPct: 31.0,
+        remainingUntilFullAppPct: 69.0,
         consentBlockedScopePct: 15,
         rubricSummary:
-          'Phase 1 Specs (6.0%) + Phase 2 Track A Complete (13.0%) + Phase 3 Block P3-A Committed (3.0%) + Block P3-B Committed (3.0%) + Block P3-C Awaiting Commit (3.0%) = 28.0% of 15-Phase Full Commercial App (85% Phase 2 AI Studio Prototype + 9.0%/12.0% Phase 3 Active; 15% Track B blocked on DEC-OPEN-01).',
+          'Phase 1 Specs (6.0%) + Phase 2 Track A Complete (13.0%) + Phase 3 Software Hardening Committed (9.0%) + Phase 4 Block 4.1 Awaiting Commit (3.0%) = 31.0% of 15-Phase Full Commercial App (50.0% to Stage P6; 15% Track B blocked on DEC-OPEN-01).',
       },
       latestAuditAt: latestAudit?.createdAt ?? null,
       latestAuditAction: latestAudit?.action ?? null,

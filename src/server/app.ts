@@ -34,6 +34,7 @@ import {
   type RequestTelemetryEntry,
 } from './security.ts';
 import { edisonTvControlEngine } from './tvPlatformAdapter.ts';
+import { localOfflineIntelCache } from './offlineIntelCache.ts';
 import {
   adCreativeAttachSchema,
   adCreativeSaveSchema,
@@ -54,6 +55,9 @@ import {
   complaintCreateSchema,
   loginSchema,
   mediaUploadSchema,
+  offlineCacheEvaluateBreakSchema,
+  offlineCacheRollbackSchema,
+  offlineCacheStageSchema,
   opportunityCreateSchema,
   parseWithZod,
   physicalQrTestCreateSchema,
@@ -67,6 +71,8 @@ import {
   simulatorEventSchema,
   supportTicketCreateSchema,
   supportTicketStatusSchema,
+  tvBreakLifecycleSchema,
+  tvFaultSuiteSchema,
   tvRemoteSimulateSchema,
 } from './validationSchemas.ts';
 import type {
@@ -1357,6 +1363,127 @@ export function createEdisonApp(
         `[${req.requestId ?? 'req'}] ${d.intentSource} -> ${d.command} (fault=${d.faultMode}, outcome=${result.restorationOutcome})`
       );
       res.json(result);
+    }
+  );
+
+  // --- Phase 4 Block 4.1: Software-First Smart TV Adapter Harnesses & Local Offline Intelligence Cache ---
+  app.post(
+    '/api/tv-adapters/break-lifecycle',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(tvBreakLifecycleSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const d = parsed.data;
+      const result = edisonTvControlEngine.runBreakLifecycle({
+        platformId: d.platformId,
+        action: d.action,
+        faultMode: d.faultMode,
+        currentState: d.currentState,
+      });
+      store.recordSecurityAudit(
+        req.currentUser!,
+        'TV_ADAPTER_BREAK_LIFECYCLE',
+        d.platformId,
+        `[${req.requestId ?? 'req'}] ${d.action} (${result.harnessTelemetry.harnessName}, fault=${d.faultMode}, phase=${result.harnessTelemetry.harnessPhase})`
+      );
+      res.json(result);
+    }
+  );
+
+  app.post(
+    '/api/tv-adapters/fault-suite',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(tvFaultSuiteSchema, req.body ?? {});
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const report = edisonTvControlEngine.runDeterministicFaultSuite(parsed.data.platformId);
+      store.recordSecurityAudit(
+        req.currentUser!,
+        'TV_ADAPTER_FAULT_SUITE_RUN',
+        parsed.data.platformId ?? 'all_platforms',
+        `[${req.requestId ?? 'req'}] Deterministic fault suite ${report.passedCases}/${report.totalCases} passed (hardwareTested=false).`
+      );
+      res.json(report);
+    }
+  );
+
+  app.get(
+    '/api/offline-intel-cache/state',
+    requireAuth,
+    (_req: AuthenticatedRequest, res: Response) => {
+      res.setHeader('Cache-Control', 'no-store');
+      res.json(localOfflineIntelCache.getSnapshot());
+    }
+  );
+
+  app.post(
+    '/api/offline-intel-cache/stage-swap',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(offlineCacheStageSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const result = localOfflineIntelCache.stageAndAtomicSwap(parsed.data);
+      store.recordSecurityAudit(
+        req.currentUser!,
+        result.ok ? 'OFFLINE_CACHE_ATOMIC_SWAP' : 'OFFLINE_CACHE_SWAP_REJECTED',
+        parsed.data.scopeId,
+        `[${req.requestId ?? 'req'}] ${result.detail}`
+      );
+      res.status(result.ok ? 200 : 400).json({
+        ...result,
+        state: localOfflineIntelCache.getSnapshot(),
+      });
+    }
+  );
+
+  app.post(
+    '/api/offline-intel-cache/rollback',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(offlineCacheRollbackSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const result = localOfflineIntelCache.rollbackScope(parsed.data.scopeId);
+      store.recordSecurityAudit(
+        req.currentUser!,
+        result.ok ? 'OFFLINE_CACHE_ROLLBACK' : 'OFFLINE_CACHE_ROLLBACK_REJECTED',
+        parsed.data.scopeId,
+        `[${req.requestId ?? 'req'}] ${result.detail}`
+      );
+      res.status(result.ok ? 200 : 400).json({
+        ...result,
+        state: localOfflineIntelCache.getSnapshot(),
+      });
+    }
+  );
+
+  app.post(
+    '/api/offline-intel-cache/evaluate-break',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(offlineCacheEvaluateBreakSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const evaluation = localOfflineIntelCache.evaluateOfflineBreakEligibility(parsed.data);
+      res.json({
+        ...evaluation,
+        isSoftwareSimulationOnly: true,
+        hardwareTested: false,
+        state: localOfflineIntelCache.getSnapshot(),
+      });
     }
   );
 

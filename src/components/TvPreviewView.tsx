@@ -26,12 +26,16 @@ import type {
   BreakSchedulePlan,
   CampaignPreviewGateResult,
   CampaignRecord,
+  OfflineCacheOperationResult,
+  OfflineCacheStateSnapshot,
   PrimaryAdCategory,
   PublicUser,
   QrLinkRecord,
   ScheduledBreakSlot,
   SimulatedTvDeviceState,
+  TvBreakLifecycleResult,
   TvFaultSimulationMode,
+  TvFaultSuiteReport,
   TvPlatformCapabilityProfile,
   TvPlatformId,
   TvRemoteCommand,
@@ -482,6 +486,16 @@ export function TvPreviewView({
   });
   const [tvDispatchResult, setTvDispatchResult] = useState<TvRemoteDispatchResult | null>(null);
   const [dispatchingTvCmd, setDispatchingTvCmd] = useState(false);
+  const [tvLifecycleResult, setTvLifecycleResult] = useState<TvBreakLifecycleResult | null>(null);
+  const [tvFaultSuiteReport, setTvFaultSuiteReport] = useState<TvFaultSuiteReport | null>(null);
+  const [runningFaultSuite, setRunningFaultSuite] = useState(false);
+  const [offlineCacheState, setOfflineCacheState] = useState<OfflineCacheStateSnapshot | null>(
+    null
+  );
+  const [offlineCacheFeedback, setOfflineCacheFeedback] =
+    useState<OfflineCacheOperationResult | null>(null);
+  const [cacheScopeId, setCacheScopeId] = useState('gb_freeview_bbcone_androidtv14_dvbt2');
+  const [cacheBusy, setCacheBusy] = useState(false);
 
   const [qrDataUrl, setQrDataUrl] = useState('');
   const stageContainerRef = useRef<HTMLDivElement | null>(null);
@@ -541,12 +555,19 @@ export function TvPreviewView({
         const p = await profRes.json();
         setProfile(p.profile ?? null);
       }
-      const adapterRes = await edisonFetch('/api/tv-adapters/profiles');
+      const [adapterRes, cacheRes] = await Promise.all([
+        edisonFetch('/api/tv-adapters/profiles'),
+        edisonFetch('/api/offline-intel-cache/state'),
+      ]);
       if (adapterRes.ok) {
         const adData = await adapterRes.json();
         if (Array.isArray(adData.profiles)) {
           setTvAdapterProfiles(adData.profiles);
         }
+      }
+      if (cacheRes.ok) {
+        const cData = (await cacheRes.json()) as OfflineCacheStateSnapshot;
+        setOfflineCacheState(cData);
       }
     } finally {
       setLoading(false);
@@ -848,6 +869,98 @@ export function TvPreviewView({
       }
     } finally {
       setDispatchingTvCmd(false);
+    }
+  };
+
+  const handleRunBreakLifecycle = async (
+    action: 'enter_ad_session' | 'exit_to_ordinary_tv'
+  ) => {
+    setDispatchingTvCmd(true);
+    try {
+      const res = await edisonFetch('/api/tv-adapters/break-lifecycle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          platformId: selectedPlatformId,
+          action,
+          faultMode: tvFaultMode,
+          currentState: { ...simTvDeviceState, platformId: selectedPlatformId },
+        }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as TvBreakLifecycleResult;
+        setTvLifecycleResult(data);
+        setSimTvDeviceState(data.nextState);
+        setSimulateAdActive(data.nextState.adBreakOverlayActive);
+        setSimLogs((prev) => [
+          `[${formatClock(liveBroadcastClock)} · HARNESS-4.1] ${data.detail}`,
+          ...prev.slice(0, 18),
+        ]);
+      }
+    } finally {
+      setDispatchingTvCmd(false);
+    }
+  };
+
+  const handleRunFaultSuite = async () => {
+    setRunningFaultSuite(true);
+    try {
+      const res = await edisonFetch('/api/tv-adapters/fault-suite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (res.ok) {
+        const report = (await res.json()) as TvFaultSuiteReport;
+        setTvFaultSuiteReport(report);
+        setSimLogs((prev) => [
+          `[${formatClock(liveBroadcastClock)} · FAULT-SUITE] ${report.passedCases}/${report.totalCases} deterministic fault cases passed (hardwareTested=false).`,
+          ...prev.slice(0, 18),
+        ]);
+      }
+    } finally {
+      setRunningFaultSuite(false);
+    }
+  };
+
+  const handleCacheStageSwap = async (simulateCorruptManifest: boolean) => {
+    setCacheBusy(true);
+    try {
+      const activeBundle = offlineCacheState?.bundles.find((b) => b.scopeId === cacheScopeId);
+      const nextVer = (activeBundle?.version ?? 2) + 1;
+      const res = await edisonFetch('/api/offline-intel-cache/stage-swap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scopeId: cacheScopeId,
+          nextVersion: nextVer,
+          p10BreakDurationSec: (activeBundle?.p10BreakDurationSec ?? 70) + 5,
+          p50BreakDurationSec: (activeBundle?.p50BreakDurationSec ?? 100) + 5,
+          switchingLatencyMs: activeBundle?.switchingLatencyMs ?? 380,
+          simulateCorruptManifest,
+        }),
+      });
+      const data = await res.json();
+      if (data.state) setOfflineCacheState(data.state);
+      setOfflineCacheFeedback(data);
+    } finally {
+      setCacheBusy(false);
+    }
+  };
+
+  const handleCacheRollback = async () => {
+    setCacheBusy(true);
+    try {
+      const res = await edisonFetch('/api/offline-intel-cache/rollback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scopeId: cacheScopeId }),
+      });
+      const data = await res.json();
+      if (data.state) setOfflineCacheState(data.state);
+      setOfflineCacheFeedback(data);
+    } finally {
+      setCacheBusy(false);
     }
   };
 
@@ -2121,6 +2234,170 @@ export function TvPreviewView({
                   <p className="text-emerald-300">{tvDispatchResult.detail}</p>
                 </div>
               )}
+
+              {/* Phase 4 Block 4.1: Harness Session Lifecycle & Deterministic Fault Suite */}
+              <div className="pt-3 border-t border-slate-200 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h5 className="text-xs font-semibold text-slate-900">
+                      Phase 4 Block 4.1 · Platform Harness Lifecycle &amp; 16-Case Fault Suite
+                    </h5>
+                    <p className="text-[11px] text-slate-600">
+                      Verifies TIF / Tizen / webOS session entry, fail-closed privilege gates, and deterministic watchdog recovery.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <button
+                      type="button"
+                      disabled={dispatchingTvCmd}
+                      onClick={() => handleRunBreakLifecycle('enter_ad_session')}
+                      className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded font-medium cursor-pointer disabled:opacity-50"
+                    >
+                      Enter Ad Overlay
+                    </button>
+                    <button
+                      type="button"
+                      disabled={dispatchingTvCmd}
+                      onClick={() => handleRunBreakLifecycle('exit_to_ordinary_tv')}
+                      className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded font-medium cursor-pointer disabled:opacity-50"
+                    >
+                      Yield / Exit to TV
+                    </button>
+                    <button
+                      type="button"
+                      disabled={runningFaultSuite}
+                      onClick={handleRunFaultSuite}
+                      className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded font-semibold cursor-pointer disabled:opacity-50"
+                    >
+                      {runningFaultSuite ? 'Running Suite...' : 'Run 16-Case Fault Suite'}
+                    </button>
+                  </div>
+                </div>
+
+                {tvLifecycleResult && (
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono space-y-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-slate-600">
+                      <span>
+                        Harness: {tvLifecycleResult.harnessTelemetry.harnessName} · Phase:{' '}
+                        {tvLifecycleResult.harnessTelemetry.harnessPhase}
+                      </span>
+                      <span>
+                        Latency: {tvLifecycleResult.simulatedLatencyMs}ms · Surface:{' '}
+                        {tvLifecycleResult.harnessTelemetry.nativeSurfaceId}
+                      </span>
+                    </div>
+                    <p className={tvLifecycleResult.ok ? 'text-emerald-800' : 'text-amber-800'}>
+                      {tvLifecycleResult.detail}
+                    </p>
+                  </div>
+                )}
+
+                {tvFaultSuiteReport && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2 font-mono font-semibold text-emerald-950">
+                      <span>
+                        Fault Suite Result: {tvFaultSuiteReport.passedCases}/{tvFaultSuiteReport.totalCases} PASSED
+                      </span>
+                      <span>SOFTWARE SIMULATION · HARDWARE TESTED: FALSE</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1.5 font-mono text-[11px]">
+                      {tvFaultSuiteReport.cases.map((fc) => (
+                        <div
+                          key={`${fc.platformId}-${fc.faultMode}`}
+                          className="p-1.5 bg-white border border-emerald-200 rounded flex items-center justify-between gap-1"
+                        >
+                          <span className="truncate text-slate-700">
+                            {fc.platformId}:{fc.faultMode}
+                          </span>
+                          <span className={fc.passed ? 'text-emerald-700 font-bold' : 'text-red-700 font-bold'}>
+                            {fc.passed ? 'PASS' : 'FAIL'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Phase 4 Block 4.1: Local Offline Intelligence Cache (SHA-256 Atomic Swap & Rollback) */}
+              <div className="pt-3 border-t border-slate-200 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h5 className="text-xs font-semibold text-slate-900">
+                      Local Offline Intelligence Cache Engine (SHA-256 Atomic Swap &amp; Rollback)
+                    </h5>
+                    <p className="text-[11px] text-slate-600">
+                      Zero-PII scoped broadcast bundles verified by SHA-256 before atomic pointer swap; corrupt manifests fail closed.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <select
+                      aria-label="Offline Cache Scope"
+                      value={cacheScopeId}
+                      onChange={(e) => setCacheScopeId(e.target.value)}
+                      className="px-2.5 py-1.5 border border-slate-200 rounded bg-white font-mono text-[11px]"
+                    >
+                      {(offlineCacheState?.bundles ?? []).map((b) => (
+                        <option key={b.scopeId} value={b.scopeId}>
+                          {b.country} · {b.channel} ({b.platform}) · v{b.version}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      disabled={cacheBusy}
+                      onClick={() => handleCacheStageSwap(false)}
+                      className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium cursor-pointer disabled:opacity-50"
+                    >
+                      Stage &amp; Atomic Swap
+                    </button>
+                    <button
+                      type="button"
+                      disabled={cacheBusy}
+                      onClick={() => handleCacheStageSwap(true)}
+                      className="px-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded font-medium cursor-pointer disabled:opacity-50"
+                    >
+                      Inject Bad SHA-256
+                    </button>
+                    <button
+                      type="button"
+                      disabled={cacheBusy}
+                      onClick={handleCacheRollback}
+                      className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded font-medium cursor-pointer disabled:opacity-50"
+                    >
+                      Rollback
+                    </button>
+                  </div>
+                </div>
+
+                {offlineCacheFeedback && (
+                  <div
+                    className={`p-2.5 rounded border text-xs font-mono ${
+                      offlineCacheFeedback.ok
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                        : 'bg-amber-50 border-amber-200 text-amber-900'
+                    }`}
+                  >
+                    {offlineCacheFeedback.detail}
+                  </div>
+                )}
+
+                {offlineCacheState && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-[11px] font-mono">
+                    {offlineCacheState.bundles.map((b) => (
+                      <div key={b.scopeId} className="p-2.5 bg-slate-50 border border-slate-200 rounded space-y-0.5">
+                        <div className="flex items-center justify-between gap-1 font-semibold text-slate-900">
+                          <span className="truncate">{b.channel}</span>
+                          <span className="text-blue-700">v{b.version}</span>
+                        </div>
+                        <p className="text-slate-600 truncate">{b.broadcaster} · {b.platform}</p>
+                        <p className="text-slate-700">P10={b.p10BreakDurationSec}s · SHA={b.sha256Manifest}</p>
+                        <p className="text-slate-500">Status: {b.status}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

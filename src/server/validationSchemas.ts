@@ -501,6 +501,52 @@ export const tvRemoteSimulateSchema = z
   })
   .strict();
 
+export const tvBreakLifecycleSchema = z
+  .object({
+    platformId: z.enum(['simulation_tv', 'android_tv_tif', 'samsung_tizen', 'lg_webos']),
+    action: z.enum(['enter_ad_session', 'exit_to_ordinary_tv']),
+    faultMode: z
+      .enum(['none', 'adapter_timeout', 'hdcp_blocked', 'decoder_crash', 'network_drop'])
+      .optional()
+      .default('none'),
+    currentState: simulatedTvDeviceStateSchema.optional(),
+  })
+  .strict();
+
+export const tvFaultSuiteSchema = z
+  .object({
+    platformId: z
+      .enum(['simulation_tv', 'android_tv_tif', 'samsung_tizen', 'lg_webos'])
+      .optional(),
+  })
+  .strict();
+
+export const offlineCacheStageSchema = z
+  .object({
+    scopeId: z.string().trim().min(3).max(160),
+    nextVersion: z.coerce.number().int().min(1).max(10000),
+    p10BreakDurationSec: z.coerce.number().int().min(10).max(600),
+    p50BreakDurationSec: z.coerce.number().int().min(10).max(600),
+    switchingLatencyMs: z.coerce.number().int().min(50).max(5000),
+    providedManifestSha: z.string().trim().max(64).optional(),
+    simulateCorruptManifest: z.boolean().optional().default(false),
+  })
+  .strict();
+
+export const offlineCacheRollbackSchema = z
+  .object({
+    scopeId: z.string().trim().min(3).max(160),
+  })
+  .strict();
+
+export const offlineCacheEvaluateBreakSchema = z
+  .object({
+    scopeId: z.string().trim().min(3).max(160),
+    adDurationSeconds: z.coerce.number().int().min(5).max(120),
+    safetyBufferSeconds: z.coerce.number().int().min(2).max(20).optional().default(5),
+  })
+  .strict();
+
 export function parseWithZod<T extends z.ZodTypeAny>(
   schema: T,
   payload: unknown
