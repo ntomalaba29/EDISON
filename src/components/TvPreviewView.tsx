@@ -24,11 +24,17 @@ import type {
   AdCreativeRecord,
   AdvertiserProfile,
   BreakSchedulePlan,
+  BroadcastCueParseResult,
+  BroadcastCueStandard,
   CampaignPreviewGateResult,
   CampaignRecord,
+  CompanionExecutionContext,
+  CompanionPolicyEvalResult,
+  CompanionRequestedCapability,
   OfflineCacheOperationResult,
   OfflineCacheStateSnapshot,
   OfflineQueueDrainResult,
+  Phase4SoftwareExitReport,
   PrimaryAdCategory,
   PublicUser,
   QrLinkRecord,
@@ -510,6 +516,20 @@ export function TvPreviewView({
     null
   );
   const [runningBlock42, setRunningBlock42] = useState(false);
+
+  // Block 4.3 Broadcast Cue Fixtures, Companion Policy Guardrails & Phase 4 Software Exit
+  const [cueStandard, setCueStandard] = useState<BroadcastCueStandard>('scte35_splice_insert');
+  const [cueDrmProtected, setCueDrmProtected] = useState(false);
+  const [cueOwnSessionOnly, setCueOwnSessionOnly] = useState(true);
+  const [cueParseResult, setCueParseResult] = useState<BroadcastCueParseResult | null>(null);
+  const [policyExecContext, setPolicyExecContext] =
+    useState<CompanionExecutionContext>('owned_edison_session');
+  const [policyCapability, setPolicyCapability] =
+    useState<CompanionRequestedCapability>('render_overlay');
+  const [policyPartnerPrivilege, setPolicyPartnerPrivilege] = useState(false);
+  const [policyResult, setPolicyResult] = useState<CompanionPolicyEvalResult | null>(null);
+  const [phase4ExitReport, setPhase4ExitReport] = useState<Phase4SoftwareExitReport | null>(null);
+  const [runningBlock43, setRunningBlock43] = useState(false);
 
   const [qrDataUrl, setQrDataUrl] = useState('');
   const stageContainerRef = useRef<HTMLDivElement | null>(null);
@@ -1056,6 +1076,87 @@ export function TvPreviewView({
       }
     } finally {
       setRunningBlock42(false);
+    }
+  };
+
+  const handleParseBroadcastCue = async () => {
+    setRunningBlock43(true);
+    try {
+      const res = await edisonFetch('/api/tv-adapters/parse-cue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          standard: cueStandard,
+          channelNumber: selectedChannelNumber,
+          breakDurationSec: cadenceBreakSec,
+          adDurationSeconds: 20,
+          safetyBufferSeconds: 5,
+          drmProtected: cueDrmProtected,
+          ownSessionOnly: cueOwnSessionOnly,
+          spliceEventId: 4001,
+          outOfNetworkIndicator: true,
+          confidenceScore: 0.92,
+        }),
+      });
+      if (res.ok) {
+        const parsed = (await res.json()) as BroadcastCueParseResult;
+        setCueParseResult(parsed);
+        setSimLogs((prev) => [
+          `[${formatClock(liveBroadcastClock)} · CUE-4.3] ${parsed.action}: ${parsed.reason}`,
+          ...prev.slice(0, 18),
+        ]);
+      }
+    } finally {
+      setRunningBlock43(false);
+    }
+  };
+
+  const handleEvaluateCompanionPolicy = async () => {
+    setRunningBlock43(true);
+    try {
+      const res = await edisonFetch('/api/tv-adapters/evaluate-policy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          platformId: selectedPlatformId,
+          executionContext: policyExecContext,
+          requestedCapability: policyCapability,
+          hasPartnerPrivilege: policyPartnerPrivilege,
+          hasExplicitViewerConsent: true,
+          drmHdcpActive: cueDrmProtected,
+        }),
+      });
+      if (res.ok) {
+        const evaluated = (await res.json()) as CompanionPolicyEvalResult;
+        setPolicyResult(evaluated);
+        setSimLogs((prev) => [
+          `[${formatClock(liveBroadcastClock)} · POLICY-4.3] ${evaluated.decision}: ${evaluated.reason}`,
+          ...prev.slice(0, 18),
+        ]);
+      }
+    } finally {
+      setRunningBlock43(false);
+    }
+  };
+
+  const handleRunPhase4ExitSuite = async () => {
+    setRunningBlock43(true);
+    try {
+      const res = await edisonFetch('/api/tv-adapters/phase4-exit-suite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (res.ok) {
+        const report = (await res.json()) as Phase4SoftwareExitReport;
+        setPhase4ExitReport(report);
+        setSimLogs((prev) => [
+          `[${formatClock(liveBroadcastClock)} · PHASE4-EXIT] ${report.passedChecks}/${report.totalChecks} checks passed (softwareExitReady=${report.softwareExitReady}, hardwareTested=false).`,
+          ...prev.slice(0, 18),
+        ]);
+      }
+    } finally {
+      setRunningBlock43(false);
     }
   };
 
@@ -2618,6 +2719,167 @@ export function TvPreviewView({
                           </span>
                           <span className={vec.passed ? 'text-emerald-700 font-bold' : 'text-red-700 font-bold'}>
                             {vec.passed ? 'PASS' : 'FAIL'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Phase 4 Block 4.3: Broadcast Metadata Cue Fixtures, Companion Policy Guardrails & Software Exit Gate */}
+              <div className="pt-3 border-t border-slate-200 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h5 className="text-xs font-semibold text-slate-900">
+                      Phase 4 Block 4.3 · Broadcast Cue Fixtures, Companion Policy Guardrails &amp; Exit Gate
+                    </h5>
+                    <p className="text-[11px] text-slate-600">
+                      Validates lawful SCTE-35/HbbTV/AV-cadence fixtures, ADR-001/ADR-017 privilege &amp; HDCP boundaries, and the 10-check Phase 4 software exit suite.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={runningBlock43}
+                    onClick={handleRunPhase4ExitSuite}
+                    className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded text-xs font-semibold cursor-pointer disabled:opacity-50"
+                  >
+                    {runningBlock43 ? 'Running Exit Gate...' : 'Run Phase 4 Exit Suite (10 Checks)'}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+                    <div className="font-semibold text-slate-800">Broadcast Cue Fixture Parser</div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select
+                        aria-label="Broadcast Cue Standard"
+                        value={cueStandard}
+                        onChange={(e) => setCueStandard(e.target.value as BroadcastCueStandard)}
+                        className="px-2 py-1.5 border border-slate-200 rounded bg-white font-mono text-[11px]"
+                      >
+                        <option value="scte35_splice_insert">SCTE-35 splice_insert</option>
+                        <option value="hbbtv_ait_dsmcc">HbbTV AIT / DSM-CC</option>
+                        <option value="av_cadence_marker">AV Cadence Marker</option>
+                      </select>
+                      <label className="flex items-center gap-1 text-[11px] text-slate-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={cueDrmProtected}
+                          onChange={(e) => setCueDrmProtected(e.target.checked)}
+                        />
+                        <span>DRM/HDCP Protected</span>
+                      </label>
+                      <label className="flex items-center gap-1 text-[11px] text-slate-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={cueOwnSessionOnly}
+                          onChange={(e) => setCueOwnSessionOnly(e.target.checked)}
+                        />
+                        <span>Own Session Only</span>
+                      </label>
+                      <button
+                        type="button"
+                        disabled={runningBlock43}
+                        onClick={handleParseBroadcastCue}
+                        className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded font-medium cursor-pointer disabled:opacity-50"
+                      >
+                        Parse Cue
+                      </button>
+                    </div>
+                    {cueParseResult && (
+                      <div
+                        className={`p-2 rounded border font-mono text-[11px] ${
+                          cueParseResult.action === 'TRIGGER_EDISON_AD_SLOT'
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                            : 'bg-amber-50 border-amber-200 text-amber-900'
+                        }`}
+                      >
+                        <div className="font-semibold">{cueParseResult.action}</div>
+                        <p>{cueParseResult.reason}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+                    <div className="font-semibold text-slate-800">Companion Policy Guardrail (ADR-001 / ADR-017)</div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select
+                        aria-label="Companion Execution Context"
+                        value={policyExecContext}
+                        onChange={(e) => setPolicyExecContext(e.target.value as CompanionExecutionContext)}
+                        className="px-2 py-1.5 border border-slate-200 rounded bg-white font-mono text-[11px]"
+                      >
+                        <option value="owned_edison_session">owned_edison_session</option>
+                        <option value="third_party_broadcaster_stream">third_party_broadcaster_stream</option>
+                        <option value="system_global_tuner">system_global_tuner</option>
+                      </select>
+                      <select
+                        aria-label="Companion Requested Capability"
+                        value={policyCapability}
+                        onChange={(e) => setPolicyCapability(e.target.value as CompanionRequestedCapability)}
+                        className="px-2 py-1.5 border border-slate-200 rounded bg-white font-mono text-[11px]"
+                      >
+                        <option value="render_overlay">render_overlay</option>
+                        <option value="inject_remote_key">inject_remote_key</option>
+                        <option value="monitor_epg_global">monitor_epg_global</option>
+                        <option value="hdmi_cec_switch">hdmi_cec_switch</option>
+                        <option value="bypass_hdcp">bypass_hdcp</option>
+                        <option value="background_screen_scrape">background_screen_scrape</option>
+                      </select>
+                      <label className="flex items-center gap-1 text-[11px] text-slate-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={policyPartnerPrivilege}
+                          onChange={(e) => setPolicyPartnerPrivilege(e.target.checked)}
+                        />
+                        <span>Partner Privilege</span>
+                      </label>
+                      <button
+                        type="button"
+                        disabled={runningBlock43}
+                        onClick={handleEvaluateCompanionPolicy}
+                        className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium cursor-pointer disabled:opacity-50"
+                      >
+                        Evaluate Policy
+                      </button>
+                    </div>
+                    {policyResult && (
+                      <div
+                        className={`p-2 rounded border font-mono text-[11px] ${
+                          policyResult.allowed
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                            : 'bg-red-50 border-red-200 text-red-900'
+                        }`}
+                      >
+                        <div className="font-semibold">
+                          {policyResult.decision}
+                          {policyResult.violatedPolicy ? ` (${policyResult.violatedPolicy})` : ''}
+                        </div>
+                        <p>{policyResult.reason}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {phase4ExitReport && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2 font-mono font-semibold text-emerald-950">
+                      <span>
+                        Phase 4 Software Exit Suite: {phase4ExitReport.passedChecks}/
+                        {phase4ExitReport.totalChecks} PASSED · Ready={String(phase4ExitReport.softwareExitReady)}
+                      </span>
+                      <span>SOFTWARE SIMULATION · HARDWARE TESTED: FALSE · STAGE P6 DEFERRED</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 font-mono text-[11px]">
+                      {phase4ExitReport.checks.map((chk) => (
+                        <div
+                          key={chk.checkId}
+                          className="p-1.5 bg-white border border-emerald-200 rounded flex items-center justify-between gap-2"
+                        >
+                          <span className="truncate text-slate-700">{chk.checkId}</span>
+                          <span className={chk.passed ? 'text-emerald-700 font-bold' : 'text-red-700 font-bold'}>
+                            {chk.passed ? 'PASS' : 'FAIL'}
                           </span>
                         </div>
                       ))}

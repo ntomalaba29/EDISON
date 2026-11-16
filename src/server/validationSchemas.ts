@@ -585,6 +585,52 @@ export const tvCadenceSimulateSchema = z
 
 export const tvConformanceVectorsSchema = z.object({}).strict();
 
+export const broadcastCueParseSchema = z
+  .object({
+    standard: z.enum(['scte35_splice_insert', 'hbbtv_ait_dsmcc', 'av_cadence_marker']),
+    channelNumber: z.coerce.number().int().min(1).max(999),
+    breakDurationSec: z.coerce.number().int().min(5).max(600),
+    adDurationSeconds: z.coerce.number().int().min(5).max(120).optional().default(20),
+    safetyBufferSeconds: z.coerce.number().int().min(2).max(20).optional().default(5),
+    drmProtected: z.boolean().optional().default(false),
+    spliceEventId: z.coerce.number().int().min(1).max(99999999).optional(),
+    outOfNetworkIndicator: z.boolean().optional(),
+    autoReturn: z.boolean().optional(),
+    ptsTimeTicks: z.coerce.number().int().min(0).max(9000000000).optional(),
+    orgId: z.coerce.number().int().min(1).max(99999999).optional(),
+    applicationId: z.coerce.number().int().min(1).max(65535).optional(),
+    controlCode: z.enum(['AUTOSTART', 'PRESENT', 'KILL']).optional(),
+    ownSessionOnly: z.boolean().optional(),
+    blackFrameDurationMs: z.coerce.number().int().min(0).max(10000).optional(),
+    audioSilenceRmsDb: z.coerce.number().finite().min(-120).max(0).optional(),
+    confidenceScore: z.coerce.number().finite().min(0).max(1).optional(),
+  })
+  .strict();
+
+export const companionPolicyEvalSchema = z
+  .object({
+    platformId: z.enum(['simulation_tv', 'android_tv_tif', 'samsung_tizen', 'lg_webos']),
+    executionContext: z.enum([
+      'owned_edison_session',
+      'third_party_broadcaster_stream',
+      'system_global_tuner',
+    ]),
+    requestedCapability: z.enum([
+      'render_overlay',
+      'inject_remote_key',
+      'monitor_epg_global',
+      'hdmi_cec_switch',
+      'bypass_hdcp',
+      'background_screen_scrape',
+    ]),
+    hasPartnerPrivilege: z.boolean(),
+    hasExplicitViewerConsent: z.boolean(),
+    drmHdcpActive: z.boolean(),
+  })
+  .strict();
+
+export const phase4ExitSuiteSchema = z.object({}).strict();
+
 export function parseWithZod<T extends z.ZodTypeAny>(
   schema: T,
   payload: unknown

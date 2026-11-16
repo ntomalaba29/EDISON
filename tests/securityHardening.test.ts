@@ -444,8 +444,8 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
       .get('/api/qa/prototype-readiness')
       .set('Authorization', `Bearer ${adminLogin.body.token}`);
     expect(readinessRes.status).toBe(200);
-    expect(readinessRes.body.automatedInvariantsPassed).toBe(16);
-    expect(readinessRes.body.automatedInvariantsTotal).toBe(16);
+    expect(readinessRes.body.automatedInvariantsPassed).toBe(17);
+    expect(readinessRes.body.automatedInvariantsTotal).toBe(17);
   });
 
   it('hardens /api/media/upload against SVG/HTML polyglots & invalid base64 and locks down /uploads/* headers & symlinks', async () => {
@@ -832,6 +832,89 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
     expect(confRes.body.passedVectors).toBe(8);
     expect(confRes.body.allPassed).toBe(true);
     expect(confRes.body.hardwareTested).toBe(false);
+  });
+
+  it('Block 4.3: secures broadcast cue parser, companion policy evaluator, phase4-exit-suite endpoints & 17/17 QA invariants', async () => {
+    const unauthNoCsrf = await request(app).post('/api/tv-adapters/parse-cue').send({});
+    expect(unauthNoCsrf.status).toBe(403);
+
+    const invalidBearer = await request(app)
+      .post('/api/tv-adapters/parse-cue')
+      .set('Authorization', 'Bearer invalid_token_123')
+      .send({});
+    expect(invalidBearer.status).toBe(401);
+
+    const adminLogin = await request(app).post('/api/auth/login').send({
+      email: 'admin@edison.demo',
+      password: 'EdisonAdmin!2026',
+    });
+    const adminToken = adminLogin.body.token as string;
+
+    // 1. Valid SCTE-35 splice_insert parses cleanly
+    const scteRes = await request(app)
+      .post('/api/tv-adapters/parse-cue')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        standard: 'scte35_splice_insert',
+        channelNumber: 101,
+        breakDurationSec: 90,
+        adDurationSeconds: 20,
+        outOfNetworkIndicator: true,
+      });
+    expect(scteRes.status).toBe(200);
+    expect(scteRes.body.action).toBe('TRIGGER_EDISON_AD_SLOT');
+    expect(scteRes.body.hardwareTested).toBe(false);
+
+    // 2. Unknown fields rejected by strict Zod schema (HTTP 400)
+    const badPolicyPayload = await request(app)
+      .post('/api/tv-adapters/evaluate-policy')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        platformId: 'android_tv_tif',
+        executionContext: 'owned_edison_session',
+        requestedCapability: 'render_overlay',
+        hasPartnerPrivilege: false,
+        hasExplicitViewerConsent: true,
+        drmHdcpActive: false,
+        extraUnauthorizedFlag: true,
+      });
+    expect(badPolicyPayload.status).toBe(400);
+
+    // 3. Policy rejects HDCP bypass fail-closed
+    const denyRes = await request(app)
+      .post('/api/tv-adapters/evaluate-policy')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        platformId: 'android_tv_tif',
+        executionContext: 'owned_edison_session',
+        requestedCapability: 'bypass_hdcp',
+        hasPartnerPrivilege: true,
+        hasExplicitViewerConsent: true,
+        drmHdcpActive: false,
+      });
+    expect(denyRes.status).toBe(200);
+    expect(denyRes.body.allowed).toBe(false);
+    expect(denyRes.body.decision).toBe('DENY_FAIL_CLOSED');
+
+    // 4. Phase 4 exit suite returns 10/10 checks passed
+    const exitRes = await request(app)
+      .post('/api/tv-adapters/phase4-exit-suite')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({});
+    expect(exitRes.status).toBe(200);
+    expect(exitRes.body.softwareExitReady).toBe(true);
+    expect(exitRes.body.passedChecks).toBe(10);
+    expect(exitRes.body.totalChecks).toBe(10);
+    expect(exitRes.body.hardwareTested).toBe(false);
+    expect(exitRes.body.stageP6Deferred).toBe(true);
+
+    // 5. Prototype readiness snapshot reports 17/17 automated invariants passing
+    const qaRes = await request(app)
+      .get('/api/qa/prototype-readiness')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(qaRes.status).toBe(200);
+    expect(qaRes.body.automatedInvariantsPassed).toBe(17);
+    expect(qaRes.body.automatedInvariantsTotal).toBe(17);
   });
 });
 

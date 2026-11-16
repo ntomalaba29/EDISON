@@ -110,5 +110,15 @@
   3. **API Routes, UI Controls & Regression Suite**: Added strict-Zod authenticated routes (`GET /api/tv-adapters/channels`, `POST /api/offline-intel-cache/queue-observation`, `POST /api/offline-intel-cache/drain-queue`, `POST /api/tv-adapters/cadence-simulate`, `POST /api/tv-adapters/conformance-vectors`), Simulator UI controls in `TvPreviewView.tsx`, Block 4.2 unit + HTTP security tests, and 16th QA invariant `qa_42_offline_queue_cadence_conformance` (`34.0%` Full App, `54.8%` to Stage P6).
 - **Next Authorised Action**: Review and commit **Block 4.2** before proceeding to Phase 4 Block 4.3 or `TASK-P3-001`.
 
+---
+
+## Session Entry — 2026-11-15 (Block 4.2 & CI Fix Committed · Phase 4 Block 4.3 Verification)
+
+- **Owner Commit Confirmation (`ADR-010`)**: Project Owner confirmed `"Committed, next"`, locking **Block 4.2** + the Bun CI workflow fix (`/.github/workflows/edison-ci.yml`) and unlocking **Phase 4 · Stage 4.3 · Block 4.3**.
+- **Verified Block 4.3 (Lawful Broadcast Metadata Cue Fixtures, Companion Policy Guardrails & Phase 4 Software Exit Suite — `VERIFIED · AWAITING COMMIT`)**:
+  1. **Broadcast Metadata Cue Fixtures & Companion Policy Engine (`src/server/broadcastMetadataParser.ts`)**: Built `parseAndValidateBroadcastCue()` (`scte35_splice_insert`, `hbbtv_ait_dsmcc`, `av_cadence_marker`) with fail-closed DRM/HDCP skip, HbbTV external stream rejection, and `<0.85` AV confidence skip; built `evaluateCompanionPolicyGuardrail()` (`ADR-001` / `ADR-017`) blocking `bypass_hdcp`, `background_screen_scrape`, unprivileged `READ_EPG_DATA`, and 3P broadcast overlays; and added a 10-check `runPhase4SoftwareExitSuite()`.
+  2. **API Routes, UI Controls & Regression Suite**: Added strict-Zod authenticated routes (`POST /api/tv-adapters/parse-cue`, `POST /api/tv-adapters/evaluate-policy`, `POST /api/tv-adapters/phase4-exit-suite`), interactive Block 4.3 controls in `TvPreviewView.tsx`, unit + HTTP integration coverage (`tests/phase4AdaptersAndCache.test.ts` & `tests/securityHardening.test.ts`), and 17th QA invariant `qa_43_metadata_fixtures_policy_phase4_exit` (`37.0%` Full App, `59.7%` to Stage P6).
+- **Next Authorised Action**: Review and commit **Block 4.3** before proceeding to **Phase 5 Block 5.1** (or `TASK-P3-001`). Physical TV hardware testing stays strictly deferred to `Stage P6`.
+
 
 

@@ -1085,4 +1085,116 @@ export interface TvEmulatorConformanceReport {
   vectors: TvEmulatorConformanceVector[];
 }
 
+// --- Phase 4 Block 4.3: Broadcast Metadata Cue Fixtures, Companion Policy Guardrails & Software Exit ---
+
+export type BroadcastCueStandard =
+  | 'scte35_splice_insert'
+  | 'hbbtv_ait_dsmcc'
+  | 'av_cadence_marker';
+
+export interface BroadcastCueParseRequest {
+  standard: BroadcastCueStandard;
+  channelNumber: number;
+  breakDurationSec: number;
+  adDurationSeconds: number;
+  safetyBufferSeconds?: number;
+  drmProtected?: boolean;
+  // SCTE-35 fields
+  spliceEventId?: number;
+  outOfNetworkIndicator?: boolean;
+  autoReturn?: boolean;
+  ptsTimeTicks?: number;
+  // HbbTV AIT/DSM-CC fields
+  orgId?: number;
+  applicationId?: number;
+  controlCode?: 'AUTOSTART' | 'PRESENT' | 'KILL';
+  ownSessionOnly?: boolean;
+  // AV Cadence fields
+  blackFrameDurationMs?: number;
+  audioSilenceRmsDb?: number;
+  confidenceScore?: number;
+}
+
+export interface BroadcastCueParseResult {
+  ok: boolean;
+  validCue: boolean;
+  safeToTriggerBreak: boolean;
+  action: 'TRIGGER_EDISON_AD_SLOT' | 'RETURN_TO_PROGRAM' | 'SKIP_FAIL_CLOSED';
+  standard: BroadcastCueStandard;
+  channelNumber: number;
+  effectiveWindowSec: number;
+  requiredWindowSec: number;
+  confidenceScore: number;
+  reason: string;
+  normalizedCue: Record<string, string | number | boolean>;
+  isSoftwareSimulationOnly: true;
+  hardwareTested: false;
+  parsedAt: string;
+}
+
+export type CompanionExecutionContext =
+  | 'owned_edison_session'
+  | 'third_party_broadcaster_stream'
+  | 'system_global_tuner';
+
+export type CompanionRequestedCapability =
+  | 'render_overlay'
+  | 'inject_remote_key'
+  | 'monitor_epg_global'
+  | 'hdmi_cec_switch'
+  | 'bypass_hdcp'
+  | 'background_screen_scrape';
+
+export interface CompanionPolicyEvalRequest {
+  platformId: TvPlatformId;
+  executionContext: CompanionExecutionContext;
+  requestedCapability: CompanionRequestedCapability;
+  hasPartnerPrivilege: boolean;
+  hasExplicitViewerConsent: boolean;
+  drmHdcpActive: boolean;
+}
+
+export interface CompanionPolicyEvalResult {
+  allowed: boolean;
+  decision: 'ALLOW_BOUNDED' | 'DENY_FAIL_CLOSED';
+  platformId: TvPlatformId;
+  executionContext: CompanionExecutionContext;
+  requestedCapability: CompanionRequestedCapability;
+  violatedPolicy: string | null;
+  reason: string;
+  isSoftwareSimulationOnly: true;
+  hardwareTested: false;
+  evaluatedAt: string;
+}
+
+export interface Phase4SoftwareExitCheckItem {
+  checkId: string;
+  category: 'cue_parser' | 'companion_policy' | 'fault_recovery' | 'emulator_conformance';
+  label: string;
+  passed: boolean;
+  detail: string;
+}
+
+export interface Phase4SoftwareExitReport {
+  generatedAt: string;
+  isSoftwareSimulationOnly: true;
+  hardwareTested: false;
+  stageP6Deferred: true;
+  softwareExitReady: boolean;
+  passedChecks: number;
+  totalChecks: number;
+  faultSuiteSummary: {
+    passedCases: number;
+    totalCases: number;
+    allPassed: boolean;
+  };
+  conformanceSummary: {
+    passedVectors: number;
+    totalVectors: number;
+    allPassed: boolean;
+  };
+  checks: Phase4SoftwareExitCheckItem[];
+}
+
+
 

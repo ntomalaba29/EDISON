@@ -4,6 +4,11 @@ import {
   EdisonTvControlEngine,
 } from '../src/server/tvPlatformAdapter.ts';
 import { LocalOfflineIntelCacheEngine } from '../src/server/offlineIntelCache.ts';
+import {
+  evaluateCompanionPolicyGuardrail,
+  parseAndValidateBroadcastCue,
+  runPhase4SoftwareExitSuite,
+} from '../src/server/broadcastMetadataParser.ts';
 
 describe('EDISON Phase 4 Block 4.1 — Software TV Adapter Harnesses & Offline Intelligence Cache', () => {
   it('executes Android TV TIF and Samsung Tizen break-session lifecycles while keeping LG webOS fail-closed without partner privilege', () => {
@@ -279,6 +284,91 @@ describe('EDISON Phase 4 Block 4.1 — Software TV Adapter Harnesses & Offline I
     expect(conformance.totalVectors).toBe(8);
     expect(conformance.passedVectors).toBe(8);
     expect(conformance.allPassed).toBe(true);
+  });
+
+  it('Block 4.3: validates SCTE-35/HbbTV/AV cue fixtures, enforces ADR-001/ADR-017 companion guardrails, and passes the 10-check Phase 4 exit suite', () => {
+    const validScte = parseAndValidateBroadcastCue({
+      standard: 'scte35_splice_insert',
+      channelNumber: 101,
+      breakDurationSec: 90,
+      adDurationSeconds: 20,
+      safetyBufferSeconds: 5,
+      outOfNetworkIndicator: true,
+    });
+    expect(validScte.validCue).toBe(true);
+    expect(validScte.safeToTriggerBreak).toBe(true);
+    expect(validScte.action).toBe('TRIGGER_EDISON_AD_SLOT');
+
+    const drmScte = parseAndValidateBroadcastCue({
+      standard: 'scte35_splice_insert',
+      channelNumber: 103,
+      breakDurationSec: 90,
+      adDurationSeconds: 20,
+      drmProtected: true,
+    });
+    expect(drmScte.validCue).toBe(false);
+    expect(drmScte.action).toBe('SKIP_FAIL_CLOSED');
+
+    const hbbtvHijack = parseAndValidateBroadcastCue({
+      standard: 'hbbtv_ait_dsmcc',
+      channelNumber: 201,
+      breakDurationSec: 90,
+      adDurationSeconds: 20,
+      ownSessionOnly: false,
+    });
+    expect(hbbtvHijack.validCue).toBe(false);
+    expect(hbbtvHijack.action).toBe('SKIP_FAIL_CLOSED');
+
+    const lowConfAv = parseAndValidateBroadcastCue({
+      standard: 'av_cadence_marker',
+      channelNumber: 101,
+      breakDurationSec: 90,
+      adDurationSeconds: 20,
+      confidenceScore: 0.65,
+    });
+    expect(lowConfAv.validCue).toBe(false);
+    expect(lowConfAv.action).toBe('SKIP_FAIL_CLOSED');
+
+    const denyHdcp = evaluateCompanionPolicyGuardrail({
+      platformId: 'android_tv_tif',
+      executionContext: 'owned_edison_session',
+      requestedCapability: 'bypass_hdcp',
+      hasPartnerPrivilege: true,
+      hasExplicitViewerConsent: true,
+      drmHdcpActive: false,
+    });
+    expect(denyHdcp.allowed).toBe(false);
+    expect(denyHdcp.decision).toBe('DENY_FAIL_CLOSED');
+
+    const deny3p = evaluateCompanionPolicyGuardrail({
+      platformId: 'samsung_tizen',
+      executionContext: 'third_party_broadcaster_stream',
+      requestedCapability: 'render_overlay',
+      hasPartnerPrivilege: false,
+      hasExplicitViewerConsent: true,
+      drmHdcpActive: false,
+    });
+    expect(deny3p.allowed).toBe(false);
+    expect(deny3p.decision).toBe('DENY_FAIL_CLOSED');
+
+    const allowOwned = evaluateCompanionPolicyGuardrail({
+      platformId: 'android_tv_tif',
+      executionContext: 'owned_edison_session',
+      requestedCapability: 'render_overlay',
+      hasPartnerPrivilege: false,
+      hasExplicitViewerConsent: true,
+      drmHdcpActive: false,
+    });
+    expect(allowOwned.allowed).toBe(true);
+    expect(allowOwned.decision).toBe('ALLOW_BOUNDED');
+
+    const exitReport = runPhase4SoftwareExitSuite();
+    expect(exitReport.isSoftwareSimulationOnly).toBe(true);
+    expect(exitReport.hardwareTested).toBe(false);
+    expect(exitReport.stageP6Deferred).toBe(true);
+    expect(exitReport.softwareExitReady).toBe(true);
+    expect(exitReport.passedChecks).toBe(10);
+    expect(exitReport.totalChecks).toBe(10);
   });
 });
 

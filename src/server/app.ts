@@ -36,6 +36,11 @@ import {
 import { edisonTvControlEngine } from './tvPlatformAdapter.ts';
 import { localOfflineIntelCache } from './offlineIntelCache.ts';
 import {
+  evaluateCompanionPolicyGuardrail,
+  parseAndValidateBroadcastCue,
+  runPhase4SoftwareExitSuite,
+} from './broadcastMetadataParser.ts';
+import {
   adCreativeAttachSchema,
   adCreativeSaveSchema,
   adminAppealResolveSchema,
@@ -48,10 +53,12 @@ import {
   appealCreateSchema,
   auditLogExportQuerySchema,
   auditLogQuerySchema,
+  broadcastCueParseSchema,
   campaignCreateSchema,
   campaignQuerySchema,
   campaignTransitionSchema,
   campaignUpdateSchema,
+  companionPolicyEvalSchema,
   complaintCreateSchema,
   loginSchema,
   mediaUploadSchema,
@@ -62,6 +69,7 @@ import {
   offlineQueueEnqueueSchema,
   opportunityCreateSchema,
   parseWithZod,
+  phase4ExitSuiteSchema,
   physicalQrTestCreateSchema,
   qrCreateSchema,
   qrStatusPatchSchema,
@@ -1588,6 +1596,67 @@ export function createEdisonApp(
         'TV_EMULATOR_CONFORMANCE_RUN',
         'all_platforms',
         `[${req.requestId ?? 'req'}] Ran ${report.passedVectors}/${report.totalVectors} emulator conformance vectors (hardwareTested=false).`
+      );
+      res.json(report);
+    }
+  );
+
+  // Block 4.3: Broadcast Metadata Cue Fixtures, Companion Policy Guardrails & Phase 4 Software Exit Gate
+  app.post(
+    '/api/tv-adapters/parse-cue',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(broadcastCueParseSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const result = parseAndValidateBroadcastCue(parsed.data);
+      store.recordSecurityAudit(
+        req.currentUser!,
+        'BROADCAST_CUE_FIXTURE_PARSED',
+        `${parsed.data.standard}:ch${parsed.data.channelNumber}`,
+        `[${req.requestId ?? 'req'}] ${result.action}: ${result.reason}`
+      );
+      res.json(result);
+    }
+  );
+
+  app.post(
+    '/api/tv-adapters/evaluate-policy',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(companionPolicyEvalSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const evaluation = evaluateCompanionPolicyGuardrail(parsed.data);
+      store.recordSecurityAudit(
+        req.currentUser!,
+        'COMPANION_POLICY_EVALUATED',
+        `${parsed.data.platformId}:${parsed.data.requestedCapability}`,
+        `[${req.requestId ?? 'req'}] ${evaluation.decision}: ${evaluation.reason}`
+      );
+      res.json(evaluation);
+    }
+  );
+
+  app.post(
+    '/api/tv-adapters/phase4-exit-suite',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(phase4ExitSuiteSchema, req.body ?? {});
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const report = runPhase4SoftwareExitSuite();
+      store.recordSecurityAudit(
+        req.currentUser!,
+        'PHASE4_SOFTWARE_EXIT_SUITE_RUN',
+        'phase4_exit',
+        `[${req.requestId ?? 'req'}] Phase 4 software exit suite: ${report.passedChecks}/${report.totalChecks} checks passed (softwareExitReady=${report.softwareExitReady}, hardwareTested=false).`
       );
       res.json(report);
     }

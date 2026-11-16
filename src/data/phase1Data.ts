@@ -27,19 +27,19 @@ export const ROADMAP_PHASES: RoadmapPhaseItem[] = [
   },
   {
     phase: 3,
-    title: 'Software-First Engineering & Architecture Hardening (Block P3-A + Block P3-B + TASK-P3-001)',
+    title: 'Software-First Engineering & Architecture Hardening (Blocks P3-A, P3-B, P3-C + TASK-P3-001)',
     summary:
-      'IN PROGRESS — Block P3-A (API Zod validation, CSRF, edisonFetch, rate limits, SHA-256 sessions) COMMITTED. Block P3-B (EdisonDataRepository port, /uploads/* CSP/symlink/polyglot hardening, API timeout 504 & JSON error middleware, React AppErrorBoundary & GitHub CI workflow) VERIFIED & AWAITING COMMIT. TASK-P3-001 is READY (JSON retained without paid Cloud SQL). Track B excluded per DEC-OPEN-01.',
+      'Blocks P3-A, P3-B & P3-C COMMITTED. TASK-P3-001 PostgreSQL 16+ blueprint is READY (JSON retained in AI Studio without paid Cloud SQL). Track B excluded per DEC-OPEN-01.',
     milestoneGate: 'Hardened Track A codebase with repository portability, automated security/CI tests & PostgreSQL migration readiness.',
-    status: 'AWAITING COMMIT',
+    status: 'COMMITTED',
   },
   {
     phase: 4,
     title: 'Smart TV Platform Feasibility & Adapter Engineering (Software-First)',
     summary:
-      'Android TV TIF, Tizen & webOS adapters plus Normal Everyday TV Remote Control (AURA -> EDISON Control Engine -> platform adapters -> TV: power, volume/mute, channel, source/input, D-pad/back/home), strictly separate from ad-break switching/restoration; tested on emulators with zero physical TV hardware compatibility claimed prior to Stage P6.',
+      'Blocks 4.1 & 4.2 COMMITTED. Block 4.3 (Broadcast Cue Fixtures, Companion Policy Guardrails & 10-Check Software Exit Suite) VERIFIED & AWAITING COMMIT. Software/emulator adapters verified (`9.0% / 12.0%`); physical OEM SDK & hardware testing strictly deferred to Stage P6.',
     milestoneGate: 'Software/emulator adapters verified without undocumented hooks; hardware compatibility checked only at Stage P6.',
-    status: 'NOT STARTED',
+    status: 'AWAITING COMMIT',
   },
   {
     phase: 5,
@@ -246,7 +246,7 @@ export function generateFormalReport(
   const pm = liveSnapshot?.progressMetrics;
   const pctBlock = pm
     ? `${pm.overallFullAppPct}% of Full 15-Phase App (${pm.remainingUntilFullAppPct}% remaining) · ${pm.softwareToStageP6Pct}% of Software-to-Stage-P6 Milestone · ${pm.aiStudioAssignmentPct}% of Phase 2 AI Studio Scope (${pm.consentBlockedScopePct}% blocked on DEC-OPEN-01)`
-    : '34.0% of Full 15-Phase App (66.0% remaining) · 54.8% of Software-to-Stage-P6 · 85% of Phase 2 AI Studio Scope (15% Track B blocked on DEC-OPEN-01)';
+    : '37.0% of Full 15-Phase App (63.0% remaining) · 59.7% of Software-to-Stage-P6 · 85% of Phase 2 AI Studio Scope (15% Track B blocked on DEC-OPEN-01)';
 
   if (command === 'STATUS') {
     return {
@@ -256,9 +256,9 @@ export function generateFormalReport(
         'EDISON — PROJECT STATUS REPORT',
         `Generated: ${generatedAt}`,
         `Current Phase: ${liveSnapshot?.phase ?? 'Phase 4 — Smart TV OS Adapters & Normal TV Remote (Software-First · JSON Retained)'}`,
-        `Current Stage: ${liveSnapshot?.stage ?? 'Phase 3 & Block 4.1 Committed · Phase 4 Block 4.2 Complete · TASK-P3-001 READY'}`,
-        `Current Block: ${liveSnapshot?.block ?? 'Block 4.2 (Offline Telemetry Sync Queue, Multi-Channel Cadence Simulator & Conformance Vectors)'}`,
-        `Commit Gate: ${liveSnapshot?.gateStatus ?? 'BLOCK 4.2 VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · STAGE P6 HARDWARE DEFERRED)'}`,
+        `Current Stage: ${liveSnapshot?.stage ?? 'Phase 3 & Blocks 4.1–4.2 Committed · Phase 4 Block 4.3 Complete · TASK-P3-001 READY'}`,
+        `Current Block: ${liveSnapshot?.block ?? 'Block 4.3 (Broadcast Metadata Cue Fixtures, Companion Policy Guardrails & Software Exit Suite)'}`,
+        `Commit Gate: ${liveSnapshot?.gateStatus ?? 'BLOCK 4.3 VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · STAGE P6 HARDWARE DEFERRED)'}`,
         '',
         `PROGRESS UNTIL FULL APP: ${pctBlock}`,
         '',
@@ -266,20 +266,20 @@ export function generateFormalReport(
         '- Phase 1 + Blueprint v2.1 + v2.2 Shared Ad Intelligence Specs: COMMITTED (6.0% Full App)',
         '- Phase 2 Track A Complete (Blocks 2.1–2.7 + P2-V2.1–P2-V2.4, 85% AI Studio): COMMITTED (13.0% / 14.0% Full App)',
         '- Phase 3 Software-First Hardening (Blocks P3-A, P3-B, P3-C): COMMITTED (9.0% / 12.0% Full App)',
-        '- Phase 4 Block 4.1 (Harnesses, 16-Case Fault Suite & SHA-256 Local Offline Cache): COMMITTED (3.0% / 12.0% Full App)',
-        '- Phase 4 Block 4.2 (Idempotent Offline Telemetry Sync Queue, Multi-Channel Cadence Simulator & 8-Vector Conformance): VERIFIED · AWAITING COMMIT (3.0% / 12.0% Full App)',
+        '- Phase 4 Blocks 4.1 & 4.2 (Harnesses, 16-Case Fault Suite, Offline Cache/Queue, Cadence & 8-Vector Conformance): COMMITTED (6.0% / 12.0% Full App)',
+        '- Phase 4 Block 4.3 (Broadcast Cue Fixtures, Companion Policy Guardrails & 10-Check Phase 4 Software Exit Suite): VERIFIED · AWAITING COMMIT (3.0% / 12.0% Full App)',
         '- TASK-P3-001 PostgreSQL 16+ Migration Requirements Blueprint: READY (JSON persistence retained in AI Studio without Cloud SQL)',
         '- Track B (Consent / Household Geo / Multi-Profile / Epoch 403): BLOCKED ON DEC-OPEN-01 (15% Phase 2 scope)',
         '',
         'OVERALL EDISON PROJECT PROGRESS:',
-        `- ${pm?.rubricSummary ?? 'Phase 1 Specs (6.0%) + Phase 2 Track A Complete (13.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Block 4.1 Committed (3.0%) + Phase 4 Block 4.2 Awaiting Commit (3.0%) = 34.0% of 15-Phase Full Commercial App (54.8% to Stage P6; 66.0% remaining).'}`,
-        '- Normal Everyday TV Remote & Smart TV OS Harnesses (AURA -> EDISON Control Engine -> platform adapters -> TV): SOFTWARE HARNESSES, FAULT SUITE, CADENCE & 8-VECTOR CONFORMANCE VERIFIED (Zero physical hardware tested; Stage P6 strictly deferred); Shared Intelligence Phase 5 Service NOT STARTED.',
+        `- ${pm?.rubricSummary ?? 'Phase 1 Specs (6.0%) + Phase 2 Track A Complete (13.0%) + Phase 3 Hardening Committed (9.0%) + Phase 4 Blocks 4.1–4.2 Committed (6.0%) + Phase 4 Block 4.3 Awaiting Commit (3.0%) = 37.0% of 15-Phase Full Commercial App (59.7% to Stage P6; 63.0% remaining).'}`,
+        '- Normal Everyday TV Remote & Smart TV OS Harnesses (AURA -> EDISON Control Engine -> platform adapters -> TV): SOFTWARE EXIT SUITE (10/10) VERIFIED (Zero physical hardware tested; Stage P6 strictly deferred); Shared Intelligence Phase 5 Service NOT STARTED.',
         '',
         'LIVE STORE COUNTS:',
         countsLine,
         '',
         'NEXT AUTHORISED ACTION:',
-        'Review and commit Block 4.2 changes, then confirm commit to unlock Phase 4 Block 4.3 (Multi-Signal Broadcast Metadata Parser & Partner-Gated Capability Matrix) or Phase 5 Shared Ad Intelligence software services (or authorise external PostgreSQL execution for TASK-P3-001). Track B remains strictly blocked pending DEC-OPEN-01.',
+        'Review and commit Block 4.3 changes, then confirm commit to unlock Phase 5 Block 5.1 (Lawful Commercial-Break Detection & Network-Wide Shared Ad Intelligence Production Service) or authorise external PostgreSQL execution for TASK-P3-001. Track B remains strictly blocked pending DEC-OPEN-01.',
       ].join('\n'),
     };
   }
@@ -291,13 +291,13 @@ export function generateFormalReport(
       body: [
         'EDISON — VERIFICATION & GATE CHECK',
         `Generated: ${generatedAt}`,
-        `Active Block: ${liveSnapshot?.block ?? 'Block 4.2 (Offline Telemetry Sync Queue, Multi-Channel Cadence Simulator & Conformance Vectors)'}`,
+        `Active Block: ${liveSnapshot?.block ?? 'Block 4.3 (Broadcast Metadata Cue Fixtures, Companion Policy Guardrails & Software Exit Suite)'}`,
         `Progress Metrics: ${pctBlock}`,
         `Live Store Telemetry: ${countsLine}`,
         `QR Telemetry: Redirect Requests=${s?.redirectRequestsTotal ?? 0} | Redirects Issued=${s?.redirectIssuedTotal ?? 0} | Suspected Bots=${s?.suspectedBotRedirects ?? 0} | Verified Destination Opens=${s?.verifiedDestinationOpens ?? 0} | Verified Conversions=${s?.verifiedConversionsTotal ?? 0}`,
         `Physical Phone Scan Logs: ${s?.physicalQrPassedCount ?? 0} passed / ${s?.physicalQrTestsCount ?? 0} total`,
         '',
-        'VERIFIED IMPLEMENTATIONS (PHASE 2–3 + BLOCK 4.1 COMMITTED + PHASE 4 BLOCK 4.2):',
+        'VERIFIED IMPLEMENTATIONS (PHASE 2–3 + BLOCKS 4.1–4.2 COMMITTED + PHASE 4 BLOCK 4.3):',
         '- Persistence portability via EdisonDataRepository interface (JSON store schemaVersion 8 retained; zero Cloud SQL cost)',
         '- Auth/RBAC (advertiser, opportunity_submitter, admin) with scrypt hashing, session rotation & 2h idle timeout',
         '- API Zod validation schemas, cookie/header CSRF + edisonFetch, sliding-window rate limiting, 504 timeout & opaque JSON error middleware',
@@ -306,7 +306,8 @@ export function generateFormalReport(
         '- Software-First Android TV TIF, Samsung Tizen & LG webOS harnesses + 16-case deterministic fault-injection watchdog suite + AURA Normal Everyday TV Remote simulator (hardwareTested: false, Stage P6 deferred)',
         '- Local Offline Intelligence Cache Engine with SHA-256 manifest verification, atomic swap/rollback & idempotent offline telemetry sync queue with replay deduplication',
         '- Multi-channel SCTE-35/HbbTV cadence simulator & 8-vector software emulator conformance suite (/api/tv-adapters/cadence-simulate & /conformance-vectors)',
-        '- React AppErrorBoundary + GitHub Actions CI (.github/workflows/edison-ci.yml)',
+        '- Broadcast cue fixture parsers (SCTE-35/HbbTV/AV), ADR-001/ADR-017 companion policy guardrails & 10-check Phase 4 software exit suite (/api/tv-adapters/parse-cue, /evaluate-policy, /phase4-exit-suite)',
+        '- React AppErrorBoundary + GitHub Actions CI (.github/workflows/edison-ci.yml using Bun frozen-lockfile)',
         '- Real QR destination validation & /r/:token redirect telemetry',
         '- Advertiser profile, 10-state campaigns & permanent $0.00 / FREE CHARITY ADS lock (paymentCollectionActive: false)',
         '- Option A Studio, Option B External Upload/jsQR, and zero-media Commercial Text-Only Ad format',
@@ -314,7 +315,7 @@ export function generateFormalReport(
         '- Direct-Paid Commercial Priority vs MockAdNetworkBackfillAdapter (DEC-OPEN-03) & Separated 6-Stream Financial Ledger (ADR-012)',
         '- Opportunity Submission, Non-Transitive 3-Tier Verification, Expiry, Complaints & Appeals',
         '- Admin Moderation Console & 7-Stage Funnel Analytics',
-        '- Vitest + Supertest Automated Suite (npm test — incl. phase4AdaptersAndCache.test.ts, tvPlatformAdapter.test.ts & securityHardening.test.ts)',
+        '- Vitest + Supertest Automated Suite (bun run test — incl. phase4AdaptersAndCache.test.ts, tvPlatformAdapter.test.ts & securityHardening.test.ts)',
         '- Shared Ad Intelligence Prototype Preview (Mock Simulation Only — K=3 Quorum, Zero PII, Scoped Cache, Auto-Rollback)',
         '',
         'OUTSTANDING CHECKS & POST-PROTOTYPE CORE REQUIREMENTS:',
@@ -330,18 +331,18 @@ export function generateFormalReport(
   if (command === 'NEXT') {
     return {
       title: 'EDISON — NEXT AUTHORISED ACTION',
-      subtitle: 'Block 4.2 verified & awaiting commit; Phase 3 & Block 4.1 committed; TASK-P3-001 READY',
+      subtitle: 'Block 4.3 verified & awaiting commit; Blocks 4.1–4.2 committed; TASK-P3-001 READY',
       body: [
         'EDISON — NEXT GATE EVALUATION',
         `Generated: ${generatedAt}`,
-        `Current Gate: ${liveSnapshot?.gateStatus ?? 'BLOCK 4.2 VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · STAGE P6 HARDWARE DEFERRED)'}`,
+        `Current Gate: ${liveSnapshot?.gateStatus ?? 'BLOCK 4.3 VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · STAGE P6 HARDWARE DEFERRED)'}`,
         `Progress Until Full App: ${pctBlock}`,
         '',
         'GATE STATUS & NEXT BLOCK:',
-        'Phase 4 Block 4.2 (Idempotent Offline Telemetry Sync Queue, Multi-Channel Broadcast Cadence Simulator & 8-Vector Software Emulator Conformance Suite) is VERIFIED & AWAITING COMMIT. TASK-P3-001 PostgreSQL blueprint remains READY while retaining JSON persistence in AI Studio without paid Cloud SQL.',
+        'Phase 4 Block 4.3 (Lawful Broadcast Metadata Cue Fixtures, Companion Policy Guardrails & 10-Check Software Exit Suite) is VERIFIED & AWAITING COMMIT. TASK-P3-001 PostgreSQL blueprint remains READY while retaining JSON persistence in AI Studio without paid Cloud SQL.',
         '',
         'AFTER COMMIT CONFIRMATION:',
-        '- Next Software-First Block (Phase 4 Block 4.3): Multi-signal SCTE-35/HbbTV/AV-cadence lawful break-detection parser fixtures, TV adapter companion control policy guardrails & Phase 4 software exit gate (Stage P6 physical hardware test remains deferred).',
+        '- Next Software-First Phase (Phase 5 Block 5.1): Lawful Commercial-Break Detection, Per-Channel Break Duration ML Predictor & Network-Wide Shared Ad Intelligence Production Service (Tests 25–35, signed attestation keys, automatic rollback).',
         '- DEC-OPEN-01 (Blocks Track B Only): Select Option A, Option B, or Option C to unlock Track B (15%).',
         '- DEC-OPEN-02: Confirm k=1 short-break alternating rule.',
         '- DEC-OPEN-03: Google Ad Manager CTV account / format confirmation (mock adapter active until resolved).',
@@ -352,40 +353,40 @@ export function generateFormalReport(
   if (command === 'COMMIT') {
     return {
       title: 'EDISON — COMMIT CHECKPOINT',
-      subtitle: 'Block 4.2 verified and awaiting manual owner commit',
+      subtitle: 'Block 4.3 verified and awaiting manual owner commit',
       body: [
-        'EDISON — COMMIT CHECKPOINT (BLOCK 4.2)',
+        'EDISON — COMMIT CHECKPOINT (BLOCK 4.3)',
         `Generated: ${generatedAt}`,
         `Progress Metrics: ${pctBlock}`,
         `Live Store Telemetry: ${countsLine}`,
         '',
         'STATUS: VERIFIED · AWAITING MANUAL OWNER COMMIT',
-        'REQUIRED USER ACTION: Review the Block 4.2 changes and manually commit them before proceeding.',
+        'REQUIRED USER ACTION: Review the Block 4.3 changes and manually commit them before proceeding.',
       ].join('\n'),
     };
   }
 
   return {
-    title: 'EDISON — PHASE 4 SOFTWARE ADAPTERS & FULL-APP PROGRESS REPORT',
+    title: 'EDISON — PHASE 4 SOFTWARE EXIT & FULL-APP PROGRESS REPORT',
     subtitle: 'Formal status report with live server telemetry and progress breakdown',
     body: [
       'EDISON — IMPLEMENTATION BLOCK COMPLETION REPORT',
       '',
       'Project: EDISON — International Smart TV Advertising & Opportunities Network',
       `Production Phase: ${liveSnapshot?.phase ?? 'Phase 4 — Smart TV OS Adapters & Normal TV Remote (Software-First · JSON Retained)'}`,
-      `Stage: ${liveSnapshot?.stage ?? 'Phase 3 & Block 4.1 Committed · Phase 4 Block 4.2 Complete · TASK-P3-001 READY'}`,
-      `Implementation Block: ${liveSnapshot?.block ?? 'Block 4.2 (Offline Telemetry Sync Queue, Multi-Channel Cadence Simulator & Conformance Vectors)'}`,
-      `Status: ${liveSnapshot?.gateStatus ?? 'BLOCK 4.2 VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · STAGE P6 HARDWARE DEFERRED)'}`,
+      `Stage: ${liveSnapshot?.stage ?? 'Phase 3 & Blocks 4.1–4.2 Committed · Phase 4 Block 4.3 Complete · TASK-P3-001 READY'}`,
+      `Implementation Block: ${liveSnapshot?.block ?? 'Block 4.3 (Broadcast Metadata Cue Fixtures, Companion Policy Guardrails & Software Exit Suite)'}`,
+      `Status: ${liveSnapshot?.gateStatus ?? 'BLOCK 4.3 VERIFIED · AWAITING COMMIT (TRACK B BLOCKED ON DEC-OPEN-01 · STAGE P6 HARDWARE DEFERRED)'}`,
       '',
       `PHASE 2 AI STUDIO SCOPE: ${pm?.aiStudioAssignmentPct ?? 85}% (100% Track A Committed; 15% Track B Blocked on DEC-OPEN-01)`,
-      `OVERALL EDISON PROJECT PROGRESS: ${pm?.overallFullAppPct ?? 34.0}% of Full 15-Phase App (${pm?.remainingUntilFullAppPct ?? 66.0}% remaining) · ${pm?.softwareToStageP6Pct ?? 54.8}% of Software-to-Stage-P6 Milestone`,
+      `OVERALL EDISON PROJECT PROGRESS: ${pm?.overallFullAppPct ?? 37.0}% of Full 15-Phase App (${pm?.remainingUntilFullAppPct ?? 63.0}% remaining) · ${pm?.softwareToStageP6Pct ?? 59.7}% of Software-to-Stage-P6 Milestone`,
       '',
       'LIVE STORE TELEMETRY:',
       countsLine,
       `Latest Audit: ${liveSnapshot?.latestAuditAction ?? 'N/A'} (${liveSnapshot?.latestAuditAt ?? 'N/A'})`,
       '',
       'REQUIRED USER ACTION:',
-      'Review Block 4.2 changes and manually commit them to unlock Phase 4 Block 4.3 (or TASK-P3-001 DB execution).',
+      'Review Block 4.3 changes and manually commit them to unlock Phase 5 Block 5.1 (or TASK-P3-001 DB execution).',
       '',
       'PRODUCTION GATE:',
       'LOCKED UNTIL COMMIT CONFIRMATION (TRACK B BLOCKED ON DEC-OPEN-01).',
