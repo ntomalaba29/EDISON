@@ -280,3 +280,13 @@
   5. **Workstreams C–J (Disputes, 9-Language i18n, Sovereign Manifests, Observability, Security, Deployment & Stage P6 Runbook)**: Added `commercialDisputeEngine.ts`, `src/i18n/translations.ts` (9 locales), `deploy/regions/*.json` (4 sovereign manifests locking `prohibitCrossBorderPiiTransfer: true`), `logger.ts`, `reliabilityMonitor.ts`, `RuntimeInfraPanel.tsx`, `deploy/Dockerfile`, `deploy/docker-compose.yml`, `.env.production.example`, `deploy/cdn-static-routing.json`, `docs/ops/DEPLOYMENT_AND_OPERATIONS_RUNBOOK.md`, `docs/security/SECURITY_TEST_REPORT.md` (`0` prod CVEs via `npm audit --omit=dev`), `FM-19`/`FM-20` in `FAILURE_MODE_ANALYSIS.md`, and `docs/testing/STAGE_P6_PHYSICAL_TEST_RUNBOOK.md`.
 - **Progress Breakdown**: **85.0% Full App (`15.0%` remaining)** · **87.1% to `Stage P6`** · **100.0% Phase 2 AI Studio Scope** · **`34/34` Automated QA Invariants**.
 - **Strict Governance Locks Preserved**: `countryActivated: false`, `regionalExpansionActive: false`, `paymentCollectionActive: false`, `commercialLaunchAuthorized: false`, `externalPenTestCompleted: false`, `legalComplianceClaimed: false`, `hardwareTested: false`, `realBroadcastTunerConnected: false`.
+
+---
+
+## 25. Session Entry — 2026-11-17 (Baseline Verification & Commit-State Reconciliation)
+
+- **Repository baseline**: Started at clean `main`, `HEAD` `0c8dd59` (`ci: integrate PostgreSQL 16, FFmpeg, and E2E testing`). The Phase 3, 4, 8, and 15 software deliverables marked `VERIFIED · AWAITING COMMIT` in the previous tracker were already included in this commit; roadmap and tracker labels have been corrected.
+- **Dependency compatibility**: Initial `npm ci` exposed an esbuild/Vite peer mismatch (`esbuild` `^0.25` vs. Vite 8's `^0.27 || ^0.28` peer range). Updated the direct esbuild range to `^0.28` and regenerated the lockfile with Windows and Linux optional native packages. A subsequent clean `npm ci` completed and reported `0` vulnerabilities.
+- **Verification**: `npm run lint`, `npm run build`, and the Playwright E2E test (`1/1`) passed. The full Vitest run passed `89` tests with one explicit Windows symlink-permission skip (`--maxWorkers=2 --testTimeout=60000`); the media worker test used temporary Windows FFmpeg/ffprobe binaries outside the repository. The symlink test remains active on Linux.
+- **Outstanding**: The repository's GitHub Actions workflow has no run available yet, so Linux CI remains unverified. Keep physical hardware, external pen-test, live payment, and legal launch gates deferred.
+- **Next clean subphase**: Commit the locally verified cross-platform dependency, test, and tracker updates, then run the workflow on its supported Linux runner and resolve any failures. This checkpoint does not claim that Linux CI has passed.

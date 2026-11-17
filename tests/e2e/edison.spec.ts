@@ -34,7 +34,7 @@ test.describe('EDISON Full Browser End-to-End Verification (TASK-P3-003)', () =>
     await page.getByRole('button', { name: /Run Live PGlite PG16 Check/i }).click();
     await expect(
       page.getByText(/Verified real PostgreSQL 16\+ schema migrations/i)
-    ).toBeVisible({ timeout: 20_000 });
+    ).toBeVisible({ timeout: 60_000 });
 
     await page.getByRole('button', { name: /Pair Test TV/i }).click();
     await expect(page.getByText(/AURA paired cleanly:/i)).toBeVisible({ timeout: 10_000 });

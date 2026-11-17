@@ -8,8 +8,22 @@ import { FfmpegMediaWorker } from '../src/server/mediaWorker.ts';
 
 const execFileAsync = promisify(execFile);
 
+function resolveFfmpegBinary(environmentVariable: string, linuxPath: string, windowsName: string): string {
+  const configured = process.env[environmentVariable];
+  if (configured) return configured;
+  if (process.platform !== 'win32') return linuxPath;
+
+  const candidate = (process.env.PATH ?? '')
+    .split(path.delimiter)
+    .map((directory) => path.join(directory, windowsName))
+    .find((filePath) => fs.existsSync(filePath));
+  return candidate ?? windowsName;
+}
+
 describe('TASK-P3-004 Dedicated FFmpeg & FFprobe Broadcast Media Worker', () => {
-  it('executes real /usr/bin/ffprobe and /usr/bin/ffmpeg to transcode WebM->H.264 MP4, normalize EBU R128 loudness, encode still slates, and enforce path confinement', async () => {
+  it('executes real FFmpeg and FFprobe binaries to transcode WebM->H.264 MP4, normalize EBU R128 loudness, encode still slates, and enforce path confinement', async () => {
+    const ffmpegBin = resolveFfmpegBinary('EDISON_FFMPEG_BIN', '/usr/bin/ffmpeg', 'ffmpeg.exe');
+    const ffprobeBin = resolveFfmpegBinary('EDISON_FFPROBE_BIN', '/usr/bin/ffprobe', 'ffprobe.exe');
     const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'edison-ffmpeg-'));
     const uploadsDir = path.join(tmpRoot, 'uploads');
     const renderDir = path.join(tmpRoot, 'rendered');
@@ -19,7 +33,7 @@ describe('TASK-P3-004 Dedicated FFmpeg & FFprobe Broadcast Media Worker', () => 
     try {
       // Generate real valid 2s WebM video with 1kHz sine audio & a 1920x1080 PNG slate via real FFmpeg
       const webmPath = path.join(uploadsDir, 'sample_ad.webm');
-      await execFileAsync('/usr/bin/ffmpeg', [
+      await execFileAsync(ffmpegBin, [
         '-y',
         '-f',
         'lavfi',
@@ -37,7 +51,7 @@ describe('TASK-P3-004 Dedicated FFmpeg & FFprobe Broadcast Media Worker', () => 
       ]);
 
       const pngPath = path.join(uploadsDir, 'sample_slate.png');
-      await execFileAsync('/usr/bin/ffmpeg', [
+      await execFileAsync(ffmpegBin, [
         '-y',
         '-f',
         'lavfi',
@@ -51,6 +65,8 @@ describe('TASK-P3-004 Dedicated FFmpeg & FFprobe Broadcast Media Worker', () => 
       const worker = new FfmpegMediaWorker({
         uploadsDir,
         renderOutputDir: renderDir,
+        ffmpegBin,
+        ffprobeBin,
         maxConcurrency: 2,
         jobTimeoutMs: 30_000,
         maxRetries: 2,

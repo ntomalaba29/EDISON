@@ -448,7 +448,7 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
     expect(readinessRes.body.automatedInvariantsTotal).toBe(34);
   });
 
-  it('hardens /api/media/upload against SVG/HTML polyglots & invalid base64 and locks down /uploads/* headers & symlinks', async () => {
+  it('hardens /api/media/upload against SVG/HTML polyglots & invalid base64 and locks down /uploads/* headers', async () => {
     const loginRes = await request(app).post('/api/auth/login').send({
       email: 'advertiser@edison.demo',
       password: 'EdisonProto!2026',
@@ -503,12 +503,22 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
       .send({ dataBase64: '!!!not-valid-base64!!!', declaredKind: 'image' });
     expect(badB64.status).toBe(400);
 
-    // 5. Block symlink escape from uploadsDir on /uploads/:filename
+  });
+
+  it('blocks symlink escapes from uploadsDir on /uploads/:filename', async ({ skip }) => {
     const outsideSecret = path.join(tempRoot, 'outside-secret.png');
-    fs.writeFileSync(outsideSecret, Buffer.from(validPngB64, 'base64'));
+    fs.writeFileSync(outsideSecret, 'outside upload directory');
     const symlinkName = 'edison_img_aaaaaaaaaaaaaaaaaaaa.png';
     const symlinkTarget = path.join(uploadsDir, symlinkName);
-    fs.symlinkSync(outsideSecret, symlinkTarget);
+    try {
+      fs.symlinkSync(outsideSecret, symlinkTarget);
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (process.platform === 'win32' && (code === 'EPERM' || code === 'EACCES')) {
+        skip('Windows symlink privileges are not enabled for this environment.');
+      }
+      throw error;
+    }
 
     const symlinkRes = await request(app).get(`/uploads/${symlinkName}`);
     expect(symlinkRes.status).toBe(404);
