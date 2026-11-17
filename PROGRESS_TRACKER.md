@@ -1,6 +1,6 @@
 # EDISON — Progress Tracker
 
-**Last Verified**: 2026-11-17 (**Local baseline recheck; software implementation is committed in `0c8dd59`. Windows: clean `npm ci`, lint, build, and E2E pass; Vitest passes `89`, with one symlink-permission test explicitly skipped (`--maxWorkers=2 --testTimeout=60000`). Linux CI remains unverified.**)
+**Last Verified**: 2026-11-17 (**Local baseline recheck; cross-platform updates committed in `0281d36`. Windows: clean `npm ci`, lint, build, and E2E pass; Vitest passes `89`, with one symlink-permission test explicitly skipped (`--maxWorkers=2 --testTimeout=60000`). GitHub Actions run `44075511742` ended in `startup_failure` before creating jobs; Linux CI remains unverified.**)
 **Reporting Rule**: Implemented & verified code, PostgreSQL 16+ schema/migrations (`PgQueryExecutor` + PGlite/`pg.Pool`), dedicated real `/usr/bin/ffmpeg` worker, Playwright Chromium E2E, AURA/HDMI-CEC/OEM packaging blueprints, commercial dispute workflows, 9-language i18n, sovereign deployment manifests, security audit report (`0` prod CVEs via `npm audit`), and single final `Stage P6` runbook are separated strictly from physical hardware tests (`hardwareTested: false`), external pen-tests (`externalPenTestCompleted: false`), live payment collection (`paymentCollectionActive: false`), and formal legal compliance (`legalComplianceClaimed: false`).
 
 ---
@@ -13,7 +13,7 @@
 - `npm run build`: passed; Vite reports a bundle-size advisory for the `1.33 MB` JavaScript chunk.
 - `npm run test:e2e`: passed (`1/1`) after increasing the runtime PGlite check wait to `60s` and the test timeout to `90s`.
 - Vitest: `89` passed and `1` symlink test was explicitly skipped using `npm test -- --maxWorkers=2 --testTimeout=60000` with `EDISON_FFMPEG_BIN` and `EDISON_FFPROBE_BIN` pointing to temporary Windows binaries outside the repository. The FFmpeg media-worker test now passes on either platform. The symlink test remains enabled on Linux; this Windows host reported `EPERM` creating a symlink.
-- GitHub Actions: the workflow is configured, but no run is available yet; Linux CI verification is still outstanding. Do not mark the full baseline as clean until those platform-dependent tests pass in the supported Linux CI environment.
+- GitHub Actions: push commit `0281d36` created run `44075511742`, which ended in `startup_failure` before any jobs were created; the run-log endpoint returned 404. Linux CI verification is still outstanding. Do not mark the full baseline as clean until the platform-dependent symlink test passes on Linux.
 
 ---
 
