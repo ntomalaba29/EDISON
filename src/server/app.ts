@@ -3627,6 +3627,10 @@ export function createEdisonApp(
     res.redirect(302, outcome.record.resolvedUrl);
   });
 
+  app.use('/api', (_req: Request, res: Response) => {
+    res.status(404).json({ error: 'API_NOT_FOUND', message: 'API route not found.' });
+  });
+
   // Structured JSON error handler prevents Express HTML error pages or stack leaks on malformed JSON / runtime errors
   app.use(apiErrorMiddleware);
 

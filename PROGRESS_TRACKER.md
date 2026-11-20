@@ -1,19 +1,20 @@
 # EDISON — Progress Tracker
 
-**Last Verified**: 2026-11-17 (**Local baseline recheck; cross-platform updates committed in `0281d36`. Windows: clean `npm ci`, lint, build, and E2E pass; Vitest passes `89`, with one symlink-permission test explicitly skipped (`--maxWorkers=2 --testTimeout=60000`). GitHub Actions run `44075511742` ended in `startup_failure` before creating jobs; Linux CI remains unverified.**)
+**Last Verified**: 2026-11-20 (**Linux Full Software Baseline Verified cleanly in `/app/applet`: `tsc --noEmit` clean, `vite build` clean, Vitest `23/23` files / `90/90` tests passed with `0` skipped including real `/usr/bin/ffmpeg` & Linux symlink confinement, Playwright Chromium E2E `1/1` passed against live server, `/api/qa/prototype-readiness` `34/34` QA invariants passed. Docker/Compose volume & FFmpeg env parity, Playwright Linux executable fallback, `/api/*` JSON 404 guard, and `edison-ci.yml` `workflow_dispatch` + `pg_isready` flags hardened — `AWAITING OWNER COMMIT`.**)
 **Reporting Rule**: Implemented & verified code, PostgreSQL 16+ schema/migrations (`PgQueryExecutor` + PGlite/`pg.Pool`), dedicated real `/usr/bin/ffmpeg` worker, Playwright Chromium E2E, AURA/HDMI-CEC/OEM packaging blueprints, commercial dispute workflows, 9-language i18n, sovereign deployment manifests, security audit report (`0` prod CVEs via `npm audit`), and single final `Stage P6` runbook are separated strictly from physical hardware tests (`hardwareTested: false`), external pen-tests (`externalPenTestCompleted: false`), live payment collection (`paymentCollectionActive: false`), and formal legal compliance (`legalComplianceClaimed: false`).
 
 ---
 
-## Current Local Verification — 2026-11-17
+## Current Local Verification — 2026-11-20 (Linux) & 2026-11-17 (Windows)
 
-- Environment: Windows, Node.js `22.23.5`, npm `10.9.9`.
-- `npm ci`: passed from the refreshed lockfile; npm reported `0` vulnerabilities. The lockfile now contains platform-specific optional packages for Windows and Linux.
-- `npm run lint`: passed.
-- `npm run build`: passed; Vite reports a bundle-size advisory for the `1.33 MB` JavaScript chunk.
-- `npm run test:e2e`: passed (`1/1`) after increasing the runtime PGlite check wait to `60s` and the test timeout to `90s`.
-- Vitest: `89` passed and `1` symlink test was explicitly skipped using `npm test -- --maxWorkers=2 --testTimeout=60000` with `EDISON_FFMPEG_BIN` and `EDISON_FFPROBE_BIN` pointing to temporary Windows binaries outside the repository. The FFmpeg media-worker test now passes on either platform. The symlink test remains enabled on Linux; this Windows host reported `EPERM` creating a symlink.
-- GitHub Actions: push commit `0281d36` created run `44075511742`, which ended in `startup_failure` before any jobs were created; the run-log endpoint returned 404. Linux CI verification is still outstanding. Do not mark the full baseline as clean until the platform-dependent symlink test passes on Linux.
+- **Linux Environment (`/app/applet`, Node.js 22, real `/usr/bin/ffmpeg` & `/usr/bin/ffprobe`, Google Chrome for Testing `155.0.8059.12`)**:
+  - `npm run lint` (`tsc --noEmit`): **Passed**.
+  - `npm run build` (`vite build`): **Passed**.
+  - Vitest (`npx vitest run --maxWorkers=2 --testTimeout=60000`): **`23/23` files · `90/90` tests passed · `0` skipped** (clears the earlier Windows-only `EPERM` symlink skip and executes real `/usr/bin/ffmpeg` + `/usr/bin/ffprobe` and real PGlite PG16 migrations).
+  - Playwright E2E (`npx playwright test`): **`1/1` passed** against live server (`playwright.config.ts` includes Linux preinstalled `/ms-playwright/chrome-headless-shell-linux64/chrome-headless-shell` fallback while preserving CI defaults).
+  - Live QA Suite (`/api/qa/prototype-readiness`): **`34/34` automated invariants passed** (`physicalQrScanStatus: PENDING_OWNER_DEVICE_TEST`).
+- **Earlier Windows Check (`2026-11-17`, commit `0281d36`)**: Node `22.23.5`, `npm ci` (`0` audit vulnerabilities), lint, build, Playwright E2E (`1/1`), Vitest (`89` passed, 1 Windows-only symlink `EPERM` skip).
+- **Hosted GitHub Actions Note**: Earlier push `0281d36` run `44075511742` hit `startup_failure` before job creation (check GitHub repo Actions permissions/billing; `.github/workflows/edison-ci.yml` now also includes `workflow_dispatch:`, `pg_isready -U edison -d edison_ci`, and explicit `--maxWorkers=2 --testTimeout=60000`).
 
 ---
 
