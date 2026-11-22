@@ -1,6 +1,6 @@
 # EDISON — Advertising & QR Code System
 
-**Document Status**: Updated Specification (`v2.1` — Preserves Verified Phase 1/2 Direct `302` QR Baseline `ADR-002`; Flags Epoch-Bound `403` Revocation & Multi-Profile Mobile Card as **`[PENDING DEC-OPEN-01]`**)
+**Document Status**: Updated Specification (`v2.2` — preserves direct `302` for commercial destinations and records owner-approved Track B consent/epoch behavior; current implementation evidence is in [`EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md`](EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md))
 
 ---
 
@@ -28,15 +28,11 @@
 
 ---
 
-## 3. Proposed Extensions Pending Consent Architecture Decision (`DEC-OPEN-01`)
+## 3. Owner-Approved Consent-Epoch Extension (`DEC-OPEN-01 — RESOLVED`)
 
-The following Blueprint `v2.0` proposals are **NOT YET APPROVED OR IMPLEMENTED** and depend on Owner selection in `PRIVACY_SECURITY_AND_COMPLIANCE.md` (`DEC-OPEN-01`):
+The Project Owner selected Scope B and bundled withdrawal on 2026-11-16. The following behavior is implemented in the software prototype; it is not a production or legal-compliance certification:
 
-1. **Household, Consent-Epoch & Expiry Binding (Proposed Option B/C)**:
-   - If epoch-scoped QRs are approved under Option B or Option C, TV playback QR tokens will carry server-validated binding to `{ targetId, householdId, consentEpoch, expiresAt }`.
-   - Withdrawing household consent increments `consentEpoch`, causing `/r/:token` scans of saved/photographed QR codes from withdrawn epochs to return **`HTTP 403`**, cleanly distinct from expired/removed campaigns (`HTTP 410/404`).
-   - Under **Option A** (preserving pure account-free global QRs), `/r/:token` remains purely campaign/expiry-scoped (`302` vs `410/404`) without household accounts or per-household epochs.
-2. **Mobile Opportunity Handoff Mode (Direct `302` vs Pure Non-Ad Opportunity Card)**:
-   - **Commercial Ads**: Always direct `HTTP 302` to the advertiser's destination regardless of option.
-   - **Charity Opportunities**: Either direct `HTTP 302` to the official employer/provider link (**Option A**) OR an authenticated/profile-isolated non-commercial Opportunity Card showing eligibility criteria, verification tier badge, plain-language match summary (`Save` / `Dismiss`), and external Apply link without exposing other household members' data (**Option B/C**).
-3. **Absolute Privacy Boundary**: Even if multi-profile QRs are approved, private profile attributes, qualifications, names, and exact household coordinates must **never** appear in QR URLs, token strings, server URL logs, or advertiser reports.
+1. **Household, Consent-Epoch & Expiry Binding**: QR validation checks the approved target/household/epoch binding. Withdrawal revokes prior epoch-bound tokens with `HTTP 403`; expiry/removal remains a distinct inactive-resource response.
+2. **Bundled Withdrawal**: Withdrawing commercial advertising consent also suspends charity advertising, opportunity access, personalisation, and active QR tokens while preserving ordinary TV operation. Restoration requires explicit opt-in.
+3. **Direct Destination and Privacy Boundary**: Commercial QR scans continue to route directly to the advertiser's destination. Private profile attributes and exact household coordinates must never appear in QR URLs, token strings, server URL logs, or advertiser reports.
+4. **Open detail**: Preserve any separately unresolved viewer-facing opportunity-card details in `DECISIONS_LOG.md`; do not infer them from the consent decision.

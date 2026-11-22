@@ -1,6 +1,6 @@
 # EDISON — System Architecture
 
-**Document Status**: Reconciled Architecture (`v2.2` — Covers 12 Bounded Domains including Mandatory Core Network-Wide Shared Ad Intelligence and Normal Everyday TV Remote Control; Cleanly Separates Implemented Baseline, Unblocked Work & Consent-Blocked `DEC-OPEN-01` Proposals)
+**Document Status**: Reconciled Architecture (`v2.2` — separates software prototype, production work, resolved Track B consent behavior, and remaining owner decisions; current progress is in [`EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md`](EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md))
 
 ---
 
@@ -10,20 +10,20 @@
 | :-: | :--- | :--- | :--- |
 | 1 | **Charity Advertisement Management** | Partial (`OpportunityView` / `store.ts` v6) | **UNBLOCKED** (`$0.00` Charity billing lock + extended job/community categories ready to implement post-commit) |
 | 2 | **Commercial Campaign Management** | Partial (10-state campaigns + Banner/Video Option A/B) | **UNBLOCKED** (`Text-Only` commercial format ready to implement post-commit) |
-| 3 | **Inventory & Alternating Break Scheduler** | Not yet implemented (`TvPreviewView` runs single-ad sim) | **PARTIALLY UNBLOCKED** (Core `CHARITY -> COMMERCIAL` alternation + Direct-Paid priority unblocked; personalised profile inputs wait on `DEC-OPEN-01`) |
+| 3 | **Inventory & Alternating Break Scheduler** | Software scheduler implemented and tested (`breakScheduler.ts`) | **SOFTWARE SIMULATION COMPLETE** (live TV scheduling/switching is not verified; `DEC-OPEN-02` single-slot rule remains unresolved) |
 | 4 | **Advertising-Network Adapters** | Not yet implemented (Google CTV docs researched) | **INTERFACE UNBLOCKED / LIVE GAM ACCOUNT UNRESOLVED** (`AdNetworkAdapter` mockable in P2; GAM CTV account & non-video format support `[UNRESOLVED DEC-OPEN-03]`) |
 | 5 | **Analytics & Financial Reconciliation** | Partial (7-stage funnel in `store.ts`) | **UNBLOCKED** (Charity / Direct / Network Estimated vs Confirmed vs Received ledger separation ready) |
 | 6 | **TV Playback Simulation & Restoration** | Simulator only (`SimulationTvAdapter`) | **SOFTWARE-FIRST ACTIVE** (Physical TV verification locked to **single final `Stage P6` test** after completion) |
-| 7 | **Network-Wide Shared Ad Intelligence (`v2.2`)** | **NOT STARTED** (`v2.2` Approved Core Requirement) | **APPROVED CORE REQ / NOT STARTED** (Targeted for Phase 5 software implementation: Central Shared Intelligence Service + Sync + Scoped Local Intelligence Cache) |
-| 8 | **Household & 7-Level Private Geo Registry** | Not yet implemented | **`BLOCKED — AWAITING DEC-OPEN-01`** (Owner must choose Option A / B / C before implementation) |
-| 9 | **Individual Profiles per TV** | Not yet implemented | **`BLOCKED — AWAITING DEC-OPEN-01`** |
-| 10 | **Personalised Opportunity Matching Engine** | Not yet implemented | **`BLOCKED — AWAITING DEC-OPEN-01`** |
-| 11 | **Dual-Layer Consent & Epoch `403` QR Gate** | Not yet implemented (`ADR-002` `302` active now) | **`BLOCKED — AWAITING DEC-OPEN-01`** |
-| 12 | **Normal Everyday TV Remote Control (`AURA → EDISON Control Engine → platform adapters → TV`)** | **NOT STARTED** (`PRD-20` / `ADR-017`) | **APPROVED CORE CAPABILITY / NOT STARTED** *(Phase 4 software adapters; single `Stage P6` HW test; separate from ad-break control; zero hardware compatibility claimed)* |
+| 7 | **Network-Wide Shared Ad Intelligence (`v2.2`)** | Software simulation implemented (`sharedIntelFleetService.ts`, `offlineIntelCache.ts`) | **LOCAL TESTS PASS; production service, durable storage, and live device sync remain incomplete** |
+| 8 | **Household & 7-Level Private Geo Registry** | Track B software prototype implemented | **TESTED SOFTWARE PROTOTYPE; no production household service** |
+| 9 | **Individual Profiles per TV** | Track B software prototype implemented | **TESTED SOFTWARE PROTOTYPE; production storage/security operations incomplete** |
+| 10 | **Personalised Opportunity Matching Engine** | Track B software prototype implemented | **TESTED SOFTWARE PROTOTYPE; TV display remains unverified** |
+| 11 | **Dual-Layer Consent & Epoch `403` QR Gate** | Track B software prototype implemented (`ADR-002` baseline remains distinct) | **TESTED SOFTWARE PROTOTYPE; production legal/privacy review remains separate** |
+| 12 | **Normal Everyday TV Remote Control (`AURA → EDISON Control Engine → platform adapters → TV`)** | Simulator implemented (`auraRemoteEngine.ts`, `tvPlatformAdapter.ts`) | **SIMULATED COMMAND PATH TESTED; real platform transports not implemented; hardware unverified until `Stage P6`** |
 
 ---
 
-## 2. Network-Wide Shared Ad Intelligence Topology (`v2.2` Approved Requirement — `NOT STARTED`)
+## 2. Network-Wide Shared Ad Intelligence Topology (`v2.2` Approved Requirement — Software Simulation Implemented)
 
 ```text
 +-----------------------------------------------------------------------------+
@@ -74,7 +74,7 @@
 ### 2.1 Dual Control-Plane Separation (`Normal Remote` vs `Intelligent Ad-Break Control`)
 
 ```text
-Path A — Normal Everyday TV Remote (User-Initiated, Always Separate, NOT STARTED):
+Path A — Normal Everyday TV Remote (User-Initiated, Always Separate, SIMULATOR ONLY):
   [ AURA ] ---> [ EDISON Control Engine ] ---> [ TV Platform Adapters ] ---> [ TV ]
   (power, volume/mute, channel +/-, input/source, D-pad, OK, back, home)
 
@@ -83,7 +83,7 @@ Path B — Intelligent Advertising-Break Switching & Restoration (Phase 4/5 Soft
   (break prediction, safety buffer math, 4-slot Charity/Commercial schedule, watchdog restoration)
 ```
 
-- **Strict Boundary**: Normal remote commands (`Path A`) do **not** run break-detection heuristics or scheduler interruption, and never imply broadcaster source hijacking. Both native adapter paths remain **`NOT STARTED`** with zero physical hardware tested until `Stage P6`.
+- **Strict Boundary**: Normal remote commands (`Path A`) do **not** run break-detection heuristics or scheduler interruption, and never imply broadcaster source hijacking. The current command path is simulated; native adapter transports are not implemented and no physical hardware is tested until `Stage P6`.
 
 ---
 

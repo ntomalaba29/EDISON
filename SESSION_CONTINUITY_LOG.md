@@ -5,6 +5,163 @@
 
 ---
 
+## Session Entry — 2026-11-22 (5.10k1 Local Worker Bootstrap)
+
+- Completed 5.10k1: the Worker imports a lazily created app backed by an explicit isolate-local `memory_only` domain store plus D1 auth/domain repositories. The Node server continues to use the lazy file-backed store getter. Media directories are no longer created at module import or app construction; render storage is initialized when a transcode job executes.
+- Local Wrangler started successfully. `GET /api/health` and `GET /api/reports/live` each returned HTTP 200; health reports `memory_only` rather than implying durable domain storage. No remote migration or deployment occurred.
+- Verification: TypeScript passed; focused media-worker tests passed (2) with a 90-second test timeout; the two slow D1 persistence tests passed with a 30-second test timeout; `git diff --check` passed. The runner's default 15-second D1 and 45-second media test limits were insufficient in this environment, so retries used longer test limits.
+- Current ledger: **70/92 (76.1%)**. Phase fractions: prototype **8/8**, TV control **3/5**, Phase 5 **30/32**. Next task: **5.10k2**, local Worker route-family compatibility.
+- Worktree remains uncommitted with pre-existing unrelated changes; no files were staged, no commit/push occurred, and remote deployment remains unauthorized.
+
+## Session Entry — 2026-11-22 (5.10k2 Route Scope Split)
+
+- Local `workerd` smoke proved CSRF bootstrap and unauthenticated identity return HTTP 200, protected campaign/QR routes return HTTP 401, malformed auth/QR inputs return HTTP 400, and the compatibility endpoint returns HTTP 200. The public documentation list route returns HTTP 500 because `docsRegistry` reads `README.md` via filesystem APIs unavailable in the Worker.
+- Split the broad route-family task into `5.10k2a` auth/session, `5.10k2b` protected D1-backed business routes, and `5.10k2c` filesystem-backed docs/media behavior; retained `5.10k3` for restart/migration/failure checks. Phase 5 increased from 32 to 34 subtasks for this scope split.
+- Current ledger: **70/94 (74.5%)**. Phase fractions: prototype **8/8**, TV control **3/5**, Phase 5 **30/34**. Active task: **5.10k2a**.
+- The failed docs probe is diagnostic; no code was changed for k2 yet. The local Worker was stopped after testing. No remote migrations/deployment, repository commit/push, or hardware test occurred.
+
+## Session Entry — 2026-11-22 (5.10k2a/b Worker Route Verification)
+
+- Completed 5.10k2a against a fresh, explicitly local Wrangler D1 database in the OS temp directory: registration `201`, authenticated identity `200`, login `200`, logout `200`, and post-logout identity `200` with `user: null`. D1-backed summary reflected one user and advertiser profile.
+- Completed 5.10k2b: campaign and QR creation each returned `201` and subsequent D1-backed list requests returned `200` with the created record. Campaign, creative, QR, opportunities, revenue ledger, analytics funnel, compliance, readiness, and opportunity-operations reads returned `200`; administrator routes returned `403` for an advertiser. Public CSRF/docs/auth status probes returned expected statuses except the docs filesystem failure, now isolated to 5.10k2c.
+- The newly identified docs failure is `GET /api/docs` returning `500` because it calls `statSync('/bundle/README.md')`. Active scope is 5.10k2c (filesystem-backed docs/media behavior); the Worker was tested only with local D1 and no remote resources.
+- Current ledger: **72/94 (76.6%)**. Phase fractions: prototype **8/8**, TV control **3/5**, Phase 5 **32/34**. Next task: **5.10k2c**.
+- Local test account/database lives only under a named temporary directory; no repository data was changed by these route probes. No remote migration/deployment, repository commit/push, or hardware test occurred.
+
+## Session Entry — 2026-11-22 (5.10k2c Worker Docs/Media Compatibility)
+
+- Completed 5.10k2c: the build now packages the 25 allowlisted governance documents into `dist/governance-docs`; the Worker reads them through the static-assets binding rather than filesystem paths. Both `GET /api/docs` (25 documents) and `GET /api/docs/readme` returned HTTP 200 in local Wrangler.
+- Worker media endpoints now fail explicitly with HTTP 503 `MEDIA_PROCESSING_UNAVAILABLE` for status, probe, upload, and transcode because compatible storage and FFmpeg execution are not configured. Node behavior remains unchanged; focused app tests cover the injected docs repository, allowlist 404, and media 503 responses.
+- TypeScript, focused compatibility tests (2 passed), and production build passed. Build-time static assets are packaged from the existing central allowlist; no document contents were duplicated in TypeScript.
+- Current ledger: **73/94 (77.7%)**. Phase fractions: prototype **8/8**, TV control **3/5**, Phase 5 **33/34**. Next task: **5.10k3**, local Worker restart and migration validation.
+- The temporary test database is local-only; no remote migration/deployment, repository commit/push, or hardware test occurred.
+
+## Session Entry — 2026-11-19 (Phase 5.10j D1 Domain Persistence Progress)
+
+- Rewrote the broad 5.10j milestone into four atomic tasks without counting prior work twice: 5.10j1 readiness/gate restart reconstruction, 5.10j2 consent-gated aggregate reporting from D1, 5.10j3 D1-backed revenue-ledger inputs, and 5.10j4 remaining read-source parity audit. Active ledger: **61/84 (72.6%)**; next task is **5.10j4**.
+- Added `execution-ledger.json` and `npm run progress` so progress fractions are machine-reproducible; updated the README, roadmap, progress tracker, command centre, and permanent instructions to point to the atomic authority. Historical session entries are retained as audit history.
+- 5.10j2: `/api/advertiser/targeting-aggregates` uses a D1 aggregate projection; exact household data does not reach the route response and consent withdrawal removes households from targeting. Verified with the D1 HTTP suite (20 passed), TypeScript, and `git diff --check`.
+- 5.10j3: `/api/analytics/revenue-ledger` consumes D1 campaign and analytics rows when the repository is injected and survives app/store reconstruction; `paymentCollectionActive` remains false. Verified with the D1 HTTP suite (20 passed), TypeScript, and `git diff --check`.
+- A stale D1 test fixture was corrected to the canonical `PublicUser` shape. TypeScript validation and focused D1 HTTP tests pass. The earlier canonical full Vitest run passed 128 tests with one platform-specific skip; it preceded these latest route changes. No remote migration, deployment, paid service, or hardware test was performed.
+- These task changes are verified but not committed. The worktree already contains unrelated modifications, so the next task must wait for owner review/commit; do not stage the full worktree.
+
+- Continued Phase 5.10j. Existing D1 slices cover opportunities, complaints, appeals, households, household members, QR tokens, consent audit events, physical QR scan logs, pilot cohorts, commercial cost assumptions, and commercial board decisions, with owner/tester/household privacy safeguards preserved. Added D1 hydration and persistence for standard QR measured redirects, household QR consent-gated redirects, and related analytics; delivery-manifest, advertiser-ops, broadcast-render, analytics-funnel, and admin-moderation reads now consume relevant D1 collections. Admin QR moderation and creative QR-flag-clear operations now hydrate and persist their D1 records. Commercial disputes now persist and reload through D1 with payment-inactive and charity-zero invariants.
+- Focused coverage verifies reconstructed-store standard and household redirects, persisted counters/events, owner-scoped analytics, consent gates, D1-backed manifest and advertiser-report reads, plus existing household/DSR, moderation, readiness, and physical-test persistence.
+- Latest verification passed: `npm.cmd run lint`, D1 HTTP tests plus Shared Intelligence (29 passed combined), API/Track B/security regressions (19 passed with 1 skipped), the dedicated AURA/OEM suite (1 passed), a production build to a temporary output directory, and `git diff --check`. Node emits its expected experimental `node:sqlite` warning; Vite retains the existing large-chunk advisory.
+- This is local D1-compatible verification only. Some collections and read routes remain JSON-backed; Worker API integration, remote migration, and deployment remain outstanding. No additional ledger row was created; the direct total stays **58/81 (71.6%)**.
+- The owner prefers a free `workers.dev` endpoint for initial staging and will consider paid service later. The shared `pescon` Worker dashboard was inspected read-only; EDISON's `workers_dev` flag is enabled locally for a future deployment, but no remote deployment was made. Wrangler CLI remains unauthenticated in this shell.
+
+## Session Entry — 2026-11-20 (Phase 5.10j7 Application Read-Source Inventory)
+
+- Completed 5.10j8: `/api/opportunity-ops/overview` now builds its actor-scoped projection from D1 opportunities, complaints, appeals, and campaigns when configured; JSON fallback remains. Restart coverage verifies reconstructed inputs and campaign fee-independence evaluation. Focused D1 tests passed (20), TypeScript passed, and `git diff --check` passed.
+- Completed 5.10j9: `/api/compliance/overview` now projects D1-backed household, analytics, QR-retention, and session-retention inputs. Restart coverage verifies withdrawn consent, actor isolation/redaction, and admin-only expired-session/stale-QR counts. D1 and privacy-compliance suites passed (23 tests), TypeScript passed, and `git diff --check` passed.
+- Completed 5.10j10: `/api/qa/prototype-readiness` now derives D1-backed counts and readiness checks from persisted campaigns, creatives, opportunities, analytics, QR links, and physical scans. Restart coverage verifies each source after JSON-store reconstruction. Focused D1 tests passed (20), TypeScript passed, and `git diff --check` passed; readiness remains software-only and hardware untested.
+- Completed 5.10j11: `/api/health`, `/api/reports/live`, and `/api/auth/me` now share exact D1-derived record/user/audit counts and campaign status breakdown, retaining local JSON behavior when D1 is absent. Focused D1, API, and security suites passed (45 passed, 1 skipped), TypeScript passed, and `git diff --check` passed.
+- Split the broad Worker gate before implementation: 5.10k1 covers filesystem-independent startup plus health/live-report routes; 5.10k2 covers application route-family compatibility; 5.10k3 covers restart durability and migration/failure requirements. The smoke probe had reached local `workerd` but `/api/health` returned 500 because importing `edisonStore` attempted a forbidden `mkdirSync`; no remote migration or service was touched.
+- Current ledger: **69/92 (75.0%)**. Phase fractions: prototype **8/8**, TV control **3/5**, Phase 5 **29/32**. Task **5.10k1** is in progress.
+- The private GitHub repository is accessible in the signed-in browser and `git ls-remote` confirms `main`; the local worktree still contains uncommitted changes. Cloud automation would run against GitHub's older committed state; Local Agent Host scheduling remains unavailable because Send Later is disabled. No automation was created or run, and no remote commit/push occurred.
+
+- Completed 5.10j7 by auditing application GET/read routes and classifying D1-primary reads, legacy/local JSON fallbacks, static/repository resources, process-local simulations/diagnostics, and local migration tooling in the handoff ledger.
+- Identified four concrete D1 business-read gaps and split them into 5.10j8–5.10j11 before implementation: opportunity operations, privacy compliance, prototype readiness, and foundation/live-report summaries.
+- Current ledger: **65/91 (71.4%)**. Phase fractions: prototype **8/8**, TV control **3/5**, Phase 5 **25/31**. Next task: **5.10j8**, D1-backed opportunity-operations overview. `npm.cmd run progress` and `git diff --check` passed.
+- The GitHub MCP read still returns 404 for the shared repository; local worktree is `main...origin/main` with substantial uncommitted changes. No repository was deleted/recreated and no remote commit or automation was started.
+
+## Session Entry — 2026-11-20 (Phase 5.10j6 D1 Dispute Revenue Reconciliation)
+
+- Completed 5.10j6: `/api/advertiser-ops/disputes` now builds its reconciliation revenue ledger from D1 campaigns and analytics when D1 is configured, alongside persisted dispute records.
+- Strengthened restart coverage with a D1-backed commercial campaign and dispute; the reconstructed response preserves the projected campaign amount and open-dispute count, while `paymentCollectionActive=false` and charity total remains zero. The focused D1 HTTP suite passed (20 tests); `npm.cmd run lint` and `git diff --check` passed.
+- Current ledger at that checkpoint: **64/87 (73.6%)**. Phase fractions: prototype **8/8**, TV control **3/5**, Phase 5 **24/27**. Next task at that checkpoint: **5.10j7**, the remaining application-read source inventory.
+- No remote migration, deployment, paid service, or hardware test occurred. The worktree contains pre-existing unrelated changes; this task remains at the owner review/commit gate and nothing was staged or committed.
+
+## Session Entry — 2026-11-20 (Phase 5.10j5 D1 Admin Advertiser-Profile Listing)
+
+- Completed 5.10j5: `GET /api/admin/advertiser-profiles` now reads the profile list from D1 when configured, retaining the existing JSON store fallback and administrator-only middleware.
+- Extended the D1 integration test to verify an advertiser receives 403 and an admin still sees the persisted profile after application/store reconstruction. The focused D1 HTTP suite passed (20 tests); `npm.cmd run lint` and `git diff --check` passed.
+- Current ledger: **63/87 (72.4%)**. Phase fractions: prototype **8/8**, TV control **3/5**, Phase 5 **23/27**. Next task: **5.10j6**, reconciling commercial disputes against D1 revenue-ledger inputs.
+- No remote migration, deployment, paid service, or hardware test occurred. The worktree contains pre-existing unrelated changes; this task remains at the owner review/commit gate and nothing was staged or committed.
+
+## Session Entry — 2026-11-20 (Phase 5.10j4 D1 QR-Watch Read)
+
+- Completed 5.10j4: `GET /api/qa/qr-watch/:token` now reads the QR link and analytics from D1 when the D1 repository is enabled, preserving the JSON-backed fallback.
+- Added reconstruction coverage for the persisted redirect counter, owner access, denial for another owner, missing-token response, and filtering to real-measured events. The focused D1 HTTP suite passed (20 tests); `npm.cmd run lint` and `git diff --check` passed.
+- Current ledger: **62/87 (71.3%)**. Phase fractions: prototype **8/8**, TV control **3/5**, Phase 5 **22/27**. Next task: **5.10j5**, D1-backed admin advertiser-profile listings.
+- No remote migration, deployment, paid service, or hardware test occurred. The worktree contains pre-existing unrelated changes; this task remains at the owner review/commit gate and nothing was staged or committed.
+
+---
+
+## Session Entry — 2026-11-18 (Phase 5.8 Local D1-Compatible Adapter)
+
+- Completed the already-listed Phase 5.8 without changing the subphase total: it remains **69**; completion moved from **47/69** to **48/69 (69.6%)**.
+- Added `D1BreakEventStore` and a dedicated `migrations/cloudflare-d1/0001_shared_intel_break_events.sql`, separate from the PostgreSQL migration runner. The adapter persists decoder-scoped events, filters by both channel and decoder profile, excludes conflict-held records, bounds query results, validates returned rows, and prevents an existing record ID from being rebound to another event identity.
+- The D1 schema enforces zero-PII storage, canonical UTC timestamps, and constrained profile/channel/event identifiers. Local SQLite tests apply the migration twice and verify idempotence, channel/profile isolation, safe updates, identity conflicts, and PII constraints.
+- Verification passed: `npm.cmd run lint`, `npm.cmd test -- --maxWorkers=2 tests/d1BreakEventStore.test.ts` (2 passed), and `git diff --check`. Node emits an expected experimental warning for `node:sqlite`. This validates a local D1-compatible binding only; no live Cloudflare account, D1 database, or Workers deployment was used.
+- Updated the formal report and current status references to **48 / 69 (69.6%)**. Phase 5.9—Workers deployment and production operations—is next; the owner-approved $5/month Workers Paid option is not yet set up.
+
+---
+
+## Session Entry — 2026-11-18 (Phase 5.7 Decoder-Profile Isolation)
+
+- Completed Phase 5.7 as a separate subphase: break-event signatures, records, conflict matching, encrypted persistence, and synchronization are now scoped by both channel and an opaque shared decoder/feed profile. A source must submit its assigned profile; a TV on another profile receives no events even when tuned to the same channel.
+- Added authenticated API validation and focused coverage for cross-profile isolation, rejecting mismatched profile claims, and decrypting legacy persisted state that lacks decoder fields. Legacy devices/events receive a dedicated legacy profile so they remain mutually compatible without being mixed with new profiles.
+- Verification passed: `npm.cmd run lint`; `npm.cmd test -- --maxWorkers=2 tests/sharedIntelligence.test.ts tests/securityHardening.test.ts tests/formalReport.test.ts` (33 passed, 1 Windows platform-specific skip); `npm.cmd run build`; and `git diff --check`. The build retains the existing large-chunk advisory. Physical decoder integration and production sync are not claimed.
+- Updated the formal report and current status references to **47 / 69 (68.1%)**; Phase 5 is **7 / 9**. The previously broad production task is now split into 5.8 Cloudflare D1 adapter/testing and 5.9 Workers deployment/operations. The owner approved the $5/month Workers Paid option, but account setup and deployment have not occurred. Phase 5.8 is next.
+
+---
+
+## Session Entry — 2026-11-18 15:31 CET (Phases 5.5 and 5.6 Completed)
+
+- The owner clarified the execution rule: one run must finish one subphase; broader work must be split before implementation. Split the former broad Phase 5.5 into 5.5 local durable persistence, 5.6 local key rotation/recovery boundary, and 5.7 production fleet operations.
+- Completed 5.5: opt-in AES-256-GCM encrypted local persistence covers fleet/device signing keys, signed bundles, pending observations, replay/rate state, break events, counters, and bounded audit/recent-observation history. Restore validates schema, key-pair consistency, and bundle signatures; missing/wrong keys fail closed.
+- Completed 5.6: added `rotatePersistenceKey` and the one-shot `EDISON_SHARED_INTEL_ROTATE_TO_KEY` server operation. It re-encrypts the complete persisted state under a distinct new key, uses atomic replacement, and exits without starting the web server. Invalid/same keys and old-key startup fail closed without changing the state file. Recovery is owner-managed: retain an off-repository key backup; EDISON cannot recover a lost key.
+- Updated the formal report and status documents to **46 / 67 (68.7%)**. Phase 5 is **6 / 7**; only 5.7 production operations remains in that phase.
+- Validation passes: TypeScript, 8 shared-intelligence tests, 31 focused shared-intel/API/report tests (1 platform-specific skip), production build, `git diff --check`, and a temporary-file end-to-end smoke test of the server's one-shot key rotation command. The build retains the existing large-chunk advisory. No production service, managed key provider, hardware, or TV transport is claimed.
+- Phase 5.7 is deferred until the owner approves a provider and budget for managed keys, production device attestation, durable hosting, and monitoring.
+
+## Session Entry — 2026-11-18 (Phases 4.5 and 5.4 Verified)
+
+- Completed Phase 4.5's software-only simulated EDISON TV-app Ad/Back lifecycle, separate from the phone's conventional remote. The focused Playwright test verifies entry into simulated ad playback, manual TV-app Back, automatic return at playback completion, and the phone Back command remaining an ordinary AURA remote action.
+- Verification passed: TypeScript check (`npm.cmd run lint`), production build (`npm.cmd run build`), five formal-report tests, focused Playwright test (`tests/e2e/tvAppControls.spec.ts`, 1/1), and `git diff --check`. The build still reports the existing large-chunk advisory. On this machine, run Playwright from the canonical `C:\Users\HP\Desktop\Malaba\EDISON` path spelling to avoid duplicate module resolution caused by alternate path casing.
+- Completed Phase 5.4's separate signed break-event flow and authenticated endpoints for simulated TV peers, without replacing duration-learning observations. Focused service/API/report verification passed with `npm.cmd test -- --maxWorkers=2 tests/sharedIntelligence.test.ts tests/securityHardening.test.ts tests/formalReport.test.ts` (29 passed, 1 platform-specific skip), lint, build, and `git diff --check`. Tests cover canonical channel scope, timestamp freshness, source identity, compatible-peer sync, nonce replay/event-ID reuse, per-source deduplication, flood throttling, conflict holdback, scope/channel binding, and zero PII. Event responses explicitly say software simulation and `hardwareTested: false`.
+- The authoritative total is now **44 / 65 (67.7%)**, with Phase 4 at **3 / 5** and Phase 5 at **4 / 5**. The next task is Phase 5.5: define and test durable local persistence/key lifecycle before any durability claim. Production attestation, hosting, and monitoring require owner-approved providers/funding. Phase 3.6 billing and Phase 4.3 real transport blockers remain unchanged; no real TV, durable fleet, or production sync is claimed.
+
+---
+
+## Session Entry — 2026-11-18 12:17 CET (Approved-Scope Rebaseline)
+
+- The owner requested a phase/subphase review because the product scope changed. Rebased the ledger from **42 / 59** to **42 / 65 (64.6%)**: six new subphases were added, and no existing completed work was removed or counted again.
+- Added Phase 4.5 (simulated TV-app Ad/Back lifecycle), Phase 5.4 (timestamped channel-scoped event sharing between simulated TVs), Phase 6.5 (privacy-preserving geographic targeting), Phase 6.6 (journalist news placement at an eligible break), Phase 7.4 (publisher registration/monthly subscription state), and Phase 9.4 (editorial review/corrections/expiry).
+- Added `DEC-OPEN-05` through `DEC-OPEN-08` for news verification, subscription entitlements/price, news placement/opt-in, and geographic boundary sources. These decisions block the dependent subphases; they are not silently assumed.
+- The next bounded task is Phase 4.5. The previous TV UI edit is only a partial simulator slice, not completion evidence. Phase 3.6 billing and Phase 4.3 real transport blockers remain unchanged.
+
+---
+
+## Session Entry — 2026-11-18 (Local Continuation and TV API Feasibility)
+
+- The owner authorized local feature work to continue while Phase 3.6 remains blocked by GitHub account billing; this is a sequencing exception only, not Linux verification.
+- Investigated the owner-selected "choose for me" TV platform request against official docs. Android TIF is limited to API 21–25 and intended for OEMs; Samsung Tizen TVInputDevice only receives remote-key events inside the foreground app. Neither meets the companion-to-TV command transport acceptance for Phase 4.3.
+- Phase 4.3 remains blocked pending an OEM-approved SDK/API or another documented, permissioned companion-control API. No native Android SDK, Java, Gradle, or ADB is installed locally. No simulator or unofficial protocol is being represented as a real transport.
+- Updated the handoff plan and command centre with the verified blockers. At that time, the formal report showed **42 / 59 subphases (71.2%)**; the later 12:17 scope rebaseline supersedes that fraction.
+- Owner corrected the control placement: **EDISON Ad/Back are inside the TV app; the phone app is a conventional remote plus EDISON's other features.** Paid ads may include broad lawful messages and geographic targeting. The journalist registration/monthly subscription and breaking-news concept is now owner-approved; price and editorial safeguards remain open.
+- Owner clarified the complete TV product flow: a TV-side tracker detects and timestamps a break by channel; EDISON shares validated break observations across TVs; the EDISON TV app's own Ad/Back controls and playback path handle EDISON ads and programme return. The phone app provides normal TV remote commands plus household/ad/opportunity features.
+- Created [`EDISON_TV_REMOTE_AND_BREAK_DETECTION_REPOSITORIES.md`](docs/research/EDISON_TV_REMOTE_AND_BREAK_DETECTION_REPOSITORIES.md) as the dedicated current repository-review and hybrid-design record. It separates local TV protocols from cloud services, documents remote and break-detection candidates, and lists source-access, sync, playback/return, permission, and validation gaps. No external code was copied or integrated.
+- Added [`EDISON_PRODUCT_VISION_AND_BUILD_PLAN.md`](docs/EDISON_PRODUCT_VISION_AND_BUILD_PLAN.md) as the consolidated product truth and local-first implementation path, and [`EDISON_REPOSITORY_SHORTLIST.md`](docs/research/EDISON_REPOSITORY_SHORTLIST.md) as the requested link-only repository list. No repository was cloned.
+- Started the first TV-side UI slice in the software simulator: EDISON Ad and Back are shown inside the simulated TV app; the phone-remote simulator retains only the ordinary Back command. This is UI simulation only, not a real TV app or transport.
+
+---
+
+## Session Entry — 2026-11-17 (Subphase Ledger, Baseline, and Repository Research)
+
+- Added [`EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md`](EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md) as the current AI Studio/Copilot status authority.
+- Rebased progress on executable work units: **15 phases + final Stage P6; 59 subphases; 42 complete**. This count replaces the older weighted percentages.
+- Reconciled key requirements against code: Track B is owner-approved and implemented in the software prototype; TV remote and shared-intelligence code are simulations, not production/native integrations.
+- Audited public GitHub remote-control, VAST/IMA, HLS cue-monitoring, and detector projects. Findings are recorded in the handoff plan. No external repository was cloned and no dependency was added.
+- Current code verification remains the Windows baseline at `0281d36` (89 Vitest passed, one Windows symlink permission skip; lint/build/E2E pass). `ba1ea76` contains documentation only.
+- Current blocker/next task: Phase 3.6, clear the GitHub Actions billing/spending-limit restriction, rerun Linux CI, and verify the symlink test. The owner-visible GitHub error says recent account payments failed or the spending limit must be increased.
+- Follow-up Actions API inspection: runs `44075511742` and `44075853578` created no jobs and their log endpoints return 404. The latest two failed runs are linked to deleted workflow ID `419486886` (`BuildFailed`); active `EDISON Software CI` workflow ID `419486866` (`.github/workflows/edison-ci.yml`) has zero runs. This metadata discrepancy is noted but is not a cause to change workflow code; the billing error is the confirmed blocker.
+- Updated the formal report generator to display the authoritative executable-subphase fraction, `42 / 59 (71.2%)` as of 2026-11-17; focused tests (5) and TypeScript check pass.
+
+---
+
 ## Session Entry — 2026-11-14 (GitHub Import Restoration, Governance Preservation & Shortcut Upgrade)
 
 ### 1. Context & Discussion Summary

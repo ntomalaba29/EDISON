@@ -2,6 +2,8 @@
 
 **Document Status**: Reconciled Technical Baseline (`v2.2` — Adds Technical & Security Requirements for Mandatory Network-Wide Shared Ad Intelligence Alongside `v2.1` Commercial, Alternating & CTV Standards)
 
+**Implementation-status authority**: [`EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md`](EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md). Requirements below distinguish a tested software simulation from production service/device integration.
+
 ---
 
 ## 1. Media & Commercial Format Technical Standards (`UNBLOCKED`)
@@ -9,7 +11,7 @@
 ### 1.1 Three Commercial Formats (`COMMERCIAL ADS`)
 1. **Image / Banner Ads**: PNG, JPEG, WebP; strict `16:9` (`1.777:1 ±1%`), minimum `1280 x 720` (1080p recommended). Magic-byte validated on `/api/media/upload`.
 2. **Video Ads**: MP4 (H.264/AVC + AAC) and WebM (VP9/Opus); `16:9`, `5s–60s`, normalized loudness (EBU R128 / ATSC A/85 in `P3` FFmpeg pipeline), **preloaded** ahead of break playback.
-3. **Text-Only Commercial Ads (`[SPECIFIED / UNBLOCKED TO IMPLEMENT]`)**:
+3. **Text-Only Commercial Ads (`[SOFTWARE PROTOTYPE IMPLEMENTED]`)**:
    - Structured JSON payload: `{ advertiserName (required), headline (required), messageBody (required), contactInfo?, qrToken? / destinationUrl? }`.
    - Zero image or video file required; rendered cleanly in a deterministic 16:9 high-contrast typographic canvas (`>= 42 px` headline, `>= 28 px` body at 1080p scale) inside 90% title-safe margins.
 
@@ -32,7 +34,7 @@ $$\sum_{i=1}^{k} T_{\text{ad}_i} + T_{\text{switch\_in}} + T_{\text{switch\_out}
 
 ---
 
-## 3. Network-Wide Shared Ad Intelligence Technical Requirements (`v2.2` Approved — `NOT STARTED`)
+## 3. Network-Wide Shared Ad Intelligence Technical Requirements (`v2.2` Approved — Software Simulation Implemented; Production Service Pending)
 
 ### 3.1 Scoped Intelligence Schema & Categories
 Every record ingested or distributed MUST bind to an explicit compatibility tuple `{ countryCode, broadcasterId, channelId, platform, broadcastConfig }` (no universal compatibility assumed) and cover:
@@ -67,15 +69,15 @@ Every record ingested or distributed MUST bind to an explicit compatibility tupl
 
 - **10 Lifecycle Analytics Events** (`[SPECIFIED]`): `ad_requested`, `ad_selected`, `ad_delivered`, `ad_started`, `ad_played`, `ad_completed`, `ad_viewable`, `qr_request`, `destination_opened`, `verified_conversion`.
 - **Financial Attribution Separation**: `charity_free`, `direct_commercial_paid`, `ad_network_estimated`, `ad_network_confirmed`, `actual_payment_received`, `refund_adjustment`.
-- **7-Level Private Household Geo Schema (`[PENDING DEC-OPEN-01]`)**: `countryCode`, `provinceOrRegion`, `metropolitanArea?`, `cityOrTown`, `district?`, `suburbOrResidentialArea?`, `exactInstallationLocation`.
+- **7-Level Private Household Geo Schema (`[DEC-OPEN-01 RESOLVED; SOFTWARE PROTOTYPE IMPLEMENTED]`)**: `countryCode`, `provinceOrRegion`, `metropolitanArea?`, `cityOrTown`, `district?`, `suburbOrResidentialArea?`, `exactInstallationLocation`.
 
 ---
 
-## 6. Normal Everyday TV Remote Control Technical Requirements (`APPROVED CORE CAPABILITY — NOT STARTED`)
+## 6. Normal Everyday TV Remote Control Technical Requirements (`SIMULATOR IMPLEMENTED; REAL TRANSPORTS NOT STARTED`)
 
 - **Required Control Pipeline**: **`AURA → EDISON Control Engine → platform adapters → TV`**.
 - **Conventional Command Set**: `power_toggle`, `volume_up`, `volume_down`, `mute_toggle`, `channel_up`, `channel_down`, `source_select`, `dpad_up`, `dpad_down`, `dpad_left`, `dpad_right`, `select_ok`, `back`, `home`.
 - **Execution Isolation**:
   - Everyday remote commands bypass ad-break safety-buffer gating and alternating slot scheduling, executing deterministically on explicit user input with structured acknowledgement/error states and bounded command timeouts.
   - Intelligent ad-break switching (`CHARITY -> COMMERCIAL`) and programme restoration remain a distinct engine path subject to `ADR-005` safety math and watchdog recovery.
-- **Adapter & Hardware Honesty**: `SimulationTvAdapter` covers UI preview only (`Block 2.4`) and does **not** implement physical remote control; OS-specific remote transport adapters (`Android TV`, `Samsung Tizen`, `LG webOS`) are **`NOT STARTED`** (Phase 4 software engineering; verified on physical hardware once at `Stage P6`, with zero compatibility claimed beforehand).
+- **Adapter & Hardware Honesty**: `tvPlatformAdapter.ts` and `auraRemoteEngine.ts` implement software command/pairing simulators and contracts only. OS-specific production transports (`Android TV`, `Samsung Tizen`, `LG webOS`) are **not implemented**; physical compatibility is unverified until the single `Stage P6` test.

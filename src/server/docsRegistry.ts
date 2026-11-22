@@ -21,7 +21,7 @@ export interface GovernanceDocRecord extends GovernanceDocMeta {
   updatedAt: string;
 }
 
-const GOVERNANCE_DOCS_ALLOWLIST: GovernanceDocMeta[] = [
+export const GOVERNANCE_DOCS_ALLOWLIST: GovernanceDocMeta[] = [
   { id: 'readme', title: 'Project Overview & Index', filename: 'README.md', category: 'Core & Governance' },
   {
     id: 'master-spec',
@@ -60,6 +60,14 @@ const GOVERNANCE_DOCS_ALLOWLIST: GovernanceDocMeta[] = [
 ];
 
 const ALLOWLIST_BY_ID = new Map(GOVERNANCE_DOCS_ALLOWLIST.map((entry) => [entry.id, entry]));
+
+export function getGovernanceDocMetadata(id: string): GovernanceDocMeta | null {
+  return ALLOWLIST_BY_ID.get(id) ?? null;
+}
+
+export function listGovernanceDocMetadata(): GovernanceDocMeta[] {
+  return GOVERNANCE_DOCS_ALLOWLIST.map((entry) => ({ ...entry }));
+}
 
 function readAllowedDoc(meta: GovernanceDocMeta): GovernanceDocRecord {
   const rootDir = path.resolve(process.cwd());

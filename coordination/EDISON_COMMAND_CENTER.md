@@ -1,7 +1,20 @@
 # EDISON — AI Studio & VS Code Copilot Command Centre
 
 **Coordination Protocol**: Manual owner-triggered handoff only. No automatic polling, no background watchers, no scheduled synchronisation, no direct AI-to-AI communication.  
-**Git Verification Note**: `.git` metadata is absent inside `/app/applet`; commits and pushes are performed manually by the Project Owner.
+**Current status authority**: [`EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md`](../EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md) — **75 / 97 (77.3%)** executable substages complete. Phase fractions: prototype **8/8**, TV control **3/5**, Phase 5 **35/37**. Worker bootstrap/route/restart checks and 5.11a media validation are complete; next task **5.11b** is blocked on owner-approved storage provider selection. Older weighted percentages and checkpoint labels are superseded.
+
+## Current checkpoint — 2026-11-22
+
+- The latest atomic ledger is **75 / 97 (77.3%)**; Phase 2 prototype is **8/8**, Phase 4 TV control is **3/5**, and Phase 5 is **35/37**. Local Worker startup, route families, D1 restart behavior, documentation assets, and explicit media unavailability are verified. Media validation is storage-neutral; durable storage and compatible execution are pending provider approval.
+- Phase 5.10j has local D1-compatible coverage for opportunities, complaints, appeals, household/member/consent, QR and readiness records, simulated and measured QR analytics, dispute create/list/resolve, AURA paired devices, Shared Intelligence preview state, and delivery/report reads after store reconstruction. The combined D1/Shared Intelligence suite (29 passed), API/Track B/security regressions, dedicated AURA/OEM suite, TypeScript lint, and temporary-output production build pass; no remote migrations or deployment occurred.
+- The owner prefers the free `workers.dev` endpoint for initial staging, with any paid-plan change deferred. `workers_dev` is enabled in local config only; no remote migration or deployment is authorized.
+- The shared `pescon` dashboard was inspected read-only: it uses a `workers.dev` host, one D1 binding, Wrangler deployments, persisted logs, disabled traces, and a five-minute cron trigger. No `pescon` settings or resources were changed; project-specific flags and cron were not copied. Wrangler CLI remains unauthenticated in this shell, so no remote EDISON deploy/migration was attempted.
+- Completed 5.10k1–k3 and 5.11a: local Worker health, auth, business routes, 25 docs, D1 restart/migration behavior, fail-closed missing-D1 response, and validation/storage separation passed. The domain store remains explicitly `memory_only`; media processing returns HTTP 503 until configured. Next task 5.11b is blocked on owner-approved object-storage provider selection. Do not run remote migrations or deployment.
+- GitHub Actions billing still blocks Linux CI startup; no Linux verification or real TV transport is claimed. Stage P6 remains the single planned physical test.
+- The AURA remote and shared-intelligence code are software simulations; no real TV transport or production fleet is verified. Stage P6 remains the single planned physical test.
+- Follow the handoff plan for scope, acceptance criteria, phase fractions, research findings, and commit evidence. The sections below are historical records, not current next-task instructions.
+
+**Git note:** The repository workspace has local `.git` metadata. Other environments such as AI Studio may not; verify the active environment rather than assuming either condition.
 
 ---
 

@@ -6,6 +6,10 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createEdisonApp } from '../src/server/app.ts';
 import {
+  canonicalChannelScopeId,
+  SIMULATED_DEFAULT_DECODER_PROFILE_ID,
+} from '../src/server/sharedIntelFleetService.ts';
+import {
   CSRF_COOKIE_NAME,
   SESSION_COOKIE_NAME,
   apiErrorMiddleware,
@@ -1000,6 +1004,92 @@ describe('EDISON Phase 3 Block P3-A — Security Hardening Suite', () => {
     expect(suiteRes.body.allPassed).toBe(true);
     expect(suiteRes.body.hardwareTested).toBe(false);
     expect(suiteRes.body.stageP6Deferred).toBe(true);
+  });
+
+  it('Block 5.4: signs and syncs fresh channel-scoped break events between simulated TVs without PII', async () => {
+    const adminLogin = await request(app).post('/api/auth/login').send({
+      email: 'admin@edison.demo',
+      password: 'EdisonAdmin!2026',
+    });
+    const adminToken = adminLogin.body.token as string;
+    const scope = {
+      country: 'GB',
+      broadcaster: 'Freeview',
+      channel: 'BBC One HD',
+    };
+    const channelId = canonicalChannelScopeId(scope);
+    const eventId = `api-break-${Date.now()}`;
+    const breakStartedAtUtc = new Date().toISOString();
+    const payload = {
+      tvDeviceId: 'fleet_tv_gb_01',
+      scopeId: 'gb_freeview_bbcone_androidtv14_dvbt2',
+      decoderProfileId: SIMULATED_DEFAULT_DECODER_PROFILE_ID,
+      channelId,
+      eventId,
+      breakStartedAtUtc,
+      nonce: `api_nonce_${Date.now()}`,
+      useRegisteredDemoSigner: true,
+    };
+
+    const submitted = await request(app)
+      .post('/api/shared-intel-fleet/break-events')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(payload);
+    expect(submitted.status).toBe(201);
+    expect(submitted.body.result.signatureVerified).toBe(true);
+    expect(submitted.body.result.event.status).toBe('shared_pending_corroboration');
+    expect(submitted.body.result.containsPii).toBe(false);
+    expect(submitted.body.result.isSoftwareSimulationOnly).toBe(true);
+    expect(submitted.body.result.hardwareTested).toBe(false);
+
+    const peerSync = await request(app)
+      .get('/api/shared-intel-fleet/break-events')
+      .query({
+        tvDeviceId: 'fleet_tv_gb_02',
+        decoderProfileId: SIMULATED_DEFAULT_DECODER_PROFILE_ID,
+        channelId,
+      })
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(peerSync.status).toBe(200);
+    expect(peerSync.body.isSoftwareSimulationOnly).toBe(true);
+    expect(peerSync.body.hardwareTested).toBe(false);
+    expect(peerSync.body.events).toHaveLength(1);
+    expect(peerSync.body.events[0].eventId).toBe(eventId);
+    expect(peerSync.body.events[0].sourceDeviceIds).toEqual(['fleet_tv_gb_01']);
+
+    const invalidDecoderProfile = await request(app)
+      .post('/api/shared-intel-fleet/break-events')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        ...payload,
+        eventId: `${eventId}-invalid-decoder`,
+        nonce: `${payload.nonce}-invalid-decoder`,
+        decoderProfileId: 'invalid decoder profile',
+      });
+    expect(invalidDecoderProfile.status).toBe(400);
+
+    const piiPayload = await request(app)
+      .post('/api/shared-intel-fleet/break-events')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        ...payload,
+        eventId: `${eventId}-pii`,
+        nonce: `${payload.nonce}-pii`,
+        householdId: 'private_household',
+      });
+    expect(piiPayload.status).toBe(400);
+
+    const stalePayload = await request(app)
+      .post('/api/shared-intel-fleet/break-events')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        ...payload,
+        eventId: `${eventId}-stale`,
+        nonce: `${payload.nonce}-stale`,
+        breakStartedAtUtc: new Date(Date.now() - 121_000).toISOString(),
+      });
+    expect(stalePayload.status).toBe(409);
+    expect(stalePayload.body.result.status).toBe('rejected_stale');
   });
 
   it('Block 5.2: secures break-predictor endpoints with auth/CSRF/strict-Zod, enforces p10 lower bounds, and returns 10/10 recorded stream benchmark', async () => {

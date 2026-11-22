@@ -1,29 +1,23 @@
 # EDISON — Permanent Project Governance, Custom System Instructions & Account Continuity Guide
 
 **Repository**: `Malaba29/EDISON-International-Smart-TV-Advertising-Network-`  
-**Last Updated**: 2026-11-14  
+**Last Updated**: 2026-11-18
 **Purpose**: Permanent, portable copy of all EDISON project rules, custom system instructions, architecture boundaries, sequential workflow, and exact project path so any Google account, AI Studio session, or VS Code Copilot session importing this repository from GitHub has complete context without needing prior chat history.
 
 ---
 
 ## 0. Current Project Path & Active Checkpoint (Read First on Re-Import)
 
-- **Overall Roadmap Path**: `Phase 1 (COMMITTED)` → `Phase 2: AI Studio Functional Prototype (IN PROGRESS)` → `Phase 3: VS Code Hardening` → `Phases 4–15: Smart TV Integrations, Break Detection, Delivery, Ops, Rendering, Verification, Compliance, Reliability, Pilot, Commercial Readiness, Launch, Expansion`
-- **Phase 2 Sequential Block Path**:
-  1. `Block 2.1` — Express/Vite server, locked atomic store (`data/edison-store.json`), Auth/RBAC, QR validator, `/r/:token` redirect engine — **`COMMITTED`**
-  2. `Block 2.2` — Advertiser profiles, verification submission, support/dispute tickets, simulated rate-card estimates, 10-state Campaign Management — **`COMMITTED`**
-  3. `Block 2.3` — Advertisement Creation Studio (Option A guided 16:9 builder + Option B external media upload, magic-byte validation, `jsQR` inspection, non-overwrite QR enforcement) — **`COMMITTED`**
-  4. `Block 2.4` — Full 16:9 Television Preview, Pre-Submission Approval Gate & Commercial-Break Simulator — **`COMMITTED`**
-  5. `Block 2.5` — Opportunity Submission, Independent 3-Tier Verification, Expiry, Complaints & Appeals — **`COMMITTED`**
-  6. `Block 2.6` — Administration, Moderation Console (Playable 16:9 Preview) & 7-Stage Analytics — **`COMMITTED`**
-  7. `Block 2.7` — Physical Mobile QR Scan Testing, Final Prototype QA & VS Code Handover Package — **`COMMITTED`**
-- **Active Phase**: `Phase 3 — VS Code Engineering & Architecture Hardening` (`TASK-P3-001`: **`READY`** in `coordination/EDISON_COMMAND_CENTER.md`; handover dossier in `VSCODE_HANDOVER_PACKAGE.md`)
+- **Project path**: `C:\Users\HP\Desktop\MALABA\EDISON`
+- **Current status authority**: [`EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md`](EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md) — atomic execution ledger **65/91 (71.4%)**; prototype **8/8**, TV control **3/5**, Phase 5 **25/31**; tasks **5.10j1–5.10j7** are complete and **5.10j8** is next. Earlier 69-subphase and weighted counts are historical.
+- **Current task**: Phase 5.8 is complete: a locally tested D1-compatible adapter persists decoder-scoped events; this is not a live Cloudflare deployment. Phase 5.9 is Workers deployment and production operations. The owner approved the $5/month Workers Paid option, but account setup and deployment have not occurred. Do not claim managed keys, production attestation, hosting, monitoring, Linux verification, or a real TV transport. Phase 3.6 remains blocked by GitHub Actions billing; Phase 4.3 remains blocked pending a documented, permissioned companion-to-TV command API.
+- **Important reality check**: TV control and shared-intelligence software are tested simulations, not production hardware/network integrations. Hardware, external pen test, payments, KYC, market activation, and legal compliance remain incomplete.
 
 ### Quick Re-Import Instructions (When Switching Google Accounts or Starting a New Session)
 1. Import `Malaba29/EDISON-International-Smart-TV-Advertising-Network-` into AI Studio (or clone locally).
-2. Instruct the assistant: *"Read `EDISON_PERMANENT_SYSTEM_INSTRUCTIONS.md`, `coordination/EDISON_COMMAND_CENTER.md`, `PROGRESS_TRACKER.md`, and `SESSION_CONTINUITY_LOG.md`, then report `STATUS`."*
+2. Instruct the assistant: *"Read `EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md` first, then `EDISON_PERMANENT_SYSTEM_INSTRUCTIONS.md`, `DECISIONS_LOG.md`, `TESTING_STRATEGY.md`, and `SESSION_CONTINUITY_LOG.md`. Report the current fractions, blockers, and next authorized subphase."*
 3. Paste/attach these permanent governance instructions into the project's Custom System Instructions if desired, though keeping this file in GitHub ensures they are always versioned with the code.
-4. Click the **`Commit & Next`** shortcut button in the EDISON app header (or footer) after pushing a completed block to GitHub, and paste `"Committed to GitHub. Please proceed to the next block."` into chat to unlock the next block.
+4. After a clean subphase, review and commit/push only its scoped files. Record the commit and verification in the handoff/continuity docs; do not unlock the next subphase until the previous one is clean and its blockers are resolved.
 
 ---
 
@@ -93,41 +87,44 @@ Make routine technical decisions independently. Escalate decisions only when the
 
 ## 4. Master Production Roadmap (Phases 1–15)
 
-1. **Phase 1 — Project Definition and Technical Research** (`COMMITTED`)
-2. **Phase 2 — AI Studio Functional Prototype** (`IN PROGRESS`: Blocks 2.1–2.7)
-3. **Phase 3 — VS Code Engineering Hardening** (`NOT STARTED`)
-4. **Phase 4 — Smart TV Feasibility and Integrations** (`NOT STARTED`)
-5. **Phase 5 — Commercial-Break Detection and Prediction** (`NOT STARTED`)
-6. **Phase 6 — Advertising Delivery Infrastructure** (`NOT STARTED`)
-7. **Phase 7 — Advertiser and Campaign Operations** (`NOT STARTED`)
-8. **Phase 8 — Advertisement Creation and Rendering** (`NOT STARTED`)
-9. **Phase 9 — Opportunity Management and Verification** (`NOT STARTED`)
-10. **Phase 10 — Privacy, Security and Legal Compliance** (`NOT STARTED`)
-11. **Phase 11 — Reliability and Failure Testing** (`NOT STARTED`)
-12. **Phase 12 — Controlled Hardware and Viewer Pilot** (`NOT STARTED`)
-13. **Phase 13 — Commercial Readiness** (`NOT STARTED`)
-14. **Phase 14 — Initial Country Launch** (`NOT STARTED`)
-15. **Phase 15 — International Expansion** (`NOT STARTED`)
+The current plan is **65/91 executable substages (71.4%)** plus the single final physical Stage P6 test, as recorded in `execution-ledger.json`. Reports must state the explicit completed/total fraction and the prototype/TV-control/active-phase fractions, not only a weighted percentage. The 15 product phases are the high-level sequence; every task ID, prerequisite, acceptance boundary, status, and next task is maintained in [`EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md`](EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md). If an acceptance boundary cannot be completed in one task, split it before implementation, increase the denominator explicitly, and do not claim partial completion.
+
+1. **Phase 1 — Project Definition and Technical Research**
+2. **Phase 2 — AI Studio Functional Prototype**
+3. **Phase 3 — Engineering Hardening**
+4. **Phase 4 — TV Control and Adapters**
+5. **Phase 5 — Break Intelligence**
+6. **Phase 6 — Advertising Delivery**
+7. **Phase 7 — Advertiser Operations**
+8. **Phase 8 — Creative Rendering**
+9. **Phase 9 — Opportunity Operations**
+10. **Phase 10 — Privacy and Security Readiness**
+11. **Phase 11 — Reliability**
+12. **Phase 12 — Pilot Readiness**
+13. **Phase 13 — Commercial Readiness**
+14. **Phase 14 — Country Activation**
+15. **Phase 15 — International Expansion**
 
 ---
 
-## 5. Implementation Block Planning & Mandatory Workflow
+## 5. Atomic Task Planning & Mandatory Workflow
 
-Before beginning every implementation block, prepare a 15-point implementation plan (phase, stage, block, objective, context, scope, files created, files modified, dependencies, architecture, security, testing, visual preview, acceptance criteria, expected limitations).
+Before beginning every task, prepare a concise implementation plan covering phase/stage/task ID, one objective, context, scope, files, dependencies, architecture, security, tests, visual preview where relevant, acceptance criteria, and expected limitations. A task may complete only one substage. If the acceptance boundary cannot be met in one task, split it before implementation and recalculate progress.
 
 Mandatory sequence:
-`INSPECT -> PLAN -> IMPLEMENT -> TEST -> REVIEW -> REPORT -> USER REVIEW -> USER COMMIT -> USER CONFIRMATION -> NEXT BLOCK`
+`INSPECT -> PLAN -> IMPLEMENT -> TEST -> REVIEW -> REPORT -> COMMIT/PUSH CLEAN SUBPHASE -> NEXT SUBPHASE`
 
-Never automatically begin the next implementation block without explicit commit confirmation.
+Keep each commit limited to one complete subphase. Do not begin the next subphase until the previous one is verified, reported, and committed/pushed; stop if validation or the push fails.
 
 ---
 
 ## 6. Mandatory Git Commit Governance
 
-Every implementation block requires a commit checkpoint:
-`IMPLEMENTATION -> VERIFICATION -> REPORT -> OWNER REVIEW -> MANUAL COMMIT -> OWNER CONFIRMATION -> NEXT BLOCK`
+Every completed subphase requires a scoped commit checkpoint:
+`IMPLEMENTATION -> VERIFICATION -> REPORT -> COMMIT/PUSH -> NEXT SUBPHASE`
 
-- Mark completed blocks `AWAITING COMMIT`.
+- Commit and push the clean subphase to the configured project remote; do not combine unrelated subphases.
+- Record the resulting commit and verification evidence in the handoff/continuity docs.
 - **Project Owner Override Rule (2026-11-14)**: When the Project Owner replies with `"Next"` (or `"Committed, next"` / `"Committed to GitHub..."`), that explicit instruction confirms the preceding block was committed to GitHub and authorises unlocking the next sequential block (`ADR-010`).
 - Never use destructive Git commands, never overwrite unrelated work, never access or stage secrets or `.env` files or runtime `/data/edison-store.json`.
 

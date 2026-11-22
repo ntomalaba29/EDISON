@@ -22,6 +22,7 @@ import type {
   CampaignPreviewGateResult,
   CampaignRecord,
   CampaignStatus,
+  CountryJurisdictionPolicyConfig,
   ConsentAuditEventRecord,
   CountryLaunchDecisionOutcome,
   CountryLaunchDecisionRecord,
@@ -33,11 +34,13 @@ import type {
   HouseholdLocation,
   HouseholdMemberProfile,
   HouseholdOpportunityMatchResult,
+  HouseholdQrRedirectPersistenceState,
   HouseholdQrTokenRecord,
   InternationalExpansionDecisionOutcome,
   InternationalExpansionDecisionRecord,
   InternationalExpansionOverview,
   LaunchMarketCode,
+  RegionalLocalizationConfig,
   LiveReportSnapshot,
   MultiCurrencyProFormaEstimate,
   OpportunityAppealRecord,
@@ -85,7 +88,11 @@ import type {
   TextOnlyCommercialSpec,
 } from '../types/edison.ts';
 
-export type EdisonStorageBackend = 'json_file_store' | 'postgresql_pg' | 'postgresql_planned';
+export type EdisonStorageBackend =
+  | 'json_file_store'
+  | 'memory_only'
+  | 'postgresql_pg'
+  | 'postgresql_planned';
 
 export interface StorageBackendMetadata {
   backend: EdisonStorageBackend;
@@ -97,18 +104,9 @@ export interface StorageBackendMetadata {
   migrationBlueprintPath: string;
 }
 
-/**
- * Persistence and domain repository port for EDISON Track A.
- *
- * `EdisonPrototypeStore` implements this interface backed by atomic JSON file
- * storage (`data/edison-store.json`, schema v8). External PostgreSQL migration
- * (`TASK-P3-001`) can implement this exact interface without altering HTTP
- * route handlers, Zod validation, CSRF controls, or RBAC middleware.
- */
-export interface EdisonDataRepository {
-  getStorageBackendMetadata(): StorageBackendMetadata;
+type MaybePromise<T> = T | Promise<T>;
 
-  // --- Auth & Session Hardening ---
+export interface EdisonAuthSessionRepository {
   registerUser(
     params: {
       email: string;
@@ -118,34 +116,57 @@ export interface EdisonDataRepository {
       role: 'advertiser' | 'opportunity_submitter' | 'household_viewer';
     },
     previousSessionToken?: string
-  ): { user: PublicUser; session: SessionRecord & { token: string } };
+  ): MaybePromise<{ user: PublicUser; session: SessionRecord & { token: string } }>;
 
   loginUser(
     email: string,
     password: string,
     previousSessionToken?: string
-  ): { user: PublicUser; session: SessionRecord & { token: string } };
+  ): MaybePromise<{ user: PublicUser; session: SessionRecord & { token: string } }>;
 
   getSessionByToken(
     rawToken: string | undefined
-  ): { user: PublicUser; session: SessionRecord } | null;
+  ): MaybePromise<{ user: PublicUser; session: SessionRecord } | null>;
 
-  getUserBySessionToken(token: string | undefined): PublicUser | null;
-  touchSessionActivity(rawToken: string | undefined): void;
-  expireSessionForTesting(rawToken: string, mode?: 'idle' | 'absolute'): void;
-  logoutSession(token: string | undefined): void;
-
+  listSessionRetentionRecords(): MaybePromise<
+    Array<Pick<SessionRecord, 'expiresAt' | 'idleExpiresAt'>>
+  >;
+  getUserCount(): MaybePromise<number>;
+  touchSessionActivity(rawToken: string | undefined): MaybePromise<void>;
+  logoutSession(token: string | undefined): MaybePromise<void>;
   recordSecurityAudit(
     actor: PublicUser | null,
     action: string,
     targetId: string,
     detail: string
-  ): void;
+  ): MaybePromise<void>;
+  listAuditRecords(limit?: number): MaybePromise<AuditLogRecord[]>;
+}
+
+/**
+ * Persistence and domain repository port for EDISON Track A.
+ *
+ * `EdisonPrototypeStore` implements this interface backed by atomic JSON file
+ * storage (`data/edison-store.json`, schema v8). External PostgreSQL migration
+ * (`TASK-P3-001`) can implement this exact interface without altering HTTP
+ * route handlers, Zod validation, CSRF controls, or RBAC middleware.
+ */
+export interface EdisonDataRepository extends EdisonAuthSessionRepository {
+  getStorageBackendMetadata(): StorageBackendMetadata;
+
+  // --- Auth & Session Hardening ---
+  getUserBySessionToken(token: string | undefined): PublicUser | null;
+  expireSessionForTesting(rawToken: string, mode?: 'idle' | 'absolute'): void;
 
   recordSharedIntelPiiRejection(scopeId: string | undefined, detail: string): void;
 
   // --- QR Links & Redirect Core ---
   listQrLinksForUser(user: PublicUser): QrLinkRecord[];
+  replaceQrLinkFromPersistence(link: QrLinkRecord): void;
+  replacePhysicalQrScanTestsFromPersistence(
+    actor: PublicUser,
+    records: PhysicalQrScanTestRecord[]
+  ): void;
 
   createQrLink(
     owner: PublicUser,
@@ -160,8 +181,24 @@ export interface EdisonDataRepository {
     userAgent: string,
     headers?: { secPurpose?: string; purpose?: string; xMoz?: string }
   ):
-    | { ok: true; record: QrLinkRecord; deduplicated: boolean; isSuspectedBot: boolean }
-    | { ok: false; reason: string; statusCode: number };
+    | {
+        ok: true;
+        record: QrLinkRecord;
+        deduplicated: boolean;
+        isSuspectedBot: boolean;
+        analyticsEvents: AnalyticsEventRecord[];
+        householdQrToken?: HouseholdQrTokenRecord;
+        consentAuditEvents: ConsentAuditEventRecord[];
+      }
+    | {
+        ok: false;
+        reason: string;
+        statusCode: number;
+        record?: QrLinkRecord;
+        analyticsEvents: AnalyticsEventRecord[];
+        householdQrToken?: HouseholdQrTokenRecord;
+        consentAuditEvents: ConsentAuditEventRecord[];
+      };
 
   // --- Advertiser Profiles ---
   getAdvertiserProfile(user: PublicUser): AdvertiserProfile;
@@ -266,6 +303,7 @@ export interface EdisonDataRepository {
 
   // --- Ad Creation Studio & Media Audit ---
   listAdCreativesForUser(user: PublicUser): AdCreativeRecord[];
+  replaceAdCreativeFromPersistence(creative: AdCreativeRecord): void;
 
   saveAdCreative(
     actor: PublicUser,
@@ -430,14 +468,33 @@ export interface EdisonDataRepository {
     notes: string
   ): AdCreativeRecord;
 
-  getAdminModerationOverview(admin: PublicUser): AdminModerationOverview;
+  getAdminModerationOverview(
+    admin: PublicUser,
+    persistedData?: {
+      campaigns: CampaignRecord[];
+      creatives: AdCreativeRecord[];
+      advertiserProfiles: AdvertiserProfile[];
+      qrLinks: QrLinkRecord[];
+      supportTickets: SupportTicketRecord[];
+      opportunityComplaints: OpportunityComplaintRecord[];
+      opportunityAppeals: OpportunityAppealRecord[];
+    }
+  ): AdminModerationOverview;
 
   getSevenStageAnalyticsFunnel(
     actor: PublicUser,
-    campaignFilterId?: string | null
+    campaignFilterId?: string | null,
+    persistedData?: {
+      campaigns: CampaignRecord[];
+      qrLinks: QrLinkRecord[];
+      analyticsEvents: AnalyticsEventRecord[];
+    }
   ): SevenStageAnalyticsSnapshot;
 
-  getRevenueLedgerSnapshot(actor: PublicUser): RevenueLedgerSnapshot;
+  getRevenueLedgerSnapshot(
+    actor: PublicUser,
+    persistedData?: { campaigns: CampaignRecord[]; analyticsEvents: AnalyticsEventRecord[] }
+  ): RevenueLedgerSnapshot;
 
   // --- QA Handover & Physical QR Verification ---
   getQrWatchSnapshot(
@@ -468,10 +525,21 @@ export interface EdisonDataRepository {
 
   deletePhysicalQrScanTest(actor: PublicUser, id: string): void;
 
-  getPrototypeReadinessSnapshot(actor: PublicUser): PrototypeReadinessSnapshot;
+  getPrototypeReadinessSnapshot(
+    actor: PublicUser,
+    persistedData?: {
+      campaigns: CampaignRecord[];
+      adCreatives: AdCreativeRecord[];
+      opportunities: OpportunityRecord[];
+      analyticsEvents: AnalyticsEventRecord[];
+      qrLinks: QrLinkRecord[];
+      physicalQrScanTests: PhysicalQrScanTestRecord[];
+    }
+  ): PrototypeReadinessSnapshot;
 
   // --- Shared Intelligence Prototype Simulation ---
   getSharedIntelPreviewState(): SharedIntelPreviewState;
+  replaceSharedIntelPreviewStateFromPersistence(state: SharedIntelPreviewState): void;
 
   submitSharedIntelPreviewObservation(
     actor: PublicUser,
@@ -509,8 +577,14 @@ export interface EdisonDataRepository {
   listAuditLogs(filters?: { targetType?: string; limit?: number }): AuditLogRecord[];
   listAnalyticsEvents(limit?: number): AnalyticsEventRecord[];
 
-  getFoundationSummary(): LiveReportSnapshot['summary'];
-  getLiveReportSnapshot(): LiveReportSnapshot;
+  getFoundationSummary(
+    persistedSummary?: LiveReportSnapshot['summary']
+  ): LiveReportSnapshot['summary'];
+  getLiveReportSnapshot(persistedData?: {
+    summary: LiveReportSnapshot['summary'];
+    campaignStatusBreakdown: Record<CampaignStatus, number>;
+    latestAudit: AuditLogRecord | null;
+  }): LiveReportSnapshot;
 
   // --- Track B: Households, Multi-Profile, Personalisation, Bundled Consent & QR Revocation ---
   listHouseholdsForUser(actor: PublicUser): HouseholdInstallationRecord[];
@@ -569,6 +643,18 @@ export interface EdisonDataRepository {
     actor: PublicUser,
     householdId: string
   ): Array<Omit<HouseholdMemberProfile, 'pinHash'>>;
+  getHouseholdMembersForPersistence(
+    actor: PublicUser,
+    householdId: string
+  ): HouseholdMemberProfile[];
+  replaceHouseholdStateFromPersistence(
+    actor: PublicUser,
+    household: HouseholdInstallationRecord,
+    members: HouseholdMemberProfile[],
+    tokens: HouseholdQrTokenRecord[],
+    auditEvents: ConsentAuditEventRecord[]
+  ): void;
+  replaceHouseholdQrRedirectStateFromPersistence(state: HouseholdQrRedirectPersistenceState): void;
 
   createHouseholdMember(
     actor: PublicUser,
@@ -621,7 +707,8 @@ export interface EdisonDataRepository {
 
   evaluateHouseholdOpportunityMatches(
     actor: PublicUser,
-    householdId: string
+    householdId: string,
+    opportunities?: OpportunityRecord[]
   ): {
     householdId: string;
     consentEpoch: number;
@@ -662,7 +749,15 @@ export interface EdisonDataRepository {
   getAdvertiserGeoAggregates(actor: PublicUser): AdvertiserGeoAggregateRow[];
 
   // --- Phase 9 Block 9.1: Opportunity Verification Operations Hardening ---
-  getOpportunityOpsOverview(actor: PublicUser): OpportunityOpsOverview;
+  getOpportunityOpsOverview(
+    actor: PublicUser,
+    persistedData?: {
+      opportunities: OpportunityRecord[];
+      complaints: OpportunityComplaintRecord[];
+      appeals: OpportunityAppealRecord[];
+      campaigns: CampaignRecord[];
+    }
+  ): OpportunityOpsOverview;
 
   runOpportunityExpiryAndReverificationSweep(
     actor: PublicUser,
@@ -670,7 +765,15 @@ export interface EdisonDataRepository {
   ): OpportunityOpsSweepResult;
 
   // --- Phase 10 Block 10.1: Privacy, Security & Statutory Compliance Readiness ---
-  getPrivacyComplianceOverview(actor: PublicUser): PrivacyComplianceOverview;
+  getPrivacyComplianceOverview(
+    actor: PublicUser,
+    persisted?: {
+      households: HouseholdInstallationRecord[];
+      sessions: Array<Pick<SessionRecord, 'expiresAt' | 'idleExpiresAt'>>;
+      householdQrTokens: HouseholdQrTokenRecord[];
+      analyticsEvents: AnalyticsEventRecord[];
+    }
+  ): PrivacyComplianceOverview;
 
   exportHouseholdDsrPackage(actor: PublicUser, householdId: string): PrivacyDsrExportPackage;
 
@@ -687,6 +790,7 @@ export interface EdisonDataRepository {
 
   // --- Phase 11 Block 11.1: Reliability, Failure-Mode & Chaos Recovery Suite ---
   getReliabilityChaosOverview(actor: PublicUser): ReliabilityChaosOverview;
+  replaceLastReliabilityChaosReportFromPersistence(report: ReliabilityChaosReport | null): void;
 
   executeFailureModeChaosProbe(
     actor: PublicUser,
@@ -706,6 +810,10 @@ export interface EdisonDataRepository {
 
   // --- Phase 12 Block 12.1: Controlled Hardware & Viewer Pilot Readiness (Software-First) ---
   getPilotReadinessOverview(actor: PublicUser): PilotReadinessOverview;
+  replacePilotCohortsFromPersistence(cohorts: PilotCohortBlueprintRecord[]): void;
+  replaceStageP6PrepNotesFromPersistence(
+    notes: Array<{ stepId: StageP6StepId; ownerPrepNote: string }>
+  ): void;
 
   createPilotCohortBlueprint(
     actor: PublicUser,
@@ -751,6 +859,10 @@ export interface EdisonDataRepository {
 
   // --- Phase 13 Block 13.1: Commercial Readiness Board Gate, SLA Matrix & Unit Economics ---
   getCommercialReadinessOverview(actor: PublicUser): CommercialReadinessOverview;
+  replaceCommercialReadinessStateFromPersistence(
+    assumptions: CommercialCostAssumptionsInput | null,
+    decisions: CommercialBoardDecisionRecord[]
+  ): void;
 
   updateCommercialCostAssumptions(
     actor: PublicUser,
@@ -771,6 +883,10 @@ export interface EdisonDataRepository {
 
   // --- Phase 14 Block 14.1: Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine ---
   getCountryLaunchOverview(actor: PublicUser): CountryLaunchOverview;
+  replaceCountryLaunchStateFromPersistence(
+    profiles: CountryJurisdictionPolicyConfig[],
+    decisions: CountryLaunchDecisionRecord[]
+  ): void;
 
   updateCountryPolicyConfig(
     actor: PublicUser,
@@ -798,6 +914,10 @@ export interface EdisonDataRepository {
 
   // --- Phase 15 Block 15.1: International Multi-Region Expansion, Localization & Residency ---
   getInternationalExpansionOverview(actor: PublicUser): InternationalExpansionOverview;
+  replaceInternationalExpansionStateFromPersistence(
+    profiles: RegionalLocalizationConfig[],
+    decisions: InternationalExpansionDecisionRecord[]
+  ): void;
 
   updateRegionalLocalizationConfig(
     actor: PublicUser,

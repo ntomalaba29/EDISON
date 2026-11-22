@@ -1976,7 +1976,7 @@ export function TvPreviewView({
                       onClick={handleManualReturnToTv}
                       className="absolute top-3 right-3 px-3 py-1.5 rounded bg-red-600 hover:bg-red-700 text-white text-xs font-semibold shadow z-40 cursor-pointer"
                     >
-                      Manual Return to Live TV
+                      EDISON TV App · Back
                     </button>
                   </>
                 ) : (
@@ -2011,6 +2011,18 @@ export function TvPreviewView({
                         in {breakCountdown}s...
                       </div>
                     )}
+                    <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-950/70 px-3 py-2 text-xs">
+                      <span className="font-mono text-slate-300">EDISON TV APP</span>
+                      <button
+                        type="button"
+                        onClick={triggerSimulatedBreak}
+                        disabled={simPhase !== 'live_tv' || !activeCreative}
+                        title={activeCreative ? 'Start a simulated EDISON ad break' : 'Select a creative before starting a break'}
+                        className="rounded bg-emerald-600 px-3 py-1.5 font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        EDISON Ad
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -2030,11 +2042,11 @@ export function TvPreviewView({
                   <button
                     type="button"
                     onClick={triggerSimulatedBreak}
-                    disabled={simPhase !== 'live_tv'}
+                    disabled={simPhase !== 'live_tv' || !activeCreative}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 font-semibold bg-amber-600 hover:bg-amber-700 disabled:opacity-40 rounded-lg cursor-pointer"
                   >
                     <FastForward className="w-3.5 h-3.5" />
-                    <span>Trigger Single Spot</span>
+                    <span>Simulate Break Detection</span>
                   </button>
 
                   {breakPlan && !breakPlan.skipped && breakPlan.slots.length > 0 && (
@@ -2055,7 +2067,7 @@ export function TvPreviewView({
                       onClick={handleManualReturnToTv}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 font-semibold bg-red-600 hover:bg-red-700 rounded-lg cursor-pointer"
                     >
-                      <span>Skip / Manual Return</span>
+                      <span>Simulator: Force Return</span>
                     </button>
                   )}
 
@@ -2507,7 +2519,7 @@ export function TvPreviewView({
                   onClick={() => handleSimulateAuraRemote('back')}
                   className="px-2.5 py-1.5 border border-blue-200 rounded bg-blue-50 text-blue-800 hover:bg-blue-100 font-semibold cursor-pointer"
                 >
-                  Back / Restore TV
+                  Back
                 </button>
               </div>
 

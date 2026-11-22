@@ -5,10 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
+    "postinstall": "node scripts/patch-workers-iconv-lite.mjs",
+    "progress": "node scripts/report-progress.mjs",
+    "predev:cloudflare": "npm run build",
+    "dev:cloudflare": "wrangler dev --local --port 8787",
     "start": "node server.ts",
-    "build": "vite build",
+    "build": "vite build && tsx scripts/packageGovernanceDocs.ts",
     "preview": "vite preview",
-    "clean": "rm -rf dist server.js",
+    "clean": "node scripts/clean.mjs",
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
@@ -45,6 +49,7 @@
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
     "typescript": "^7.0.2",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.0",
+    "wrangler": "^4.164.0"
   }
 }

@@ -27,6 +27,7 @@ import type {
   CommercialBoardDecisionRecord,
   CommercialCostAssumptionsInput,
   CommercialReadinessOverview,
+  CountryJurisdictionPolicyConfig,
   ConsentAuditAction,
   ConsentAuditEventRecord,
   CountryLaunchDecisionOutcome,
@@ -41,10 +42,12 @@ import type {
   HouseholdLocation,
   HouseholdMemberProfile,
   HouseholdOpportunityMatchResult,
+  HouseholdQrRedirectPersistenceState,
   HouseholdQrTokenRecord,
   InternationalExpansionDecisionOutcome,
   InternationalExpansionDecisionRecord,
   InternationalExpansionOverview,
+  RegionalLocalizationConfig,
   LaunchMarketCode,
   LiveReportSnapshot,
   MultiCurrencyProFormaEstimate,
@@ -165,6 +168,12 @@ import {
   generateCsrfToken,
   hashSessionToken,
 } from './security.ts';
+import { hashPassword, toPublicUser, verifyPassword } from './authCredentials.ts';
+import {
+  SESSION_IDLE_TTL_MS,
+  SESSION_TOUCH_INTERVAL_MS,
+  SESSION_TTL_MS,
+} from './authPolicy.ts';
 import type {
   EdisonDataRepository,
   StorageBackendMetadata,
@@ -175,10 +184,9 @@ import { runPhase4SoftwareExitSuite } from './broadcastMetadataParser.ts';
 import { sharedIntelFleetService } from './sharedIntelFleetService.ts';
 import { runRecordedStreamCalibrationBenchmark } from './breakDurationPredictor.ts';
 
+export { hashPassword, toPublicUser, verifyPassword } from './authCredentials.ts';
+
 const DEFAULT_DATA_DIR = path.resolve(process.cwd(), 'data');
-const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days absolute cap
-const SESSION_IDLE_TTL_MS = 1000 * 60 * 60 * 2; // 2 hours idle timeout
-const SESSION_TOUCH_INTERVAL_MS = 60 * 1000; // throttle disk touches to >=60s
 const DEDUP_WINDOW_MS = 5000; // 5s duplicate request suppression
 const LOCK_TIMEOUT_MS = 3000;
 const STALE_LOCK_MS = 10000;
@@ -358,27 +366,6 @@ export function detectSuspectedBotOrPrefetch(
   }
 
   return BOT_USER_AGENT_PATTERNS.some((pattern) => pattern.test(ua));
-}
-
-export function hashPassword(password: string): string {
-  const salt = crypto.randomBytes(16).toString('hex');
-  const derived = crypto.scryptSync(password, salt, 64).toString('hex');
-  return `${salt}:${derived}`;
-}
-
-export function verifyPassword(password: string, storedHash: string): boolean {
-  const parts = storedHash.split(':');
-  if (parts.length !== 2) return false;
-  const [salt, expectedHex] = parts;
-  const derived = crypto.scryptSync(password, salt, 64);
-  const expected = Buffer.from(expectedHex, 'hex');
-  if (derived.length !== expected.length) return false;
-  return crypto.timingSafeEqual(derived, expected);
-}
-
-export function toPublicUser(user: UserAccount): PublicUser {
-  const { passwordHash: _removed, ...rest } = user;
-  return rest;
 }
 
 function isoDateDaysFromNow(offsetDays: number): string {
@@ -1315,7 +1302,50 @@ function normalizeStoreData(parsed: EdisonStoreData): EdisonStoreData {
   };
 }
 
+function buildInitialAdvertiserProfile(
+  user: Pick<
+    PublicUser,
+    | 'id'
+    | 'email'
+    | 'name'
+    | 'organisationName'
+    | 'role'
+    | 'verificationStatus'
+    | 'isPrototypeSeed'
+  >,
+  now: string
+): AdvertiserProfile {
+  const organisationName = user.organisationName || 'Independent / Individual';
+  return {
+    userId: user.id,
+    entityType:
+      organisationName === 'Independent / Individual'
+        ? 'individual_sole_trader'
+        : 'registered_business',
+    businessOrTradingName: organisationName,
+    registrationOrTaxId: '',
+    industryCategory:
+      user.role === 'opportunity_submitter'
+        ? 'Employment & Opportunities'
+        : 'General Commercial',
+    countryCode: 'ZW',
+    cityRegion: '',
+    physicalAddress: '',
+    primaryContactName: user.name,
+    primaryContactEmail: user.email,
+    primaryContactPhone: '',
+    billingContactName: user.name,
+    billingContactEmail: user.email,
+    websiteUrl: '',
+    verificationStatus: user.verificationStatus,
+    verificationNotes: '',
+    isPrototypeSeed: user.isPrototypeSeed,
+    updatedAt: now,
+  };
+}
+
 export class EdisonPrototypeStore implements EdisonDataRepository {
+  private readonly storageMode: 'json_file' | 'memory';
   private readonly dataDir: string;
   private readonly storePath: string;
   private readonly lockPath: string;
@@ -1323,7 +1353,8 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
   private lastKnownMtimeMs = 0;
   private recentRedirectMap = new Map<string, number>();
 
-  constructor(options?: { dataDir?: string }) {
+  constructor(options?: { dataDir?: string; storageMode?: 'json_file' | 'memory' }) {
+    this.storageMode = options?.storageMode ?? 'json_file';
     this.dataDir = options?.dataDir ? path.resolve(options.dataDir) : DEFAULT_DATA_DIR;
     this.storePath = path.join(this.dataDir, 'edison-store.json');
     this.lockPath = path.join(this.dataDir, 'edison-store.lock');
@@ -1334,9 +1365,11 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     const dbUrlConfigured = Boolean(process.env.DATABASE_URL?.trim());
     const usePg = dbUrlConfigured && process.env.EDISON_STORAGE_BACKEND === 'postgresql_pg';
     return {
-      backend: usePg ? 'postgresql_pg' : 'json_file_store',
+      backend: this.storageMode === 'memory' ? 'memory_only' : usePg ? 'postgresql_pg' : 'json_file_store',
       schemaVersion: this.data.schemaVersion || 8,
-      persistenceLabel: usePg
+      persistenceLabel: this.storageMode === 'memory'
+        ? 'Isolate-local memory store (not durable)'
+        : usePg
         ? 'PostgreSQL 16+ (pg.Pool via DATABASE_URL)'
         : 'data/edison-store.json (Locked Atomic Write + PG16 Migrations Ready)',
       postgresMigrationReady: true,
@@ -1365,6 +1398,9 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
   }
 
   private loadOrInitialize(): EdisonStoreData {
+    if (this.storageMode === 'memory') {
+      return createInitialSeed();
+    }
     this.ensureDataDir();
     try {
       const existing = this.readFromDisk();
@@ -1432,6 +1468,9 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
   }
 
   private withWriteTransaction<T>(mutator: (draft: EdisonStoreData) => T): T {
+    if (this.storageMode === 'memory') {
+      return mutator(this.data);
+    }
     this.acquireLock();
     try {
       if (fs.existsSync(this.storePath)) {
@@ -1452,6 +1491,7 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
   }
 
   private syncIfDiskNewer(): void {
+    if (this.storageMode === 'memory') return;
     if (!fs.existsSync(this.storePath)) return;
     try {
       const stat = fs.statSync(this.storePath);
@@ -1532,26 +1572,7 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
 
       draft.users.push(user);
       if (params.role !== 'household_viewer') {
-        draft.advertiserProfiles.push({
-          userId: user.id,
-          entityType: orgName === 'Independent / Individual' ? 'individual_sole_trader' : 'registered_business',
-          businessOrTradingName: orgName,
-          registrationOrTaxId: '',
-          industryCategory: params.role === 'opportunity_submitter' ? 'Employment & Opportunities' : 'General Commercial',
-          countryCode: 'ZW',
-          cityRegion: '',
-          physicalAddress: '',
-          primaryContactName: user.name,
-          primaryContactEmail: user.email,
-          primaryContactPhone: '',
-          billingContactName: user.name,
-          billingContactEmail: user.email,
-          websiteUrl: '',
-          verificationStatus: 'unverified',
-          verificationNotes: '',
-          isPrototypeSeed: false,
-          updatedAt: now,
-        });
+        draft.advertiserProfiles.push(buildInitialAdvertiserProfile(user, now));
       }
 
       const session = this.createSessionInDraft(draft, user, previousSessionToken);
@@ -1685,6 +1706,19 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     return { user: toPublicUser(user), session: { ...session } };
   }
 
+  listSessionRetentionRecords(): Array<Pick<SessionRecord, 'expiresAt' | 'idleExpiresAt'>> {
+    this.syncIfDiskNewer();
+    return this.data.sessions.map(({ expiresAt, idleExpiresAt }) => ({
+      expiresAt,
+      idleExpiresAt,
+    }));
+  }
+
+  getUserCount(): number {
+    this.syncIfDiskNewer();
+    return this.data.users.length;
+  }
+
   getUserBySessionToken(token: string | undefined): PublicUser | null {
     return this.getSessionByToken(token)?.user ?? null;
   }
@@ -1800,6 +1834,14 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
+  replaceQrLinkFromPersistence(link: QrLinkRecord): void {
+    this.withWriteTransaction((draft) => {
+      const index = draft.qrLinks.findIndex((item) => item.token === link.token);
+      if (index < 0) draft.qrLinks.push({ ...link });
+      else draft.qrLinks[index] = { ...link };
+    });
+  }
+
   createQrLink(
     owner: PublicUser,
     params: { label: string; destinationType: QrDestinationType; rawInput: string }
@@ -1876,8 +1918,24 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     userAgent: string,
     headers: { secPurpose?: string; purpose?: string; xMoz?: string } = {}
   ):
-    | { ok: true; record: QrLinkRecord; deduplicated: boolean; isSuspectedBot: boolean }
-    | { ok: false; reason: string; statusCode: number } {
+    | {
+        ok: true;
+        record: QrLinkRecord;
+        deduplicated: boolean;
+        isSuspectedBot: boolean;
+        analyticsEvents: AnalyticsEventRecord[];
+        householdQrToken?: HouseholdQrTokenRecord;
+        consentAuditEvents: ConsentAuditEventRecord[];
+      }
+    | {
+        ok: false;
+        reason: string;
+        statusCode: number;
+        record?: QrLinkRecord;
+        analyticsEvents: AnalyticsEventRecord[];
+        householdQrToken?: HouseholdQrTokenRecord;
+        consentAuditEvents: ConsentAuditEventRecord[];
+      } {
     const isSuspectedBot = detectSuspectedBotOrPrefetch(userAgent, headers);
     const ipHash = crypto
       .createHash('sha256')
@@ -1890,13 +1948,27 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     const lastHit = this.recentRedirectMap.get(dedupKey);
     const deduplicated = Boolean(lastHit && nowMs - lastHit < DEDUP_WINDOW_MS);
 
+    const analyticsEvents: AnalyticsEventRecord[] = [];
+    const consentAuditEvents: ConsentAuditEventRecord[] = [];
+    let redirectHouseholdQr: HouseholdQrTokenRecord | null = null;
     return this.withWriteTransaction((draft) => {
+      const recordAnalyticsEvent = (event: AnalyticsEventRecord) => {
+        this.pushAnalyticsEvent(draft, event);
+        analyticsEvents.push(event);
+      };
+      const withAnalyticsEvents = <T extends object>(result: T) => ({
+        ...result,
+        analyticsEvents: analyticsEvents.map((event) => ({ ...event })),
+        ...(redirectHouseholdQr ? { householdQrToken: { ...redirectHouseholdQr } } : {}),
+        consentAuditEvents: consentAuditEvents.map((event) => ({ ...event })),
+      });
       let target = draft.qrLinks.find((q) => q.token === token);
       let boundHouseholdQr: HouseholdQrTokenRecord | null = null;
 
       if (!target && token.startsWith('hqr_')) {
         boundHouseholdQr = (draft.householdQrTokens || []).find((hqr) => hqr.token === token) ?? null;
         if (boundHouseholdQr) {
+          redirectHouseholdQr = boundHouseholdQr;
           const hh = (draft.households || []).find((h) => h.id === boundHouseholdQr!.householdId) ?? null;
           const isExpired = Date.parse(boundHouseholdQr.expiresAt) <= nowMs;
           const isConsentWithdrawn =
@@ -1924,7 +1996,7 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
               : 'Household consent epoch changed or QR access was revoked (HTTP 403).';
 
             draft.consentAuditEvents = draft.consentAuditEvents || [];
-            draft.consentAuditEvents.unshift({
+            const auditEvent: ConsentAuditEventRecord = {
               id: `caud_${crypto.randomBytes(5).toString('hex')}`,
               householdId: boundHouseholdQr.householdId,
               actorId: null,
@@ -1936,8 +2008,10 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
               affectedQrTokensInvalidated: 0,
               ordinaryTvPreserved: true,
               createdAt: nowIso,
-            });
-            this.pushAnalyticsEvent(draft, {
+            };
+            draft.consentAuditEvents.unshift(auditEvent);
+            consentAuditEvents.push(auditEvent);
+            recordAnalyticsEvent({
               id: `evt_${crypto.randomBytes(6).toString('hex')}`,
               qrToken: token,
               campaignId: boundHouseholdQr.campaignId,
@@ -1958,11 +2032,11 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
               token,
               `Rejected /r/${token} with HTTP 403 (${reasonCode}).`
             );
-            return {
+            return withAnalyticsEvents({
               ok: false,
               reason: reasonCode,
               statusCode: 403,
-            };
+            });
           }
 
           if (boundHouseholdQr.opportunityId) {
@@ -1977,7 +2051,7 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
               linkedOpp.expiryDate < today
             ) {
               boundHouseholdQr.rejected403Count += 1;
-              this.pushAnalyticsEvent(draft, {
+              recordAnalyticsEvent({
                 id: `evt_${crypto.randomBytes(6).toString('hex')}`,
                 qrToken: token,
                 campaignId: boundHouseholdQr.campaignId,
@@ -1989,11 +2063,11 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
                 redirectOutcome: 'revoked_consent',
                 createdAt: nowIso,
               });
-              return {
+              return withAnalyticsEvents({
                 ok: false,
                 reason: 'Opportunity linked to this QR token is no longer verified live.',
                 statusCode: 403,
-              };
+              });
             }
           }
 
@@ -2003,7 +2077,7 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
       }
 
       if (!target) {
-        this.pushAnalyticsEvent(draft, {
+        recordAnalyticsEvent({
           id: `evt_${crypto.randomBytes(6).toString('hex')}`,
           qrToken: token,
           campaignId: null,
@@ -2015,7 +2089,11 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
           redirectOutcome: 'not_found',
           createdAt: nowIso,
         });
-        return { ok: false, reason: 'QR destination token was not found.', statusCode: 404 };
+        return withAnalyticsEvents({
+          ok: false,
+          reason: 'QR destination token was not found.',
+          statusCode: 404,
+        });
       }
 
       target.redirectRequestsTotal += 1;
@@ -2025,7 +2103,7 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
       }
 
       if (target.status !== 'active') {
-        this.pushAnalyticsEvent(draft, {
+        recordAnalyticsEvent({
           id: `evt_${crypto.randomBytes(6).toString('hex')}`,
           qrToken: target.token,
           campaignId: null,
@@ -2037,17 +2115,18 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
           redirectOutcome: 'inactive',
           createdAt: nowIso,
         });
-        return {
+        return withAnalyticsEvents({
           ok: false,
           reason: `This QR destination is currently ${target.status} and cannot redirect.`,
           statusCode: 410,
-        };
+          record: { ...target },
+        });
       }
 
       const recheck = validateQrDestination(target.resolvedUrl, target.destinationType);
       if (!recheck.valid) {
         target.status = 'flagged';
-        this.pushAnalyticsEvent(draft, {
+        recordAnalyticsEvent({
           id: `evt_${crypto.randomBytes(6).toString('hex')}`,
           qrToken: target.token,
           campaignId: null,
@@ -2068,14 +2147,15 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
           target.token,
           `Redirect blocked on re-validation: ${recheck.error}`
         );
-        return {
+        return withAnalyticsEvents({
           ok: false,
           reason: 'Destination failed safety validation and was flagged for review.',
           statusCode: 403,
-        };
+          record: { ...target },
+        });
       }
 
-      this.pushAnalyticsEvent(draft, {
+      recordAnalyticsEvent({
         id: `evt_${crypto.randomBytes(6).toString('hex')}`,
         qrToken: target.token,
         campaignId: null,
@@ -2094,7 +2174,7 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
         target.deduplicatedNonBotRedirects += 1;
       }
 
-      this.pushAnalyticsEvent(draft, {
+      recordAnalyticsEvent({
         id: `evt_${crypto.randomBytes(6).toString('hex')}`,
         qrToken: target.token,
         campaignId: null,
@@ -2107,7 +2187,12 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
         createdAt: nowIso,
       });
 
-      return { ok: true, record: { ...target }, deduplicated, isSuspectedBot };
+      return withAnalyticsEvents({
+        ok: true,
+        record: { ...target },
+        deduplicated,
+        isSuspectedBot,
+      });
     });
   }
 
@@ -2123,26 +2208,7 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
       const again = draft.advertiserProfiles.find((p) => p.userId === user.id);
       if (again) return { ...again };
       const now = new Date().toISOString();
-      const created: AdvertiserProfile = {
-        userId: user.id,
-        entityType: 'registered_business',
-        businessOrTradingName: user.organisationName,
-        registrationOrTaxId: '',
-        industryCategory: 'General Commercial',
-        countryCode: 'GB',
-        cityRegion: '',
-        physicalAddress: '',
-        primaryContactName: user.name,
-        primaryContactEmail: user.email,
-        primaryContactPhone: '',
-        billingContactName: user.name,
-        billingContactEmail: user.email,
-        websiteUrl: '',
-        verificationStatus: user.verificationStatus,
-        verificationNotes: '',
-        isPrototypeSeed: user.isPrototypeSeed,
-        updatedAt: now,
-      };
+      const created = buildInitialAdvertiserProfile(user, now);
       draft.advertiserProfiles.push(created);
       return { ...created };
     });
@@ -2800,6 +2866,14 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
   }
 
   // --- Advertisement Creation Studio (Block 2.3) ---
+
+  replaceAdCreativeFromPersistence(creative: AdCreativeRecord): void {
+    this.withWriteTransaction((draft) => {
+      const index = draft.adCreatives.findIndex((item) => item.id === creative.id);
+      if (index < 0) draft.adCreatives.push({ ...creative });
+      else draft.adCreatives[index] = { ...creative };
+    });
+  }
 
   listAdCreativesForUser(user: PublicUser): AdCreativeRecord[] {
     this.syncIfDiskNewer();
@@ -4255,18 +4329,31 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     });
   }
 
-  getAdminModerationOverview(admin: PublicUser): AdminModerationOverview {
+  getAdminModerationOverview(
+    admin: PublicUser,
+    persistedData?: {
+      campaigns: CampaignRecord[];
+      creatives: AdCreativeRecord[];
+      advertiserProfiles: AdvertiserProfile[];
+      qrLinks: QrLinkRecord[];
+      supportTickets: SupportTicketRecord[];
+      opportunityComplaints: OpportunityComplaintRecord[];
+      opportunityAppeals: OpportunityAppealRecord[];
+    }
+  ): AdminModerationOverview {
     if (admin.role !== 'admin') {
       throw new Error('FORBIDDEN: Only administrators can view the moderation overview.');
     }
     this.syncIfDiskNewer();
-    const pendingCampaigns = this.data.campaigns
+    const campaigns = persistedData?.campaigns ?? this.data.campaigns;
+    const creatives = persistedData?.creatives ?? this.data.adCreatives;
+    const pendingCampaigns = campaigns
       .filter((c) => c.status === 'submitted' || c.status === 'under_review')
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-    const activeOrScheduledCampaigns = this.data.campaigns
+    const activeOrScheduledCampaigns = campaigns
       .filter((c) => c.status === 'approved' || c.status === 'scheduled' || c.status === 'active' || c.status === 'paused')
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-    const flaggedCreatives = this.data.adCreatives.filter(
+    const flaggedCreatives = creatives.filter(
       (cr) =>
         cr.status === 'flagged_for_review' ||
         cr.optionB?.requiresAdminReviewFlag ||
@@ -4279,17 +4366,17 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
       pendingCampaigns,
       activeOrScheduledCampaigns,
       flaggedCreatives,
-      advertiserProfiles: [...this.data.advertiserProfiles].sort((a, b) =>
+      advertiserProfiles: [...(persistedData?.advertiserProfiles ?? this.data.advertiserProfiles)].sort((a, b) =>
         b.updatedAt.localeCompare(a.updatedAt)
       ),
-      qrLinks: [...this.data.qrLinks].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-      supportTickets: [...this.data.supportTickets].sort((a, b) =>
+      qrLinks: [...(persistedData?.qrLinks ?? this.data.qrLinks)].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+      supportTickets: [...(persistedData?.supportTickets ?? this.data.supportTickets)].sort((a, b) =>
         b.updatedAt.localeCompare(a.updatedAt)
       ),
-      openComplaintsCount: this.data.opportunityComplaints.filter(
+      openComplaintsCount: (persistedData?.opportunityComplaints ?? this.data.opportunityComplaints).filter(
         (c) => c.status === 'reported' || c.status === 'under_investigation'
       ).length,
-      openAppealsCount: this.data.opportunityAppeals.filter(
+      openAppealsCount: (persistedData?.opportunityAppeals ?? this.data.opportunityAppeals).filter(
         (a) => a.status === 'submitted' || a.status === 'under_review'
       ).length,
     };
@@ -4297,25 +4384,33 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
 
   getSevenStageAnalyticsFunnel(
     actor: PublicUser,
-    campaignFilterId: string | null = null
+    campaignFilterId: string | null = null,
+    persistedData?: {
+      campaigns: CampaignRecord[];
+      qrLinks: QrLinkRecord[];
+      analyticsEvents: AnalyticsEventRecord[];
+    }
   ): SevenStageAnalyticsSnapshot {
     this.syncIfDiskNewer();
 
+    const campaigns = persistedData?.campaigns ?? this.data.campaigns;
+    const qrLinks = persistedData?.qrLinks ?? this.data.qrLinks;
+    const analyticsEvents = persistedData?.analyticsEvents ?? this.data.analyticsEvents;
     const accessibleCampaigns =
       actor.role === 'admin'
-        ? this.data.campaigns
-        : this.data.campaigns.filter((c) => c.ownerId === actor.id);
+        ? campaigns
+        : campaigns.filter((c) => c.ownerId === actor.id);
 
     let scopedCampaigns = accessibleCampaigns;
     let scopedQrTokens = new Set<string>(
       (actor.role === 'admin'
-        ? this.data.qrLinks
-        : this.data.qrLinks.filter((q) => q.ownerId === actor.id)
+        ? qrLinks
+        : qrLinks.filter((q) => q.ownerId === actor.id)
       ).map((q) => q.token)
     );
 
     if (campaignFilterId) {
-      const target = this.data.campaigns.find((c) => c.id === campaignFilterId);
+      const target = campaigns.find((c) => c.id === campaignFilterId);
       if (!target) {
         throw new Error('Campaign not found.');
       }
@@ -4340,7 +4435,7 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
       return false;
     };
 
-    const scopedEvents = this.data.analyticsEvents.filter(eventMatchesScope);
+    const scopedEvents = analyticsEvents.filter(eventMatchesScope);
 
     const simCount = (type: AnalyticsEventRecord['eventType']) =>
       scopedEvents.filter((e) => e.eventType === type && e.measurementSource === 'simulated_prototype').length;
@@ -4482,12 +4577,17 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     };
   }
 
-  getRevenueLedgerSnapshot(actor: PublicUser): RevenueLedgerSnapshot {
+  getRevenueLedgerSnapshot(
+    actor: PublicUser,
+    persistedData?: { campaigns: CampaignRecord[]; analyticsEvents: AnalyticsEventRecord[] }
+  ): RevenueLedgerSnapshot {
     this.syncIfDiskNewer();
+    const campaigns = persistedData?.campaigns ?? this.data.campaigns;
+    const analyticsEvents = persistedData?.analyticsEvents ?? this.data.analyticsEvents;
     const accessibleCampaigns =
       actor.role === 'admin'
-        ? this.data.campaigns
-        : this.data.campaigns.filter((c) => c.ownerId === actor.id);
+        ? campaigns
+        : campaigns.filter((c) => c.ownerId === actor.id);
 
     const charityCampaigns = accessibleCampaigns.filter(
       (c) => c.contentCategory === 'opportunity_promotion'
@@ -4506,7 +4606,7 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
         .toFixed(2)
     );
 
-    const simBackfillEvents = this.data.analyticsEvents.filter(
+    const simBackfillEvents = analyticsEvents.filter(
       (e) =>
         e.eventType === 'ad_network_backfill_simulated' &&
         e.measurementSource === 'simulated_prototype'
@@ -4616,6 +4716,24 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     return [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
+  replacePhysicalQrScanTestsFromPersistence(
+    actor: PublicUser,
+    records: PhysicalQrScanTestRecord[]
+  ): void {
+    if (actor.role !== 'admin' && records.some((record) => record.testerUserId !== actor.id)) {
+      throw new Error('D1_DOMAIN_PHYSICAL_QR_SCAN_TEST_OWNER_MISMATCH');
+    }
+    this.withWriteTransaction((draft) => {
+      draft.physicalQrScanTests =
+        actor.role === 'admin'
+          ? records.map((record) => ({ ...record }))
+          : [
+              ...draft.physicalQrScanTests.filter((record) => record.testerUserId !== actor.id),
+              ...records.map((record) => ({ ...record })),
+            ];
+    });
+  }
+
   recordPhysicalQrScanTest(
     actor: PublicUser,
     params: {
@@ -4717,31 +4835,74 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     });
   }
 
-  getPrototypeReadinessSnapshot(actor: PublicUser): PrototypeReadinessSnapshot {
+  getPrototypeReadinessSnapshot(
+    actor: PublicUser,
+    persistedData?: {
+      campaigns: CampaignRecord[];
+      adCreatives: AdCreativeRecord[];
+      opportunities: OpportunityRecord[];
+      analyticsEvents: AnalyticsEventRecord[];
+      qrLinks: QrLinkRecord[];
+      physicalQrScanTests: PhysicalQrScanTestRecord[];
+    }
+  ): PrototypeReadinessSnapshot {
     this.syncIfDiskNewer();
-    const summary = this.getFoundationSummary();
-    const physicalScanTests = this.listPhysicalQrScanTests(actor);
-    const passedPhysical = this.data.physicalQrScanTests.filter((t) => t.outcome === 'passed');
+    const campaigns = persistedData?.campaigns ?? this.data.campaigns;
+    const adCreatives = persistedData?.adCreatives ?? this.data.adCreatives;
+    const opportunities = persistedData?.opportunities ?? this.data.opportunities;
+    const analyticsEvents = persistedData?.analyticsEvents ?? this.data.analyticsEvents;
+    const qrLinks = persistedData?.qrLinks ?? this.data.qrLinks;
+    const physicalQrScanTests =
+      persistedData?.physicalQrScanTests ?? this.listPhysicalQrScanTests(actor);
+    const summary = {
+      ...this.getFoundationSummary(),
+      campaignCount: campaigns.length,
+      activeCampaignCount: campaigns.filter((campaign) => campaign.status === 'active').length,
+      adCreativeCount: adCreatives.length,
+      opportunityCount: opportunities.length,
+      verifiedLiveOpportunityCount: opportunities.filter(
+        (opportunity) => opportunity.status === 'verified_live'
+      ).length,
+      qrCount: qrLinks.length,
+      redirectRequestsTotal: analyticsEvents.filter(
+        (event) => event.eventType === 'redirect_requested' && event.measurementSource === 'real_measured'
+      ).length,
+      redirectIssuedTotal: analyticsEvents.filter(
+        (event) => event.eventType === 'redirect_issued' && event.measurementSource === 'real_measured'
+      ).length,
+      suspectedBotRedirects: analyticsEvents.filter(
+        (event) => event.eventType === 'redirect_requested' && event.isSuspectedBot === true
+      ).length,
+      verifiedDestinationOpens: analyticsEvents.filter(
+        (event) => event.eventType === 'destination_opened'
+      ).length,
+      simulatedEventsTotal: analyticsEvents.filter(
+        (event) => event.measurementSource === 'simulated_prototype'
+      ).length,
+      physicalQrTestsCount: physicalQrScanTests.length,
+      physicalQrPassedCount: physicalQrScanTests.filter((test) => test.outcome === 'passed').length,
+    };
+    const passedPhysical = physicalQrScanTests.filter((t) => t.outcome === 'passed');
 
-    const hasMismatchCreativeCleared = this.data.adCreatives.some(
+    const hasMismatchCreativeCleared = adCreatives.some(
       (cr) =>
         cr.optionB?.qrInspectionStatus === 'decoded_mismatch' &&
         cr.status === 'ready_for_preview'
     );
-    const hasOppWithAdFeeInfluence = this.data.opportunities.some(
+    const hasOppWithAdFeeInfluence = opportunities.some(
       (o) => o.advertisingFeeInfluencesVerification !== false
     );
-    const hasRealBillingActive = this.data.campaigns.some(
+    const hasRealBillingActive = campaigns.some(
       (c) => c.simulatedEstimate.paymentCollectionActive !== false
     );
-    const has302InferredAsOpen = this.data.analyticsEvents.some(
+    const has302InferredAsOpen = analyticsEvents.some(
       (e) => e.eventType === 'destination_opened' && e.dedupKey.startsWith('redirect_')
     );
     const hasSeedAdmin = this.data.users.some((u) => u.role === 'admin' && u.passwordHash.includes(':'));
-    const hasSeedCampaignWithCreative = this.data.campaigns.some(
+    const hasSeedCampaignWithCreative = campaigns.some(
       (c) => Boolean(c.adCreativeRef) && Boolean(c.qrToken)
     );
-    const hasThreeTierVerifiedLiveOpp = this.data.opportunities.some(
+    const hasThreeTierVerifiedLiveOpp = opportunities.some(
       (o) =>
         o.status === 'verified_live' &&
         o.verificationTiers.identityStatus === 'verified' &&
@@ -4809,7 +4970,7 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
         id: 'qa_v21_charity_zero_lock',
         block: 'Block P2-V2.1',
         label: 'CHARITY ADS ($0.00 / FREE permanent lock on all opportunity campaigns)',
-        status: this.data.campaigns.some(
+        status: campaigns.some(
           (c) =>
             c.contentCategory === 'opportunity_promotion' &&
             (c.simulatedEstimate.estimatedTotalUsd !== 0 ||
@@ -4818,7 +4979,7 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
           ? 'fail'
           : 'pass',
         scope: 'automated_invariant',
-        detail: `${this.data.campaigns.filter((c) => c.contentCategory === 'opportunity_promotion').length} CHARITY ADS campaign(s) enforced at $0.00 / FREE.`,
+        detail: `${campaigns.filter((c) => c.contentCategory === 'opportunity_promotion').length} CHARITY ADS campaign(s) enforced at $0.00 / FREE.`,
       },
       {
         id: 'qa_v22_alternating_scheduler_and_ledger',
@@ -4826,16 +4987,16 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
         label: 'Alternating break scheduler (CHARITY->COMMERCIAL) & Direct Priority / Ledger separation',
         status: (() => {
           const plan = scheduleCommercialBreak({
-            campaigns: this.data.campaigns,
-            creatives: this.data.adCreatives,
-            opportunities: this.data.opportunities,
+            campaigns,
+            creatives: adCreatives,
+            opportunities,
             requestedBreakDurationSeconds: 65,
             safetyBufferSeconds: 5,
             requestedSlotCount: 4,
             alternatingPointerStart: 'CHARITY',
             allowMockBackfill: true,
           });
-          const ledger = this.getRevenueLedgerSnapshot(actor);
+          const ledger = this.getRevenueLedgerSnapshot(actor, { campaigns, analyticsEvents });
           const alternates =
             plan.slots.length >= 2 &&
             plan.slots[0]?.primaryCategory === 'CHARITY' &&
@@ -5355,9 +5516,9 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
       physicalQrScanStatus:
         passedPhysical.length > 0 ? 'VERIFIED_BY_OWNER_LOG' : 'PENDING_OWNER_DEVICE_TEST',
       physicalQrPassedCount: passedPhysical.length,
-      physicalQrTotalCount: this.data.physicalQrScanTests.length,
+      physicalQrTotalCount: physicalQrScanTests.length,
       checks,
-      physicalScanTests,
+      physicalScanTests: physicalQrScanTests,
       summary: {
         userCount: summary.userCount,
         profileCount: summary.profileCount,
@@ -5393,6 +5554,31 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
       observations: state.observations.map((o) => ({ ...o })),
       auditTrail: state.auditTrail.map((a) => ({ ...a })),
     };
+  }
+
+  replaceSharedIntelPreviewStateFromPersistence(
+    state: SharedIntelPreviewState
+  ): void {
+    if (
+      state.zeroPiiEnforced !== true ||
+      state.isPrototypeSimulation !== true ||
+      state.observations.some((observation) => observation.containsPii !== false)
+    ) {
+      throw new Error('D1_DOMAIN_SHARED_INTEL_STATE_INVALID');
+    }
+    this.withWriteTransaction((draft) => {
+      draft.sharedIntelPreview = {
+        ...state,
+        bundles: state.bundles.map((bundle) => ({
+          ...bundle,
+          scope: { ...bundle.scope },
+          corroboratingDeviceIds: [...bundle.corroboratingDeviceIds],
+        })),
+        deviceCaches: state.deviceCaches.map((cache) => ({ ...cache })),
+        observations: state.observations.map((observation) => ({ ...observation })),
+        auditTrail: state.auditTrail.map((entry) => ({ ...entry })),
+      };
+    });
   }
 
   submitSharedIntelPreviewObservation(
@@ -5491,13 +5677,20 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     return logs.slice(0, max);
   }
 
+  listAuditRecords(limit = 500): AuditLogRecord[] {
+    return this.listAuditLogs({ limit });
+  }
+
   listAnalyticsEvents(limit = 50): AnalyticsEventRecord[] {
     this.syncIfDiskNewer();
     return this.data.analyticsEvents.slice(0, limit);
   }
 
-  getFoundationSummary() {
+  getFoundationSummary(
+    persistedSummary?: LiveReportSnapshot['summary']
+  ): LiveReportSnapshot['summary'] {
     this.syncIfDiskNewer();
+    if (persistedSummary) return persistedSummary;
     return {
       userCount: this.data.users.length,
       qrCount: this.data.qrLinks.length,
@@ -5543,9 +5736,13 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     };
   }
 
-  getLiveReportSnapshot(): LiveReportSnapshot {
-    const summary = this.getFoundationSummary();
-    const breakdown: Record<CampaignStatus, number> = {
+  getLiveReportSnapshot(persistedData?: {
+    summary: LiveReportSnapshot['summary'];
+    campaignStatusBreakdown: Record<CampaignStatus, number>;
+    latestAudit: AuditLogRecord | null;
+  }): LiveReportSnapshot {
+    const summary = this.getFoundationSummary(persistedData?.summary);
+    const breakdown: Record<CampaignStatus, number> = persistedData?.campaignStatusBreakdown ?? {
       draft: 0,
       submitted: 0,
       under_review: 0,
@@ -5561,7 +5758,7 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
       breakdown[c.status] = (breakdown[c.status] || 0) + 1;
     }
 
-    const latestAudit = this.data.auditLogs[0] ?? null;
+    const latestAudit = persistedData ? persistedData.latestAudit : this.data.auditLogs[0] ?? null;
     return {
       generatedAt: new Date().toISOString(),
       phase: 'Phases 1–15 Software & Infrastructure Engineering Complete (85.0% Full App · Stage P6 & External Clearances Deferred)',
@@ -5934,6 +6131,126 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
       .map((m) => sanitizeMemberForList(m));
   }
 
+  getHouseholdMembersForPersistence(
+    actor: PublicUser,
+    householdId: string
+  ): HouseholdMemberProfile[] {
+    this.syncIfDiskNewer();
+    const household = (this.data.households || []).find((item) => item.id === householdId);
+    if (!household) throw new Error('Household installation not found.');
+    this.assertHouseholdReadAccess(actor, household);
+    return (this.data.householdMembers || [])
+      .filter((member) => member.householdId === householdId)
+      .map((member) => ({
+       ...member,
+       qualifications: [...member.qualifications],
+       skills: [...member.skills],
+       employmentInterests: [...member.employmentInterests],
+       industries: [...member.industries],
+       interestedCategories: [...member.interestedCategories],
+      }));
+  }
+
+  replaceHouseholdStateFromPersistence(
+    actor: PublicUser,
+    household: HouseholdInstallationRecord,
+    members: HouseholdMemberProfile[],
+    tokens: HouseholdQrTokenRecord[],
+    auditEvents: ConsentAuditEventRecord[]
+  ): void {
+    this.assertHouseholdReadAccess(actor, household);
+    if (
+      members.some(
+        (member) =>
+          member.householdId !== household.id || member.ownerUserId !== household.ownerUserId
+      ) ||
+      tokens.some((token) => token.householdId !== household.id) ||
+      auditEvents.some((event) => event.householdId !== household.id)
+    ) {
+      throw new Error('D1_DOMAIN_HOUSEHOLD_STATE_MISMATCH');
+    }
+
+    this.withWriteTransaction((draft) => {
+      draft.households = draft.households || [];
+      const householdIndex = draft.households.findIndex((item) => item.id === household.id);
+      const householdCopy = { ...household, location: { ...household.location } };
+      if (householdIndex < 0) draft.households.push(householdCopy);
+      else draft.households[householdIndex] = householdCopy;
+
+      draft.householdMembers = [
+        ...(draft.householdMembers || []).filter((item) => item.householdId !== household.id),
+        ...members.map((member) => ({
+          ...member,
+          qualifications: [...member.qualifications],
+          skills: [...member.skills],
+          employmentInterests: [...member.employmentInterests],
+          industries: [...member.industries],
+          interestedCategories: [...member.interestedCategories],
+        })),
+      ];
+      draft.householdQrTokens = [
+        ...(draft.householdQrTokens || []).filter((item) => item.householdId !== household.id),
+        ...tokens.map((token) => ({ ...token })),
+      ];
+      draft.consentAuditEvents = [
+        ...(draft.consentAuditEvents || []).filter((item) => item.householdId !== household.id),
+        ...auditEvents.map((event) => ({ ...event })),
+      ];
+    });
+  }
+
+  replaceHouseholdQrRedirectStateFromPersistence(
+    state: HouseholdQrRedirectPersistenceState
+  ): void {
+    if (
+      state.household &&
+      (state.household.id !== state.householdQrToken.householdId ||
+        (state.opportunity &&
+          state.opportunity.id !== state.householdQrToken.opportunityId) ||
+        (state.baseQrLink &&
+          state.baseQrLink.token !== state.householdQrToken.baseQrToken))
+    ) {
+      throw new Error('D1_DOMAIN_HOUSEHOLD_REDIRECT_STATE_MISMATCH');
+    }
+
+    this.withWriteTransaction((draft) => {
+      draft.householdQrTokens = draft.householdQrTokens || [];
+      const currentTokenIndex = draft.householdQrTokens.findIndex(
+        (token) => token.token === state.householdQrToken.token
+      );
+      if (currentTokenIndex < 0) draft.householdQrTokens.push({ ...state.householdQrToken });
+      else draft.householdQrTokens[currentTokenIndex] = { ...state.householdQrToken };
+
+      if (state.household) {
+        draft.households = draft.households || [];
+        const householdIndex = draft.households.findIndex(
+          (item) => item.id === state.household!.id
+        );
+        const householdCopy = {
+          ...state.household,
+          location: { ...state.household.location },
+        };
+        if (householdIndex < 0) draft.households.push(householdCopy);
+        else draft.households[householdIndex] = householdCopy;
+      }
+
+      if (state.opportunity) {
+        const opportunityIndex = draft.opportunities.findIndex(
+          (opportunity) => opportunity.id === state.opportunity!.id
+        );
+        if (opportunityIndex < 0) draft.opportunities.push(state.opportunity);
+        else draft.opportunities[opportunityIndex] = state.opportunity;
+      }
+      if (state.baseQrLink) {
+        const qrIndex = draft.qrLinks.findIndex(
+          (link) => link.token === state.baseQrLink!.token
+        );
+        if (qrIndex < 0) draft.qrLinks.push(state.baseQrLink);
+        else draft.qrLinks[qrIndex] = state.baseQrLink;
+      }
+    });
+  }
+
   createHouseholdMember(
     actor: PublicUser,
     householdId: string,
@@ -6122,7 +6439,8 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
 
   evaluateHouseholdOpportunityMatches(
     actor: PublicUser,
-    householdId: string
+    householdId: string,
+    opportunities?: OpportunityRecord[]
   ): {
     householdId: string;
     consentEpoch: number;
@@ -6145,7 +6463,7 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     const result = matchOpportunitiesForHousehold({
       household: hh,
       members,
-      opportunities: this.data.opportunities,
+      opportunities: opportunities ?? this.data.opportunities,
     });
 
     return {
@@ -6336,14 +6654,22 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
 
   // --- Phase 9 Block 9.1: Opportunity Verification Operations Hardening ---
 
-  getOpportunityOpsOverview(actor: PublicUser): OpportunityOpsOverview {
+  getOpportunityOpsOverview(
+    actor: PublicUser,
+    persistedData?: {
+      opportunities: OpportunityRecord[];
+      complaints: OpportunityComplaintRecord[];
+      appeals: OpportunityAppealRecord[];
+      campaigns: CampaignRecord[];
+    }
+  ): OpportunityOpsOverview {
     this.syncIfDiskNewer();
     return buildOpportunityOpsOverview({
       actor,
-      opportunities: this.data.opportunities,
-      complaints: this.data.opportunityComplaints,
-      appeals: this.data.opportunityAppeals,
-      campaigns: this.data.campaigns,
+      opportunities: persistedData?.opportunities ?? this.data.opportunities,
+      complaints: persistedData?.complaints ?? this.data.opportunityComplaints,
+      appeals: persistedData?.appeals ?? this.data.opportunityAppeals,
+      campaigns: persistedData?.campaigns ?? this.data.campaigns,
     });
   }
 
@@ -6438,14 +6764,22 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
 
   // --- Phase 10 Block 10.1: Privacy, Security & Statutory Compliance Readiness ---
 
-  getPrivacyComplianceOverview(actor: PublicUser): PrivacyComplianceOverview {
+  getPrivacyComplianceOverview(
+    actor: PublicUser,
+    persisted?: {
+      households: HouseholdInstallationRecord[];
+      sessions: Array<Pick<SessionRecord, 'expiresAt' | 'idleExpiresAt'>>;
+      householdQrTokens: HouseholdQrTokenRecord[];
+      analyticsEvents: AnalyticsEventRecord[];
+    }
+  ): PrivacyComplianceOverview {
     this.syncIfDiskNewer();
     return buildPrivacyComplianceOverview({
       actor,
-      households: this.data.households || [],
-      sessions: this.data.sessions,
-      householdQrTokens: this.data.householdQrTokens || [],
-      analyticsEvents: this.data.analyticsEvents,
+      households: persisted?.households ?? this.data.households ?? [],
+      sessions: persisted?.sessions ?? this.data.sessions,
+      householdQrTokens: persisted?.householdQrTokens ?? this.data.householdQrTokens ?? [],
+      analyticsEvents: persisted?.analyticsEvents ?? this.data.analyticsEvents,
     });
   }
 
@@ -6641,6 +6975,30 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     });
   }
 
+  replacePilotCohortsFromPersistence(cohorts: PilotCohortBlueprintRecord[]): void {
+    this.withWriteTransaction((draft) => {
+      draft.pilotCohorts = cohorts.map((cohort) => ({ ...cohort, enrolledHouseholdIds: [...cohort.enrolledHouseholdIds] }));
+    });
+  }
+
+  replaceLastReliabilityChaosReportFromPersistence(
+    report: ReliabilityChaosReport | null
+  ): void {
+    this.withWriteTransaction((draft) => {
+      draft.lastReliabilityChaosReport = report ? { ...report, results: [...report.results] } : null;
+    });
+  }
+
+  replaceStageP6PrepNotesFromPersistence(
+    notes: Array<{ stepId: StageP6StepId; ownerPrepNote: string }>
+  ): void {
+    this.withWriteTransaction((draft) => {
+      draft.stageP6PrepNotes = Object.fromEntries(
+        notes.map((note) => [note.stepId, note.ownerPrepNote])
+      );
+    });
+  }
+
   createPilotCohortBlueprint(
     actor: PublicUser,
     input: {
@@ -6788,6 +7146,17 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     });
   }
 
+  replaceCommercialReadinessStateFromPersistence(
+    assumptions: CommercialCostAssumptionsInput | null,
+    decisions: CommercialBoardDecisionRecord[]
+  ): void {
+    this.withWriteTransaction((draft) => {
+      if (assumptions) draft.commercialCostAssumptions = { ...assumptions };
+      else delete draft.commercialCostAssumptions;
+      draft.commercialBoardDecisions = decisions.map((decision) => ({ ...decision }));
+    });
+  }
+
   updateCommercialCostAssumptions(
     actor: PublicUser,
     input: CommercialCostAssumptionsInput
@@ -6895,6 +7264,18 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
       qrLinks: this.data.qrLinks,
       storedPolicyProfiles: this.data.countryPolicyProfiles,
       launchDecisions: this.data.countryLaunchDecisions || [],
+    });
+  }
+
+  replaceCountryLaunchStateFromPersistence(
+    profiles: CountryJurisdictionPolicyConfig[],
+    decisions: CountryLaunchDecisionRecord[]
+  ): void {
+    this.withWriteTransaction((draft) => {
+      draft.countryPolicyProfiles = Object.fromEntries(
+        profiles.map((profile) => [profile.countryCode, { ...profile }])
+      );
+      draft.countryLaunchDecisions = decisions.map((decision) => ({ ...decision }));
     });
   }
 
@@ -7016,6 +7397,18 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
       countryLaunchDecisions: this.data.countryLaunchDecisions || [],
       storedLocalizationProfiles: this.data.regionalLocalizationProfiles,
       expansionDecisions: this.data.internationalExpansionDecisions || [],
+    });
+  }
+
+  replaceInternationalExpansionStateFromPersistence(
+    profiles: RegionalLocalizationConfig[],
+    decisions: InternationalExpansionDecisionRecord[]
+  ): void {
+    this.withWriteTransaction((draft) => {
+      const mapped: Partial<Record<ExpansionRegionId, RegionalLocalizationConfig>> = {};
+      for (const profile of profiles) mapped[profile.regionId] = { ...profile };
+      draft.regionalLocalizationProfiles = mapped;
+      draft.internationalExpansionDecisions = decisions.map((decision) => ({ ...decision }));
     });
   }
 
@@ -7150,7 +7543,12 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
   }
 }
 
-export const edisonStore = new EdisonPrototypeStore();
+let defaultEdisonStore: EdisonPrototypeStore | undefined;
+
+export function getEdisonStore(): EdisonPrototypeStore {
+  defaultEdisonStore ??= new EdisonPrototypeStore();
+  return defaultEdisonStore;
+}
 
 
 

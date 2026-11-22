@@ -1,17 +1,17 @@
 # EDISON — Deferred Open-Source Repository Research Plan
 
-**Document Status**: `DEFERRED` (Verified Empirical Audit Completed — No Cloning, Integration, or Implementation)  
+**Document Status**: Historical owner-supplied shortlist. The current remote-control and commercial-break repository review plus proposed EDISON hybrid is in [`EDISON_TV_REMOTE_AND_BREAK_DETECTION_REPOSITORIES.md`](EDISON_TV_REMOTE_AND_BREAK_DETECTION_REPOSITORIES.md). This historical record is not an implementation plan.
 **Target Repository**: `Malaba29/EDISON-International-Smart-TV-Advertising-Network-`  
 **Applicable Future Phases**: Phase 4 (Smart TV Feasibility and Integrations) & Phase 5 (Commercial-Break Detection and Prediction)  
 **Recorded Date**: 2026-11-14 | **Empirical Verification Date**: 2026-11-15
 
-> **DEFERRED RESEARCH NOTICE — STRICT EXECUTION BOUNDARY**
+> **HISTORICAL RESEARCH NOTICE**
 >
-> - **Status**: `DEFERRED`
-> - **No cloning now**
-> - **No implementation now**
-> - **No code modifications or repository integrations beyond this documentation record**
-> - **Trigger Condition**: Source-code prototyping/integration begins **only** when the relevant EDISON development phase (Phase 4 / Phase 5) is formally reached and explicitly authorised by the Project Owner.
+> - This file records the earlier owner shortlist and remains useful for provenance.
+> - Use the current research document linked above for the product flow and repository findings.
+> - Repository inclusion does not authorize cloning or code reuse; inspect a pinned revision and its license/security/privacy before any reuse.
+
+> **Current audit note (2026-11-18):** The owner clarified the intended architecture: a TV-side break detector timestamps channel breaks, EDISON shares validated observations across TVs, and an authorized EDISON playback path switches to EDISON ads and returns to the programme; the phone app also exposes remote controls including EDISON Ad and Back. See the current research document for a proposed hybrid and remaining platform/source questions.
 
 ---
 
@@ -65,10 +65,10 @@ Section 2A & 2B below record **empirical public-search verification** of the 9 n
 ## 4. EDISON's Intended Control Context & Deferred Notes
 
 ```text
-Detect opportunity -> Switch to EDISON -> Display advertisement -> Restore original programme
+Track break on TV -> timestamp and share channel-scoped observation
+  -> EDISON Ad action -> play EDISON ad -> Back/complete -> restore programme
 ```
 
-- **Target Smart TV Categories**: Android TV / Google TV (Primary), Samsung Tizen & LG webOS (Modular Adapters).
-- **Architectural Boundary**: Never build EDISON on assumptions that phone remote-control apps alone guarantee lawful commercial-break detection, broadcaster compliance, or deterministic programme restoration (`ADR-001`, `ADR-005`).
-- **Aura Note**: Mentioned in early Session 1 remote-control planning (`Aura` deferred per `PROJECT_MASTER_SPECIFICATION.md` §1.7); no implementation exists or is authorised.
-- **Status**: All 14 entries remain **`DEFERRED RESEARCH CANDIDATES — NO CLONING, NO INTEGRATION IN PHASE 2`**.
+- **Owner clarification (2026-11-18)**: A TV-side system detects and timestamps commercial breaks; EDISON shares validated observations for the same channel across participating TVs. The EDISON TV app has its own Ad and Back controls and playback path; the phone app is a conventional TV remote plus EDISON's other features and profile/opportunity functionality. Paid ads include broad lawful content and geographic targeting. The journalist/breaking-news monthly subscription concept is owner-approved; price and editorial rules remain undecided.
+- **Architecture boundary**: Detector access, outbound remote transport, TV playback/switching, cross-device synchronization, and programme restoration are separate capabilities. A remote-control repo alone does not provide break detection, tuner access, or restoration guarantees. Preserve viewer override, channel scope, privacy, and fail-safe behavior.
+- **Historical status note**: Earlier target-platform and Aura statements above this section predate the current product clarification and should not be read as current authorization or current implementation status. Use [`EDISON_TV_REMOTE_AND_BREAK_DETECTION_REPOSITORIES.md`](EDISON_TV_REMOTE_AND_BREAK_DETECTION_REPOSITORIES.md) for the current review and open questions; the implemented AURA code remains simulator-only.

@@ -5,6 +5,8 @@
 **Authority**: `VSCODE_HANDOVER_PLAN.md` (11-Point Phase 2 Exit Checklist)  
 **Triggering Coordination File**: `coordination/EDISON_COMMAND_CENTER.md` (`TASK-P3-001`: **`READY`** — `docs/migration/TASK_P3_001_POSTGRES_MIGRATION_REQUIREMENTS.md` prepared; JSON retained in AI Studio without paid Cloud SQL)
 
+> **Historical handoff snapshot:** For current phase fractions, verification, blockers, and next task, read [`EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md`](EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md). This older dossier predates the completed hardening work and its status labels are not current.
+
 ---
 
 ## 1. Project Architecture
@@ -27,8 +29,8 @@
 - **TV & Shared Intelligence Simulation Boundaries**:
   - `SimulationTvAdapter` (`src/components/TvPreviewView.tsx`) and `SharedIntelligencePreviewView` (`src/server/sharedIntelligencePreview.ts`) are explicitly tagged as **software simulations** (`SIMULATION — NOT LIVE BROADCAST TUNER` / `PROTOTYPE SIMULATION PREVIEW`). Zero unprivileged Smart TV OS hooks or DRM/HDCP bypasses exist (`ADR-001`, `ADR-005`).
 - **Approved Core Capabilities Pending Post-Prototype Implementation (Phases 4–5)**:
-  - **Normal Everyday TV Remote Control (`ADR-017` / `PRD-20` — `NOT STARTED`)**: First-class core capability routing conventional everyday commands (power, volume/mute, channel up/down, source/input select, D-pad/OK/back/home) strictly via **`AURA → EDISON Control Engine → platform adapters → TV`**, separate from intelligent ad-break switching/restoration. **Zero physical TV hardware compatibility is claimed or tested** until Phase 4 adapters & the single `Stage P6` check.
-  - **Network-Wide Shared Ad Intelligence (`ADR-016` / `PRD-19` — `PROTOTYPE SIMULATION PREVIEW ONLY`)**: Mock prototype simulation demonstrated in `SharedIntelligencePreviewView`; production Central Shared Intelligence Service & OS `Local Intelligence Cache` remain **`NOT STARTED`** (Phase 5).
+  - **Normal Everyday TV Remote Control (`ADR-017` / `PRD-20`)**: Command/pairing simulator and OEM contracts are implemented; production platform transports are not. **Zero physical TV hardware compatibility is claimed or tested** before the single `Stage P6` check.
+  - **Network-Wide Shared Ad Intelligence (`ADR-016` / `PRD-19`)**: Scoped in-memory fleet service, offline cache, and software tests are implemented; a durable production service and live TV participation remain incomplete.
 
 ---
 
@@ -74,9 +76,9 @@
 
 ## 5. Known Limitations & Unresolved Decisions (`KNOWN_LIMITATIONS.md` / `DECISIONS_LOG.md`)
 
-1. **`DEC-OPEN-01` (Consent & Profile Conflict — Blocks Track B Only)**: Track B (`15%` of AI Studio scope: household TV registration, 7-level private geo, multi-profile personalisation, dual-layer consent epochs, `HTTP 403` post-withdrawal revocation) is **strictly blocked** until Owner chooses Option A, B, or C. **Does NOT block Phase 3 (`TASK-P3-001`) Track A engineering hardening** (any future Track B schema follows as an additive migration if approved).
+1. **`DEC-OPEN-01` (Consent & Profile Model)**: Resolved by the owner on 2026-11-16 (Scope B + bundled withdrawal) and implemented in the software prototype. Production/privacy/legal validation remains separately gated.
 2. **`DEC-OPEN-02` & `DEC-OPEN-03`**: `k=1` short-break rule confirmation & GAM CTV eligibility/format support remain open (`MockAdNetworkBackfillAdapter` active).
-3. **Normal Everyday TV Remote & Shared Ad Intelligence Implementation Status**: Normal TV Remote Control (`AURA → EDISON Control Engine → platform adapters → TV`) is **`NOT STARTED`** (Phase 4, zero hardware compatibility tested or claimed); `SharedIntelligencePreviewView` is a **prototype simulation preview only** (`NOT STARTED` for Phase 5 central fleet service & OS local cache).
+3. **Normal Everyday TV Remote & Shared Ad Intelligence Implementation Status**: Both have tested software simulations; neither has production TV transport/fleet deployment. Physical TV compatibility remains unverified until the single `Stage P6` test.
 4. **Infrastructure**: Single-host JSON file persistence (`data/edison-store.json`), zero FFmpeg media pipeline (`TASK-P3-004`), zero real payments (`paymentCollectionActive: false`), zero country legal sign-offs.
 
 ---

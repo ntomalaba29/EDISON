@@ -140,10 +140,15 @@ describe('Shared Ad Intelligence Prototype Preview (Block P2-V2.4 / ADR-016)', (
   });
 });
 
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import crypto from 'node:crypto';
 import {
   SharedIntelFleetService,
+  canonicalChannelScopeId,
   canonicalObservationSigningMessage,
+  SIMULATED_DEFAULT_DECODER_PROFILE_ID,
 } from '../src/server/sharedIntelFleetService.ts';
 
 describe('Phase 5 Block 5.1: Shared Ad Intelligence Fleet Service & Scenarios 25–35 (ADR-016)', () => {
@@ -169,6 +174,7 @@ describe('Phase 5 Block 5.1: Shared Ad Intelligence Fleet Service & Scenarios 25
 
     const reg = fleet.registerAttestedDevice({
       tvDeviceId: 'ext_ed25519_tv_01',
+      decoderProfileId: 'decoder-feed-a',
       platform: 'Android TV 14',
       country: 'GB',
       assignedScopeId: scopeId,
@@ -218,6 +224,494 @@ describe('Phase 5 Block 5.1: Shared Ad Intelligence Fleet Service & Scenarios 25
     expect(conflicting.trustDecision).toBe('conflicting_held');
     expect(fleet.getSnapshot().bundles[0].status).toBe('conflict_split_held');
     expect(fleet.getSnapshot().bundles[0].version).toBe(3);
+  });
+
+  it('shares fresh signed break events by stable channel across TVs and rejects replay, stale, PII, and conflicts', () => {
+    const fleet = new SharedIntelFleetService();
+    const nowMs = Date.now();
+    const scope = fleet.getSnapshot().bundles[0].scope;
+    const channelId = canonicalChannelScopeId(scope);
+    const decoderProfileId = SIMULATED_DEFAULT_DECODER_PROFILE_ID;
+    const firstBreakStartedAtUtc = new Date(nowMs - 30_000).toISOString();
+    const firstInput = {
+      tvDeviceId: 'fleet_tv_gb_01',
+      scopeId: scope.scopeId,
+      decoderProfileId,
+      channelId,
+      eventId: 'break-tv1-0001',
+      breakStartedAtUtc: firstBreakStartedAtUtc,
+      nonce: 'break_nonce_tv1_0001',
+      useRegisteredDemoSigner: true,
+      nowMs,
+    };
+
+    const first = fleet.submitSignedBreakEvent(firstInput);
+    expect(first.httpStatus).toBe(201);
+    expect(first.status).toBe('shared_pending_corroboration');
+    expect(first.signatureVerified).toBe(true);
+    expect(first.event?.containsPii).toBe(false);
+    expect(first.isSoftwareSimulationOnly).toBe(true);
+    expect(first.hardwareTested).toBe(false);
+
+    const peerSync = fleet.getSharedBreakEvents({
+      tvDeviceId: 'fleet_tv_gb_02',
+      decoderProfileId,
+      channelId,
+      nowMs,
+    });
+    expect(peerSync.events).toHaveLength(1);
+    expect(peerSync.events[0].sourceDeviceIds).toEqual(['fleet_tv_gb_01']);
+    const expiredPeerSync = fleet.getSharedBreakEvents({
+      tvDeviceId: 'fleet_tv_gb_02',
+      decoderProfileId,
+      channelId,
+      nowMs: nowMs + 91_000,
+    });
+    expect(expiredPeerSync.events).toHaveLength(0);
+
+    const replay = fleet.submitSignedBreakEvent(firstInput);
+    expect(replay.httpStatus).toBe(401);
+    expect(replay.status).toBe('rejected_replay');
+
+    const sameSourceDuplicate = fleet.submitSignedBreakEvent({
+      ...firstInput,
+      eventId: 'break-tv1-duplicate',
+      nonce: 'break_nonce_tv1_0002',
+    });
+    expect(sameSourceDuplicate.status).toBe('duplicate_ignored');
+    expect(sameSourceDuplicate.event?.sourceDeviceIds).toEqual(['fleet_tv_gb_01']);
+
+    const reusedEventId = fleet.submitSignedBreakEvent({
+      ...firstInput,
+      nonce: 'break_nonce_tv1_reused_id',
+      breakStartedAtUtc: new Date(nowMs - 28_000).toISOString(),
+    });
+    expect(reusedEventId.httpStatus).toBe(409);
+    expect(reusedEventId.status).toBe('rejected_event_id_reuse');
+
+    const corroborated = fleet.submitSignedBreakEvent({
+      ...firstInput,
+      tvDeviceId: 'fleet_tv_gb_02',
+      eventId: 'break-tv2-0001',
+      breakStartedAtUtc: new Date(nowMs - 29_000).toISOString(),
+      nonce: 'break_nonce_tv2_0001',
+    });
+    expect(corroborated.status).toBe('shared_corroborated');
+    expect(corroborated.event?.sourceDeviceIds).toEqual([
+      'fleet_tv_gb_01',
+      'fleet_tv_gb_02',
+    ]);
+
+    const conflict = fleet.submitSignedBreakEvent({
+      ...firstInput,
+      tvDeviceId: 'fleet_tv_gb_03',
+      eventId: 'break-tv3-conflict',
+      breakStartedAtUtc: new Date(nowMs - 5_000).toISOString(),
+      nonce: 'break_nonce_tv3_0001',
+    });
+    expect(conflict.httpStatus).toBe(409);
+    expect(conflict.status).toBe('conflict_held');
+    expect(
+      fleet.getSharedBreakEvents({
+        tvDeviceId: 'fleet_tv_gb_02',
+        decoderProfileId,
+        channelId,
+        nowMs,
+      }).events
+    ).toHaveLength(0);
+
+    const stale = fleet.submitSignedBreakEvent({
+      ...firstInput,
+      eventId: 'break-tv1-stale',
+      breakStartedAtUtc: new Date(nowMs - 121_000).toISOString(),
+      nonce: 'break_nonce_tv1_stale',
+    });
+    expect(stale.httpStatus).toBe(409);
+    expect(stale.status).toBe('rejected_stale');
+
+    const future = fleet.submitSignedBreakEvent({
+      ...firstInput,
+      eventId: 'break-tv1-future',
+      breakStartedAtUtc: new Date(nowMs + 16_000).toISOString(),
+      nonce: 'break_nonce_tv1_future',
+    });
+    expect(future.httpStatus).toBe(409);
+    expect(future.status).toBe('rejected_stale');
+
+    const wrongChannel = fleet.submitSignedBreakEvent({
+      ...firstInput,
+      eventId: 'break-tv1-wrong-channel',
+      channelId: 'gb.sky-news',
+      nonce: 'break_nonce_tv1_wrong_channel',
+    });
+    expect(wrongChannel.httpStatus).toBe(409);
+    expect(wrongChannel.status).toBe('rejected_scope_mismatch');
+
+    const pii = fleet.submitSignedBreakEvent({
+      ...firstInput,
+      eventId: 'break-tv1-pii',
+      nonce: 'break_nonce_tv1_pii',
+      rawPayload: { householdId: 'hh_private_1' },
+    });
+    expect(pii.httpStatus).toBe(400);
+    expect(pii.status).toBe('rejected_pii');
+    expect(pii.containsPii).toBe(false);
+
+    const throttledFleet = new SharedIntelFleetService();
+    const rateLimited = Array.from({ length: 9 }, (_, index) =>
+      throttledFleet.submitSignedBreakEvent({
+        ...firstInput,
+        eventId: `break-rate-${index}`,
+        breakStartedAtUtc: new Date(nowMs - 1_000).toISOString(),
+        nonce: `break_rate_nonce_${index}`,
+        nowMs,
+      })
+    );
+    expect(rateLimited[7].httpStatus).not.toBe(429);
+    expect(rateLimited[8].httpStatus).toBe(429);
+    expect(rateLimited[8].status).toBe('rate_limited');
+  });
+
+  it('isolates same-channel break events between decoder profiles', () => {
+    const fleet = new SharedIntelFleetService();
+    const nowMs = Date.now();
+    const scope = fleet.getSnapshot().bundles[0].scope;
+    const channelId = canonicalChannelScopeId(scope);
+
+    for (const [tvDeviceId, decoderProfileId] of [
+      ['decoder_a_source', 'decoder-feed-a'],
+      ['decoder_a_receiver', 'decoder-feed-a'],
+      ['decoder_b_receiver', 'decoder-feed-b'],
+    ]) {
+      fleet.registerAttestedDevice({
+        tvDeviceId,
+        decoderProfileId,
+        platform: scope.platform,
+        country: scope.country,
+        assignedScopeId: scope.scopeId,
+      });
+    }
+
+    const eventInput = {
+      tvDeviceId: 'decoder_a_source',
+      scopeId: scope.scopeId,
+      decoderProfileId: 'decoder-feed-a',
+      channelId,
+      eventId: 'decoder-a-break-0001',
+      breakStartedAtUtc: new Date(nowMs - 1_000).toISOString(),
+      nonce: 'decoder-a-break-nonce',
+      useRegisteredDemoSigner: true,
+      nowMs,
+    };
+    expect(fleet.submitSignedBreakEvent(eventInput).status).toBe(
+      'shared_pending_corroboration'
+    );
+
+    const matchingProfile = fleet.getSharedBreakEvents({
+      tvDeviceId: 'decoder_a_receiver',
+      decoderProfileId: 'decoder-feed-a',
+      channelId,
+      nowMs,
+    });
+    expect(matchingProfile.events.map((event) => event.eventId)).toEqual([
+      eventInput.eventId,
+    ]);
+
+    const otherProfileSubmission = fleet.submitSignedBreakEvent({
+      ...eventInput,
+      tvDeviceId: 'decoder_b_receiver',
+      decoderProfileId: 'decoder-feed-b',
+      eventId: 'decoder-b-break-0001',
+      nonce: 'decoder-b-break-nonce',
+    });
+    expect(otherProfileSubmission.status).toBe('shared_pending_corroboration');
+
+    const otherProfile = fleet.getSharedBreakEvents({
+      tvDeviceId: 'decoder_b_receiver',
+      decoderProfileId: 'decoder-feed-b',
+      channelId,
+      nowMs,
+    });
+    expect(otherProfile.ok).toBe(true);
+    expect(otherProfile.events.map((event) => event.eventId)).toEqual([
+      'decoder-b-break-0001',
+    ]);
+
+    expect(
+      fleet
+        .getSharedBreakEvents({
+          tvDeviceId: 'decoder_a_receiver',
+          decoderProfileId: 'decoder-feed-a',
+          channelId,
+          nowMs,
+        })
+        .events.map((event) => event.eventId)
+    ).toEqual([eventInput.eventId]);
+
+    const mismatchedSubmission = fleet.submitSignedBreakEvent({
+      ...eventInput,
+      eventId: 'decoder-a-wrong-profile',
+      decoderProfileId: 'decoder-feed-b',
+      nonce: 'decoder-a-wrong-profile-nonce',
+    });
+    expect(mismatchedSubmission.status).toBe('rejected_scope_mismatch');
+    expect(mismatchedSubmission.httpStatus).toBe(409);
+  });
+
+  it('encrypts break-event state and device keys across service restarts and fails closed on a wrong key', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'edison-fleet-state-'));
+    const persistencePath = path.join(tempDir, 'shared-intel.enc');
+    const encryptionKeyHex = crypto.randomBytes(32).toString('hex');
+    const options = { persistencePath, encryptionKeyHex };
+
+    try {
+      const firstProcess = new SharedIntelFleetService(options);
+      const nowMs = Date.now();
+      const scope = firstProcess.getSnapshot().bundles[0].scope;
+      const channelId = canonicalChannelScopeId(scope);
+      const externalKeypair = crypto.generateKeyPairSync('ed25519', {
+        publicKeyEncoding: { type: 'spki', format: 'pem' },
+        privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+      });
+      firstProcess.registerAttestedDevice({
+        tvDeviceId: 'durable_external_tv',
+        decoderProfileId: 'decoder-feed-a',
+        platform: scope.platform,
+        country: scope.country,
+        assignedScopeId: scope.scopeId,
+        publicKeyPem: externalKeypair.publicKey,
+      });
+      const eventInput = {
+        tvDeviceId: 'fleet_tv_gb_01',
+        scopeId: scope.scopeId,
+        decoderProfileId: SIMULATED_DEFAULT_DECODER_PROFILE_ID,
+        channelId,
+        eventId: 'durable-break-0001',
+        breakStartedAtUtc: new Date(nowMs - 1_000).toISOString(),
+        nonce: 'durable-break-nonce-1',
+        useRegisteredDemoSigner: true,
+        nowMs,
+      };
+
+      expect(firstProcess.submitSignedBreakEvent(eventInput).status).toBe(
+        'shared_pending_corroboration'
+      );
+      const observationInput = {
+        tvDeviceId: 'durable_external_tv',
+        scopeId: scope.scopeId,
+        signalType: 'scte35' as const,
+        estimatedBreakDurationSec: 112,
+        transitionLatencyMs: 365,
+        nonce: 'durable-observation-nonce-1',
+      };
+      const observationSignature = crypto
+        .sign(
+          null,
+          Buffer.from(canonicalObservationSigningMessage(observationInput), 'utf8'),
+          externalKeypair.privateKey
+        )
+        .toString('hex');
+      expect(
+        firstProcess.submitSignedObservation({
+          ...observationInput,
+          signatureHex: observationSignature,
+        }).ok
+      ).toBe(true);
+      const initialSnapshot = firstProcess.getSnapshot();
+      const encryptedFile = fs.readFileSync(persistencePath, 'utf8');
+      expect(JSON.parse(encryptedFile).version).toBe(2);
+      expect(encryptedFile).not.toContain('BEGIN PRIVATE KEY');
+      expect(encryptedFile).not.toContain(eventInput.eventId);
+      expect(encryptedFile).not.toContain('durable_external_tv');
+
+      const restartedProcess = new SharedIntelFleetService(options);
+      const restoredSnapshot = restartedProcess.getSnapshot();
+      expect(restoredSnapshot.signingPublicKeyPem).toBe(
+        firstProcess.getSnapshot().signingPublicKeyPem
+      );
+      expect(restoredSnapshot.breakEventPersistence).toBe('encrypted_local_file');
+      expect(restoredSnapshot.breakEventsRestartDurable).toBe(true);
+      expect(restoredSnapshot.bundles[0].version).toBe(initialSnapshot.bundles[0].version);
+      expect(restoredSnapshot.bundles[0].bundleSignatureHex).toBe(
+        initialSnapshot.bundles[0].bundleSignatureHex
+      );
+      expect(
+        restoredSnapshot.devices.find((device) => device.tvDeviceId === 'durable_external_tv')
+          ?.publicKeyPem
+      ).toBe(externalKeypair.publicKey.trim());
+      expect(
+        restoredSnapshot.recentObservations.map((observation) => observation.tvDeviceId)
+      ).toContain('durable_external_tv');
+      expect(
+        restartedProcess.syncScopedDelta({
+          tvDeviceId: 'fleet_tv_gb_01',
+          scopeId: scope.scopeId,
+          clientPlatform: scope.platform,
+          clientCountry: scope.country,
+          knownVersion: 0,
+        }).signatureValid
+      ).toBe(true);
+      expect(
+        restartedProcess.getSharedBreakEvents({
+          tvDeviceId: 'fleet_tv_gb_02',
+          decoderProfileId: SIMULATED_DEFAULT_DECODER_PROFILE_ID,
+          channelId,
+          nowMs,
+        }).events.map((event) => event.eventId)
+      ).toEqual([eventInput.eventId]);
+      expect(restartedProcess.submitSignedBreakEvent(eventInput).status).toBe(
+        'rejected_replay'
+      );
+      expect(
+        restartedProcess.submitSignedObservation({
+          ...observationInput,
+          signatureHex: observationSignature,
+        }).httpStatus
+      ).toBe(401);
+
+      const stateBeforeWrongKey = fs.readFileSync(persistencePath, 'utf8');
+      expect(
+        () =>
+          new SharedIntelFleetService({
+            persistencePath,
+            encryptionKeyHex: crypto.randomBytes(32).toString('hex'),
+          })
+      ).toThrow();
+      expect(fs.existsSync(persistencePath)).toBe(true);
+      expect(fs.readFileSync(persistencePath, 'utf8')).toBe(stateBeforeWrongKey);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('restores legacy persisted break state without decoder-profile fields', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'edison-fleet-legacy-state-'));
+    const persistencePath = path.join(tempDir, 'shared-intel.enc');
+    const encryptionKeyHex = crypto.randomBytes(32).toString('hex');
+    const options = { persistencePath, encryptionKeyHex };
+
+    try {
+      const originalService = new SharedIntelFleetService(options);
+      const nowMs = Date.now();
+      const scope = originalService.getSnapshot().bundles[0].scope;
+      const channelId = canonicalChannelScopeId(scope);
+      const eventInput = {
+        tvDeviceId: 'fleet_tv_gb_01',
+        scopeId: scope.scopeId,
+        decoderProfileId: SIMULATED_DEFAULT_DECODER_PROFILE_ID,
+        channelId,
+        eventId: 'legacy-profile-break-0001',
+        breakStartedAtUtc: new Date(nowMs - 1_000).toISOString(),
+        nonce: 'legacy-profile-break-nonce',
+        useRegisteredDemoSigner: true,
+        nowMs,
+      };
+      expect(originalService.submitSignedBreakEvent(eventInput).ok).toBe(true);
+
+      const envelope = JSON.parse(fs.readFileSync(persistencePath, 'utf8')) as {
+        format: string;
+        version: number;
+        iv: string;
+        authTag: string;
+        ciphertext: string;
+      };
+      const aad = Buffer.from('EDISON_SHARED_INTEL_STATE:v1', 'utf8');
+      const decipher = crypto.createDecipheriv(
+        'aes-256-gcm',
+        Buffer.from(encryptionKeyHex, 'hex'),
+        Buffer.from(envelope.iv, 'base64')
+      );
+      decipher.setAAD(aad);
+      decipher.setAuthTag(Buffer.from(envelope.authTag, 'base64'));
+      const state = JSON.parse(
+        Buffer.concat([
+          decipher.update(Buffer.from(envelope.ciphertext, 'base64')),
+          decipher.final(),
+        ]).toString('utf8')
+      ) as {
+        devices: Array<Record<string, unknown>>;
+        breakEvents: Array<[string, Record<string, unknown>]>;
+      };
+      state.devices.forEach((device) => delete device.decoderProfileId);
+      state.breakEvents.forEach(([, event]) => delete event.decoderProfileId);
+
+      const iv = crypto.randomBytes(12);
+      const cipher = crypto.createCipheriv('aes-256-gcm', Buffer.from(encryptionKeyHex, 'hex'), iv);
+      cipher.setAAD(aad);
+      const ciphertext = Buffer.concat([
+        cipher.update(JSON.stringify(state), 'utf8'),
+        cipher.final(),
+      ]);
+      fs.writeFileSync(
+        persistencePath,
+        JSON.stringify({
+          format: envelope.format,
+          version: envelope.version,
+          iv: iv.toString('base64'),
+          authTag: cipher.getAuthTag().toString('base64'),
+          ciphertext: ciphertext.toString('base64'),
+        })
+      );
+
+      const restoredService = new SharedIntelFleetService(options);
+      const restoredSnapshot = restoredService.getSnapshot();
+      expect(
+        restoredSnapshot.devices.find((device) => device.tvDeviceId === 'fleet_tv_gb_02')
+          ?.decoderProfileId
+      ).toBe('legacy_default_decoder');
+      expect(
+        restoredService.getSharedBreakEvents({
+          tvDeviceId: 'fleet_tv_gb_02',
+          decoderProfileId: 'legacy_default_decoder',
+          channelId,
+          nowMs,
+        }).events.map((event) => event.eventId)
+      ).toEqual([eventInput.eventId]);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('rotates the local persistence key without losing fleet state or overwriting on invalid input', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'edison-fleet-key-rotation-'));
+    const persistencePath = path.join(tempDir, 'shared-intel.enc');
+    const currentKeyHex = crypto.randomBytes(32).toString('hex');
+    const nextKeyHex = crypto.randomBytes(32).toString('hex');
+
+    try {
+      const fleet = new SharedIntelFleetService({ persistencePath, encryptionKeyHex: currentKeyHex });
+      const snapshotBeforeRotation = fleet.getSnapshot();
+      const currentFile = fs.readFileSync(persistencePath, 'utf8');
+
+      expect(() => fleet.rotatePersistenceKey('not-a-32-byte-key')).toThrow(/64 hex chars/);
+      expect(fs.readFileSync(persistencePath, 'utf8')).toBe(currentFile);
+      expect(() => fleet.rotatePersistenceKey(currentKeyHex)).toThrow(/must differ/);
+      expect(fs.readFileSync(persistencePath, 'utf8')).toBe(currentFile);
+
+      fleet.rotatePersistenceKey(nextKeyHex);
+      const rotatedFile = fs.readFileSync(persistencePath, 'utf8');
+      expect(rotatedFile).not.toBe(currentFile);
+
+      const restored = new SharedIntelFleetService({
+        persistencePath,
+        encryptionKeyHex: nextKeyHex,
+      }).getSnapshot();
+      const stateBeforeOldKeyAttempt = fs.readFileSync(persistencePath, 'utf8');
+      expect(restored.signingPublicKeyPem).toBe(snapshotBeforeRotation.signingPublicKeyPem);
+      expect(restored.bundles).toEqual(snapshotBeforeRotation.bundles);
+      expect(restored.devices).toEqual(snapshotBeforeRotation.devices);
+
+      expect(
+        () =>
+          new SharedIntelFleetService({
+            persistencePath,
+            encryptionKeyHex: currentKeyHex,
+          })
+      ).toThrow();
+      expect(fs.readFileSync(persistencePath, 'utf8')).toBe(stateBeforeOldKeyAttempt);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });
 

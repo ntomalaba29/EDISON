@@ -111,10 +111,20 @@ export class CommercialDisputeEngine {
     return items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
-  reconcileRevenueStreams(ledger: RevenueLedgerSnapshot): CommercialReconciliationSummary {
+  replaceDisputesFromPersistence(records: CommercialDisputeRecord[]): void {
+    this.disputes.clear();
+    for (const dispute of records) {
+      this.disputes.set(dispute.id, { ...dispute });
+    }
+  }
+
+  reconcileRevenueStreams(
+    ledger: RevenueLedgerSnapshot,
+    persistedDisputes?: CommercialDisputeRecord[]
+  ): CommercialReconciliationSummary {
     const directRow = ledger.streams.find((s) => s.stream === 'direct_commercial_paid');
     const backfillRow = ledger.streams.find((s) => s.stream === 'ad_network_estimated');
-    const allDisputes = this.listDisputes();
+    const allDisputes = persistedDisputes ?? this.listDisputes();
     const approvedCredits = Number(
       allDisputes
         .filter((d) => d.status === 'credit_approved_simulated')

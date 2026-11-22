@@ -35,35 +35,35 @@ export const ROADMAP_PHASES: RoadmapPhaseItem[] = [
   },
   {
     phase: 4,
-    title: 'Smart TV Platform Feasibility, AURA Companion Remote & OEM SDK Contracts',
+    title: 'TV Platform, EDISON TV App & Phone Remote Boundaries',
     summary:
-      'Blocks 4.1–4.3 + Workstream B Complete (10.0% / 12.0%): Android TV TIF, Tizen & webOS harnesses, 16-case fault suite, SHA-256 offline cache/sync queue, 8-vector conformance, DIAL/mDNS AURA PIN pairing & offline remote queue, HDMI-CEC HDCP guard & 5 OEM native packaging blueprints; remaining 2.0% reserved for physical OEM partner signing & Stage P6 hardware test.',
-    milestoneGate: 'Software/emulator adapters verified without undocumented hooks; hardware compatibility checked only at Stage P6.',
-    status: 'AWAITING COMMIT',
+      'Existing 4.1–4.2 platform simulators, pairing, offline queue, CEC guard, and OEM packaging blueprints; 4.3 real companion transport remains blocked. Phase 4.5 verifies the simulated TV app Ad/Back lifecycle separately from the phone remote; no hardware claim.',
+    milestoneGate: 'The TV-app simulation and ordinary phone-remote path are behaviorally distinct; hardware compatibility remains gated to Stage P6.',
+    status: 'IN PROGRESS',
   },
   {
     phase: 5,
-    title: 'Commercial-Break Detection, Prediction & Shared Ad Intelligence',
+    title: 'Timestamped Commercial-Break Events & Shared Intelligence',
     summary:
-      'Blocks 5.1 & 5.2 COMMITTED (12.0%: Ed25519 Fleet Shared Ad Intelligence Service + 11/11 Scenarios 25–35 + Per-channel p10/p5 ML lower-bound break duration predictor + 10-fixture benchmark at 0% FPR).',
-    milestoneGate: 'Measured precision/recall, multi-TV corroboration, rollback & safety buffer verified in software.',
-    status: 'COMMITTED',
+      '5.1–5.3 cue fixtures, scoped shared-intelligence simulation, and duration prediction remain verified. 5.4 adds signed timestamped channel-scoped events; 5.5–5.6 add encrypted local persistence and operator-controlled key rotation. 5.7 production operations remain deferred.',
+    milestoneGate: 'Event freshness, source/channel binding, deduplication, replay rejection, conflict handling, and zero-PII sharing pass local tests before production deployment.',
+    status: 'IN PROGRESS',
   },
   {
     phase: 6,
-    title: 'Advertising Delivery Infrastructure',
+    title: 'Geographic Ad Targeting & News Break Distribution',
     summary:
-      'Block 6.1 COMMITTED (4.0%: SHA-256 CDN preload manifests, coarse regional/schedule/codec filtering, $0.00 Charity isolation, daily frequency caps, edge outage failover & idempotent event ingestion).',
-    milestoneGate: 'Load-tested delivery & redirect pipeline with bot/duplicate separation (Stage P6 physical test deferred).',
-    status: 'COMMITTED',
+      '6.1–6.2 preserve verified simulated delivery manifests, coarse eligibility, $0.00 Charity isolation, frequency caps, failover, and idempotent events. Added 6.5 for privacy-safe named geographic areas and 6.6 for journalist news at an eligible break; boundary and editorial/placement decisions remain open.',
+    milestoneGate: 'Geographic matching protects exact household location; news placement requires owner-approved verification, opt-in, expiry, and inventory rules.',
+    status: 'IN PROGRESS',
   },
   {
     phase: 7,
-    title: 'Advertiser Management & Campaign Operations',
+    title: 'Advertiser & Journalist/Publisher Operations',
     summary:
-      'Block 7.1 COMMITTED (3.0%: 6-gate KYC readiness evaluation, automated campaign pacing, non-transactional SHA-256 Pro-Forma invoice blueprints with $0.00 Charity lock & SLA ticket triage; paymentCollectionActive: false).',
-    milestoneGate: 'Explicit authorization required before enabling real payment collection or live advertiser outreach.',
-    status: 'COMMITTED',
+      'Existing advertiser readiness, campaign pacing, pro-forma, disputes, and SLA workflows remain non-transactional. Added 7.4 for journalist/publisher registration and monthly subscription state; terms and price are undecided and no payment collection is authorized.',
+    milestoneGate: 'Publisher access semantics are owner-approved; real billing and outreach remain separately gated.',
+    status: 'IN PROGRESS',
   },
   {
     phase: 8,
@@ -75,11 +75,11 @@ export const ROADMAP_PHASES: RoadmapPhaseItem[] = [
   },
   {
     phase: 9,
-    title: 'Opportunity Management & Verification',
+    title: 'Opportunity Verification & Editorial Review Operations',
     summary:
-      'Block 9.1 COMMITTED (2.0%: Tier 1–3 SHA-256 AES-256-GCM blueprint evidence vault seals + PII redaction, automated expiry & 90-day re-verification quarantine, 4h/24h/48h complaint & appeal SLA tracking, and strict $0.00 zero-fee-influence enforcement; externalKycVendorConnected: false).',
-    milestoneGate: '3-tier verification strictly decoupled from advertising spend.',
-    status: 'COMMITTED',
+      'Existing opportunity verification, non-transitive tiers, expiry, complaints, and $0.00 fee independence remain. Added 9.4 for journalist evidence review, corrections/retractions, expiry, and editorial/sponsored labels; publication policy is not yet defined.',
+    milestoneGate: 'News review is auditable and never treats subscription payment as proof or a moderation bypass.',
+    status: 'IN PROGRESS',
   },
   {
     phase: 10,
@@ -233,6 +233,9 @@ export type ReportCommandType =
   | 'NEXT'
   | 'COMMIT';
 
+const subphaseProgressLine =
+  'EXECUTABLE SUBPHASE PROGRESS: 48 / 69 complete (69.6%) as of 2026-11-18.';
+
 export function generateFormalReport(
   command: ReportCommandType,
   liveSnapshot: LiveReportSnapshot | null
@@ -260,6 +263,7 @@ export function generateFormalReport(
         `Current Block: ${liveSnapshot?.block ?? 'Master Completion Handover Release (34/34 Automated QA Invariants · Awaiting Owner Review & Commit)'}`,
         `Commit Gate: ${liveSnapshot?.gateStatus ?? 'ALL IMPLEMENTABLE SOFTWARE, INFRASTRUCTURE & PACKAGING WORK COMPLETE — AWAITING COMMIT & STAGE P6'}`,
         '',
+        subphaseProgressLine,
         `PROGRESS UNTIL FULL APP: ${pctBlock}`,
         '',
         'PHASE 1 TO PHASE 15 PROGRESS:',
@@ -300,6 +304,7 @@ export function generateFormalReport(
         'EDISON — VERIFICATION & GATE CHECK',
         `Generated: ${generatedAt}`,
         `Active Block: ${liveSnapshot?.block ?? 'Block 11.1 (Deterministic Fault Injection & Live-TV Preservation Across All 18 FMEA Modes FM-01..FM-18)'}`,
+        subphaseProgressLine,
         `Progress Metrics: ${pctBlock}`,
         `Live Store Telemetry: ${countsLine}`,
         `QR Telemetry: Redirect Requests=${s?.redirectRequestsTotal ?? 0} | Redirects Issued=${s?.redirectIssuedTotal ?? 0} | Suspected Bots=${s?.suspectedBotRedirects ?? 0} | Verified Destination Opens=${s?.verifiedDestinationOpens ?? 0} | Verified Conversions=${s?.verifiedConversionsTotal ?? 0}`,
@@ -342,6 +347,7 @@ export function generateFormalReport(
         'EDISON — NEXT GATE EVALUATION',
         `Generated: ${generatedAt}`,
         `Current Gate: ${liveSnapshot?.gateStatus ?? 'ALL IMPLEMENTABLE SOFTWARE & INFRASTRUCTURE COMPLETE'}`,
+        subphaseProgressLine,
         `Progress Until Full App: ${pctBlock}`,
         '',
         'GATE STATUS & NEXT STEP:',
@@ -362,6 +368,7 @@ export function generateFormalReport(
       body: [
         'EDISON — COMMIT CHECKPOINT (85.0% FULL APP · WORKSTREAMS A–K)',
         `Generated: ${generatedAt}`,
+        subphaseProgressLine,
         `Progress Metrics: ${pctBlock}`,
         `Live Store Telemetry: ${countsLine}`,
         '',
@@ -385,6 +392,7 @@ export function generateFormalReport(
       '',
       `PHASE 2 AI STUDIO SCOPE: ${pm?.aiStudioAssignmentPct ?? 100}% (Track A & Track B Committed; 0% Blocked)`,
       `OVERALL EDISON PROJECT PROGRESS: ${pm?.overallFullAppPct ?? 85.0}% of Full 15-Phase App (${pm?.remainingUntilFullAppPct ?? 15.0}% remaining) · ${pm?.softwareToStageP6Pct ?? 87.1}% of Software-to-Stage-P6 Milestone`,
+      subphaseProgressLine,
       '',
       'LIVE STORE TELEMETRY:',
       countsLine,

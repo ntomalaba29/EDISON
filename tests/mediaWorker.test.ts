@@ -21,6 +21,20 @@ function resolveFfmpegBinary(environmentVariable: string, linuxPath: string, win
 }
 
 describe('TASK-P3-004 Dedicated FFmpeg & FFprobe Broadcast Media Worker', () => {
+  it('does not create media directories until a media job needs them', () => {
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'edison-media-worker-init-'));
+    const uploadsDir = path.join(tmpRoot, 'uploads');
+    const renderDir = path.join(tmpRoot, 'rendered');
+
+    try {
+      new FfmpegMediaWorker({ uploadsDir, renderOutputDir: renderDir });
+      expect(fs.existsSync(uploadsDir)).toBe(false);
+      expect(fs.existsSync(renderDir)).toBe(false);
+    } finally {
+      fs.rmSync(tmpRoot, { recursive: true, force: true });
+    }
+  });
+
   it('executes real FFmpeg and FFprobe binaries to transcode WebM->H.264 MP4, normalize EBU R128 loudness, encode still slates, and enforce path confinement', async () => {
     const ffmpegBin = resolveFfmpegBinary('EDISON_FFMPEG_BIN', '/usr/bin/ffmpeg', 'ffmpeg.exe');
     const ffprobeBin = resolveFfmpegBinary('EDISON_FFPROBE_BIN', '/usr/bin/ffprobe', 'ffprobe.exe');

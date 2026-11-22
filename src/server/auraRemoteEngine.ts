@@ -421,6 +421,18 @@ export class AuraRemoteEngine {
       .filter((d) => d.ownerUserId === ownerUserId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
+
+  replaceDevicesFromPersistence(records: AuraPairedDeviceRecord[]): void {
+    this.devices.clear();
+    for (const record of records) {
+      this.devices.set(record.deviceId, {
+        ...record,
+        capabilities: [...record.capabilities],
+        offlineQueue: record.offlineQueue.map((command) => ({ ...command })),
+        tvState: { ...record.tvState },
+      });
+    }
+  }
 }
 
 export const auraRemoteEngine = new AuraRemoteEngine();

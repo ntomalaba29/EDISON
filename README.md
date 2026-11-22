@@ -1,7 +1,9 @@
 # EDISON — International Smart TV Advertising & Opportunity Network
 
-**[STATUS: WORKSTREAMS A–K COMPLETE · VERIFIED & AWAITING COMMIT · `85.0%` FULL APP (`87.1%` TO `STAGE P6` · `100%` AI STUDIO SCOPE) · PG16 MIGRATIONS, REAL FFMPEG, PLAYWRIGHT E2E, AURA/HDMI-CEC, 9-LANG I18N & STAGE P6 RUNBOOK READY]**  
+**[CURRENT STATUS: `75/97` EXECUTABLE SUBPHASES COMPLETE (77.3%) · PROTOTYPE 8/8 · TV CONTROL 3/5 · PHASE 5 35/37 · CURRENT TASK: 5.11b · BLOCKED ON MEDIA STORAGE PROVIDER APPROVAL · GITHUB ACTIONS BLOCKED BY ACCOUNT BILLING · NO PHYSICAL TV TEST]**
 **[REPOSITORY PATH: `Malaba29/EDISON-International-Smart-TV-Advertising-Network-`]**
+
+The atomic subphase ledger, test evidence, open blockers, and next task are in [`EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md`](EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md). It supersedes older weighted figures and historical checkpoint labels. The ledger is **75/97 (77.3%)**; Worker auth/session, D1-backed business routes, documentation assets, restart persistence, and provider-neutral media validation are verified locally. Worker media storage and FFmpeg remain explicitly disabled. **5.11b** is blocked on owner approval of a storage provider and costs; no remote deployment, Linux CI, real TV transport, or Stage P6 test is claimed.
 
 EDISON is an international television advertising and verified opportunity network designed to display QR-enabled advertisements on compatible Smart TVs during suitable commercial breaks, connecting television viewers directly to advertiser destinations and legitimate employment, education, training, grant, and tender opportunities via mobile QR scanning—and improving break detection across the network through **Network-Wide Shared Ad Intelligence**.
 
@@ -21,8 +23,8 @@ EDISON is an international television advertising and verified opportunity netwo
 
 - **`CHARITY ADS` (`$0.00 / FREE` Permanent Rate Card)**: Formal and verified informal employment/free employer job listings, internships, apprenticeships, scholarships, school/university admissions, education, training, conferences, educational events, community development, grants, tenders, and approved public-benefit programmes—always free to submit, verify, broadcast, scan, and apply under strict anti-fraud and 3-tier non-transitive verification rules.
 - **`COMMERCIAL ADS` (Direct-Paid Priority + Modular CTV Network Backfill)**: Commercial promotions, shops, supermarkets, restaurants, brands, manufacturers, and service providers across **Image/Banner**, **Video**, and **Text-Only Commercial Ads**, alternating `CHARITY -> COMMERCIAL -> CHARITY -> COMMERCIAL` in eligible breaks.
-- **Network-Wide Shared Ad Intelligence (`v2.2` Approved Core Requirement — Prototype Preview Only; Phase 5 Service `NOT STARTED`)**: Participating TVs share corroborated, scoped (`country/broadcaster/channel/platform/config`), privacy-stripped commercial-break detection telemetry through a **Central Shared Intelligence Service** and offline-capable **Local Intelligence Cache** with versioned rollback protection (`LEARN ONCE. DISTRIBUTE EVERYWHERE. UPDATE CONTINUOUSLY.`).
-- **Normal Everyday TV Remote Control (`ADR-017` / `PRD-20` Approved Core Capability — `NOT STARTED`)**: Standard everyday TV controls (power, volume/mute, channel, input/source, D-pad/OK/back/home) via **`AURA → EDISON Control Engine → platform adapters → TV`**, strictly separate from intelligent commercial-break switching and programme restoration. Zero physical TV hardware compatibility claimed or tested prior to `Stage P6`.
+- **Network-Wide Shared Ad Intelligence (`ADR-016`)**: A software simulation of scoped, corroborated break intelligence and local caching is implemented and tested. A durable, deployed fleet service and real participating TVs are not.
+- **Normal Everyday TV Remote Control (`ADR-017` / `PRD-20`)**: AURA and platform command simulators are implemented and tested. Real TV transports, native permissions, and hardware compatibility are not verified; ordinary remote control remains separate from break switching.
 
 ---
 
@@ -49,25 +51,29 @@ Every document below is maintained as part of the permanent EDISON engineering r
 | `RISK_REGISTER.md` | Technical, legal, operational, and fraud risk matrix |
 | `FAILURE_MODE_ANALYSIS.md` | 18+ failure modes and fail-safe TV-preservation design |
 | `COMPLETE_DEVELOPMENT_ROADMAP.md` | Complete 15-phase roadmap including Shared Intelligence, software-first testing & single `Stage P6` check |
+| `EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md` | **Current authority** for executable subphases, direct `completed/total` arithmetic, evidence, repository research, and next task |
+| `docs/EDISON_PRODUCT_VISION_AND_BUILD_PLAN.md` | Owner-confirmed end-to-end product flow, current reality, and no-cost local build sequence |
+| `docs/research/EDISON_REPOSITORY_SHORTLIST.md` | Link-only list of TV remote, commercial-break detector, and ad-playback repositories to study |
 | `AI_STUDIO_WORKING_BOUNDARY.md` | Strict scope boundary for the AI Studio prototype vs production |
 | `VSCODE_HANDOVER_PLAN.md` | Structure and criteria for Phase 2 -> Phase 3 engineering handover |
 | `VSCODE_HANDOVER_PACKAGE.md` | Complete Phase 2 -> Phase 3 handover dossier for VS Code Copilot |
-| `PROGRESS_TRACKER.md` | Verified progress across implemented code, uncommitted `v2.1`/`v2.2` docs & open blockers |
-| `DECISIONS_LOG.md` | Approved ADRs (`ADR-001`–`ADR-016`) separated strictly from Unresolved Owner Decisions (`DEC-OPEN-01`..`04`) |
+| `PROGRESS_TRACKER.md` | Historical weighted progress plus latest local verification; subphase counts are in the handoff plan |
+| `DECISIONS_LOG.md` | Approved ADRs (`ADR-001`–`ADR-017`) separated strictly from Unresolved Owner Decisions (`DEC-OPEN-01`..`08`) |
 | `TESTING_STRATEGY.md` | Software-first 35-scenario automated test plan (`25`–`35` Shared Intel) + single final `Stage P6` physical test |
 | `KNOWN_LIMITATIONS.md` | Honest register of uncommitted changes, `DEC-OPEN-01` blocks, GAM format uncertainty & prototype limits |
 | `coordination/EDISON_COMMAND_CENTER.md` | Shared AI Studio <-> VS Code Copilot manual coordination hub |
 | `EDISON_PERMANENT_SYSTEM_INSTRUCTIONS.md` | Portable copy of all permanent EDISON rules, custom instructions & project path |
 | `SESSION_CONTINUITY_LOG.md` | Cross-account session log of discussions, fixes & active checkpoints |
-| `docs/research/EDISON_OPEN_SOURCE_REPOSITORY_RESEARCH_PLAN.md` | Deferred empirical audit of all 9 named GitHub research candidates (`Status: DEFERRED`) |
+| `docs/research/EDISON_TV_REMOTE_AND_BREAK_DETECTION_REPOSITORIES.md` | Current remote-control and commercial-break repository research, owner-provided product flow, and proposed hybrid architecture |
+| `docs/research/EDISON_OPEN_SOURCE_REPOSITORY_RESEARCH_PLAN.md` | Historical owner-supplied repository shortlist |
 
 ---
 
 ## 4. Current Project Boundary Notice
 
-- **[VERIFIED]**: Phase 1 + Phase 2 Track A (`Blocks 2.1`–`2.7` + `P2-V2.1`–`P2-V2.4`, `85.0%` Phase 2 scope) + Phase 3 `Block P3-A` are **committed**. **`Block P3-B`** (`EdisonDataRepository` port, `/uploads/*` CSP/CORP/symlink/polyglot hardening, API `504` timeout & opaque JSON error middleware, React `AppErrorBoundary`, `.github/workflows/edison-ci.yml`) is **verified & awaiting commit**, and **`TASK-P3-001` is `READY`** with full PostgreSQL 16+ migration requirements documented at `docs/migration/TASK_P3_001_POSTGRES_MIGRATION_REQUIREMENTS.md` while retaining locked JSON persistence without paid Cloud SQL provisioning. `Track B` (`15.0%`) remains strictly blocked on `DEC-OPEN-01`. Normal Everyday TV Remote Control (`AURA → EDISON Control Engine → platform adapters → TV`, `NOT STARTED`) and Network-Wide Shared Ad Intelligence (`PROTOTYPE SIMULATION PREVIEW ONLY`) remain strictly bounded with zero physical TV testing prior to `Stage P6`, zero real payments (`paymentCollectionActive: false`), commercial outreach strictly locked, and zero legal compliance claimed.
-- **[LIMITATION]**: The AI Studio runtime has no local `.git` repository or push credentials; saving changes to GitHub requires the Project Owner to review and commit via AI Studio GitHub export or local git.
-- **Governance Rule**: Development proceeds strictly sequentially through verified checkpoints. Unresolved Owner Decisions (`DEC-OPEN-01` consent/profile architecture) remain blocked from implementation until explicitly resolved by the Project Owner.
+- **[CURRENT]**: Use the handoff plan for statuses and next action. The verified Windows baseline is recorded there; Actions has not produced a Linux job. The remote simulator and shared-intelligence prototype are not production TV/network integrations.
+- **[BOUNDARIES]**: No physical TV test has been performed; no payment collection, external KYC, market activation, external penetration test, or legal-compliance claim is active. `DEC-OPEN-01` is resolved; `DEC-OPEN-02` through `DEC-OPEN-04` remain open/deferred.
+- **[GIT]**: The current Windows workspace has local Git metadata. AI Studio may not; follow the current commit workflow in the handoff plan and repository UI rather than assuming either environment has credentials.
 
 ---
 

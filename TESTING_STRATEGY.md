@@ -1,6 +1,6 @@
 # EDISON — Testing Strategy
 
-**Document Status**: Updated Authoritative QA & Verification Strategy (`v2.2` — Enforces Software-First Development Verification, Single Final Physical TV Test at `Stage P6`, and Software Test Scenarios `25`–`35` for Network-Wide Shared Ad Intelligence)
+**Document Status**: Updated QA & Verification Strategy (`v2.2` — current test evidence and status are in [`EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md`](EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md); retain the single physical TV test at `Stage P6`)
 
 ---
 
@@ -20,7 +20,7 @@
 - Production bundle build (`npm run build` / `vite build`) — exit code `0`.
 
 ### Tier 2: Mandatory Automated Functional, Integration & Security Regression Suite (`Vitest` + `Supertest`)
-All core and shared-intelligence test scenarios must be automated in software before final completion (`#10–#17` depend on resolving Owner Decision `DEC-OPEN-01`):
+All core and shared-intelligence software test scenarios must pass before final completion. `DEC-OPEN-01` is resolved and its prototype behavior is tested; production/hardware validation remains separate:
 
 1. **Alternating Sequence Invariant**: Verify `CHARITY -> COMMERCIAL -> CHARITY -> COMMERCIAL` ordering and zero consecutive same-category ads even when one pool is larger.
 2. **Four-Advertisement Scheduling**: Verify 4-ad break schedules cleanly when remaining break time covers all 4 slots + switching + safety margin.
@@ -31,14 +31,14 @@ All core and shared-intelligence test scenarios must be automated in software be
 7. **Banner / Image Advertisements**: Verify Option A & Option B 16:9 image/banner validation, safe zones, and playback.
 8. **Video Advertisements**: Verify MP4/WebM magic-byte/aspect/duration validation and preload readiness check.
 9. **Text-Only Commercial Advertisements**: Verify creation, moderation, preview, and delivery of written-only commercial ads without image/video uploads.
-10. **Multiple Profiles per TV** *(`Conditional on DEC-OPEN-01`)*: Verify CRUD for multiple voluntary profiles under the approved household model.
-11. **Single-Person Opportunity Matching** *(`Conditional on DEC-OPEN-01`)*: Verify Required/Preferred/Optional scoring matches one eligible member without rejecting on optional gaps.
-12. **Multiple-Person Household Matching** *(`Conditional on DEC-OPEN-01`)*: Verify matching several household members produces plural personalisation safely.
+10. **Multiple Profiles per TV**: Verify CRUD for multiple voluntary profiles under the approved household model.
+11. **Single-Person Opportunity Matching**: Verify Required/Preferred/Optional scoring matches one eligible member without rejecting on optional gaps.
+12. **Multiple-Person Household Matching**: Verify matching several household members produces plural personalisation safely.
 13. **No-Match Scenarios**: Verify zero-match `CHARITY ADS` or unmatching profiles do not falsely claim a match.
-14. **Personalised Display Names** *(`Conditional on DEC-OPEN-01`)*: Verify preferred display names render cleanly on TV without showing qualifications, employment history, or contacts.
-15. **Personalisation Consent Disabled / Opt-Out** *(`Conditional on DEC-OPEN-01`)*: Verify neutral non-personalised display when individual consent is false or shared-TV privacy opt-out is set.
-16. **Consent Withdrawal Behaviour** *(`Conditional on DEC-OPEN-01`)*: Verify exact approved withdrawal behavior leaves ordinary TV unaffected.
-17. **Profile Updates & Deletion** *(`Conditional on DEC-OPEN-01`)*: Verify profile edits re-evaluate matches and deletion purges personalisation access immediately.
+14. **Personalised Display Names**: Verify preferred display names render cleanly on TV without showing qualifications, employment history, or contacts.
+15. **Personalisation Consent Disabled / Opt-Out**: Verify neutral non-personalised display when individual consent is false or shared-TV privacy opt-out is set.
+16. **Consent Withdrawal Behaviour**: Verify the approved bundled withdrawal behavior leaves ordinary TV unaffected.
+17. **Profile Updates & Deletion**: Verify profile edits re-evaluate matches and deletion purges personalisation access immediately.
 18. **Geographic Eligibility**: Verify regional/geo matching works accurately for Charity/Commercial targeting while blocking exact household coordinate/address leakage to advertisers.
 19. **QR Access & Expiry**: Verify expired/revoked opportunities and campaigns reject `/r/:token` immediately (`HTTP 410 / 404` or `403` per approved rule) and cannot schedule.
 20. **Advertiser Privacy Restrictions**: Verify advertisers cannot browse household profiles, coordinates, or member PII (`403` / sanitized aggregate metrics only).
@@ -47,7 +47,7 @@ All core and shared-intelligence test scenarios must be automated in software be
 23. **Duplicate Delivery Prevention**: Verify persistent idempotency and bot/prefetch filtering on delivery & QR events.
 24. **Playback Failure & Safe Return to Television**: Verify watchdog timeout and simulated player crash restore ordinary TV immediately (`SimulationTvAdapter` + mock emulator fault injection).
 
-#### Network-Wide Shared Ad Intelligence Software Tests (`v2.2` — Scenarios `25`–`35`, `NOT STARTED`)
+#### Network-Wide Shared Ad Intelligence Software Tests (`v2.2` — Scenarios `25`–`35`, locally tested simulation)
 25. **Multiple Simulated TVs Submitting Observations**: Verify concurrent simulated `SimulationTvAdapter` devices submit signed, scoped break-detection observations independently.
 26. **Central Aggregation & Validation**: Verify schema checks, channel/broadcaster/country/platform validation, and single-device quarantine (**a single TV's observation MUST NEVER automatically become trusted network-wide intelligence**).
 27. **Confidence Scoring & Corroboration**: Verify multi-TV agreement increments confidence across threshold (`K >= N` devices) before publishing a new versioned intelligence record.

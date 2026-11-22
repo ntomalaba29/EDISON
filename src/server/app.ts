@@ -1,11 +1,21 @@
-import express, { type Express, type Request, type Response, type NextFunction } from 'express';
+import express, {
+  type Express,
+  type Request,
+  type Response,
+  type NextFunction,
+  type RequestHandler,
+} from 'express';
 import {
   ALL_CAMPAIGN_STATUSES,
   ALLOWED_CAMPAIGN_TRANSITIONS,
   ALL_OPPORTUNITY_CATEGORIES,
-  edisonStore,
+  getEdisonStore,
 } from './store.ts';
-import type { EdisonDataRepository } from './repository.ts';
+import type {
+  EdisonAuthSessionRepository,
+  EdisonDataRepository,
+} from './repository.ts';
+import { D1DomainRecordRepository } from './cloudflare/d1DomainRecordRepository.ts';
 import {
   STATIC_ASSET_SECURITY_HEADERS,
   UPLOADS_DIR,
@@ -13,7 +23,13 @@ import {
   saveValidatedMediaUpload,
 } from './mediaSecurity.ts';
 import { validateQrDestination } from './qrValidator.ts';
-import { getGovernanceDocById, listGovernanceDocs } from './docsRegistry.ts';
+import {
+  getGovernanceDocById,
+  getGovernanceDocMetadata,
+  listGovernanceDocMetadata,
+  listGovernanceDocs,
+  type GovernanceDocRecord,
+} from './docsRegistry.ts';
 import {
   CSRF_COOKIE_NAME,
   CSRF_HEADER_NAME,
@@ -40,7 +56,10 @@ import {
   parseAndValidateBroadcastCue,
   runPhase4SoftwareExitSuite,
 } from './broadcastMetadataParser.ts';
-import { sharedIntelFleetService } from './sharedIntelFleetService.ts';
+import {
+  SharedIntelFleetService,
+  sharedIntelFleetService,
+} from './sharedIntelFleetService.ts';
 import {
   listChannelPredictorProfiles,
   predictBreakDurationQuantiles,
@@ -56,6 +75,7 @@ import {
   runAdvertiserOpsVerificationSuite,
 } from './advertiserOps.ts';
 import {
+  computeAdvertiserGeoAggregates,
   listCountryGeoConfigs,
   runTrackBVerificationSuite,
   toPublicHouseholdView,
@@ -78,7 +98,11 @@ import { runInternationalExpansionVerificationSuite } from './internationalExpan
 import fs from 'node:fs';
 import path from 'node:path';
 import { auraRemoteEngine } from './auraRemoteEngine.ts';
-import { commercialDisputeEngine } from './commercialDisputeEngine.ts';
+import {
+  commercialDisputeEngine,
+  type CommercialDisputeRecord,
+} from './commercialDisputeEngine.ts';
+import type { AuraPairedDeviceRecord } from './auraRemoteEngine.ts';
 import { EDISON_I18N_BUNDLES, getTranslationBundle } from '../i18n/translations.ts';
 import { logStructured } from './logger.ts';
 import { FfmpegMediaWorker, edisonMediaWorker } from './mediaWorker.ts';
@@ -126,6 +150,8 @@ import {
   deliveryEventIngestBatchSchema,
   deliveryManifestRequestSchema,
   emptyStrictSchema,
+  fleetBreakEventSubmitSchema,
+  fleetBreakEventSyncQuerySchema,
   fleetDeltaSyncSchema,
   fleetDeviceRegisterSchema,
   fleetFprReportSchema,
@@ -183,9 +209,40 @@ import {
   tvRemoteSimulateSchema,
 } from './validationSchemas.ts';
 import type {
+  AuditLogRecord,
+  AnalyticsEventRecord,
+  AdvertiserProfile,
+  CommercialBoardDecisionRecord,
+  CommercialCostAssumptionsInput,
+  CampaignRecord,
+  CampaignStatus,
+  LiveReportSnapshot,
+  AdvertiserGeoAggregateRow,
+  CountryJurisdictionPolicyConfig,
+  CountryLaunchDecisionRecord,
+  ConsentAuditEventRecord,
+  DeliveryPreloadManifestResult,
+  InternationalExpansionDecisionRecord,
+  HouseholdMemberProfile,
+  HouseholdInstallationRecord,
+  HouseholdQrRedirectPersistenceState,
+  HouseholdQrTokenRecord,
+  AdCreativeRecord,
+  OpportunityAppealRecord,
+  OpportunityComplaintRecord,
+  OpportunityRecord,
+  PhysicalQrScanTestRecord,
+  PilotCohortBlueprintRecord,
+  RegionalLocalizationConfig,
+  ReliabilityChaosReport,
+  SharedIntelPreviewState,
+  StageP6StepId,
+  SupportTicketRecord,
+  SupportTicketStatus,
   OptionAComposition,
   OptionBUploadSpec,
   PublicUser,
+  QrLinkRecord,
   QrDestinationType,
   SessionRecord,
   TextOnlyCommercialSpec,
@@ -198,6 +255,7 @@ interface AuthenticatedRequest extends CorrelatedRequest {
   currentSession?: SessionRecord | null;
   sessionToken?: string;
   authTransport?: 'bearer' | 'cookie' | 'none';
+  pendingAuditWrites?: Promise<void>[];
 }
 
 export interface EdisonRateLimitOptions {
@@ -209,6 +267,104 @@ export interface EdisonRateLimitOptions {
   mutationWindowMs?: number;
   uploadMax?: number;
   uploadWindowMs?: number;
+}
+
+export interface EdisonDomainRecordRepository {
+  getFoundationSummaryCounts(): Promise<
+    Partial<Omit<LiveReportSnapshot['summary'], 'userCount' | 'auditLogCount'>>
+  >;
+  getCampaignStatusBreakdown(): Promise<Record<CampaignStatus, number>>;
+  listDeliveryManifestsForActor(user: PublicUser): Promise<DeliveryPreloadManifestResult[]>;
+  putDeliveryManifest(manifest: DeliveryPreloadManifestResult, ownerId: string): Promise<void>;
+  getAdvertiserProfile(userId: string): Promise<AdvertiserProfile | null>;
+  putAdvertiserProfile(profile: AdvertiserProfile): Promise<void>;
+  listAdvertiserProfiles(): Promise<AdvertiserProfile[]>;
+  listQrLinksForUser(userId: string): Promise<QrLinkRecord[]>;
+  listQrLinksForActor(user: PublicUser): Promise<QrLinkRecord[]>;
+  getQrLinkByToken(token: string): Promise<QrLinkRecord | null>;
+  putQrLink(link: QrLinkRecord): Promise<void>;
+  deleteQrLink(token: string): Promise<void>;
+  listPhysicalQrScanTestsForUser(user: PublicUser): Promise<PhysicalQrScanTestRecord[]>;
+  getPhysicalQrScanTestForActor(
+    user: PublicUser,
+    testId: string
+  ): Promise<PhysicalQrScanTestRecord | null>;
+  putPhysicalQrScanTest(record: PhysicalQrScanTestRecord): Promise<void>;
+  deletePhysicalQrScanTest(user: PublicUser, testId: string): Promise<void>;
+  listPilotCohorts(): Promise<PilotCohortBlueprintRecord[]>;
+  putPilotCohort(cohort: PilotCohortBlueprintRecord): Promise<void>;
+  listStageP6PrepNotes(): Promise<Array<{ stepId: StageP6StepId; ownerPrepNote: string }>>;
+  putStageP6PrepNote(stepId: StageP6StepId, ownerPrepNote: string): Promise<void>;
+  getCommercialCostAssumptions(): Promise<CommercialCostAssumptionsInput | null>;
+  putCommercialCostAssumptions(assumptions: CommercialCostAssumptionsInput): Promise<void>;
+  listCommercialBoardDecisions(): Promise<CommercialBoardDecisionRecord[]>;
+  putCommercialBoardDecision(decision: CommercialBoardDecisionRecord): Promise<void>;
+  listCommercialDisputes(): Promise<CommercialDisputeRecord[]>;
+  putCommercialDispute(dispute: CommercialDisputeRecord): Promise<void>;
+  listAuraDevicesForUser(user: PublicUser): Promise<AuraPairedDeviceRecord[]>;
+  putAuraDevice(device: AuraPairedDeviceRecord): Promise<void>;
+  getSharedIntelPreviewState(): Promise<SharedIntelPreviewState | null>;
+  putSharedIntelPreviewState(state: SharedIntelPreviewState): Promise<void>;
+  listCountryPolicyProfiles(): Promise<CountryJurisdictionPolicyConfig[]>;
+  putCountryPolicyProfile(profile: CountryJurisdictionPolicyConfig): Promise<void>;
+  listCountryLaunchDecisions(): Promise<CountryLaunchDecisionRecord[]>;
+  putCountryLaunchDecision(decision: CountryLaunchDecisionRecord): Promise<void>;
+  listRegionalLocalizationProfiles(): Promise<RegionalLocalizationConfig[]>;
+  putRegionalLocalizationProfile(profile: RegionalLocalizationConfig): Promise<void>;
+  listInternationalExpansionDecisions(): Promise<InternationalExpansionDecisionRecord[]>;
+  putInternationalExpansionDecision(
+    decision: InternationalExpansionDecisionRecord
+  ): Promise<void>;
+  getLatestReliabilityChaosReport(): Promise<ReliabilityChaosReport | null>;
+  putLatestReliabilityChaosReport(report: ReliabilityChaosReport): Promise<void>;
+  listAnalyticsEvents(limit?: number): Promise<AnalyticsEventRecord[]>;
+  putAnalyticsEvent(event: AnalyticsEventRecord, ownerId?: string): Promise<void>;
+  listCampaignsForUser(user: PublicUser, statusFilter?: CampaignStatus | 'all'): Promise<CampaignRecord[]>;
+  putCampaign(campaign: CampaignRecord): Promise<void>;
+  deleteCampaign(campaignId: string): Promise<void>;
+  listSupportTicketsForUser(user: PublicUser): Promise<SupportTicketRecord[]>;
+  putSupportTicket(ticket: SupportTicketRecord): Promise<void>;
+  listAdCreativesForUser(user: PublicUser): Promise<AdCreativeRecord[]>;
+  getAdCreativeById(creativeId: string): Promise<AdCreativeRecord | null>;
+  putAdCreative(creative: AdCreativeRecord): Promise<void>;
+  deleteAdCreative(creativeId: string): Promise<void>;
+  listOpportunitiesForUser(user: PublicUser): Promise<OpportunityRecord[]>;
+  putOpportunity(opportunity: OpportunityRecord): Promise<void>;
+  deleteOpportunity(opportunityId: string): Promise<void>;
+  listOpportunityComplaintsForUser(user: PublicUser): Promise<OpportunityComplaintRecord[]>;
+  putOpportunityComplaint(complaint: OpportunityComplaintRecord): Promise<void>;
+  listOpportunityAppealsForUser(user: PublicUser): Promise<OpportunityAppealRecord[]>;
+  putOpportunityAppeal(appeal: OpportunityAppealRecord): Promise<void>;
+  listHouseholdsForUser(user: PublicUser): Promise<HouseholdInstallationRecord[]>;
+  getAdvertiserGeoAggregates(): Promise<AdvertiserGeoAggregateRow[]>;
+  getHouseholdForActor(
+    user: PublicUser,
+    householdId: string
+  ): Promise<HouseholdInstallationRecord | null>;
+  putHousehold(household: HouseholdInstallationRecord): Promise<void>;
+  listHouseholdMembersForActor(
+    user: PublicUser,
+    householdId: string
+  ): Promise<Array<Omit<HouseholdMemberProfile, 'pinHash'>>>;
+  listHouseholdMemberPersistenceRecordsForActor(
+    user: PublicUser,
+    householdId: string
+  ): Promise<HouseholdMemberProfile[]>;
+  putHouseholdMember(user: PublicUser, member: HouseholdMemberProfile): Promise<void>;
+  deleteHouseholdMember(user: PublicUser, householdId: string, memberId: string): Promise<void>;
+  listHouseholdQrTokensForActor(
+    user: PublicUser,
+    householdId: string
+  ): Promise<HouseholdQrTokenRecord[]>;
+  getHouseholdQrRedirectState(
+    token: string
+  ): Promise<HouseholdQrRedirectPersistenceState | null>;
+  putHouseholdQrToken(token: HouseholdQrTokenRecord, ownerUserId: string): Promise<void>;
+  listConsentAuditEventsForActor(
+    user: PublicUser,
+    householdId: string
+  ): Promise<ConsentAuditEventRecord[]>;
+  putConsentAuditEvent(event: ConsentAuditEventRecord, ownerUserId: string): Promise<void>;
 }
 
 function extractSessionToken(req: Request): {
@@ -254,6 +410,14 @@ function mapErrorStatus(err: unknown, defaultCode = 400): { code: number; messag
   return { code: defaultCode, message };
 }
 
+function isD1DomainError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : '';
+  return (
+    message.startsWith('D1_APPLICATION_RECORD') ||
+    message.startsWith('D1_DOMAIN')
+  );
+}
+
 function sendValidationError(
   res: Response,
   parsed: { ok: false; error: string; validationIssues: Array<{ path: string; message: string }> }
@@ -264,15 +428,33 @@ function sendValidationError(
   });
 }
 
+function asyncHandler(
+  handler: (req: Request, res: Response, next: NextFunction) => Promise<unknown>
+): RequestHandler {
+  return (req, res, next) => {
+    void handler(req, res, next).catch(next);
+  };
+}
+
 export function createEdisonApp(
-  store: EdisonDataRepository = edisonStore,
+  store: EdisonDataRepository = getEdisonStore(),
   options?: {
     uploadsDir?: string;
+    sharedIntelFleetService?: SharedIntelFleetService;
     rateLimits?: EdisonRateLimitOptions;
     requestTimeoutMs?: number;
+    authSessionRepository?: EdisonAuthSessionRepository;
+    domainRecordRepository?: EdisonDomainRecordRepository;
+    governanceDocRepository?: {
+      listGovernanceDocs: () => Promise<GovernanceDocRecord[]>;
+      getGovernanceDocById: (id: string) => Promise<GovernanceDocRecord | null>;
+    };
+    disableMediaProcessing?: boolean;
   }
 ): Express {
   const uploadsDir = options?.uploadsDir ?? UPLOADS_DIR;
+  const authSessionRepository = options?.authSessionRepository ?? store;
+  const domainRecordRepository = options?.domainRecordRepository;
   const app = express();
   app.set('trust proxy', true);
   app.disable('x-powered-by');
@@ -282,6 +464,162 @@ export function createEdisonApp(
     options?.uploadsDir
       ? new FfmpegMediaWorker({ uploadsDir: options.uploadsDir })
       : edisonMediaWorker;
+  const fleetService = options?.sharedIntelFleetService ?? sharedIntelFleetService;
+
+  async function listMergedAuditRecords(
+    filters: { targetType?: string; limit?: number } = {}
+  ): Promise<AuditLogRecord[]> {
+    const limit = Math.min(500, Math.max(1, filters.limit ?? 200));
+    const domainItems = store.listAuditLogs({ ...filters, limit });
+    const includesAuth =
+      !filters.targetType || filters.targetType === 'all' || filters.targetType === 'auth';
+    const d1Items = includesAuth ? await authSessionRepository.listAuditRecords(limit) : [];
+    let items = [...domainItems, ...d1Items];
+    if (filters.targetType && filters.targetType !== 'all') {
+      items = items.filter((item) => item.targetType === filters.targetType);
+    }
+    return items
+      .sort((left, right) =>
+        right.createdAt.localeCompare(left.createdAt) || right.id.localeCompare(left.id)
+      )
+      .slice(0, limit);
+  }
+
+  async function getFoundationSummary(): Promise<LiveReportSnapshot['summary']> {
+    if (!domainRecordRepository) return store.getFoundationSummary();
+    const [persistedCounts, userCount, auditRecords] = await Promise.all([
+      domainRecordRepository.getFoundationSummaryCounts(),
+      authSessionRepository.getUserCount(),
+      authSessionRepository.listAuditRecords(500),
+    ]);
+    return {
+      ...store.getFoundationSummary(),
+      ...persistedCounts,
+      userCount,
+      auditLogCount: auditRecords.length,
+      storagePath: 'Cloudflare D1 application-record store',
+    };
+  }
+
+  async function getLiveReportSnapshot(): Promise<LiveReportSnapshot> {
+    if (!domainRecordRepository) return store.getLiveReportSnapshot();
+    const [summary, campaignStatusBreakdown, auditRecords] = await Promise.all([
+      getFoundationSummary(),
+      domainRecordRepository.getCampaignStatusBreakdown(),
+      authSessionRepository.listAuditRecords(500),
+    ]);
+    return store.getLiveReportSnapshot({
+      summary,
+      campaignStatusBreakdown,
+      latestAudit: auditRecords[0] ?? null,
+    });
+  }
+
+  function recordRouteAudit(
+    req: AuthenticatedRequest,
+    actor: PublicUser | null,
+    action: string,
+    targetId: string,
+    detail: string
+  ): void {
+    store.recordSecurityAudit(actor, action, targetId, detail);
+    if (authSessionRepository === store) {
+      return;
+    }
+    const write = authSessionRepository.recordSecurityAudit(actor, action, targetId, detail);
+    if (write instanceof Promise) {
+      req.pendingAuditWrites ??= [];
+      req.pendingAuditWrites.push(write);
+    }
+  }
+
+  async function synchronizeAuraStateFromD1(actor: PublicUser): Promise<void> {
+    if (!domainRecordRepository) return;
+    auraRemoteEngine.replaceDevicesFromPersistence(
+      await domainRecordRepository.listAuraDevicesForUser(actor),
+    );
+  }
+
+  async function persistHouseholdState(
+    actor: PublicUser,
+    household: HouseholdInstallationRecord
+  ): Promise<void> {
+    if (!domainRecordRepository) return;
+    await domainRecordRepository.putHousehold(household);
+    const [members, tokens, events] = await Promise.all([
+      Promise.resolve(store.getHouseholdMembersForPersistence(actor, household.id)),
+      Promise.resolve(store.listHouseholdQrTokens(actor, household.id)),
+      Promise.resolve(store.listConsentAuditEvents(actor, household.id)),
+    ]);
+    await Promise.all([
+      ...members.map((member) => domainRecordRepository.putHouseholdMember(actor, member)),
+      ...tokens.map((token) =>
+        domainRecordRepository.putHouseholdQrToken(token, household.ownerUserId)
+      ),
+      ...events.map((event) =>
+        domainRecordRepository.putConsentAuditEvent(event, household.ownerUserId)
+      ),
+    ]);
+  }
+
+  async function synchronizeHouseholdStateFromD1(
+    actor: PublicUser,
+    householdId: string
+  ): Promise<boolean> {
+    if (!domainRecordRepository) return false;
+    const household = await domainRecordRepository.getHouseholdForActor(actor, householdId);
+    if (!household) return false;
+    const [members, tokens, auditEvents] = await Promise.all([
+      domainRecordRepository.listHouseholdMemberPersistenceRecordsForActor(actor, householdId),
+      domainRecordRepository.listHouseholdQrTokensForActor(actor, householdId),
+      domainRecordRepository.listConsentAuditEventsForActor(actor, householdId),
+    ]);
+    store.replaceHouseholdStateFromPersistence(actor, household, members, tokens, auditEvents);
+    return true;
+  }
+
+  async function synchronizePilotCohortsFromD1(): Promise<void> {
+    if (!domainRecordRepository) return;
+    const [cohorts, prepNotes] = await Promise.all([
+      domainRecordRepository.listPilotCohorts(),
+      domainRecordRepository.listStageP6PrepNotes(),
+    ]);
+    store.replacePilotCohortsFromPersistence(cohorts);
+    store.replaceStageP6PrepNotesFromPersistence(prepNotes);
+  }
+
+  async function synchronizeCommercialReadinessFromD1(): Promise<void> {
+    if (!domainRecordRepository) return;
+    const [assumptions, decisions] = await Promise.all([
+      domainRecordRepository.getCommercialCostAssumptions(),
+      domainRecordRepository.listCommercialBoardDecisions(),
+    ]);
+    store.replaceCommercialReadinessStateFromPersistence(assumptions, decisions);
+  }
+
+  async function synchronizeCountryLaunchStateFromD1(): Promise<void> {
+    if (!domainRecordRepository) return;
+    const [profiles, decisions] = await Promise.all([
+      domainRecordRepository.listCountryPolicyProfiles(),
+      domainRecordRepository.listCountryLaunchDecisions(),
+    ]);
+    store.replaceCountryLaunchStateFromPersistence(profiles, decisions);
+  }
+
+  async function synchronizeInternationalExpansionStateFromD1(): Promise<void> {
+    if (!domainRecordRepository) return;
+    const [profiles, decisions] = await Promise.all([
+      domainRecordRepository.listRegionalLocalizationProfiles(),
+      domainRecordRepository.listInternationalExpansionDecisions(),
+    ]);
+    store.replaceInternationalExpansionStateFromPersistence(profiles, decisions);
+  }
+
+  async function synchronizeReliabilityChaosReportFromD1(): Promise<void> {
+    if (!domainRecordRepository) return;
+    const report = await domainRecordRepository.getLatestReliabilityChaosReport();
+    store.replaceLastReliabilityChaosReportFromPersistence(report);
+  }
 
   const recordRequestTelemetry = (entry: RequestTelemetryEntry) => {
     reliabilityMonitor.recordHttpRequest(
@@ -345,15 +683,16 @@ export function createEdisonApp(
     (req: AuthenticatedRequest) => req.currentUser?.id || req.ip || 'unknown'
   );
 
-  function attachSession(req: AuthenticatedRequest, _res: Response, next: NextFunction): void {
+  async function attachSession(req: Request, _res: Response, next: NextFunction): Promise<void> {
+    const authenticatedReq = req as AuthenticatedRequest;
     const { token, transport } = extractSessionToken(req);
-    req.sessionToken = token;
-    req.authTransport = transport;
-    const resolved = store.getSessionByToken(token);
-    req.currentUser = resolved?.user ?? null;
-    req.currentSession = resolved?.session ?? null;
+    authenticatedReq.sessionToken = token;
+    authenticatedReq.authTransport = transport;
+    const resolved = await authSessionRepository.getSessionByToken(token);
+    authenticatedReq.currentUser = resolved?.user ?? null;
+    authenticatedReq.currentSession = resolved?.session ?? null;
     if (resolved && token) {
-      store.touchSessionActivity(token);
+      await authSessionRepository.touchSessionActivity(token);
     }
     next();
   }
@@ -386,11 +725,12 @@ export function createEdisonApp(
     '/api/qr/validate',
   ]);
 
-  function requireCsrfAndSameOrigin(
-    req: AuthenticatedRequest,
+  async function requireCsrfAndSameOrigin(
+    req: Request,
     res: Response,
     next: NextFunction
-  ): void {
+  ): Promise<void> {
+    const authenticatedReq = req as AuthenticatedRequest;
     const method = req.method.toUpperCase();
     if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') {
       next();
@@ -400,8 +740,8 @@ export function createEdisonApp(
     const fullPath = req.originalUrl.split('?')[0];
 
     if (!isSameOriginRequest(req)) {
-      store.recordSecurityAudit(
-        req.currentUser ?? null,
+      await authSessionRepository.recordSecurityAudit(
+        authenticatedReq.currentUser ?? null,
         'SECURITY_CROSS_ORIGIN_REJECTED',
         fullPath,
         `Rejected cross-origin ${method} to ${fullPath} (origin=${req.get('origin') || 'none'}).`
@@ -418,13 +758,13 @@ export function createEdisonApp(
     }
 
     // Explicit Authorization: Bearer clients do not send ambient cookies
-    if (req.authTransport === 'bearer') {
+    if (authenticatedReq.authTransport === 'bearer') {
       next();
       return;
     }
 
     // Idempotent logout when no valid session cookie is present
-    if (fullPath === '/api/auth/logout' && !req.currentSession) {
+    if (fullPath === '/api/auth/logout' && !authenticatedReq.currentSession) {
       next();
       return;
     }
@@ -432,13 +772,13 @@ export function createEdisonApp(
     const cookies = parseCookies(req.headers.cookie);
     const cookieCsrf = cookies[CSRF_COOKIE_NAME];
     const headerCsrf = req.get(CSRF_HEADER_NAME);
-    const sessionBoundOk = req.currentSession
-      ? timingSafeMatch(req.currentSession.csrfToken, headerCsrf)
+    const sessionBoundOk = authenticatedReq.currentSession
+      ? timingSafeMatch(authenticatedReq.currentSession.csrfToken, headerCsrf)
       : true;
 
     if (!cookieCsrf || !headerCsrf || !timingSafeMatch(cookieCsrf, headerCsrf) || !sessionBoundOk) {
-      store.recordSecurityAudit(
-        req.currentUser ?? null,
+      await authSessionRepository.recordSecurityAudit(
+        authenticatedReq.currentUser ?? null,
         'SECURITY_CSRF_REJECTED',
         fullPath,
         `CSRF token missing or mismatched on ${method} ${fullPath}.`
@@ -455,8 +795,8 @@ export function createEdisonApp(
   app.use(securityHeadersMiddleware);
   app.use(requestCorrelationMiddleware(recordRequestTelemetry));
   app.use('/api', apiTimeoutMiddleware(options?.requestTimeoutMs ?? 15_000));
-  app.use(attachSession);
-  app.use('/api', requireCsrfAndSameOrigin);
+  app.use(asyncHandler(attachSession));
+  app.use('/api', asyncHandler(requireCsrfAndSameOrigin));
   app.use('/api', (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     const method = req.method.toUpperCase();
     if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') {
@@ -475,10 +815,47 @@ export function createEdisonApp(
     mutationRateMiddleware(req, res, next);
   });
 
+  app.use('/api', (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    const originalJson = res.json.bind(res);
+    const originalSend = res.send.bind(res);
+
+    const drainAuditWrites = (thenSend: () => Response): Response => {
+      const writes = req.pendingAuditWrites ?? [];
+      req.pendingAuditWrites = [];
+      if (writes.length === 0) {
+        return thenSend();
+      }
+      void Promise.all(writes)
+        .then(() => {
+          if (!res.headersSent) {
+            thenSend();
+          }
+        })
+        .catch(next);
+      return res;
+    };
+
+    res.json = ((body: unknown) =>
+      drainAuditWrites(() => originalJson(body))) as Response['json'];
+    res.send = ((body?: unknown) =>
+      drainAuditWrites(() => originalSend(body))) as Response['send'];
+    next();
+  });
+
   // Validated media upload endpoint (auth + CSRF + upload rate limit before parsing 26MB JSON)
   app.post(
     '/api/media/upload',
     requireAuth,
+    (_req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+      if (options?.disableMediaProcessing) {
+        res.status(503).json({
+          error: 'MEDIA_PROCESSING_UNAVAILABLE',
+          message: 'Media storage and FFmpeg execution are not configured for this Worker.',
+        });
+        return;
+      }
+      next();
+    },
     uploadRateMiddleware,
     express.json({ limit: '26mb' }),
     (req: AuthenticatedRequest, res: Response) => {
@@ -524,8 +901,8 @@ export function createEdisonApp(
   app.use(express.json({ limit: '1mb' }));
 
   // Health & prototype status
-  app.get('/api/health', (_req: Request, res: Response) => {
-    const live = store.getLiveReportSnapshot();
+  app.get('/api/health', asyncHandler(async (_req: Request, res: Response) => {
+    const live = await getLiveReportSnapshot();
     const storageBackend = store.getStorageBackendMetadata();
     res.json({
       ok: true,
@@ -536,26 +913,44 @@ export function createEdisonApp(
       progressMetrics: live.progressMetrics,
       summary: live.summary,
     });
-  });
+  }));
 
   // Live non-sensitive formal report snapshot for Reports & Copy Console
-  app.get('/api/reports/live', (_req: Request, res: Response) => {
+  app.get('/api/reports/live', asyncHandler(async (_req: Request, res: Response) => {
     res.setHeader('Cache-Control', 'no-store');
-    res.json(store.getLiveReportSnapshot());
-  });
+    res.json(await getLiveReportSnapshot());
+  }));
 
   // Read-only governance & architecture documentation endpoints (strict allowlist of 25 Markdown files)
-  app.get('/api/docs', (_req: Request, res: Response) => {
+  app.get('/api/docs', asyncHandler(async (_req: Request, res: Response) => {
+    if (options?.governanceDocRepository) {
+      res.json({ items: await options.governanceDocRepository.listGovernanceDocs() });
+      return;
+    }
     try {
       res.json({ items: listGovernanceDocs() });
     } catch (err) {
       const { code, message } = mapErrorStatus(err, 500);
       res.status(code).json({ error: message });
     }
-  });
+  }));
 
-  app.get('/api/docs/:id', (req: Request, res: Response) => {
+  app.get('/api/docs/:id', asyncHandler(async (req: Request, res: Response) => {
     try {
+      if (options?.governanceDocRepository) {
+        const meta = getGovernanceDocMetadata(req.params.id);
+        if (!meta) {
+          res.status(404).json({ error: 'Governance document not found.' });
+          return;
+        }
+        const doc = await options.governanceDocRepository.getGovernanceDocById(meta.id);
+        if (!doc) {
+          res.status(404).json({ error: 'Governance document not found.' });
+          return;
+        }
+        res.json({ item: doc });
+        return;
+      }
       const doc = getGovernanceDocById(req.params.id);
       if (!doc) {
         res.status(404).json({ error: 'Governance document not found.' });
@@ -566,7 +961,7 @@ export function createEdisonApp(
       const { code, message } = mapErrorStatus(err, 500);
       res.status(code).json({ error: message });
     }
-  });
+  }));
 
   // Auth, CSRF Bootstrap & RBAC endpoints
   app.get('/api/auth/csrf', (req: AuthenticatedRequest, res: Response) => {
@@ -581,7 +976,7 @@ export function createEdisonApp(
     res.json({ csrfToken });
   });
 
-  app.get('/api/auth/me', (req: AuthenticatedRequest, res: Response) => {
+  app.get('/api/auth/me', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (req.currentSession?.csrfToken) {
       const cookies = parseCookies(req.headers.cookie);
       if (!timingSafeMatch(req.currentSession.csrfToken, cookies[CSRF_COOKIE_NAME])) {
@@ -595,66 +990,97 @@ export function createEdisonApp(
     res.json({
       user: req.currentUser ?? null,
       csrfToken: req.currentSession?.csrfToken ?? null,
-      summary: store.getFoundationSummary(),
+      summary: await getFoundationSummary(),
     });
-  });
+  }));
 
-  app.post('/api/auth/register', authRateMiddleware, (req: AuthenticatedRequest, res: Response) => {
-    const parsed = parseWithZod(registerSchema, req.body);
-    if (!parsed.ok) {
-      sendValidationError(res, parsed);
-      return;
-    }
+  app.post(
+    '/api/auth/register',
+    authRateMiddleware,
+    asyncHandler(async (req, res, next) => {
+      const authenticatedReq = req as AuthenticatedRequest;
+      const parsed = parseWithZod(registerSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
 
-    try {
-      const { user, session } = store.registerUser(parsed.data, req.sessionToken);
-      setAuthCookies(req, res, session.token, session.csrfToken);
-      res.status(201).json({
-        user,
-        token: session.token,
-        csrfToken: session.csrfToken,
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unable to register user.';
-      res.status(message.startsWith('FORBIDDEN:') ? 403 : 409).json({
-        error: message,
-      });
-    }
-  });
+      try {
+        const { user, session } = await authSessionRepository.registerUser(
+          parsed.data,
+          authenticatedReq.sessionToken
+        );
+        if (user.role !== 'household_viewer') {
+          const profile = store.getAdvertiserProfile(user);
+          if (domainRecordRepository) {
+            await domainRecordRepository.putAdvertiserProfile(profile);
+          }
+        }
+        setAuthCookies(req, res, session.token, session.csrfToken);
+        res.status(201).json({
+          user,
+          token: session.token,
+          csrfToken: session.csrfToken,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unable to register user.';
+        if (message.startsWith('FORBIDDEN:') || message.includes('already exists')) {
+          res.status(message.startsWith('FORBIDDEN:') ? 403 : 409).json({
+            error: message,
+          });
+          return;
+        }
+        next(err);
+      }
+    })
+  );
 
-  app.post('/api/auth/login', authRateMiddleware, (req: AuthenticatedRequest, res: Response) => {
-    const parsed = parseWithZod(loginSchema, req.body);
-    if (!parsed.ok) {
-      sendValidationError(res, parsed);
-      return;
-    }
+  app.post(
+    '/api/auth/login',
+    authRateMiddleware,
+    asyncHandler(async (req, res, next) => {
+      const authenticatedReq = req as AuthenticatedRequest;
+      const parsed = parseWithZod(loginSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
 
-    try {
-      const { user, session } = store.loginUser(
-        parsed.data.email,
-        parsed.data.password,
-        req.sessionToken
-      );
-      setAuthCookies(req, res, session.token, session.csrfToken);
-      res.json({
-        user,
-        token: session.token,
-        csrfToken: session.csrfToken,
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Invalid credentials.';
-      res.status(message.startsWith('FORBIDDEN:') ? 403 : 401).json({
-        error: message,
-      });
-    }
-  });
+      try {
+        const { user, session } = await authSessionRepository.loginUser(
+          parsed.data.email,
+          parsed.data.password,
+          authenticatedReq.sessionToken
+        );
+        setAuthCookies(req, res, session.token, session.csrfToken);
+        res.json({
+          user,
+          token: session.token,
+          csrfToken: session.csrfToken,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Invalid credentials.';
+        if (message === 'Invalid email or password.' || message.startsWith('FORBIDDEN:')) {
+          res.status(message.startsWith('FORBIDDEN:') ? 403 : 401).json({
+            error: message,
+          });
+          return;
+        }
+        next(err);
+      }
+    })
+  );
 
-  app.post('/api/auth/logout', (req: AuthenticatedRequest, res: Response) => {
-    store.logoutSession(req.sessionToken);
-    res.clearCookie(SESSION_COOKIE_NAME, buildClearCookieOptions(req, true));
-    res.clearCookie(CSRF_COOKIE_NAME, buildClearCookieOptions(req, false));
-    res.json({ ok: true });
-  });
+  app.post(
+    '/api/auth/logout',
+    asyncHandler(async (req, res) => {
+      const authenticatedReq = req as AuthenticatedRequest;
+      await authSessionRepository.logoutSession(authenticatedReq.sessionToken);
+      res.clearCookie(SESSION_COOKIE_NAME, buildClearCookieOptions(req, true));
+      res.clearCookie(CSRF_COOKIE_NAME, buildClearCookieOptions(req, false));
+      res.json({ ok: true });
+    })
+  );
 
   // QR Destination Validation & Management
   app.post('/api/qr/validate', redirectRateMiddleware, (req: Request, res: Response) => {
@@ -670,72 +1096,138 @@ export function createEdisonApp(
     res.json(result);
   });
 
-  app.get('/api/qr', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const user = req.currentUser!;
-    res.json({
-      items: store.listQrLinksForUser(user),
-    });
-  });
+  app.get(
+    '/api/qr',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
+      if (!domainRecordRepository) {
+        res.json({ items: store.listQrLinksForUser(user) });
+        return;
+      }
+      const items = await domainRecordRepository.listQrLinksForActor(user);
+      res.json({ items });
+    })
+  );
 
-  app.post('/api/qr', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const parsed = parseWithZod(qrCreateSchema, req.body);
-    if (!parsed.ok) {
-      sendValidationError(res, parsed);
-      return;
-    }
-    try {
-      const record = store.createQrLink(req.currentUser!, {
-        label: parsed.data.label,
-        destinationType: parsed.data.destinationType as QrDestinationType,
-        rawInput: parsed.data.rawInput,
-      });
-      res.status(201).json({ item: record });
-    } catch (err) {
-      res.status(400).json({
-        error: err instanceof Error ? err.message : 'Invalid QR destination.',
-      });
-    }
-  });
+  app.post(
+    '/api/qr',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const authenticatedReq = req as AuthenticatedRequest;
+      const parsed = parseWithZod(qrCreateSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        const record = store.createQrLink(authenticatedReq.currentUser!, {
+          label: parsed.data.label,
+          destinationType: parsed.data.destinationType as QrDestinationType,
+          rawInput: parsed.data.rawInput,
+        });
+        if (domainRecordRepository) await domainRecordRepository.putQrLink(record);
+        res.status(201).json({ item: record });
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : '';
+        if (errorMessage.startsWith('D1_APPLICATION_RECORD') || errorMessage.startsWith('D1_DOMAIN')) {
+          throw err;
+        }
+        res.status(400).json({
+          error: err instanceof Error ? err.message : 'Invalid QR destination.',
+        });
+      }
+    })
+  );
 
-  app.patch('/api/qr/:token/status', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const parsed = parseWithZod(qrStatusPatchSchema, req.body);
-    if (!parsed.ok) {
-      sendValidationError(res, parsed);
-      return;
-    }
-    try {
-      const updated = store.updateQrStatus(req.currentUser!, req.params.token, parsed.data.status);
-      res.json({ item: updated });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err, 404);
-      res.status(code).json({ error: message });
-    }
-  });
+  app.patch(
+    '/api/qr/:token/status',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const authenticatedReq = req as AuthenticatedRequest;
+      const parsed = parseWithZod(qrStatusPatchSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        const updated = store.updateQrStatus(
+          authenticatedReq.currentUser!,
+          req.params.token,
+          parsed.data.status
+        );
+        if (domainRecordRepository) {
+          await domainRecordRepository.putQrLink(updated);
+        }
+        res.json({ item: updated });
+      } catch (err) {
+        const { code, message } = mapErrorStatus(err, 404);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
 
   // --- Advertiser Profile Endpoints (Block 2.2) ---
-  app.get('/api/advertiser/profile', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const profile = store.getAdvertiserProfile(req.currentUser!);
-    res.json({ profile });
-  });
-
-  app.put('/api/advertiser/profile', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const parsed = parseWithZod(advertiserProfilePutSchema, req.body);
-    if (!parsed.ok) {
-      sendValidationError(res, parsed);
-      return;
-    }
-    try {
-      const profile = store.upsertAdvertiserProfile(req.currentUser!, parsed.data);
+  app.get(
+    '/api/advertiser/profile',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const authenticatedReq = req as AuthenticatedRequest;
+      const fallback = store.getAdvertiserProfile(authenticatedReq.currentUser!);
+      if (!domainRecordRepository) {
+        res.json({ profile: fallback });
+        return;
+      }
+      const profile =
+        (await domainRecordRepository.getAdvertiserProfile(authenticatedReq.currentUser!.id)) ??
+        fallback;
       res.json({ profile });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+    })
+  );
 
-  app.get('/api/admin/advertiser-profiles', requireAdmin, (_req: AuthenticatedRequest, res: Response) => {
-    res.json({ items: store.listAllAdvertiserProfiles() });
-  });
+  app.put(
+    '/api/advertiser/profile',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const authenticatedReq = req as AuthenticatedRequest;
+      const parsed = parseWithZod(advertiserProfilePutSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        const profile = store.upsertAdvertiserProfile(authenticatedReq.currentUser!, parsed.data);
+        if (domainRecordRepository) {
+          await domainRecordRepository.putAdvertiserProfile(profile);
+        }
+        res.json({ profile });
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : '';
+        if (errorMessage.startsWith('D1_APPLICATION_RECORD') || errorMessage.startsWith('D1_DOMAIN')) {
+          throw err;
+        }
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
+
+  app.get(
+    '/api/admin/advertiser-profiles',
+    requireAdmin,
+    asyncHandler(async (_req: AuthenticatedRequest, res: Response) => {
+      try {
+        const items = domainRecordRepository
+          ? await domainRecordRepository.listAdvertiserProfiles()
+          : store.listAllAdvertiserProfiles();
+        res.json({ items });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
 
   app.patch(
     '/api/admin/advertiser-profiles/:userId/verification',
@@ -762,125 +1254,190 @@ export function createEdisonApp(
   );
 
   // --- Campaign Management Endpoints (Block 2.2) ---
-  app.get('/api/campaigns', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const parsedQuery = parseWithZod(campaignQuerySchema, {
-      status: typeof req.query.status === 'string' ? req.query.status : undefined,
-    });
-    if (!parsedQuery.ok) {
-      sendValidationError(res, parsedQuery);
-      return;
-    }
-    const items = store.listCampaignsForUser(req.currentUser!, parsedQuery.data.status);
-    res.json({
-      items,
-      statuses: ALL_CAMPAIGN_STATUSES,
-      transitions: ALLOWED_CAMPAIGN_TRANSITIONS,
-    });
-  });
-
-  app.post('/api/campaigns', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const parsed = parseWithZod(campaignCreateSchema, req.body);
-    if (!parsed.ok) {
-      sendValidationError(res, parsed);
-      return;
-    }
-    const d = parsed.data;
-    try {
-      const item = store.createCampaign(req.currentUser!, {
-        title: d.title,
-        contentCategory: d.contentCategory,
-        summary: d.summary,
-        qrToken: d.qrToken && d.qrToken.trim() ? d.qrToken.trim() : null,
-        durationSeconds: d.durationSeconds,
-        dailyFrequencyCap: d.dailyFrequencyCap,
-        targetRegions: Array.isArray(d.targetRegions)
-          ? d.targetRegions
-          : d.targetRegions.split(','),
-        dayparts: d.dayparts,
-        startDate: d.startDate,
-        endDate: d.endDate,
+  app.get(
+    '/api/campaigns',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const authenticatedReq = req as AuthenticatedRequest;
+      const parsedQuery = parseWithZod(campaignQuerySchema, {
+        status: typeof req.query.status === 'string' ? req.query.status : undefined,
       });
-      res.status(201).json({ item });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+      if (!parsedQuery.ok) {
+        sendValidationError(res, parsedQuery);
+        return;
+      }
+      const items = domainRecordRepository
+        ? await domainRecordRepository.listCampaignsForUser(
+            authenticatedReq.currentUser!,
+            parsedQuery.data.status
+          )
+        : store.listCampaignsForUser(
+            authenticatedReq.currentUser!,
+            parsedQuery.data.status
+          );
+      res.json({
+        items,
+        statuses: ALL_CAMPAIGN_STATUSES,
+        transitions: ALLOWED_CAMPAIGN_TRANSITIONS,
+      });
+    })
+  );
 
-  app.patch('/api/campaigns/:id', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const parsed = parseWithZod(campaignUpdateSchema, req.body);
-    if (!parsed.ok) {
-      sendValidationError(res, parsed);
-      return;
-    }
-    const d = parsed.data;
-    try {
-      const item = store.updateCampaign(req.currentUser!, req.params.id, {
-        title: d.title,
-        contentCategory: d.contentCategory,
-        summary: d.summary,
-        qrToken: d.qrToken !== undefined ? (d.qrToken && d.qrToken.trim() ? d.qrToken.trim() : null) : undefined,
-        durationSeconds: d.durationSeconds,
-        dailyFrequencyCap: d.dailyFrequencyCap,
-        targetRegions:
-          d.targetRegions === undefined
-            ? undefined
-            : Array.isArray(d.targetRegions)
+  app.post(
+    '/api/campaigns',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const authenticatedReq = req as AuthenticatedRequest;
+      const parsed = parseWithZod(campaignCreateSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const d = parsed.data;
+      try {
+        const item = store.createCampaign(authenticatedReq.currentUser!, {
+          title: d.title,
+          contentCategory: d.contentCategory,
+          summary: d.summary,
+          qrToken: d.qrToken && d.qrToken.trim() ? d.qrToken.trim() : null,
+          durationSeconds: d.durationSeconds,
+          dailyFrequencyCap: d.dailyFrequencyCap,
+          targetRegions: Array.isArray(d.targetRegions)
             ? d.targetRegions
             : d.targetRegions.split(','),
-        dayparts: d.dayparts,
-        startDate: d.startDate,
-        endDate: d.endDate,
-      });
-      res.json({ item });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
-
-  app.post('/api/campaigns/:id/clone', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const item = store.cloneCampaign(req.currentUser!, req.params.id);
-      res.status(201).json({ item });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
-
-  app.post('/api/campaigns/:id/transition', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const parsed = parseWithZod(campaignTransitionSchema, req.body);
-    if (!parsed.ok) {
-      sendValidationError(res, parsed);
-      return;
-    }
-    try {
-      const item = store.transitionCampaignStatus(
-        req.currentUser!,
-        req.params.id,
-        parsed.data.targetStatus,
-        {
-          rejectionReason: parsed.data.rejectionReason,
-          fixInstructions: parsed.data.fixInstructions,
+          dayparts: d.dayparts,
+          startDate: d.startDate,
+          endDate: d.endDate,
+        });
+        if (domainRecordRepository) await domainRecordRepository.putCampaign(item);
+        res.status(201).json({ item });
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : '';
+        if (errorMessage.startsWith('D1_APPLICATION_RECORD') || errorMessage.startsWith('D1_DOMAIN')) {
+          throw err;
         }
-      );
-      res.json({ item });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
 
-  app.delete('/api/campaigns/:id', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    try {
-      store.deleteCampaign(req.currentUser!, req.params.id);
-      res.json({ ok: true });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+  app.patch(
+    '/api/campaigns/:id',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const authenticatedReq = req as AuthenticatedRequest;
+      const parsed = parseWithZod(campaignUpdateSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const d = parsed.data;
+      try {
+        const item = store.updateCampaign(authenticatedReq.currentUser!, req.params.id, {
+          title: d.title,
+          contentCategory: d.contentCategory,
+          summary: d.summary,
+          qrToken: d.qrToken !== undefined ? (d.qrToken && d.qrToken.trim() ? d.qrToken.trim() : null) : undefined,
+          durationSeconds: d.durationSeconds,
+          dailyFrequencyCap: d.dailyFrequencyCap,
+          targetRegions:
+            d.targetRegions === undefined
+              ? undefined
+              : Array.isArray(d.targetRegions)
+              ? d.targetRegions
+              : d.targetRegions.split(','),
+          dayparts: d.dayparts,
+          startDate: d.startDate,
+          endDate: d.endDate,
+        });
+        if (domainRecordRepository) await domainRecordRepository.putCampaign(item);
+        res.json({ item });
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : '';
+        if (errorMessage.startsWith('D1_APPLICATION_RECORD') || errorMessage.startsWith('D1_DOMAIN')) {
+          throw err;
+        }
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
+
+  app.post(
+    '/api/campaigns/:id/clone',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const authenticatedReq = req as AuthenticatedRequest;
+      try {
+        const item = store.cloneCampaign(authenticatedReq.currentUser!, req.params.id);
+        if (domainRecordRepository) await domainRecordRepository.putCampaign(item);
+        res.status(201).json({ item });
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : '';
+        if (errorMessage.startsWith('D1_APPLICATION_RECORD') || errorMessage.startsWith('D1_DOMAIN')) {
+          throw err;
+        }
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
+
+  app.post(
+    '/api/campaigns/:id/transition',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const authenticatedReq = req as AuthenticatedRequest;
+      const parsed = parseWithZod(campaignTransitionSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        const item = store.transitionCampaignStatus(
+          authenticatedReq.currentUser!,
+          req.params.id,
+          parsed.data.targetStatus,
+          {
+            rejectionReason: parsed.data.rejectionReason,
+            fixInstructions: parsed.data.fixInstructions,
+          }
+        );
+        if (domainRecordRepository) await domainRecordRepository.putCampaign(item);
+        res.json({ item });
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : '';
+        if (errorMessage.startsWith('D1_APPLICATION_RECORD') || errorMessage.startsWith('D1_DOMAIN')) {
+          throw err;
+        }
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
+
+  app.delete(
+    '/api/campaigns/:id',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const authenticatedReq = req as AuthenticatedRequest;
+      try {
+        store.deleteCampaign(authenticatedReq.currentUser!, req.params.id);
+        if (domainRecordRepository) {
+          await domainRecordRepository.deleteCampaign(req.params.id);
+        }
+        res.json({ ok: true });
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : '';
+        if (errorMessage.startsWith('D1_APPLICATION_RECORD') || errorMessage.startsWith('D1_DOMAIN')) {
+          throw err;
+        }
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
 
   // --- 16:9 TV Preview Gate & Commercial-Break Simulator Telemetry (Block 2.4) ---
   app.get(
@@ -897,19 +1454,32 @@ export function createEdisonApp(
     }
   );
 
-  app.post('/api/simulator/events', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const parsed = parseWithZod(simulatorEventSchema, req.body);
-    if (!parsed.ok) {
-      sendValidationError(res, parsed);
-      return;
-    }
-    const event = store.recordSimulatedPlaybackEvent(req.currentUser!, {
-      campaignId: parsed.data.campaignId && parsed.data.campaignId.trim() ? parsed.data.campaignId.trim() : null,
-      qrToken: parsed.data.qrToken && parsed.data.qrToken.trim() ? parsed.data.qrToken.trim() : null,
-      eventType: parsed.data.eventType,
-    });
-    res.status(201).json({ event });
-  });
+  app.post(
+    '/api/simulator/events',
+    requireAuth,
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(simulatorEventSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const event = store.recordSimulatedPlaybackEvent(req.currentUser!, {
+        campaignId:
+          parsed.data.campaignId && parsed.data.campaignId.trim()
+            ? parsed.data.campaignId.trim()
+            : null,
+        qrToken:
+          parsed.data.qrToken && parsed.data.qrToken.trim()
+            ? parsed.data.qrToken.trim()
+            : null,
+        eventType: parsed.data.eventType,
+      });
+      if (domainRecordRepository) {
+        await domainRecordRepository.putAnalyticsEvent(event, req.currentUser!.id);
+      }
+      res.status(201).json({ event });
+    }),
+  );
 
   app.post(
     '/api/simulator/schedule-break',
@@ -932,130 +1502,202 @@ export function createEdisonApp(
   );
 
   // --- Advertisement Creation Studio Endpoints (Block 2.3) ---
-  app.get('/api/ad-creatives', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    res.json({ items: store.listAdCreativesForUser(req.currentUser!) });
-  });
+  app.get(
+    '/api/ad-creatives',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const authenticatedReq = req as AuthenticatedRequest;
+      const items = domainRecordRepository
+        ? await domainRecordRepository.listAdCreativesForUser(authenticatedReq.currentUser!)
+        : store.listAdCreativesForUser(authenticatedReq.currentUser!);
+      res.json({ items });
+    })
+  );
 
-  app.post('/api/ad-creatives', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const parsed = parseWithZod(adCreativeSaveSchema, req.body);
-    if (!parsed.ok) {
-      sendValidationError(res, parsed);
-      return;
-    }
-    const d = parsed.data;
-    try {
-      const item = store.saveAdCreative(req.currentUser!, {
-        campaignId: d.campaignId && d.campaignId.trim() ? d.campaignId.trim() : null,
-        qrToken: d.qrToken && d.qrToken.trim() ? d.qrToken.trim() : null,
-        title: d.title,
-        mode: d.mode,
-        displayDurationSeconds: d.displayDurationSeconds,
-        safeZoneWarnings: d.safeZoneWarnings,
-        contrastWarnings: d.contrastWarnings,
-        optionA: d.mode === 'option_a_studio' ? (d.optionA as unknown as OptionAComposition) : null,
-        optionB: d.mode === 'option_b_upload' ? (d.optionB as unknown as OptionBUploadSpec) : null,
-        textOnly:
-          d.mode === 'text_only_commercial'
-            ? (d.textOnly as unknown as TextOnlyCommercialSpec)
-            : null,
-      });
-      res.status(201).json({ item });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+  app.post(
+    '/api/ad-creatives',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const authenticatedReq = req as AuthenticatedRequest;
+      const parsed = parseWithZod(adCreativeSaveSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const d = parsed.data;
+      try {
+        const item = store.saveAdCreative(authenticatedReq.currentUser!, {
+          campaignId: d.campaignId && d.campaignId.trim() ? d.campaignId.trim() : null,
+          qrToken: d.qrToken && d.qrToken.trim() ? d.qrToken.trim() : null,
+          title: d.title,
+          mode: d.mode,
+          displayDurationSeconds: d.displayDurationSeconds,
+          safeZoneWarnings: d.safeZoneWarnings,
+          contrastWarnings: d.contrastWarnings,
+          optionA: d.mode === 'option_a_studio' ? (d.optionA as unknown as OptionAComposition) : null,
+          optionB: d.mode === 'option_b_upload' ? (d.optionB as unknown as OptionBUploadSpec) : null,
+          textOnly:
+            d.mode === 'text_only_commercial'
+              ? (d.textOnly as unknown as TextOnlyCommercialSpec)
+              : null,
+        });
+        if (domainRecordRepository) await domainRecordRepository.putAdCreative(item);
+        res.status(201).json({ item });
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : '';
+        if (errorMessage.startsWith('D1_APPLICATION_RECORD') || errorMessage.startsWith('D1_DOMAIN')) {
+          throw err;
+        }
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
 
-  app.put('/api/ad-creatives/:id', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const parsed = parseWithZod(adCreativeSaveSchema, req.body);
-    if (!parsed.ok) {
-      sendValidationError(res, parsed);
-      return;
-    }
-    const d = parsed.data;
-    try {
-      const item = store.saveAdCreative(req.currentUser!, {
-        id: req.params.id,
-        campaignId: d.campaignId && d.campaignId.trim() ? d.campaignId.trim() : null,
-        qrToken: d.qrToken && d.qrToken.trim() ? d.qrToken.trim() : null,
-        title: d.title,
-        mode: d.mode,
-        displayDurationSeconds: d.displayDurationSeconds,
-        safeZoneWarnings: d.safeZoneWarnings,
-        contrastWarnings: d.contrastWarnings,
-        optionA: d.mode === 'option_a_studio' ? (d.optionA as unknown as OptionAComposition) : null,
-        optionB: d.mode === 'option_b_upload' ? (d.optionB as unknown as OptionBUploadSpec) : null,
-        textOnly:
-          d.mode === 'text_only_commercial'
-            ? (d.textOnly as unknown as TextOnlyCommercialSpec)
-            : null,
-      });
-      res.json({ item });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+  app.put(
+    '/api/ad-creatives/:id',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const authenticatedReq = req as AuthenticatedRequest;
+      const parsed = parseWithZod(adCreativeSaveSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const d = parsed.data;
+      try {
+        const item = store.saveAdCreative(authenticatedReq.currentUser!, {
+          id: req.params.id,
+          campaignId: d.campaignId && d.campaignId.trim() ? d.campaignId.trim() : null,
+          qrToken: d.qrToken && d.qrToken.trim() ? d.qrToken.trim() : null,
+          title: d.title,
+          mode: d.mode,
+          displayDurationSeconds: d.displayDurationSeconds,
+          safeZoneWarnings: d.safeZoneWarnings,
+          contrastWarnings: d.contrastWarnings,
+          optionA: d.mode === 'option_a_studio' ? (d.optionA as unknown as OptionAComposition) : null,
+          optionB: d.mode === 'option_b_upload' ? (d.optionB as unknown as OptionBUploadSpec) : null,
+          textOnly:
+            d.mode === 'text_only_commercial'
+              ? (d.textOnly as unknown as TextOnlyCommercialSpec)
+              : null,
+        });
+        if (domainRecordRepository) await domainRecordRepository.putAdCreative(item);
+        res.json({ item });
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : '';
+        if (errorMessage.startsWith('D1_APPLICATION_RECORD') || errorMessage.startsWith('D1_DOMAIN')) {
+          throw err;
+        }
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
 
-  app.post('/api/ad-creatives/:id/attach', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const parsed = parseWithZod(adCreativeAttachSchema, req.body);
-    if (!parsed.ok) {
-      sendValidationError(res, parsed);
-      return;
-    }
-    try {
-      const result = store.attachAdCreativeToCampaign(
-        req.currentUser!,
-        req.params.id,
-        parsed.data.campaignId
-      );
-      res.json(result);
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+  app.post(
+    '/api/ad-creatives/:id/attach',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const authenticatedReq = req as AuthenticatedRequest;
+      const parsed = parseWithZod(adCreativeAttachSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        const result = store.attachAdCreativeToCampaign(
+          authenticatedReq.currentUser!,
+          req.params.id,
+          parsed.data.campaignId
+        );
+        if (domainRecordRepository) {
+          await domainRecordRepository.putAdCreative(result.creative);
+          await domainRecordRepository.putCampaign(result.campaign);
+        }
+        res.json(result);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : '';
+        if (errorMessage.startsWith('D1_APPLICATION_RECORD') || errorMessage.startsWith('D1_DOMAIN')) {
+          throw err;
+        }
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
 
-  app.delete('/api/ad-creatives/:id', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    try {
-      store.deleteAdCreative(req.currentUser!, req.params.id);
-      res.json({ ok: true });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+  app.delete(
+    '/api/ad-creatives/:id',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const authenticatedReq = req as AuthenticatedRequest;
+      try {
+        store.deleteAdCreative(authenticatedReq.currentUser!, req.params.id);
+        if (domainRecordRepository) {
+          await domainRecordRepository.deleteAdCreative(req.params.id);
+        }
+        res.json({ ok: true });
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : '';
+        if (errorMessage.startsWith('D1_APPLICATION_RECORD') || errorMessage.startsWith('D1_DOMAIN')) {
+          throw err;
+        }
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
 
   // --- Support & Dispute Tickets (Block 2.2) ---
-  app.get('/api/support-tickets', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    res.json({ items: store.listSupportTicketsForUser(req.currentUser!) });
-  });
+  app.get(
+    '/api/support-tickets',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const authenticatedReq = req as AuthenticatedRequest;
+      const items = domainRecordRepository
+        ? await domainRecordRepository.listSupportTicketsForUser(authenticatedReq.currentUser!)
+        : store.listSupportTicketsForUser(authenticatedReq.currentUser!);
+      res.json({ items });
+    })
+  );
 
-  app.post('/api/support-tickets', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const parsed = parseWithZod(supportTicketCreateSchema, req.body);
-    if (!parsed.ok) {
-      sendValidationError(res, parsed);
-      return;
-    }
-    const d = parsed.data;
-    try {
-      const item = store.createSupportTicket(req.currentUser!, {
-        campaignId: d.campaignId && d.campaignId.trim() ? d.campaignId.trim() : null,
-        category: d.category,
-        subject: d.subject,
-        message: d.message,
-      });
-      res.status(201).json({ item });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+  app.post(
+    '/api/support-tickets',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const authenticatedReq = req as AuthenticatedRequest;
+      const parsed = parseWithZod(supportTicketCreateSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const d = parsed.data;
+      try {
+        const item = store.createSupportTicket(authenticatedReq.currentUser!, {
+          campaignId: d.campaignId && d.campaignId.trim() ? d.campaignId.trim() : null,
+          category: d.category,
+          subject: d.subject,
+          message: d.message,
+        });
+        if (domainRecordRepository) await domainRecordRepository.putSupportTicket(item);
+        res.status(201).json({ item });
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : '';
+        if (errorMessage.startsWith('D1_APPLICATION_RECORD') || errorMessage.startsWith('D1_DOMAIN')) {
+          throw err;
+        }
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
 
   app.patch(
     '/api/support-tickets/:id/status',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
+      const authenticatedReq = req as AuthenticatedRequest;
       const parsed = parseWithZod(supportTicketStatusSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
@@ -1063,87 +1705,123 @@ export function createEdisonApp(
       }
       try {
         const item = store.updateSupportTicketStatus(
-          req.currentUser!,
+          authenticatedReq.currentUser!,
           req.params.id,
           parsed.data.status,
           parsed.data.adminResponse
         );
+        if (domainRecordRepository) await domainRecordRepository.putSupportTicket(item);
         res.json({ item });
       } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : '';
+        if (errorMessage.startsWith('D1_APPLICATION_RECORD') || errorMessage.startsWith('D1_DOMAIN')) {
+          throw err;
+        }
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
   // --- Opportunity Management, 3-Tier Verification, Complaints & Appeals (Block 2.5) ---
-  app.get('/api/opportunities', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    res.json({
-      items: store.listOpportunitiesForUser(req.currentUser!),
-      categories: ALL_OPPORTUNITY_CATEGORIES,
-    });
-  });
-
-  app.post('/api/opportunities', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const parsed = parseWithZod(opportunityCreateSchema, req.body);
-    if (!parsed.ok) {
-      sendValidationError(res, parsed);
-      return;
-    }
-    const d = parsed.data;
-    try {
-      const item = store.createOpportunity(req.currentUser!, {
-        providerType: d.providerType,
-        providerName: d.providerName,
-        category: d.category,
-        title: d.title,
-        description: d.description,
-        location: d.location,
-        eligibilityRequirements: d.eligibilityRequirements,
-        applicationMethod: d.applicationMethod,
-        contactInfo: d.contactInfo,
-        qrToken: d.qrToken && d.qrToken.trim() ? d.qrToken.trim() : null,
-        linkedCampaignId:
-          d.linkedCampaignId && d.linkedCampaignId.trim() ? d.linkedCampaignId.trim() : null,
-        closingDate: d.closingDate,
-        expiryDate: d.expiryDate,
-        identityEvidenceRef: d.identityEvidenceRef,
-        organisationEvidenceRef: d.organisationEvidenceRef,
-        specificOpportunityEvidenceRef: d.specificOpportunityEvidenceRef,
-        applicationFeeFreeConfirmed: d.applicationFeeFreeConfirmed,
-        noGuaranteeConfirmed: d.noGuaranteeConfirmed,
+  app.get(
+    '/api/opportunities',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
+      res.json({
+        items: domainRecordRepository
+          ? await domainRecordRepository.listOpportunitiesForUser(user)
+          : store.listOpportunitiesForUser(user),
+        categories: ALL_OPPORTUNITY_CATEGORIES,
       });
-      res.status(201).json({ item });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+    })
+  );
 
-  app.post('/api/opportunities/:id/submit', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const item = store.submitOpportunity(req.currentUser!, req.params.id);
-      res.json({ item });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+  app.post(
+    '/api/opportunities',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
+      const parsed = parseWithZod(opportunityCreateSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const d = parsed.data;
+      try {
+        const item = store.createOpportunity(user, {
+          providerType: d.providerType,
+          providerName: d.providerName,
+          category: d.category,
+          title: d.title,
+          description: d.description,
+          location: d.location,
+          eligibilityRequirements: d.eligibilityRequirements,
+          applicationMethod: d.applicationMethod,
+          contactInfo: d.contactInfo,
+          qrToken: d.qrToken && d.qrToken.trim() ? d.qrToken.trim() : null,
+          linkedCampaignId:
+            d.linkedCampaignId && d.linkedCampaignId.trim() ? d.linkedCampaignId.trim() : null,
+          closingDate: d.closingDate,
+          expiryDate: d.expiryDate,
+          identityEvidenceRef: d.identityEvidenceRef,
+          organisationEvidenceRef: d.organisationEvidenceRef,
+          specificOpportunityEvidenceRef: d.specificOpportunityEvidenceRef,
+          applicationFeeFreeConfirmed: d.applicationFeeFreeConfirmed,
+          noGuaranteeConfirmed: d.noGuaranteeConfirmed,
+        });
+        if (domainRecordRepository) await domainRecordRepository.putOpportunity(item);
+        res.status(201).json({ item });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
 
-  app.delete('/api/opportunities/:id', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    try {
-      store.deleteOpportunity(req.currentUser!, req.params.id);
-      res.json({ ok: true });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+  app.post(
+    '/api/opportunities/:id/submit',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      try {
+        const item = store.submitOpportunity(
+          (req as AuthenticatedRequest).currentUser!,
+          req.params.id
+        );
+        if (domainRecordRepository) await domainRecordRepository.putOpportunity(item);
+        res.json({ item });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
+
+  app.delete(
+    '/api/opportunities/:id',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      try {
+        store.deleteOpportunity((req as AuthenticatedRequest).currentUser!, req.params.id);
+        if (domainRecordRepository) {
+          await domainRecordRepository.deleteOpportunity(req.params.id);
+        }
+        res.json({ ok: true });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
 
   app.patch(
     '/api/admin/opportunities/:id/verify-tiers',
     requireAdmin,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
       const parsed = parseWithZod(adminVerifyTiersSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
@@ -1151,26 +1829,37 @@ export function createEdisonApp(
       }
       try {
         const item = store.adminUpdateOpportunityVerification(
-          req.currentUser!,
+          (req as AuthenticatedRequest).currentUser!,
           req.params.id,
           parsed.data
         );
+        if (domainRecordRepository) await domainRecordRepository.putOpportunity(item);
         res.json({ item });
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
-  app.get('/api/opportunity-complaints', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    res.json({ items: store.listOpportunityComplaintsForUser(req.currentUser!) });
-  });
+  app.get(
+    '/api/opportunity-complaints',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
+      res.json({
+        items: domainRecordRepository
+          ? await domainRecordRepository.listOpportunityComplaintsForUser(user)
+          : store.listOpportunityComplaintsForUser(user),
+      });
+    })
+  );
 
   app.post(
     '/api/opportunities/:id/complaints',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
       const parsed = parseWithZod(complaintCreateSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
@@ -1178,22 +1867,24 @@ export function createEdisonApp(
       }
       try {
         const item = store.createOpportunityComplaint(
-          req.currentUser!,
+          (req as AuthenticatedRequest).currentUser!,
           req.params.id,
           parsed.data
         );
+        if (domainRecordRepository) await domainRecordRepository.putOpportunityComplaint(item);
         res.status(201).json({ item });
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
   app.patch(
     '/api/admin/opportunity-complaints/:complaintId',
     requireAdmin,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
       const parsed = parseWithZod(adminComplaintUpdateSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
@@ -1201,45 +1892,67 @@ export function createEdisonApp(
       }
       try {
         const result = store.adminUpdateComplaintStatus(
-          req.currentUser!,
+          (req as AuthenticatedRequest).currentUser!,
           req.params.complaintId,
           parsed.data
         );
+        if (domainRecordRepository) {
+          await domainRecordRepository.putOpportunityComplaint(result.complaint);
+          if (result.opportunity) {
+            await domainRecordRepository.putOpportunity(result.opportunity);
+          }
+        }
         res.json(result);
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
-  app.get('/api/opportunity-appeals', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    res.json({ items: store.listOpportunityAppealsForUser(req.currentUser!) });
-  });
+  app.get(
+    '/api/opportunity-appeals',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
+      res.json({
+        items: domainRecordRepository
+          ? await domainRecordRepository.listOpportunityAppealsForUser(user)
+          : store.listOpportunityAppealsForUser(user),
+      });
+    })
+  );
 
   app.post(
     '/api/opportunities/:id/appeals',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
       const parsed = parseWithZod(appealCreateSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
       try {
-        const item = store.createOpportunityAppeal(req.currentUser!, req.params.id, parsed.data);
+        const item = store.createOpportunityAppeal(
+          (req as AuthenticatedRequest).currentUser!,
+          req.params.id,
+          parsed.data
+        );
+        if (domainRecordRepository) await domainRecordRepository.putOpportunityAppeal(item);
         res.status(201).json({ item });
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
   app.patch(
     '/api/admin/opportunity-appeals/:appealId',
     requireAdmin,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
       const parsed = parseWithZod(adminAppealResolveSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
@@ -1247,175 +1960,353 @@ export function createEdisonApp(
       }
       try {
         const result = store.adminResolveAppeal(
-          req.currentUser!,
+          (req as AuthenticatedRequest).currentUser!,
           req.params.appealId,
           parsed.data
         );
+        if (domainRecordRepository) {
+          await domainRecordRepository.putOpportunityAppeal(result.appeal);
+          if (result.opportunity) {
+            await domainRecordRepository.putOpportunity(result.opportunity);
+          }
+        }
         res.json(result);
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
   // Admin Moderation Overview, QR Moderation, Creative Flag Clearance & 7-Stage Analytics (Block 2.6)
   app.get(
     '/api/admin/moderation-overview',
     requireAdmin,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
       try {
-        res.json(store.getAdminModerationOverview(req.currentUser!));
+        const admin = req.currentUser!;
+        const persistedData = domainRecordRepository
+          ? await Promise.all([
+              domainRecordRepository.listCampaignsForUser(admin),
+              domainRecordRepository.listAdCreativesForUser(admin),
+              domainRecordRepository.listAdvertiserProfiles(),
+              domainRecordRepository.listQrLinksForActor(admin),
+              domainRecordRepository.listSupportTicketsForUser(admin),
+              domainRecordRepository.listOpportunityComplaintsForUser(admin),
+              domainRecordRepository.listOpportunityAppealsForUser(admin),
+            ]).then(
+              ([
+                campaigns,
+                creatives,
+                advertiserProfiles,
+                qrLinks,
+                supportTickets,
+                opportunityComplaints,
+                opportunityAppeals,
+              ]) => ({
+                campaigns,
+                creatives,
+                advertiserProfiles,
+                qrLinks,
+                supportTickets,
+                opportunityComplaints,
+                opportunityAppeals,
+              }),
+            )
+          : undefined;
+        res.json(store.getAdminModerationOverview(admin, persistedData));
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    }),
   );
 
   app.patch(
     '/api/admin/qr/:token/moderate',
     requireAdmin,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
       const parsed = parseWithZod(adminQrModerateSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
       try {
+        if (domainRecordRepository) {
+          const persistedQr = await domainRecordRepository.getQrLinkByToken(req.params.token);
+          if (persistedQr) store.replaceQrLinkFromPersistence(persistedQr);
+        }
         const item = store.adminModerateQrLink(
           req.currentUser!,
           req.params.token,
           parsed.data.status,
           parsed.data.reason
         );
+        if (domainRecordRepository) await domainRecordRepository.putQrLink(item);
         res.json({ item });
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    }),
   );
 
   app.post(
     '/api/admin/creatives/:id/clear-qr-flag',
     requireAdmin,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
       const parsed = parseWithZod(adminClearQrFlagSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
       try {
+        if (domainRecordRepository) {
+          const persistedCreative = await domainRecordRepository.getAdCreativeById(req.params.id);
+          if (persistedCreative) store.replaceAdCreativeFromPersistence(persistedCreative);
+        }
         const item = store.adminClearCreativeQrFlag(
           req.currentUser!,
           req.params.id,
           parsed.data.notes
         );
+        if (domainRecordRepository) await domainRecordRepository.putAdCreative(item);
         res.json({ item });
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    }),
   );
 
-  app.get('/api/analytics/funnel', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const campaignId =
-      typeof req.query.campaignId === 'string' && req.query.campaignId.trim()
-        ? req.query.campaignId.trim()
-        : null;
-    try {
-      res.json(store.getSevenStageAnalyticsFunnel(req.currentUser!, campaignId));
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+  app.get(
+    '/api/analytics/funnel',
+    requireAuth,
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+      const campaignId =
+        typeof req.query.campaignId === 'string' && req.query.campaignId.trim()
+          ? req.query.campaignId.trim()
+          : null;
+      try {
+        const persistedData = domainRecordRepository
+          ? await Promise.all([
+              domainRecordRepository.listCampaignsForUser(req.currentUser!),
+              domainRecordRepository.listQrLinksForActor(req.currentUser!),
+              domainRecordRepository.listAnalyticsEvents(500),
+            ]).then(([campaigns, qrLinks, analyticsEvents]) => ({
+              campaigns,
+              qrLinks,
+              analyticsEvents,
+            }))
+          : undefined;
+        res.json(
+          store.getSevenStageAnalyticsFunnel(
+            req.currentUser!,
+            campaignId,
+            persistedData,
+          ),
+        );
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    }),
+  );
 
   app.get(
     '/api/analytics/revenue-ledger',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
       try {
-        res.json({ ledger: store.getRevenueLedgerSnapshot(req.currentUser!) });
+        const actor = req.currentUser!;
+        const persistedData = domainRecordRepository
+          ? await Promise.all([
+              domainRecordRepository.listCampaignsForUser(actor),
+              domainRecordRepository.listAnalyticsEvents(500),
+            ]).then(([campaigns, analyticsEvents]) => ({ campaigns, analyticsEvents }))
+          : undefined;
+        res.json({ ledger: store.getRevenueLedgerSnapshot(actor, persistedData) });
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
   // --- Physical Mobile QR Scan Testing & Final Prototype Readiness (Block 2.7 / Block P3-A) ---
   app.get(
     '/api/qa/prototype-readiness',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
       try {
-        res.json(store.getPrototypeReadinessSnapshot(req.currentUser!));
+        if (domainRecordRepository) {
+          const [
+            physicalQrScanTests,
+            campaigns,
+            adCreatives,
+            opportunities,
+            analyticsEvents,
+            qrLinks,
+          ] = await Promise.all([
+            domainRecordRepository.listPhysicalQrScanTestsForUser(user),
+            domainRecordRepository.listCampaignsForUser(user),
+            domainRecordRepository.listAdCreativesForUser(user),
+            domainRecordRepository.listOpportunitiesForUser(user),
+            domainRecordRepository.listAnalyticsEvents(500),
+            domainRecordRepository.listQrLinksForActor(user),
+          ]);
+          res.json(
+            store.getPrototypeReadinessSnapshot(user, {
+              physicalQrScanTests,
+              campaigns,
+              adCreatives,
+              opportunities,
+              analyticsEvents,
+              qrLinks,
+            })
+          );
+          return;
+        }
+        res.json(store.getPrototypeReadinessSnapshot(user));
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
-  app.get('/api/qa/qr-watch/:token', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    try {
-      res.json(store.getQrWatchSnapshot(req.currentUser!, req.params.token));
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+  app.get(
+    '/api/qa/qr-watch/:token',
+    requireAuth,
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const actor = req.currentUser!;
+        if (!domainRecordRepository) {
+          res.json(store.getQrWatchSnapshot(actor, req.params.token));
+          return;
+        }
 
-  app.get('/api/qa/physical-qr-tests', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    res.json({ items: store.listPhysicalQrScanTests(req.currentUser!) });
-  });
+        const qrLink = await domainRecordRepository.getQrLinkByToken(req.params.token);
+        if (!qrLink) throw new Error('QR token not found.');
+        if (actor.role !== 'admin' && qrLink.ownerId !== actor.id) {
+          throw new Error('FORBIDDEN: You do not own this QR link.');
+        }
+        const recentEvents = (await domainRecordRepository.listAnalyticsEvents(500))
+          .filter(
+            (event) =>
+              event.qrToken === req.params.token &&
+              event.measurementSource === 'real_measured',
+          )
+          .slice(0, 20);
+        res.json({ qrLink, recentEvents });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err, 404);
+        res.status(code).json({ error: message });
+      }
+    }),
+  );
 
-  app.post('/api/qa/physical-qr-tests', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const parsed = parseWithZod(physicalQrTestCreateSchema, req.body);
-    if (!parsed.ok) {
-      sendValidationError(res, parsed);
-      return;
-    }
-    try {
-      const item = store.recordPhysicalQrScanTest(req.currentUser!, parsed.data);
-      res.status(201).json({ item });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+  app.get(
+    '/api/qa/physical-qr-tests',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
+      try {
+        const items = domainRecordRepository
+          ? await domainRecordRepository.listPhysicalQrScanTestsForUser(user)
+          : store.listPhysicalQrScanTests(user);
+        res.json({ items });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
+
+  app.post(
+    '/api/qa/physical-qr-tests',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
+      const parsed = parseWithZod(physicalQrTestCreateSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        if (domainRecordRepository) {
+          const qrLink = await domainRecordRepository.getQrLinkByToken(parsed.data.qrToken);
+          if (qrLink) store.replaceQrLinkFromPersistence(qrLink);
+        }
+        const item = store.recordPhysicalQrScanTest(user, parsed.data);
+        if (domainRecordRepository) await domainRecordRepository.putPhysicalQrScanTest(item);
+        res.status(201).json({ item });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
 
   app.delete(
     '/api/qa/physical-qr-tests/:id',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
       try {
-        store.deletePhysicalQrScanTest(req.currentUser!, req.params.id);
+        let persistedRecord: PhysicalQrScanTestRecord | null = null;
+        if (domainRecordRepository) {
+          persistedRecord = await domainRecordRepository.getPhysicalQrScanTestForActor(
+            user,
+            req.params.id
+          );
+          if (persistedRecord) {
+            const records = await domainRecordRepository.listPhysicalQrScanTestsForUser(user);
+            store.replacePhysicalQrScanTestsFromPersistence(user, records);
+          }
+        }
+        store.deletePhysicalQrScanTest(user, req.params.id);
+        if (persistedRecord && domainRecordRepository) {
+          await domainRecordRepository.deletePhysicalQrScanTest(user, req.params.id);
+        }
         res.json({ ok: true });
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
   // --- Shared Ad Intelligence Prototype Preview (Block P2-V2.4 / MOCK SIMULATION ONLY) ---
   app.get(
     '/api/shared-intelligence/preview',
     requireAuth,
-    (_req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (_req: AuthenticatedRequest, res: Response) => {
       res.setHeader('Cache-Control', 'no-store');
+      if (domainRecordRepository) {
+        const persisted = await domainRecordRepository.getSharedIntelPreviewState();
+        if (persisted) store.replaceSharedIntelPreviewStateFromPersistence(persisted);
+      }
       res.json(store.getSharedIntelPreviewState());
-    }
+    }),
   );
 
   app.post(
     '/api/shared-intelligence/observations',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
       const rawBody = (req.body ?? {}) as Record<string, unknown>;
       const parsed = parseWithZod(sharedIntelObservationSchema, rawBody);
       if (!parsed.ok) {
@@ -1424,41 +2315,60 @@ export function createEdisonApp(
             typeof rawBody.scopeId === 'string' ? rawBody.scopeId : undefined,
             parsed.error
           );
+          if (domainRecordRepository) {
+            await domainRecordRepository.putSharedIntelPreviewState(
+              store.getSharedIntelPreviewState(),
+            );
+          }
         }
         sendValidationError(res, parsed);
         return;
       }
 
       try {
+        if (domainRecordRepository) {
+          const persisted = await domainRecordRepository.getSharedIntelPreviewState();
+          if (persisted) store.replaceSharedIntelPreviewStateFromPersistence(persisted);
+        }
         const result = store.submitSharedIntelPreviewObservation(req.currentUser!, {
           ...parsed.data,
           rawPayload: rawBody,
         });
+        if (domainRecordRepository) {
+          await domainRecordRepository.putSharedIntelPreviewState(result.state);
+        }
         res.status(201).json(result);
       } catch (err) {
         const { code, message } = mapErrorStatus(err, 400);
         res.status(code).json({ error: message });
       }
-    }
+    }),
   );
 
   app.post(
     '/api/shared-intelligence/simulate-action',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
       const parsed = parseWithZod(sharedIntelActionSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
       try {
+        if (domainRecordRepository) {
+          const persisted = await domainRecordRepository.getSharedIntelPreviewState();
+          if (persisted) store.replaceSharedIntelPreviewStateFromPersistence(persisted);
+        }
         const state = store.runSharedIntelPreviewAction(req.currentUser!, parsed.data);
+        if (domainRecordRepository) {
+          await domainRecordRepository.putSharedIntelPreviewState(state);
+        }
         res.json({ state });
       } catch (err) {
         const { code, message } = mapErrorStatus(err, 400);
         res.status(code).json({ error: message });
       }
-    }
+    }),
   );
 
   // --- Software-Only Phase 4 Modular TV Adapter & AURA Normal Everyday Remote Simulator (Block P3-C) ---
@@ -1490,7 +2400,7 @@ export function createEdisonApp(
         simulateActiveAdSession: d.simulateActiveAdSession,
         currentState: d.currentState,
       });
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         'TV_ADAPTER_REMOTE_SIMULATED',
         d.platformId,
@@ -1517,7 +2427,7 @@ export function createEdisonApp(
         faultMode: d.faultMode,
         currentState: d.currentState,
       });
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         'TV_ADAPTER_BREAK_LIFECYCLE',
         d.platformId,
@@ -1537,7 +2447,7 @@ export function createEdisonApp(
         return;
       }
       const report = edisonTvControlEngine.runDeterministicFaultSuite(parsed.data.platformId);
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         'TV_ADAPTER_FAULT_SUITE_RUN',
         parsed.data.platformId ?? 'all_platforms',
@@ -1566,7 +2476,7 @@ export function createEdisonApp(
         return;
       }
       const result = localOfflineIntelCache.stageAndAtomicSwap(parsed.data);
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         result.ok ? 'OFFLINE_CACHE_ATOMIC_SWAP' : 'OFFLINE_CACHE_SWAP_REJECTED',
         parsed.data.scopeId,
@@ -1589,7 +2499,7 @@ export function createEdisonApp(
         return;
       }
       const result = localOfflineIntelCache.rollbackScope(parsed.data.scopeId);
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         result.ok ? 'OFFLINE_CACHE_ROLLBACK' : 'OFFLINE_CACHE_ROLLBACK_REJECTED',
         parsed.data.scopeId,
@@ -1640,7 +2550,7 @@ export function createEdisonApp(
         return;
       }
       const queued = localOfflineIntelCache.enqueueOfflineObservation(parsed.data);
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         queued.ok
           ? queued.deduplicatedReplay
@@ -1667,7 +2577,7 @@ export function createEdisonApp(
         return;
       }
       const drain = localOfflineIntelCache.drainObservationQueue(parsed.data);
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         drain.ok ? 'OFFLINE_QUEUE_DRAINED' : 'OFFLINE_QUEUE_DRAIN_OFFLINE_HELD',
         'all_scopes',
@@ -1690,7 +2600,7 @@ export function createEdisonApp(
         return;
       }
       const result = edisonTvControlEngine.runBroadcastCadenceSimulation(parsed.data);
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         'TV_ADAPTER_CADENCE_SIMULATED',
         `${parsed.data.platformId}:ch${parsed.data.channelNumber}`,
@@ -1713,7 +2623,7 @@ export function createEdisonApp(
         return;
       }
       const report = edisonTvControlEngine.runEmulatorConformanceVectors();
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         'TV_EMULATOR_CONFORMANCE_RUN',
         'all_platforms',
@@ -1734,7 +2644,7 @@ export function createEdisonApp(
         return;
       }
       const result = parseAndValidateBroadcastCue(parsed.data);
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         'BROADCAST_CUE_FIXTURE_PARSED',
         `${parsed.data.standard}:ch${parsed.data.channelNumber}`,
@@ -1754,7 +2664,7 @@ export function createEdisonApp(
         return;
       }
       const evaluation = evaluateCompanionPolicyGuardrail(parsed.data);
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         'COMPANION_POLICY_EVALUATED',
         `${parsed.data.platformId}:${parsed.data.requestedCapability}`,
@@ -1774,7 +2684,7 @@ export function createEdisonApp(
         return;
       }
       const report = runPhase4SoftwareExitSuite();
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         'PHASE4_SOFTWARE_EXIT_SUITE_RUN',
         'phase4_exit',
@@ -1790,7 +2700,21 @@ export function createEdisonApp(
     requireAuth,
     (_req: AuthenticatedRequest, res: Response) => {
       res.setHeader('Cache-Control', 'no-store');
-      res.json(sharedIntelFleetService.getSnapshot());
+      res.json(fleetService.getSnapshot());
+    }
+  );
+
+  app.get(
+    '/api/shared-intel-fleet/break-events',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(fleetBreakEventSyncQuerySchema, req.query);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const sync = fleetService.getSharedBreakEvents(parsed.data);
+      res.status(sync.httpStatus).json(sync);
     }
   );
 
@@ -1804,8 +2728,8 @@ export function createEdisonApp(
         return;
       }
       try {
-        const reg = sharedIntelFleetService.registerAttestedDevice(parsed.data);
-        store.recordSecurityAudit(
+        const reg = fleetService.registerAttestedDevice(parsed.data);
+        recordRouteAudit(req,
           req.currentUser!,
           'FLEET_DEVICE_ATTESTATION_REGISTERED',
           parsed.data.tvDeviceId,
@@ -1813,12 +2737,32 @@ export function createEdisonApp(
         );
         res.status(201).json({
           ...reg,
-          state: sharedIntelFleetService.getSnapshot(),
+          state: fleetService.getSnapshot(),
         });
       } catch (err) {
         const { code, message } = mapErrorStatus(err, 400);
         res.status(code).json({ error: message });
       }
+    }
+  );
+
+  app.post(
+    '/api/shared-intel-fleet/break-events',
+    requireAuth,
+    (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(fleetBreakEventSubmitSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const result = fleetService.submitSignedBreakEvent(parsed.data);
+      recordRouteAudit(req,
+        req.currentUser!,
+        `FLEET_BREAK_EVENT_${result.status.toUpperCase()}`,
+        result.scopeId,
+        `[${req.requestId ?? 'req'}] ${result.tvDeviceId} -> ${result.status} (${result.httpStatus})`
+      );
+      res.status(result.httpStatus).json({ result });
     }
   );
 
@@ -1830,7 +2774,7 @@ export function createEdisonApp(
       const parsed = parseWithZod(fleetObservationSubmitSchema, rawBody);
       if (!parsed.ok) {
         if (parsed.error.includes('Zero-PII policy violation')) {
-          store.recordSecurityAudit(
+          recordRouteAudit(req,
             req.currentUser!,
             'FLEET_ZERO_PII_REJECTED',
             typeof rawBody.scopeId === 'string' ? rawBody.scopeId : 'unknown',
@@ -1842,7 +2786,7 @@ export function createEdisonApp(
       }
 
       const d = parsed.data;
-      const result = sharedIntelFleetService.submitSignedObservation({
+      const result = fleetService.submitSignedObservation({
         tvDeviceId: d.tvDeviceId,
         scopeId: d.scopeId,
         signalType: d.signalType,
@@ -1855,7 +2799,7 @@ export function createEdisonApp(
         rawPayload: rawBody,
       });
 
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         `FLEET_OBSERVATION_${result.trustDecision.toUpperCase()}`,
         d.scopeId,
@@ -1864,7 +2808,7 @@ export function createEdisonApp(
 
       res.status(result.httpStatus).json({
         observation: result,
-        state: sharedIntelFleetService.getSnapshot(),
+        state: fleetService.getSnapshot(),
       });
     }
   );
@@ -1878,8 +2822,8 @@ export function createEdisonApp(
         sendValidationError(res, parsed);
         return;
       }
-      const sync = sharedIntelFleetService.syncScopedDelta(parsed.data);
-      store.recordSecurityAudit(
+      const sync = fleetService.syncScopedDelta(parsed.data);
+      recordRouteAudit(req,
         req.currentUser!,
         `FLEET_DELTA_SYNC_${sync.status.toUpperCase()}`,
         parsed.data.scopeId,
@@ -1887,7 +2831,7 @@ export function createEdisonApp(
       );
       res.status(sync.ok ? 200 : 409).json({
         sync,
-        state: sharedIntelFleetService.getSnapshot(),
+        state: fleetService.getSnapshot(),
       });
     }
   );
@@ -1902,8 +2846,8 @@ export function createEdisonApp(
         return;
       }
       try {
-        const result = sharedIntelFleetService.reportPostUpdateFpr(parsed.data);
-        store.recordSecurityAudit(
+        const result = fleetService.reportPostUpdateFpr(parsed.data);
+        recordRouteAudit(req,
           req.currentUser!,
           result.rollbackTriggered ? 'FLEET_AUTO_ROLLBACK_FPR' : 'FLEET_FPR_REPORTED',
           parsed.data.scopeId,
@@ -1911,7 +2855,7 @@ export function createEdisonApp(
         );
         res.json({
           report: result,
-          state: sharedIntelFleetService.getSnapshot(),
+          state: fleetService.getSnapshot(),
         });
       } catch (err) {
         const { code, message } = mapErrorStatus(err, 400);
@@ -1929,8 +2873,8 @@ export function createEdisonApp(
         sendValidationError(res, parsed);
         return;
       }
-      const report = sharedIntelFleetService.runScenarios25To35Suite();
-      store.recordSecurityAudit(
+      const report = fleetService.runScenarios25To35Suite();
+      recordRouteAudit(req,
         req.currentUser!,
         'SHARED_INTEL_SCENARIOS_25_35_RUN',
         'phase5_shared_intel',
@@ -1949,14 +2893,14 @@ export function createEdisonApp(
         sendValidationError(res, parsed);
         return;
       }
-      sharedIntelFleetService.reset();
-      store.recordSecurityAudit(
+      fleetService.reset();
+      recordRouteAudit(req,
         req.currentUser!,
         'FLEET_SERVICE_RESET',
         'phase5_shared_intel',
         `[${req.requestId ?? 'req'}] Reset Shared Intelligence Fleet simulation state.`
       );
-      res.json({ state: sharedIntelFleetService.getSnapshot() });
+      res.json({ state: fleetService.getSnapshot() });
     }
   );
 
@@ -1984,7 +2928,7 @@ export function createEdisonApp(
         return;
       }
       const prediction = predictBreakDurationQuantiles(parsed.data);
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         'BREAK_PREDICTOR_EVALUATED',
         `CH_${prediction.channelNumber}`,
@@ -2004,7 +2948,7 @@ export function createEdisonApp(
         return;
       }
       const report = runRecordedStreamCalibrationBenchmark();
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         'BREAK_CALIBRATION_BENCHMARK_RUN',
         'phase5_break_predictor',
@@ -2018,17 +2962,19 @@ export function createEdisonApp(
   app.post(
     '/api/delivery/manifest',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
       const parsed = parseWithZod(deliveryManifestRequestSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
-      const user = req.currentUser!;
+      const authenticatedReq = req as AuthenticatedRequest;
+      const user = authenticatedReq.currentUser!;
       res.setHeader('Cache-Control', 'no-store, private');
 
       if (parsed.data.householdId) {
         try {
+          await synchronizeHouseholdStateFromD1(user, parsed.data.householdId);
           const gate = store.evaluateHouseholdDeliveryGate(
             user,
             parsed.data.householdId,
@@ -2045,11 +2991,11 @@ export function createEdisonApp(
               creatives: [],
               qrLinks: [],
             });
-            store.recordSecurityAudit(
+            recordRouteAudit(authenticatedReq,
               user,
               'DELIVERY_MANIFEST_SUSPENDED_CONSENT',
               gate.household.id,
-              `[${req.requestId ?? 'req'}] ${gate.reason}`
+              `[${authenticatedReq.requestId ?? 'req'}] ${gate.reason}`
             );
             res.json({
               ...blockedManifest,
@@ -2058,30 +3004,63 @@ export function createEdisonApp(
               adDeliverySuspended: true,
               suspensionReason: gate.reason,
             });
+            if (domainRecordRepository) {
+              await domainRecordRepository.putDeliveryManifest(
+                {
+                  ...blockedManifest,
+                  householdId: gate.household.id,
+                  consentEpoch: gate.household.consentEpoch,
+                  adDeliverySuspended: true,
+                  suspensionReason: gate.reason,
+                },
+                user.id,
+              );
+            }
             return;
           }
         } catch (err) {
+          if (isD1DomainError(err)) throw err;
           const { code, message } = mapErrorStatus(err);
           res.status(code).json({ error: message });
           return;
         }
       }
 
+      const campaigns = domainRecordRepository
+        ? await domainRecordRepository.listCampaignsForUser(user)
+        : store.listCampaignsForUser(user);
+      const creatives = domainRecordRepository
+        ? await domainRecordRepository.listAdCreativesForUser(user)
+        : store.listAdCreativesForUser(user);
+      const qrLinks = domainRecordRepository
+        ? await domainRecordRepository.listQrLinksForActor(user)
+        : store.listQrLinksForUser(user);
       const manifest = edisonDeliveryInfra.compilePreloadManifest({
         platformId: parsed.data.platformId,
         deviceSlotId: parsed.data.deviceSlotId,
         regionCode: parsed.data.regionCode,
         daypart: parsed.data.daypart,
         simulateCdnOutage: parsed.data.simulateCdnOutage,
-        campaigns: store.listCampaignsForUser(user),
-        creatives: store.listAdCreativesForUser(user),
-        qrLinks: store.listQrLinksForUser(user),
+        campaigns,
+        creatives,
+        qrLinks,
       });
-      store.recordSecurityAudit(
+      if (domainRecordRepository) {
+        await domainRecordRepository.putDeliveryManifest(
+          {
+            ...manifest,
+            householdId: parsed.data.householdId ?? null,
+            adDeliverySuspended: false,
+            suspensionReason: null,
+          },
+          user.id,
+        );
+      }
+      recordRouteAudit(authenticatedReq,
         user,
         'DELIVERY_MANIFEST_COMPILED',
         manifest.manifestId,
-        `[${req.requestId ?? 'req'}] Platform=${manifest.platformId} region=${manifest.regionCode} edge=${manifest.cdnEdgeStatus} eligible=${manifest.eligibleCount} excluded=${manifest.excludedCount} (hardwareTested=false).`
+        `[${authenticatedReq.requestId ?? 'req'}] Platform=${manifest.platformId} region=${manifest.regionCode} edge=${manifest.cdnEdgeStatus} eligible=${manifest.eligibleCount} excluded=${manifest.excludedCount} (hardwareTested=false).`
       );
       res.json({
         ...manifest,
@@ -2089,7 +3068,7 @@ export function createEdisonApp(
         adDeliverySuspended: false,
         suspensionReason: null,
       });
-    }
+    })
   );
 
   app.post(
@@ -2102,7 +3081,7 @@ export function createEdisonApp(
         return;
       }
       const result = edisonDeliveryInfra.ingestDeliveryEvents(parsed.data.events);
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         'DELIVERY_EVENTS_INGESTED',
         'phase6_delivery_ingest',
@@ -2130,7 +3109,7 @@ export function createEdisonApp(
         return;
       }
       const report = runDeliveryInfraVerificationSuite();
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         'DELIVERY_INFRA_SUITE_RUN',
         'phase6_delivery_infra',
@@ -2144,42 +3123,59 @@ export function createEdisonApp(
   app.get(
     '/api/advertiser-ops/overview',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
       const user = req.currentUser!;
+      const [persistedProfile, campaigns, qrLinks, tickets, analyticsEvents] =
+        domainRecordRepository
+          ? await Promise.all([
+              domainRecordRepository.getAdvertiserProfile(user.id),
+              domainRecordRepository.listCampaignsForUser(user),
+              domainRecordRepository.listQrLinksForActor(user),
+              domainRecordRepository.listSupportTicketsForUser(user),
+              domainRecordRepository.listAnalyticsEvents(250),
+            ])
+          : [null, null, null, null, null];
       const overview = buildAdvertiserOpsOverview({
-        profile: store.getAdvertiserProfile(user),
-        campaigns: store.listCampaignsForUser(user),
-        qrLinks: store.listQrLinksForUser(user),
-        tickets: store.listSupportTicketsForUser(user),
-        analyticsEvents: store.listAnalyticsEvents(250),
+        profile: persistedProfile ?? store.getAdvertiserProfile(user),
+        campaigns: campaigns ?? store.listCampaignsForUser(user),
+        qrLinks: qrLinks ?? store.listQrLinksForUser(user),
+        tickets: tickets ?? store.listSupportTicketsForUser(user),
+        analyticsEvents: analyticsEvents ?? store.listAnalyticsEvents(250),
       });
       res.json(overview);
-    }
+    }),
   );
 
   app.post(
     '/api/advertiser-ops/pro-forma-blueprint',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
       const parsed = parseWithZod(proFormaBlueprintRequestSchema, req.body ?? {});
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
       const user = req.currentUser!;
+      const profile = domainRecordRepository
+        ? (await domainRecordRepository.getAdvertiserProfile(user.id)) ??
+          store.getAdvertiserProfile(user)
+        : store.getAdvertiserProfile(user);
+      const campaigns = domainRecordRepository
+        ? await domainRecordRepository.listCampaignsForUser(user)
+        : store.listCampaignsForUser(user);
       const blueprint = generateProFormaInvoiceBlueprint(
-        store.getAdvertiserProfile(user),
-        store.listCampaignsForUser(user),
+        profile,
+        campaigns,
         parsed.data.billingPeriodLabel
       );
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         user,
         'PROFORMA_BLUEPRINT_GENERATED',
         blueprint.blueprintId,
         `[${req.requestId ?? 'req'}] Generated non-transactional pro-forma blueprint ${blueprint.blueprintId} ($${blueprint.totalProjectedRateCardUsd.toFixed(2)} simulated; paymentCollectionActive=false).`
       );
       res.json(blueprint);
-    }
+    }),
   );
 
   app.post(
@@ -2192,7 +3188,7 @@ export function createEdisonApp(
         return;
       }
       const report = runAdvertiserOpsVerificationSuite();
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         'ADVERTISER_OPS_SUITE_RUN',
         'phase7_advertiser_ops',
@@ -2206,32 +3202,42 @@ export function createEdisonApp(
   app.get(
     '/api/broadcast-render/overview',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
       res.setHeader('Cache-Control', 'no-store, private');
       const user = req.currentUser!;
+      const creatives = domainRecordRepository
+        ? await domainRecordRepository.listAdCreativesForUser(user)
+        : store.listAdCreativesForUser(user);
+      const qrLinks = domainRecordRepository
+        ? await domainRecordRepository.listQrLinksForActor(user)
+        : store.listQrLinksForUser(user);
       const overview = buildBroadcastRenderOverview({
-        creatives: store.listAdCreativesForUser(user),
-        qrLinks: store.listQrLinksForUser(user),
+        creatives,
+        qrLinks,
       });
       res.json(overview);
-    }
+    }),
   );
 
   app.post(
     '/api/broadcast-render/validate',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
       const parsed = parseWithZod(broadcastRenderValidateSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
       const user = req.currentUser!;
-      const visibleCreatives = store.listAdCreativesForUser(user);
+      const visibleCreatives = domainRecordRepository
+        ? await domainRecordRepository.listAdCreativesForUser(user)
+        : store.listAdCreativesForUser(user);
       let creative = visibleCreatives.find((c) => c.id === parsed.data.creativeId) ?? null;
 
       if (!creative && user.role !== 'admin') {
-        const allAsAdmin = store.listAdCreativesForUser({ ...user, role: 'admin' });
+        const allAsAdmin = domainRecordRepository
+          ? await domainRecordRepository.listAdCreativesForUser({ ...user, role: 'admin' })
+          : store.listAdCreativesForUser({ ...user, role: 'admin' });
         if (allAsAdmin.some((c) => c.id === parsed.data.creativeId)) {
           res.status(403).json({
             error: 'FORBIDDEN: You do not own this ad creative.',
@@ -2245,7 +3251,9 @@ export function createEdisonApp(
         return;
       }
 
-      const qrLinks = store.listQrLinksForUser({ ...user, role: 'admin' });
+      const qrLinks = domainRecordRepository
+        ? await domainRecordRepository.listQrLinksForActor({ ...user, role: 'admin' })
+        : store.listQrLinksForUser({ ...user, role: 'admin' });
       const qrLink = creative.qrToken
         ? qrLinks.find((q) => q.token === creative!.qrToken) ?? null
         : null;
@@ -2256,7 +3264,7 @@ export function createEdisonApp(
         referenceIso: parsed.data.referenceIso,
       });
 
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         user,
         'BROADCAST_RENDER_VALIDATED',
         creative.id,
@@ -2264,7 +3272,7 @@ export function createEdisonApp(
       );
       res.setHeader('Cache-Control', 'no-store, private');
       res.json({ report });
-    }
+    }),
   );
 
   app.post(
@@ -2277,7 +3285,7 @@ export function createEdisonApp(
         return;
       }
       const report = runBroadcastRenderVerificationSuite();
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         'BROADCAST_RENDER_SUITE_RUN',
         'phase8_broadcast_render',
@@ -2321,7 +3329,7 @@ export function createEdisonApp(
         return;
       }
       const report = runBroadcastRenderJobVerificationSuite();
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         'BROADCAST_RENDER_JOB_SUITE_RUN',
         'phase8_broadcast_render',
@@ -2335,10 +3343,30 @@ export function createEdisonApp(
   app.get(
     '/api/opportunity-ops/overview',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
       res.setHeader('Cache-Control', 'no-store, private');
-      res.json({ overview: store.getOpportunityOpsOverview(req.currentUser!) });
-    }
+      const actor = req.currentUser!;
+      try {
+        const persistedData = domainRecordRepository
+          ? await Promise.all([
+              domainRecordRepository.listOpportunitiesForUser(actor),
+              domainRecordRepository.listOpportunityComplaintsForUser(actor),
+              domainRecordRepository.listOpportunityAppealsForUser(actor),
+              domainRecordRepository.listCampaignsForUser(actor),
+            ]).then(([opportunities, complaints, appeals, campaigns]) => ({
+              opportunities,
+              complaints,
+              appeals,
+              campaigns,
+            }))
+          : undefined;
+        res.json({ overview: store.getOpportunityOpsOverview(actor, persistedData) });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
   );
 
   app.post(
@@ -2369,7 +3397,7 @@ export function createEdisonApp(
         return;
       }
       const report = runOpportunityOpsVerificationSuite();
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         'OPPORTUNITY_OPS_SUITE_RUN',
         'phase9_opportunity_ops',
@@ -2383,10 +3411,40 @@ export function createEdisonApp(
   app.get(
     '/api/compliance/overview',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
       res.setHeader('Cache-Control', 'no-store, private');
-      res.json({ overview: store.getPrivacyComplianceOverview(req.currentUser!) });
-    }
+      const actor = req.currentUser!;
+      if (!domainRecordRepository) {
+        res.json({ overview: store.getPrivacyComplianceOverview(actor) });
+        return;
+      }
+
+      const canReadHouseholds = actor.role === 'admin' || actor.role === 'household_viewer';
+      const [households, sessions, analyticsEvents] = await Promise.all([
+        canReadHouseholds ? domainRecordRepository.listHouseholdsForUser(actor) : [],
+        actor.role === 'admin' ? authSessionRepository.listSessionRetentionRecords() : [],
+        domainRecordRepository.listAnalyticsEvents(500),
+      ]);
+      const householdQrTokens =
+        actor.role === 'admin'
+          ? (
+              await Promise.all(
+                households.map((household) =>
+                  domainRecordRepository.listHouseholdQrTokensForActor(actor, household.id)
+                )
+              )
+            ).flat()
+          : [];
+
+      res.json({
+        overview: store.getPrivacyComplianceOverview(actor, {
+          households,
+          sessions,
+          householdQrTokens,
+          analyticsEvents,
+        }),
+      });
+    })
   );
 
   app.post(
@@ -2399,7 +3457,7 @@ export function createEdisonApp(
         return;
       }
       const report = runPrivacyComplianceVerificationSuite();
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         'PRIVACY_COMPLIANCE_SUITE_RUN',
         'phase10_privacy_compliance',
@@ -2428,10 +3486,18 @@ export function createEdisonApp(
   app.get(
     '/api/reliability/overview',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
       res.setHeader('Cache-Control', 'no-store, private');
-      res.json({ overview: store.getReliabilityChaosOverview(req.currentUser!) });
-    }
+      try {
+        await synchronizeReliabilityChaosReportFromD1();
+        res.json({ overview: store.getReliabilityChaosOverview(user) });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
   );
 
   app.post(
@@ -2457,16 +3523,27 @@ export function createEdisonApp(
   app.post(
     '/api/admin/reliability/run-all-18',
     requireAdmin,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
       const parsed = parseWithZod(reliabilityFullSuiteSchema, req.body ?? {});
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
-      const result = store.runFullReliabilityChaosSuite(req.currentUser!, parsed.data);
-      res.setHeader('Cache-Control', 'no-store, private');
-      res.json(result);
-    }
+      try {
+        await synchronizeReliabilityChaosReportFromD1();
+        const result = store.runFullReliabilityChaosSuite(user, parsed.data);
+        if (domainRecordRepository) {
+          await domainRecordRepository.putLatestReliabilityChaosReport(result.report);
+        }
+        res.setHeader('Cache-Control', 'no-store, private');
+        res.json(result);
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
   );
 
   app.post(
@@ -2479,7 +3556,7 @@ export function createEdisonApp(
         return;
       }
       const report = runReliabilityChaosVerificationSuite();
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         'RELIABILITY_CHAOS_SUITE_RUN',
         'phase11_reliability_chaos',
@@ -2493,30 +3570,42 @@ export function createEdisonApp(
   app.get(
     '/api/pilot-readiness/overview',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
       res.setHeader('Cache-Control', 'no-store, private');
-      res.json({ overview: store.getPilotReadinessOverview(req.currentUser!) });
-    }
+      try {
+        await synchronizePilotCohortsFromD1();
+        res.json({ overview: store.getPilotReadinessOverview(user) });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
   );
 
   app.post(
     '/api/pilot-readiness/cohorts',
     requireAdmin,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
       const parsed = parseWithZod(pilotCohortCreateSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
       try {
-        const result = store.createPilotCohortBlueprint(req.currentUser!, parsed.data);
+        await synchronizePilotCohortsFromD1();
+        const result = store.createPilotCohortBlueprint(user, parsed.data);
+        if (domainRecordRepository) await domainRecordRepository.putPilotCohort(result.cohort);
         res.setHeader('Cache-Control', 'no-store, private');
         res.status(201).json(result);
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
   app.post(
@@ -2542,21 +3631,32 @@ export function createEdisonApp(
   app.post(
     '/api/pilot-readiness/stage-p6-prep',
     requireAdmin,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
       const parsed = parseWithZod(stageP6CheckPrepareSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
       try {
-        const overview = store.recordStageP6RunbookPrep(req.currentUser!, parsed.data);
+        await synchronizePilotCohortsFromD1();
+        const overview = store.recordStageP6RunbookPrep(user, parsed.data);
+        if (domainRecordRepository) {
+          const prepNote = overview.stageP6Runbook.find(
+            (step) => step.stepId === parsed.data.stepId
+          )?.ownerPrepNote;
+          if (prepNote !== undefined && prepNote !== null) {
+            await domainRecordRepository.putStageP6PrepNote(parsed.data.stepId, prepNote);
+          }
+        }
         res.setHeader('Cache-Control', 'no-store, private');
         res.json({ overview });
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
   app.post(
@@ -2569,7 +3669,7 @@ export function createEdisonApp(
         return;
       }
       const report = runPilotReadinessVerificationSuite();
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         'PILOT_READINESS_SUITE_RUN',
         'phase12_pilot_readiness',
@@ -2584,50 +3684,70 @@ export function createEdisonApp(
   app.get(
     '/api/commercial-readiness/overview',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
       res.setHeader('Cache-Control', 'no-store, private');
-      res.json({ overview: store.getCommercialReadinessOverview(req.currentUser!) });
-    }
+      try {
+        await synchronizeCommercialReadinessFromD1();
+        res.json({ overview: store.getCommercialReadinessOverview(user) });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
   );
 
   app.put(
     '/api/commercial-readiness/cost-assumptions',
     requireAdmin,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
       const parsed = parseWithZod(commercialCostAssumptionsSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
       try {
-        const overview = store.updateCommercialCostAssumptions(req.currentUser!, parsed.data);
+        await synchronizeCommercialReadinessFromD1();
+        const overview = store.updateCommercialCostAssumptions(user, parsed.data);
+        if (domainRecordRepository) {
+          await domainRecordRepository.putCommercialCostAssumptions(parsed.data);
+        }
         res.setHeader('Cache-Control', 'no-store, private');
         res.json({ overview });
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
   app.post(
     '/api/commercial-readiness/board-decision',
     requireAdmin,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
       const parsed = parseWithZod(commercialBoardDecisionSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
       try {
-        const result = store.submitCommercialBoardDecision(req.currentUser!, parsed.data);
+        await synchronizeCommercialReadinessFromD1();
+        const result = store.submitCommercialBoardDecision(user, parsed.data);
+        if (domainRecordRepository) {
+          await domainRecordRepository.putCommercialBoardDecision(result.decision);
+        }
         res.setHeader('Cache-Control', 'no-store, private');
         res.status(201).json(result);
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
   app.post(
@@ -2640,7 +3760,7 @@ export function createEdisonApp(
         return;
       }
       const report = runCommercialReadinessVerificationSuite();
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         'COMMERCIAL_READINESS_SUITE_RUN',
         'phase13_commercial_readiness',
@@ -2655,50 +3775,73 @@ export function createEdisonApp(
   app.get(
     '/api/country-launch/overview',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
       res.setHeader('Cache-Control', 'no-store, private');
-      res.json({ overview: store.getCountryLaunchOverview(req.currentUser!) });
-    }
+      try {
+        await synchronizeCountryLaunchStateFromD1();
+        res.json({ overview: store.getCountryLaunchOverview(user) });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
   );
 
   app.put(
     '/api/country-launch/policy',
     requireAdmin,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
       const parsed = parseWithZod(countryPolicyUpdateSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
       try {
-        const overview = store.updateCountryPolicyConfig(req.currentUser!, parsed.data);
+        await synchronizeCountryLaunchStateFromD1();
+        const overview = store.updateCountryPolicyConfig(user, parsed.data);
+        if (domainRecordRepository) {
+          const profile = overview.countries.find(
+            (country) => country.countryCode === parsed.data.countryCode
+          )?.policyConfig;
+          if (profile) await domainRecordRepository.putCountryPolicyProfile(profile);
+        }
         res.setHeader('Cache-Control', 'no-store, private');
         res.json({ overview });
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
   app.post(
     '/api/country-launch/decision',
     requireAdmin,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
       const parsed = parseWithZod(countryLaunchDecisionSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
       try {
-        const result = store.submitCountryLaunchDecision(req.currentUser!, parsed.data);
+        await synchronizeCountryLaunchStateFromD1();
+        const result = store.submitCountryLaunchDecision(user, parsed.data);
+        if (domainRecordRepository) {
+          await domainRecordRepository.putCountryLaunchDecision(result.decision);
+        }
         res.setHeader('Cache-Control', 'no-store, private');
         res.status(201).json(result);
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
   app.post(
@@ -2711,7 +3854,7 @@ export function createEdisonApp(
         return;
       }
       const report = runCountryLaunchVerificationSuite();
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         'COUNTRY_LAUNCH_SUITE_RUN',
         'phase14_country_launch',
@@ -2726,73 +3869,99 @@ export function createEdisonApp(
   app.get(
     '/api/international-expansion/overview',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
       res.setHeader('Cache-Control', 'no-store, private');
-      res.json({ overview: store.getInternationalExpansionOverview(req.currentUser!) });
-    }
+      try {
+        await synchronizeInternationalExpansionStateFromD1();
+        res.json({ overview: store.getInternationalExpansionOverview(user) });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
   );
 
   app.put(
     '/api/international-expansion/region-config',
     requireAdmin,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
       const parsed = parseWithZod(regionalLocalizationUpdateSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
       try {
-        const overview = store.updateRegionalLocalizationConfig(req.currentUser!, parsed.data);
+        await synchronizeInternationalExpansionStateFromD1();
+        const overview = store.updateRegionalLocalizationConfig(user, parsed.data);
+        if (domainRecordRepository) {
+          const profile = overview.regions.find(
+            (region) => region.regionId === parsed.data.regionId
+          )?.localizationConfig;
+          if (profile) await domainRecordRepository.putRegionalLocalizationProfile(profile);
+        }
         res.setHeader('Cache-Control', 'no-store, private');
         res.json({ overview });
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
   app.post(
     '/api/international-expansion/estimate-currency',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
       const parsed = parseWithZod(multiCurrencyEstimateSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
       try {
+        await synchronizeInternationalExpansionStateFromD1();
         const estimate = store.estimateRegionalMultiCurrencyProForma(
-          req.currentUser!,
+          user,
           parsed.data
         );
         res.setHeader('Cache-Control', 'no-store, private');
         res.json({ estimate });
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
   app.post(
     '/api/international-expansion/decision',
     requireAdmin,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
       const parsed = parseWithZod(internationalExpansionDecisionSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
       try {
-        const result = store.submitInternationalExpansionDecision(req.currentUser!, parsed.data);
+        await synchronizeInternationalExpansionStateFromD1();
+        const result = store.submitInternationalExpansionDecision(user, parsed.data);
+        if (domainRecordRepository) {
+          await domainRecordRepository.putInternationalExpansionDecision(result.decision);
+        }
         res.setHeader('Cache-Control', 'no-store, private');
         res.status(201).json(result);
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
   app.post(
@@ -2805,7 +3974,7 @@ export function createEdisonApp(
         return;
       }
       const report = runInternationalExpansionVerificationSuite();
-      store.recordSecurityAudit(
+      recordRouteAudit(req,
         req.currentUser!,
         'INTERNATIONAL_EXPANSION_SUITE_RUN',
         'phase15_international_expansion',
@@ -2832,7 +4001,7 @@ export function createEdisonApp(
       return;
     }
     const report = runTrackBVerificationSuite();
-    store.recordSecurityAudit(
+    recordRouteAudit(req,
       req.currentUser!,
       'TRACK_B_VERIFICATION_SUITE_RUN',
       'track_b_consent',
@@ -2844,332 +4013,484 @@ export function createEdisonApp(
   app.get(
     '/api/advertiser/targeting-aggregates',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
       res.setHeader('Cache-Control', 'no-store, private');
-      const rows = store.getAdvertiserGeoAggregates(req.currentUser!);
-      res.json({
-        privacyNotice:
-          'Aggregate consented households only — exact installation locations and member profiles are strictly redacted.',
-        items: rows,
-      });
-    }
+      try {
+        const rows = domainRecordRepository
+          ? await domainRecordRepository.getAdvertiserGeoAggregates()
+          : store.getAdvertiserGeoAggregates(req.currentUser!);
+        res.json({
+          privacyNotice:
+            'Aggregate consented households only — exact installation locations and member profiles are strictly redacted.',
+          items: rows,
+        });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
   );
 
-  app.get('/api/households', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    res.setHeader('Cache-Control', 'no-store, private');
-    try {
-      const items = store.listHouseholdsForUser(req.currentUser!);
-      res.json({ items: items.map(toPublicHouseholdView) });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+  app.get(
+    '/api/households',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
+      res.setHeader('Cache-Control', 'no-store, private');
+      try {
+        const items = domainRecordRepository
+          ? await domainRecordRepository.listHouseholdsForUser(user)
+          : store.listHouseholdsForUser(user);
+        res.json({ items: items.map(toPublicHouseholdView) });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
 
-  app.post('/api/households', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const parsed = parseWithZod(householdCreateSchema, req.body);
-    if (!parsed.ok) {
-      sendValidationError(res, parsed);
-      return;
-    }
-    try {
-      const item = store.createHousehold(req.currentUser!, parsed.data);
-      res.status(201).json({ item: toPublicHouseholdView(item) });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+  app.post(
+    '/api/households',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
+      const parsed = parseWithZod(householdCreateSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        const item = store.createHousehold(user, parsed.data);
+        await persistHouseholdState(user, item);
+        res.status(201).json({ item: toPublicHouseholdView(item) });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
 
-  app.get('/api/households/:id', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    res.setHeader('Cache-Control', 'no-store, private');
-    try {
-      const item = store.getHouseholdForActor(req.currentUser!, req.params.id);
-      res.json({ item: toPublicHouseholdView(item) });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+  app.get(
+    '/api/households/:id',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
+      res.setHeader('Cache-Control', 'no-store, private');
+      try {
+        const item = domainRecordRepository
+          ? (await domainRecordRepository.getHouseholdForActor(user, req.params.id)) ??
+            store.getHouseholdForActor(user, req.params.id)
+          : store.getHouseholdForActor(user, req.params.id);
+        res.json({ item: toPublicHouseholdView(item) });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
 
-  app.put('/api/households/:id/location', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const parsed = parseWithZod(householdLocationSchema, req.body);
-    if (!parsed.ok) {
-      sendValidationError(res, parsed);
-      return;
-    }
-    try {
-      const item = store.updateHouseholdLocation(req.currentUser!, req.params.id, parsed.data);
-      res.json({ item: toPublicHouseholdView(item) });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+  app.put(
+    '/api/households/:id/location',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
+      const parsed = parseWithZod(householdLocationSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        await synchronizeHouseholdStateFromD1(user, req.params.id);
+        const item = store.updateHouseholdLocation(user, req.params.id, parsed.data);
+        await persistHouseholdState(user, item);
+        res.json({ item: toPublicHouseholdView(item) });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
 
-  app.patch('/api/households/:id/settings', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const parsed = parseWithZod(householdDisplaySettingsPatchSchema, req.body);
-    if (!parsed.ok) {
-      sendValidationError(res, parsed);
-      return;
-    }
-    try {
-      const item = store.updateHouseholdDisplaySettings(
-        req.currentUser!,
-        req.params.id,
-        parsed.data
-      );
-      res.json({ item: toPublicHouseholdView(item) });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+  app.patch(
+    '/api/households/:id/settings',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
+      const parsed = parseWithZod(householdDisplaySettingsPatchSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        await synchronizeHouseholdStateFromD1(user, req.params.id);
+        const item = store.updateHouseholdDisplaySettings(user, req.params.id, parsed.data);
+        await persistHouseholdState(user, item);
+        res.json({ item: toPublicHouseholdView(item) });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
 
   app.post(
     '/api/households/:id/consent/withdraw',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
       const parsed = parseWithZod(householdConsentWithdrawSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
       try {
+        await synchronizeHouseholdStateFromD1(user, req.params.id);
         const result = store.withdrawHouseholdConsentBundled(
-          req.currentUser!,
+          user,
           req.params.id,
           parsed.data.reason
         );
+        await persistHouseholdState(user, result.household);
         res.setHeader('Cache-Control', 'no-store, private');
         res.json({ ...result, household: toPublicHouseholdView(result.household) });
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
   app.post(
     '/api/households/:id/consent/restore',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
       const parsed = parseWithZod(householdConsentRestoreSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
       try {
+        await synchronizeHouseholdStateFromD1(user, req.params.id);
         const result = store.restoreHouseholdConsentExplicit(
-          req.currentUser!,
+          user,
           req.params.id,
           parsed.data
         );
+        await persistHouseholdState(user, result.household);
         res.setHeader('Cache-Control', 'no-store, private');
         res.json({ ...result, household: toPublicHouseholdView(result.household) });
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
-  app.get('/api/households/:id/members', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    res.setHeader('Cache-Control', 'no-store, private');
-    try {
-      const items = store.listHouseholdMembers(req.currentUser!, req.params.id);
-      res.json({ items });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+  app.get(
+    '/api/households/:id/members',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
+      res.setHeader('Cache-Control', 'no-store, private');
+      try {
+        let items: Array<Omit<HouseholdMemberProfile, 'pinHash'>>;
+        if (domainRecordRepository) {
+          const household = await domainRecordRepository.getHouseholdForActor(
+            user,
+            req.params.id
+          );
+          items = household
+            ? await domainRecordRepository.listHouseholdMembersForActor(user, req.params.id)
+            : store.listHouseholdMembers(user, req.params.id);
+        } else {
+          items = store.listHouseholdMembers(user, req.params.id);
+        }
+        res.json({ items });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
 
-  app.post('/api/households/:id/members', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const parsed = parseWithZod(householdMemberCreateSchema, req.body);
-    if (!parsed.ok) {
-      sendValidationError(res, parsed);
-      return;
-    }
-    try {
-      const item = store.createHouseholdMember(req.currentUser!, req.params.id, parsed.data);
-      res.status(201).json({ item });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+  app.post(
+    '/api/households/:id/members',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
+      const parsed = parseWithZod(householdMemberCreateSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        await synchronizeHouseholdStateFromD1(user, req.params.id);
+        const item = store.createHouseholdMember(user, req.params.id, parsed.data);
+        if (domainRecordRepository) {
+          const household = store.getHouseholdForActor(user, req.params.id);
+          await persistHouseholdState(user, household);
+        }
+        res.status(201).json({ item });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
 
   app.patch(
     '/api/households/:id/members/:memberId',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
       const parsed = parseWithZod(householdMemberUpdateSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
       try {
+        await synchronizeHouseholdStateFromD1(user, req.params.id);
         const item = store.updateHouseholdMember(
-          req.currentUser!,
+          user,
           req.params.id,
           req.params.memberId,
           parsed.data
         );
+        if (domainRecordRepository) {
+          const household = store.getHouseholdForActor(user, req.params.id);
+          await persistHouseholdState(user, household);
+        }
         res.json({ item });
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
   app.delete(
     '/api/households/:id/members/:memberId',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
       const parsed = parseWithZod(householdMemberDeleteSchema, req.body ?? {});
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
       try {
+        await synchronizeHouseholdStateFromD1(user, req.params.id);
         store.deleteHouseholdMember(
-          req.currentUser!,
+          user,
           req.params.id,
           req.params.memberId,
           parsed.data.pinVerification
         );
+        if (domainRecordRepository) {
+          await domainRecordRepository.deleteHouseholdMember(
+            user,
+            req.params.id,
+            req.params.memberId
+          );
+          const household = store.getHouseholdForActor(user, req.params.id);
+          await persistHouseholdState(user, household);
+        }
         res.json({ ok: true });
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
-  app.get('/api/households/:id/matches', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    res.setHeader('Cache-Control', 'no-store, private');
-    try {
-      const result = store.evaluateHouseholdOpportunityMatches(req.currentUser!, req.params.id);
-      res.json(result);
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+  app.get(
+    '/api/households/:id/matches',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
+      res.setHeader('Cache-Control', 'no-store, private');
+      try {
+        await synchronizeHouseholdStateFromD1(user, req.params.id);
+        const opportunities = domainRecordRepository
+          ? await domainRecordRepository.listOpportunitiesForUser(user)
+          : undefined;
+        const result = store.evaluateHouseholdOpportunityMatches(
+          user,
+          req.params.id,
+          opportunities
+        );
+        res.json(result);
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
 
-  app.post('/api/households/:id/qr-issue', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const parsed = parseWithZod(householdQrIssueSchema, req.body);
-    if (!parsed.ok) {
-      sendValidationError(res, parsed);
-      return;
-    }
-    try {
-      const item = store.issueHouseholdEpochQrToken(
-        req.currentUser!,
-        req.params.id,
-        parsed.data
-      );
-      res.status(201).json({ item });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+  app.post(
+    '/api/households/:id/qr-issue',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
+      const parsed = parseWithZod(householdQrIssueSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        await synchronizeHouseholdStateFromD1(user, req.params.id);
+        if (domainRecordRepository) {
+          const baseQr = await domainRecordRepository.getQrLinkByToken(parsed.data.baseQrToken);
+          if (baseQr) store.replaceQrLinkFromPersistence(baseQr);
+        }
+        const item = store.issueHouseholdEpochQrToken(user, req.params.id, parsed.data);
+        if (domainRecordRepository) {
+          const household = store.getHouseholdForActor(user, req.params.id);
+          await domainRecordRepository.putHouseholdQrToken(item, household.ownerUserId);
+        }
+        res.status(201).json({ item });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
 
-  app.get('/api/households/:id/qr-tokens', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    res.setHeader('Cache-Control', 'no-store, private');
-    try {
-      const items = store.listHouseholdQrTokens(req.currentUser!, req.params.id);
-      res.json({ items });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err);
-      res.status(code).json({ error: message });
-    }
-  });
+  app.get(
+    '/api/households/:id/qr-tokens',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
+      res.setHeader('Cache-Control', 'no-store, private');
+      try {
+        const fallback = store.listHouseholdQrTokens(user, req.params.id);
+        const items = domainRecordRepository
+          ? await domainRecordRepository.listHouseholdQrTokensForActor(user, req.params.id)
+          : fallback;
+        res.json({ items });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err);
+        res.status(code).json({ error: message });
+      }
+    })
+  );
 
   app.get(
     '/api/households/:id/consent-history',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
       res.setHeader('Cache-Control', 'no-store, private');
       try {
-        const items = store.listConsentAuditEvents(req.currentUser!, req.params.id);
+        const fallback = store.listConsentAuditEvents(user, req.params.id);
+        const items = domainRecordRepository
+          ? await domainRecordRepository.listConsentAuditEventsForActor(user, req.params.id)
+          : fallback;
         res.json({ items });
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
   app.post(
     '/api/households/:id/dsr-export',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
       const parsed = parseWithZod(emptyStrictSchema, req.body ?? {});
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
       try {
-        const pkg = store.exportHouseholdDsrPackage(req.currentUser!, req.params.id);
+        const user = (req as AuthenticatedRequest).currentUser!;
+        await synchronizeHouseholdStateFromD1(user, req.params.id);
+        const pkg = store.exportHouseholdDsrPackage(user, req.params.id);
         res.setHeader('Cache-Control', 'no-store, private');
         res.json({ package: pkg });
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
   app.post(
     '/api/households/:id/dsr-erase',
     requireAuth,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
+      const user = (req as AuthenticatedRequest).currentUser!;
       const parsed = parseWithZod(householdDsrEraseSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
       try {
+        await synchronizeHouseholdStateFromD1(user, req.params.id);
         const erasure = store.anonymiseHouseholdDsr(
-          req.currentUser!,
+          user,
           req.params.id,
           parsed.data
         );
+        if (domainRecordRepository) {
+          const household = store.getHouseholdForActor(user, req.params.id);
+          await persistHouseholdState(user, household);
+        }
         res.setHeader('Cache-Control', 'no-store, private');
         res.json({ erasure });
       } catch (err) {
+        if (isD1DomainError(err)) throw err;
         const { code, message } = mapErrorStatus(err);
         res.status(code).json({ error: message });
       }
-    }
+    })
   );
 
   // Admin-only Audit Log, Hardened Export & Request Telemetry Endpoints
-  app.get('/api/admin/audit-logs', requireAdmin, (req: AuthenticatedRequest, res: Response) => {
-    const parsedQuery = parseWithZod(auditLogQuerySchema, {
-      targetType: typeof req.query.targetType === 'string' ? req.query.targetType : undefined,
-      limit: typeof req.query.limit === 'string' ? req.query.limit : undefined,
-    });
-    if (!parsedQuery.ok) {
-      sendValidationError(res, parsedQuery);
-      return;
-    }
-    res.json({
-      items: store.listAuditLogs({
-        targetType: parsedQuery.data.targetType,
-        limit: parsedQuery.data.limit,
-      }),
-    });
-  });
+  app.get(
+    '/api/admin/audit-logs',
+    requireAdmin,
+    asyncHandler(async (req, res) => {
+      const parsedQuery = parseWithZod(auditLogQuerySchema, {
+        targetType: typeof req.query.targetType === 'string' ? req.query.targetType : undefined,
+        limit: typeof req.query.limit === 'string' ? req.query.limit : undefined,
+      });
+      if (!parsedQuery.ok) {
+        sendValidationError(res, parsedQuery);
+        return;
+      }
+      res.json({
+        items: await listMergedAuditRecords({
+          targetType: parsedQuery.data.targetType,
+          limit: parsedQuery.data.limit,
+        }),
+      });
+    })
+  );
 
   app.get(
     '/api/admin/audit-logs/export',
     requireAdmin,
-    (req: AuthenticatedRequest, res: Response) => {
+    asyncHandler(async (req, res) => {
       const parsedQuery = parseWithZod(auditLogExportQuerySchema, {
         targetType: typeof req.query.targetType === 'string' ? req.query.targetType : undefined,
         limit: typeof req.query.limit === 'string' ? req.query.limit : undefined,
@@ -3181,13 +4502,14 @@ export function createEdisonApp(
       }
 
       const { targetType, limit, format } = parsedQuery.data;
-      const items = store.listAuditLogs({ targetType, limit });
+      const authenticatedReq = req as AuthenticatedRequest;
+      const items = await listMergedAuditRecords({ targetType, limit });
 
-      store.recordSecurityAudit(
-        req.currentUser!,
+      await authSessionRepository.recordSecurityAudit(
+        authenticatedReq.currentUser!,
         'ADMIN_AUDIT_LOG_EXPORTED',
         targetType,
-        `[${req.requestId ?? 'req'}] Exported ${items.length} audit log row(s) as ${format.toUpperCase()}.`
+        `[${authenticatedReq.requestId ?? 'req'}] Exported ${items.length} audit log row(s) as ${format.toUpperCase()}.`
       );
 
       res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -3217,12 +4539,12 @@ export function createEdisonApp(
 
       res.json({
         exportedAt: new Date().toISOString(),
-        requestId: req.requestId ?? null,
+        requestId: authenticatedReq.requestId ?? null,
         targetType,
         count: items.length,
         items,
       });
-    }
+    })
   );
 
   app.get(
@@ -3299,6 +4621,13 @@ export function createEdisonApp(
 
   // --- Phase 3: Dedicated FFmpeg & FFprobe Broadcast Media Worker ---
   app.get('/api/media/worker/status', requireAuth, (_req: AuthenticatedRequest, res: Response) => {
+    if (options?.disableMediaProcessing) {
+      res.status(503).json({
+        error: 'MEDIA_PROCESSING_UNAVAILABLE',
+        message: 'Media storage and FFmpeg execution are not configured for this Worker.',
+      });
+      return;
+    }
     res.json({
       diagnostics: mediaWorker.getWorkerDiagnostics(),
       recentJobs: mediaWorker.listJobs(20),
@@ -3306,6 +4635,13 @@ export function createEdisonApp(
   });
 
   app.post('/api/media/worker/probe', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    if (options?.disableMediaProcessing) {
+      res.status(503).json({
+        error: 'MEDIA_PROCESSING_UNAVAILABLE',
+        message: 'Media storage and FFmpeg execution are not configured for this Worker.',
+      });
+      return;
+    }
     const parsed = parseWithZod(mediaWorkerProbeSchema, req.body);
     if (!parsed.ok) {
       sendValidationError(res, parsed);
@@ -3322,6 +4658,13 @@ export function createEdisonApp(
   });
 
   app.post('/api/media/worker/transcode', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    if (options?.disableMediaProcessing) {
+      res.status(503).json({
+        error: 'MEDIA_PROCESSING_UNAVAILABLE',
+        message: 'Media storage and FFmpeg execution are not configured for this Worker.',
+      });
+      return;
+    }
     const parsed = parseWithZod(mediaWorkerTranscodeSchema, req.body);
     if (!parsed.ok) {
       sendValidationError(res, parsed);
@@ -3361,13 +4704,22 @@ export function createEdisonApp(
     });
   });
 
-  app.get('/api/aura/devices', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    res.json({
-      items: auraRemoteEngine.listUserDevices(req.currentUser!.id),
-    });
-  });
+  app.get(
+    '/api/aura/devices',
+    requireAuth,
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+      if (domainRecordRepository) {
+        auraRemoteEngine.replaceDevicesFromPersistence(
+          await domainRecordRepository.listAuraDevicesForUser(req.currentUser!),
+        );
+      }
+      res.json({
+        items: auraRemoteEngine.listUserDevices(req.currentUser!.id),
+      });
+    }),
+  );
 
-  app.post('/api/aura/pair/initiate', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+  app.post('/api/aura/pair/initiate', requireAuth, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const parsed = parseWithZod(auraInitiatePairingSchema, req.body);
     if (!parsed.ok) {
       sendValidationError(res, parsed);
@@ -3379,99 +4731,110 @@ export function createEdisonApp(
       tvLabel: parsed.data.tvLabel,
       platformId: parsed.data.platformId,
     });
+    if (domainRecordRepository) await domainRecordRepository.putAuraDevice(device);
     res.status(201).json({ device });
-  });
+  }));
 
-  app.post('/api/aura/pair/confirm', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+  app.post('/api/aura/pair/confirm', requireAuth, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const parsed = parseWithZod(auraConfirmPairingSchema, req.body);
     if (!parsed.ok) {
       sendValidationError(res, parsed);
       return;
     }
     try {
+      await synchronizeAuraStateFromD1(req.currentUser!);
       const device = auraRemoteEngine.confirmPairing({
         deviceId: parsed.data.deviceId,
         ownerUserId: req.currentUser!.id,
         pairingCode: parsed.data.pairingCode,
         activeProfileId: parsed.data.activeProfileId ?? null,
       });
+      if (domainRecordRepository) await domainRecordRepository.putAuraDevice(device);
       res.json({ device });
     } catch (err) {
       const { code, message } = mapErrorStatus(err, 400);
       res.status(code).json({ error: message });
     }
-  });
+  }));
 
-  app.post('/api/aura/devices/:deviceId/heartbeat', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+  app.post('/api/aura/devices/:deviceId/heartbeat', requireAuth, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const parsed = parseWithZod(auraHeartbeatSchema, req.body);
     if (!parsed.ok) {
       sendValidationError(res, parsed);
       return;
     }
     try {
+      await synchronizeAuraStateFromD1(req.currentUser!);
       const device = auraRemoteEngine.recordHeartbeat({
         deviceId: req.params.deviceId,
         ownerUserId: req.currentUser!.id,
         networkOnline: parsed.data.networkOnline,
       });
+      if (domainRecordRepository) await domainRecordRepository.putAuraDevice(device);
       res.json({ device });
     } catch (err) {
       const { code, message } = mapErrorStatus(err, 404);
       res.status(code).json({ error: message });
     }
-  });
+  }));
 
-  app.post('/api/aura/devices/:deviceId/command', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+  app.post('/api/aura/devices/:deviceId/command', requireAuth, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const parsed = parseWithZod(auraCommandSchema, req.body);
     if (!parsed.ok) {
       sendValidationError(res, parsed);
       return;
     }
     try {
+      await synchronizeAuraStateFromD1(req.currentUser!);
       const result = auraRemoteEngine.dispatchAuraCommand({
         deviceId: req.params.deviceId,
         ownerUserId: req.currentUser!.id,
         command: parsed.data.command,
         targetInput: parsed.data.targetInput,
       });
+      if (domainRecordRepository) await domainRecordRepository.putAuraDevice(result.device);
       res.json(result);
     } catch (err) {
       const { code, message } = mapErrorStatus(err, 400);
       res.status(code).json({ error: message });
     }
-  });
+  }));
 
-  app.patch('/api/aura/devices/:deviceId/profile', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+  app.patch('/api/aura/devices/:deviceId/profile', requireAuth, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const parsed = parseWithZod(auraBindProfileSchema, req.body);
     if (!parsed.ok) {
       sendValidationError(res, parsed);
       return;
     }
     try {
+      await synchronizeAuraStateFromD1(req.currentUser!);
       const device = auraRemoteEngine.bindActiveProfile({
         deviceId: req.params.deviceId,
         ownerUserId: req.currentUser!.id,
         profileId: parsed.data.profileId,
       });
+      if (domainRecordRepository) await domainRecordRepository.putAuraDevice(device);
       res.json({ device });
     } catch (err) {
       const { code, message } = mapErrorStatus(err, 404);
       res.status(code).json({ error: message });
     }
-  });
+  }));
 
-  app.post('/api/aura/devices/:deviceId/disconnect', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+  app.post('/api/aura/devices/:deviceId/disconnect', requireAuth, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     try {
+      await synchronizeAuraStateFromD1(req.currentUser!);
       const device = auraRemoteEngine.disconnectDevice({
         deviceId: req.params.deviceId,
         ownerUserId: req.currentUser!.id,
       });
+      if (domainRecordRepository) await domainRecordRepository.putAuraDevice(device);
       res.json({ device });
     } catch (err) {
       const { code, message } = mapErrorStatus(err, 404);
       res.status(code).json({ error: message });
     }
-  });
+  }));
 
   app.post('/api/tv/hdmi-cec/evaluate', requireAuth, (req: AuthenticatedRequest, res: Response) => {
     const parsed = parseWithZod(hdmiCecEvaluateSchema, req.body);
@@ -3484,62 +4847,106 @@ export function createEdisonApp(
   });
 
   // --- Phase 7: Commercial Operations Disputes, Credit Ledger & Stream Reconciliation ---
-  app.get('/api/advertiser-ops/disputes', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const user = req.currentUser!;
-    const items =
-      user.role === 'admin'
-        ? commercialDisputeEngine.listDisputes()
-        : commercialDisputeEngine.listDisputes({ advertiserUserId: user.id });
-    const ledger = store.getRevenueLedgerSnapshot(user);
-    const reconciliation = commercialDisputeEngine.reconcileRevenueStreams(ledger);
-    res.json({ items, reconciliation });
-  });
-
-  app.post('/api/advertiser-ops/disputes', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const parsed = parseWithZod(commercialDisputeCreateSchema, req.body);
-    if (!parsed.ok) {
-      sendValidationError(res, parsed);
-      return;
-    }
-    try {
+  app.get(
+    '/api/advertiser-ops/disputes',
+    requireAuth,
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
       const user = req.currentUser!;
-      const campaign = parsed.data.campaignId
-        ? store.listCampaignsForUser(user).find((c) => c.id === parsed.data.campaignId) ?? null
-        : null;
-      const item = commercialDisputeEngine.submitDispute({
-        advertiserUserId: user.id,
-        campaign,
-        billingPeriodLabel: parsed.data.billingPeriodLabel,
-        disputeType: parsed.data.disputeType,
-        disputedAmountUsd: parsed.data.disputedAmountUsd,
-        reason: parsed.data.reason,
-      });
-      res.status(201).json({ item });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err, 400);
-      res.status(code).json({ error: message });
-    }
-  });
+      const persistedDisputes = domainRecordRepository
+        ? await domainRecordRepository.listCommercialDisputes()
+        : undefined;
+      const persistedRevenueData = domainRecordRepository
+        ? await Promise.all([
+            domainRecordRepository.listCampaignsForUser(user),
+            domainRecordRepository.listAnalyticsEvents(500),
+          ]).then(([campaigns, analyticsEvents]) => ({ campaigns, analyticsEvents }))
+        : undefined;
+      if (persistedDisputes) {
+        commercialDisputeEngine.replaceDisputesFromPersistence(persistedDisputes);
+      }
+      const items =
+        user.role === 'admin'
+          ? commercialDisputeEngine.listDisputes()
+          : commercialDisputeEngine.listDisputes({ advertiserUserId: user.id });
+      const ledger = store.getRevenueLedgerSnapshot(user, persistedRevenueData);
+      const reconciliation = commercialDisputeEngine.reconcileRevenueStreams(
+        ledger,
+        persistedDisputes,
+      );
+      res.json({ items, reconciliation });
+    }),
+  );
 
-  app.patch('/api/advertiser-ops/disputes/:id/resolve', requireAdmin, (req: AuthenticatedRequest, res: Response) => {
-    const parsed = parseWithZod(commercialDisputeResolveSchema, req.body);
-    if (!parsed.ok) {
-      sendValidationError(res, parsed);
-      return;
-    }
-    try {
-      const item = commercialDisputeEngine.resolveDispute({
-        disputeId: req.params.id,
-        decision: parsed.data.decision,
-        approvedCreditUsd: parsed.data.approvedCreditUsd,
-        resolutionNote: parsed.data.resolutionNote,
-      });
-      res.json({ item });
-    } catch (err) {
-      const { code, message } = mapErrorStatus(err, 404);
-      res.status(code).json({ error: message });
-    }
-  });
+  app.post(
+    '/api/advertiser-ops/disputes',
+    requireAuth,
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(commercialDisputeCreateSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        const user = req.currentUser!;
+        if (domainRecordRepository) {
+          commercialDisputeEngine.replaceDisputesFromPersistence(
+            await domainRecordRepository.listCommercialDisputes(),
+          );
+        }
+        const campaigns = domainRecordRepository
+          ? await domainRecordRepository.listCampaignsForUser(user)
+          : store.listCampaignsForUser(user);
+        const campaign = parsed.data.campaignId
+          ? campaigns.find((item) => item.id === parsed.data.campaignId) ?? null
+          : null;
+        const item = commercialDisputeEngine.submitDispute({
+          advertiserUserId: user.id,
+          campaign,
+          billingPeriodLabel: parsed.data.billingPeriodLabel,
+          disputeType: parsed.data.disputeType,
+          disputedAmountUsd: parsed.data.disputedAmountUsd,
+          reason: parsed.data.reason,
+        });
+        if (domainRecordRepository) await domainRecordRepository.putCommercialDispute(item);
+        res.status(201).json({ item });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err, 400);
+        res.status(code).json({ error: message });
+      }
+    }),
+  );
+
+  app.patch(
+    '/api/advertiser-ops/disputes/:id/resolve',
+    requireAdmin,
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+      const parsed = parseWithZod(commercialDisputeResolveSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      try {
+        if (domainRecordRepository) {
+          commercialDisputeEngine.replaceDisputesFromPersistence(
+            await domainRecordRepository.listCommercialDisputes(),
+          );
+        }
+        const item = commercialDisputeEngine.resolveDispute({
+          disputeId: req.params.id,
+          decision: parsed.data.decision,
+          approvedCreditUsd: parsed.data.approvedCreditUsd,
+          resolutionNote: parsed.data.resolutionNote,
+        });
+        if (domainRecordRepository) await domainRecordRepository.putCommercialDispute(item);
+        res.json({ item });
+      } catch (err) {
+        if (isD1DomainError(err)) throw err;
+        const { code, message } = mapErrorStatus(err, 404);
+        res.status(code).json({ error: message });
+      }
+    }),
+  );
 
   // --- Phase 15 & Reliability: i18n UI Translation Bundles, Sovereign Deployment Manifests & Observability ---
   app.get('/api/i18n/bundles', (_req: Request, res: Response) => {
@@ -3577,31 +4984,83 @@ export function createEdisonApp(
     res.json(reliabilityMonitor.getMetricsSnapshot());
   });
 
-  app.get('/api/qr/events', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    const user = req.currentUser!;
-    const allowedTokens = new Set(store.listQrLinksForUser(user).map((q) => q.token));
-    const events = store
-      .listAnalyticsEvents(100)
-      .filter((e) => user.role === 'admin' || (e.qrToken && allowedTokens.has(e.qrToken)));
-    res.json({ items: events });
-  });
+  app.get(
+    '/api/qr/events',
+    requireAuth,
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+      const user = req.currentUser!;
+      const allowedTokens = new Set(
+        domainRecordRepository
+          ? (await domainRecordRepository.listQrLinksForActor(user)).map((qr) => qr.token)
+          : store.listQrLinksForUser(user).map((qr) => qr.token),
+      );
+      const sourceEvents = domainRecordRepository
+        ? await domainRecordRepository.listAnalyticsEvents(500)
+        : store.listAnalyticsEvents(100);
+      const events = sourceEvents
+        .filter((event) => user.role === 'admin' || (event.qrToken && allowedTokens.has(event.qrToken)))
+        .slice(0, 100);
+      res.json({ items: events });
+    }),
+  );
 
   // Real Direct-to-Destination QR Tracking Redirect (/r/:token)
   // Records `redirect_requested` on receipt and `redirect_issued` on HTTP 302.
   // Rejects revoked/withdrawn/stale-epoch/expired Track B household QR tokens with HTTP 403 and no-store cache headers.
-  app.get('/r/:token', redirectRateMiddleware, (req: Request, res: Response) => {
-    res.setHeader('Cache-Control', 'no-store, private');
-    const token = req.params.token;
-    const clientIp = req.ip || 'unknown';
-    const userAgent = req.get('user-agent') || 'unknown';
-    const outcome = store.resolveQrRedirect(token, clientIp, userAgent, {
-      secPurpose: req.get('sec-purpose'),
-      purpose: req.get('purpose'),
-      xMoz: req.get('x-moz'),
-    });
+  app.get(
+    '/r/:token',
+    redirectRateMiddleware,
+    asyncHandler(async (req: Request, res: Response) => {
+      res.setHeader('Cache-Control', 'no-store, private');
+      const token = req.params.token;
+      const clientIp = req.ip || 'unknown';
+      const userAgent = req.get('user-agent') || 'unknown';
+      const householdRedirectState =
+        domainRecordRepository && token.startsWith('hqr_')
+          ? await domainRecordRepository.getHouseholdQrRedirectState(token)
+          : null;
+      if (householdRedirectState) {
+        store.replaceHouseholdQrRedirectStateFromPersistence(householdRedirectState);
+      } else if (domainRecordRepository && !token.startsWith('hqr_')) {
+        const persistedQr = await domainRecordRepository.getQrLinkByToken(token);
+        if (persistedQr) store.replaceQrLinkFromPersistence(persistedQr);
+      }
+      const outcome = store.resolveQrRedirect(token, clientIp, userAgent, {
+        secPurpose: req.get('sec-purpose'),
+        purpose: req.get('purpose'),
+        xMoz: req.get('x-moz'),
+      });
 
-    if (!outcome.ok) {
-      res.status(outcome.statusCode).type('html').send(`<!doctype html>
+      if (domainRecordRepository) {
+        if (outcome.record) await domainRecordRepository.putQrLink(outcome.record);
+        if (householdRedirectState?.household && outcome.householdQrToken) {
+          await domainRecordRepository.putHouseholdQrToken(
+            outcome.householdQrToken,
+            householdRedirectState.household.ownerUserId,
+          );
+        }
+        if (householdRedirectState?.household) {
+          await Promise.all(
+            outcome.consentAuditEvents.map((event) =>
+              domainRecordRepository.putConsentAuditEvent(
+                event,
+                householdRedirectState.household!.ownerUserId,
+              ),
+            ),
+          );
+        }
+        await Promise.all(
+          outcome.analyticsEvents.map((event) =>
+            domainRecordRepository.putAnalyticsEvent(
+              event,
+              outcome.record?.ownerId ?? householdRedirectState?.household?.ownerUserId,
+            ),
+          ),
+        );
+      }
+
+      if (!outcome.ok) {
+        res.status(outcome.statusCode).type('html').send(`<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -3621,11 +5080,12 @@ export function createEdisonApp(
     </div>
   </body>
 </html>`);
-      return;
-    }
+        return;
+      }
 
-    res.redirect(302, outcome.record.resolvedUrl);
-  });
+      res.redirect(302, outcome.record.resolvedUrl);
+    }),
+  );
 
   app.use('/api', (_req: Request, res: Response) => {
     res.status(404).json({ error: 'API_NOT_FOUND', message: 'API route not found.' });

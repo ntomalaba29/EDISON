@@ -133,8 +133,6 @@ export class FfmpegMediaWorker {
 
   constructor(overrides: Partial<MediaWorkerConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...overrides };
-    fs.mkdirSync(this.config.uploadsDir, { recursive: true });
-    fs.mkdirSync(this.config.renderOutputDir, { recursive: true });
   }
 
   getWorkerDiagnostics(): {
@@ -338,6 +336,7 @@ export class FfmpegMediaWorker {
               durationSeconds: Math.min(60, Math.max(2, params.durationSeconds ?? 10)),
             });
 
+            fs.mkdirSync(this.config.renderOutputDir, { recursive: true });
             const { stderr } = await this.runBinary(this.config.ffmpegBin, args, effectiveTimeout);
             record.ffmpegBinaryExecuted = true;
             record.outputFilename = outName;

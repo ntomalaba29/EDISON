@@ -1,0 +1,38 @@
+{
+  "status": "LOCAL SOFTWARE INTEGRATION",
+  "completed": 75,
+  "total": 97,
+  "previousCompleted": 58,
+  "previousTotal": 81,
+  "nextTask": "5.11b",
+  "commitGate": "Awaiting owner review; pre-existing unrelated worktree changes are present, so do not stage or commit the entire worktree.",
+  "currentPhase": "Phase 5.11 — Cloudflare media storage and execution",
+  "externalBlockers": [
+    "GitHub Actions Linux verification is blocked by account billing",
+    "No approved companion-to-TV transport is available for Phase 4.3",
+    "Remote Cloudflare migration and deployment are not authorized",
+    "Media object storage and compatible FFmpeg execution are not selected",
+    "Stage P6 physical hardware is pending"
+  ],
+  "milestones": {
+    "5.10j1": "DONE",
+    "5.10j2": "DONE",
+    "5.10j3": "DONE",
+    "5.10j4": "DONE",
+    "5.10j5": "DONE",
+    "5.10j6": "DONE",
+    "5.10j7": "DONE",
+    "5.10j8": "DONE",
+    "5.10j9": "DONE",
+    "5.10j10": "DONE",
+    "5.10j11": "DONE",
+    "5.10k1": "DONE",
+    "5.10k2a": "DONE",
+    "5.10k2b": "DONE",
+    "5.10k2c": "DONE",
+    "5.10k3": "DONE",
+    "5.11a": "DONE",
+    "5.11b": "BLOCKED",
+    "5.11c": "BLOCKED"
+  }
+}

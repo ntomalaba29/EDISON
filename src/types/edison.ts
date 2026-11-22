@@ -1242,6 +1242,7 @@ export type FleetTrustDecision =
 
 export interface FleetAttestedDeviceRecord {
   tvDeviceId: string;
+  decoderProfileId: string;
   keyId: string;
   publicKeyPem: string;
   platform: string;
@@ -1298,6 +1299,64 @@ export interface FleetObservationResult {
   createdAt: string;
 }
 
+export type FleetBreakEventStatus =
+  | 'shared_pending_corroboration'
+  | 'shared_corroborated'
+  | 'conflict_held';
+
+export interface FleetBreakEventRecord {
+  eventId: string;
+  decoderProfileId: string;
+  channelId: string;
+  scopeId: string;
+  breakStartedAtUtc: string;
+  sourceDeviceIds: string[];
+  status: FleetBreakEventStatus;
+  containsPii: false;
+  receivedAtUtc: string;
+}
+
+export interface FleetBreakEventSubmissionResult {
+  ok: boolean;
+  isSoftwareSimulationOnly: true;
+  hardwareTested: false;
+  httpStatus: 200 | 201 | 400 | 401 | 409 | 429;
+  status:
+    | FleetBreakEventStatus
+    | 'duplicate_ignored'
+    | 'rejected_pii'
+    | 'rejected_invalid_signature'
+    | 'rejected_replay'
+    | 'rejected_scope_mismatch'
+    | 'rejected_event_id_reuse'
+    | 'rate_limited'
+    | 'rejected_stale';
+  eventId: string;
+  decoderProfileId: string;
+  tvDeviceId: string;
+  scopeId: string;
+  channelId: string;
+  breakStartedAtUtc: string;
+  signatureVerified: boolean;
+  containsPii: false;
+  reason: string;
+  event: FleetBreakEventRecord | null;
+  receivedAtUtc: string;
+}
+
+export interface FleetBreakEventSyncResult {
+  ok: boolean;
+  isSoftwareSimulationOnly: true;
+  hardwareTested: false;
+  httpStatus: 200 | 401 | 409;
+  tvDeviceId: string;
+  decoderProfileId: string;
+  channelId: string;
+  events: FleetBreakEventRecord[];
+  detail: string;
+  syncedAtUtc: string;
+}
+
 export interface FleetDeltaSyncResult {
   ok: boolean;
   status:
@@ -1352,6 +1411,8 @@ export interface SharedIntelFleetSnapshot {
   serviceStage: string;
   signingKeyId: string;
   signingPublicKeyPem: string;
+  breakEventPersistence: 'encrypted_local_file' | 'in_memory';
+  breakEventsRestartDurable: boolean;
   isSoftwareSimulationOnly: true;
   hardwareTested: false;
   stageP6Deferred: true;
@@ -1935,6 +1996,13 @@ export interface ConsentAuditEventRecord {
   affectedQrTokensInvalidated: number;
   ordinaryTvPreserved: true;
   createdAt: string;
+}
+
+export interface HouseholdQrRedirectPersistenceState {
+  householdQrToken: HouseholdQrTokenRecord;
+  household: HouseholdInstallationRecord | null;
+  opportunity: OpportunityRecord | null;
+  baseQrLink: QrLinkRecord | null;
 }
 
 export interface AdvertiserGeoAggregateRow {

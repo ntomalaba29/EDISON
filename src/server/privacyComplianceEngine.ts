@@ -328,7 +328,7 @@ export function anonymiseHouseholdDraftData(params: {
 }
 
 export function evaluatePrivacyRetentionCandidates(params: {
-  sessions: SessionRecord[];
+  sessions: Array<Pick<SessionRecord, 'expiresAt' | 'idleExpiresAt'>>;
   householdQrTokens: HouseholdQrTokenRecord[];
   analyticsEvents: AnalyticsEventRecord[];
   nowMs?: number;
@@ -368,7 +368,7 @@ export function evaluatePrivacyRetentionCandidates(params: {
 export function buildPrivacyComplianceOverview(params: {
   actor: PublicUser;
   households: HouseholdInstallationRecord[];
-  sessions: SessionRecord[];
+  sessions: Array<Pick<SessionRecord, 'expiresAt' | 'idleExpiresAt'>>;
   householdQrTokens: HouseholdQrTokenRecord[];
   analyticsEvents: AnalyticsEventRecord[];
   nowMs?: number;

@@ -1,6 +1,6 @@
 # EDISON — Commercial-Break Detection & Prediction
 
-**Document Status**: `[PRELIMINARY RESEARCH + v2.2 APPROVED CORE ARCHITECTURE REQUIREMENT]` — Theoretical, Standards-Based & External Repository Audit; requires Phase 4/5 software simulation & recorded-stream benchmarking (and one final integrated physical test at app completion `Stage P6`). Implementation of **Network-Wide Shared Ad Intelligence** (`v2.2`) is **`NOT STARTED`**.
+**Document Status**: Standards/research reference. The Phase 4/5 software simulations and recorded-fixture tests are implemented; production fleet/device integration and the single physical test remain incomplete. Current subphase evidence is in [`EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md`](EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md).
 
 ---
 
@@ -12,7 +12,7 @@
 | **HbbTV / ATSC 3.0 Signalling** | Broadcast-broadband hybrid metadata signalling interactive ad/companion opportunities to HTML5 TV apps. | High precision on supported European/global (HbbTV) or NextGen (ATSC 3.0) broadcasts. | Requires broadcaster participation and compatible TV tuner stack. |
 | **Audio/Video Pattern Analysis (ACR / Watermarking)** | Fingerprinting or ATSC A/335 watermarking / black-frame & silence/loudness-shift classifiers on lawful accessible streams. | Moderate latency (1–4s classification window); higher false-positive risk on programme fades. | **Cannot** read frames inside HDCP-protected or DRM `MediaDrm` hardware surfaces without OEM/system privileges. |
 | **Channel-Specific Historical Patterns** | Per-channel statistical profiles of typical break cadence (e.g., 14-min / 28-min intervals) and typical break length. | Predictive lead time allows asset preloading; cannot guarantee exact frame start alone. | Must be segmented strictly per channel and region; requires informed consent where device telemetry is involved. |
-| **ML Break-Length Predictor** | Combines time-of-day, programme genre EPG (where lawfully available), historical break durations, and cue metadata to estimate `T_break_remaining`. | `[UNVERIFIED]` — Requires empirical recorded-dataset training in Phase 5. | Must output conservative lower-bound confidence intervals (p10/p5 duration), never mean duration. |
+| **ML Break-Length Predictor** | Combines time-of-day, programme genre EPG (where lawfully available), historical break durations, and cue metadata to estimate `T_break_remaining`. | Software predictor and recorded-fixture calibration are tested; real broadcast accuracy is unverified. | Must output conservative lower-bound confidence intervals (p10/p5 duration), never mean duration. |
 | **Viewer Feedback Loop** | Explicit "Ad ended / Return to TV" manual trigger or opt-in pilot feedback marking early programme return. | High signal for calibration; reactive rather than proactive. | Valuable for pilot calibration; cannot replace fail-safe timers. |
 
 ---
@@ -47,7 +47,7 @@ Full details live in `docs/research/EDISON_OPEN_SOURCE_REPOSITORY_RESEARCH_PLAN.
 
 ---
 
-## 5. Network-Wide Shared Ad Intelligence (`v2.2` Approved Core Requirement — Implementation `NOT STARTED`)
+## 5. Network-Wide Shared Ad Intelligence (`v2.2` Approved Core Requirement — Software Simulation Implemented)
 
 **Core Principle**: **`LEARN ONCE. DISTRIBUTE EVERYWHERE. UPDATE CONTINUOUSLY.`**
 

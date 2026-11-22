@@ -638,6 +638,7 @@ export const phase4ExitSuiteSchema = z.object({}).strict();
 export const fleetDeviceRegisterSchema = z
   .object({
     tvDeviceId: z.string().trim().min(3).max(120),
+    decoderProfileId: z.string().trim().min(2).max(120).regex(/^[A-Za-z0-9._-]+$/),
     platform: z.string().trim().min(2).max(80),
     country: z.string().trim().min(2).max(12),
     assignedScopeId: z.string().trim().min(3).max(160),
@@ -669,6 +670,33 @@ export const fleetObservationSubmitSchema = z
       }
     }
   });
+
+export const fleetBreakEventSubmitSchema = z
+  .object({
+    tvDeviceId: z.string().trim().min(2).max(120),
+    scopeId: z.string().trim().min(3).max(160),
+    decoderProfileId: z.string().trim().min(2).max(120).regex(/^[A-Za-z0-9._-]+$/),
+    channelId: z.string().trim().min(3).max(160).regex(/^[a-z0-9.-]+$/),
+    eventId: z.string().trim().min(3).max(120).regex(/^[A-Za-z0-9._-]+$/),
+    breakStartedAtUtc: z
+      .string()
+      .datetime({ offset: false })
+      .refine((value) => new Date(value).toISOString() === value, {
+        message: 'Break start must use canonical UTC ISO format.',
+      }),
+    nonce: z.string().trim().min(2).max(120),
+    signatureHex: z.string().trim().regex(/^[a-f0-9]{128}$/i).optional(),
+    useRegisteredDemoSigner: z.boolean().optional().default(false),
+  })
+  .strict();
+
+export const fleetBreakEventSyncQuerySchema = z
+  .object({
+    tvDeviceId: z.string().trim().min(2).max(120),
+    decoderProfileId: z.string().trim().min(2).max(120).regex(/^[A-Za-z0-9._-]+$/),
+    channelId: z.string().trim().min(3).max(160).regex(/^[a-z0-9.-]+$/),
+  })
+  .strict();
 
 export const fleetDeltaSyncSchema = z
   .object({
