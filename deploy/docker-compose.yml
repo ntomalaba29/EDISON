@@ -30,14 +30,16 @@ services:
       DATABASE_URL: postgres://edison_app:${POSTGRES_PASSWORD:-CHANGE_ME_BEFORE_DEPLOYMENT}@postgres:5432/edison
       EDISON_STORAGE_BACKEND: postgresql_pg
       SESSION_SECRET: ${SESSION_SECRET:-REPLACE_WITH_64_HEX_BYTES_BEFORE_START}
+      EDISON_FFMPEG_BIN: /usr/bin/ffmpeg
+      EDISON_FFPROBE_BIN: /usr/bin/ffprobe
       FFMPEG_BIN: /usr/bin/ffmpeg
       FFPROBE_BIN: /usr/bin/ffprobe
       EDISON_REGION_MANIFEST_ID: africa_south_zw_za
     volumes:
-      - edison_uploads:/app/public/uploads
-      - edison_rendered:/app/public/rendered
+      - edison_data:/app/data
+      - edison_uploads:/app/uploads
 
 volumes:
   edison_pg16_data:
+  edison_data:
   edison_uploads:
-  edison_rendered:

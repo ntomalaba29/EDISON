@@ -75,8 +75,8 @@ export interface MediaWorkerConfig {
 const DEFAULT_CONFIG: MediaWorkerConfig = {
   uploadsDir: path.resolve(process.cwd(), 'uploads'),
   renderOutputDir: path.resolve(process.cwd(), 'data', 'rendered-media'),
-  ffmpegBin: process.env.EDISON_FFMPEG_BIN || '/usr/bin/ffmpeg',
-  ffprobeBin: process.env.EDISON_FFPROBE_BIN || '/usr/bin/ffprobe',
+  ffmpegBin: process.env.EDISON_FFMPEG_BIN || process.env.FFMPEG_BIN || '/usr/bin/ffmpeg',
+  ffprobeBin: process.env.EDISON_FFPROBE_BIN || process.env.FFPROBE_BIN || '/usr/bin/ffprobe',
   maxConcurrency: 2,
   jobTimeoutMs: 60_000,
   maxRetries: 2,

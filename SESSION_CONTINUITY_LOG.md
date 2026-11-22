@@ -291,3 +291,21 @@
 - **Commit and push**: Committed locally and pushed `0281d36` (`fix: verify cross-platform baseline and tests`) to `origin/main` using the owner-provided author identity.
 - **Outstanding**: GitHub Actions run `44075511742` for `0281d36` ended in `startup_failure` before creating jobs; GitHub returned no jobs and a 404 for the run-log endpoint. Linux CI therefore remains unverified. Keep physical hardware, external pen-test, live payment, and legal launch gates deferred.
 - **Next clean subphase**: Restore GitHub Actions job startup for this repository, then rerun the Linux workflow and resolve any test failures. Do not claim Linux verification until the Linux symlink case passes.
+
+---
+
+## 26. Session Entry — 2026-11-20 (`TASK-LINUX-VERIFY` Linux Baseline, Docker/CI Parity & Browser E2E Verified · `AWAITING COMMIT`)
+
+- **Full Linux Verification Executed (`/app/applet`, Node.js 22, `/usr/bin/ffmpeg` 4.4.2, `/usr/bin/ffprobe`, Google Chrome for Testing `155.0.8059.12`)**:
+  - `tsc --noEmit` (`lint`) & `vite build` (`compile`): **Passed cleanly**.
+  - `npx vitest run --maxWorkers=2 --testTimeout=60000`: **`23/23` test files · `90/90` tests passed · `0` skipped** (Linux symlink confinement test in `tests/securityHardening.test.ts` 18/18 passed, real `/usr/bin/ffmpeg` & `/usr/bin/ffprobe` `tests/mediaWorker.test.ts` passed, real PGlite PG16 `tests/postgresMigration.test.ts` passed).
+  - `npx playwright test --reporter=list`: **Real Chromium E2E `1/1` passed** against live `http://127.0.0.1:3000`.
+  - Live Server & CLI Checks: `/api/health` HTTP 200 (`85.0%` Full App, `87.1%` to `Stage P6`, `100.0%` AI Studio scope), `/api/qa/prototype-readiness` **`34/34` automated QA invariants passed** (`physicalQrScanStatus: PENDING_OWNER_DEVICE_TEST`), unmatched `/api/*` returns JSON `404 API_NOT_FOUND`, and `npx tsx src/server/postgres/cli.ts status` detects all 3 SQL migrations cleanly.
+- **Surgical Fixes Applied (No Scope Creep)**:
+  1. `src/server/mediaWorker.ts`, `deploy/Dockerfile`, `deploy/docker-compose.yml`: Aligned `EDISON_FFMPEG_BIN` / `FFMPEG_BIN` & `EDISON_FFPROBE_BIN` / `FFPROBE_BIN`, copied `public/`, and mapped Docker volumes to `/app/data` and `/app/uploads`.
+  2. `src/server/app.ts`: Added JSON `404 API_NOT_FOUND` handler for unmatched `/api/*` routes before production SPA HTML fallback.
+  3. `playwright.config.ts`: Added preinstalled Linux `/ms-playwright/chrome-headless-shell-linux64/chrome-headless-shell` fallback when Playwright's default downloaded revision is absent (keeping GitHub CI default untouched).
+  4. `.github/workflows/edison-ci.yml`: Added `workflow_dispatch:`, specified `pg_isready -U edison -d edison_ci` on Postgres service healthcheck, and aligned Vitest worker/timeout flags (`--maxWorkers=2 --testTimeout=60000`).
+- **Remaining `15.0%` Boundary Preserved**: Hardware (`Stage P6` `6.0%`, Phase 4 OEM signing/HW `2.0%`, Phase 12 physical cohort pilot `2.0%`), external PG16 host (`0.5%`), legal filings/activation (`2.0%`), multi-region live cloud/acquirers (`1.5%`), live commercial board auth (`1.0%`), GitHub repo Actions billing/permissions check, and `DEC-OPEN-02` / `DEC-OPEN-03` remain strictly non-automated.
+- **Commit Status**: **`AWAITING OWNER REVIEW & COMMIT`**.
+

@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   verify:
@@ -21,7 +22,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U edison -d edison_ci"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -54,7 +55,7 @@ jobs:
         run: npx tsx src/server/postgres/cli.ts up && npm run migrate:status
 
       - name: Run full Vitest suite (Unit, Security, PG16 PGlite, FFmpeg Worker, AURA, Reliability)
-        run: npm test
+        run: npm test -- --maxWorkers=2 --testTimeout=60000
 
       - name: Run Playwright Chromium end-to-end tests
         run: npm run test:e2e
