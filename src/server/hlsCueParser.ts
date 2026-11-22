@@ -9,6 +9,8 @@ export interface HlsBreakCueEvent {
   durationSeconds?: number;
   elapsedSeconds?: number;
   recoveredFromContinuation?: boolean;
+  spliceEventId?: number;
+  autoReturn?: boolean;
 }
 
 export interface HlsCueParseWarning {
@@ -35,6 +37,129 @@ const MAX_LINE_CHARS = 8_192;
 const MAX_DURATION_SECONDS = 7 * 24 * 60 * 60;
 const ISO_DATE_TIME_WITH_ZONE = /T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/i;
 const SCTE35_HEX = /^0x(?:[a-f0-9]{2}){3,}$/i;
+const SCTE35_SPLICE_INSERT = 0x05;
+
+interface DecodedSpliceInsert {
+  spliceEventId: number;
+  outOfNetwork: boolean;
+  autoReturn?: boolean;
+  breakDurationSeconds?: number;
+}
+
+function crc32Mpeg2(bytes: Uint8Array): number {
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc ^= byte << 24;
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc & 0x80000000) !== 0 ? ((crc << 1) ^ 0x04c11db7) >>> 0 : (crc << 1) >>> 0;
+    }
+  }
+  return crc >>> 0;
+}
+
+function decode33BitValue(bytes: Uint8Array, offset: number): number {
+  return (bytes[offset] & 1) * 0x1_0000_0000 +
+    bytes[offset + 1] * 0x1_0000_00 +
+    bytes[offset + 2] * 0x1_0000 +
+    bytes[offset + 3] * 0x100 +
+    bytes[offset + 4];
+}
+
+function readSpliceTime(bytes: Uint8Array, offset: number, end: number): number | null {
+  if (offset >= end) return null;
+  const first = bytes[offset];
+  if ((first & 0x80) === 0) return offset + 1;
+  return offset + 5 <= end ? offset + 5 : null;
+}
+
+function decodeScte35SpliceInsert(hexPayload: string): DecodedSpliceInsert | null {
+  const payload = hexPayload.slice(2);
+  if (!SCTE35_HEX.test(hexPayload) || payload.length % 2 !== 0) return null;
+  const bytes = Uint8Array.from(
+    payload.match(/.{2}/g) ?? [],
+    (byte) => Number.parseInt(byte, 16)
+  );
+  if (bytes.length < 20 || bytes[0] !== 0xfc) return null;
+
+  const sectionLength = ((bytes[1] & 0x0f) << 8) | bytes[2];
+  if (
+    (bytes[1] & 0xf0) !== 0x30 ||
+    sectionLength < 17 ||
+    sectionLength > 4093 ||
+    bytes.length !== sectionLength + 3 ||
+    crc32Mpeg2(bytes) !== 0
+  ) {
+    return null;
+  }
+
+  if (bytes[3] !== 0 || (bytes[4] & 0x80) !== 0) return null;
+  const commandLength = ((bytes[11] & 0x0f) << 8) | bytes[12];
+  const commandType = bytes[13];
+  const commandStart = 14;
+  const commandEnd = commandStart + commandLength;
+  const descriptorLengthOffset = bytes.length - 6;
+  const descriptorLoopLength =
+    descriptorLengthOffset >= 0
+      ? bytes[descriptorLengthOffset] * 0x100 + bytes[descriptorLengthOffset + 1]
+      : -1;
+  if (
+    commandLength === 0x0fff ||
+    commandEnd > descriptorLengthOffset ||
+    commandEnd + 2 + descriptorLoopLength !== bytes.length - 4 ||
+    commandType !== SCTE35_SPLICE_INSERT
+  ) {
+    return null;
+  }
+
+  const command = bytes.subarray(commandStart, commandEnd);
+  if (command.length < 5) return null;
+  const spliceEventId =
+    command[0] * 0x1_000000 +
+    command[1] * 0x1_0000 +
+    command[2] * 0x100 +
+    command[3];
+  const cancel = (command[4] & 0x80) !== 0;
+  if (cancel) return null;
+  if (command.length < 6) return null;
+
+  const flags = command[5];
+  const outOfNetwork = (flags & 0x80) !== 0;
+  const programSplice = (flags & 0x40) !== 0;
+  const durationFlag = (flags & 0x20) !== 0;
+  const immediate = (flags & 0x10) !== 0;
+  let cursor = 6;
+
+  if (programSplice && !immediate) {
+    const next = readSpliceTime(command, cursor, command.length);
+    if (next === null) return null;
+    cursor = next;
+  } else if (!programSplice) {
+    if (cursor >= command.length) return null;
+    const componentCount = command[cursor];
+    cursor += 1;
+    for (let component = 0; component < componentCount; component += 1) {
+      if (cursor >= command.length) return null;
+      cursor += 1;
+      if (!immediate) {
+        const next = readSpliceTime(command, cursor, command.length);
+        if (next === null) return null;
+        cursor = next;
+      }
+    }
+  }
+
+  let autoReturn: boolean | undefined;
+  let breakDurationSeconds: number | undefined;
+  if (durationFlag) {
+    if (cursor + 5 > command.length) return null;
+    autoReturn = (command[cursor] & 0x80) !== 0;
+    breakDurationSeconds = decode33BitValue(command, cursor) / 90_000;
+    cursor += 5;
+  }
+
+  if (cursor + 4 !== command.length) return null;
+  return { spliceEventId, outOfNetwork, autoReturn, breakDurationSeconds };
+}
 
 function parseIsoDateTime(value: string): number | null {
   if (!ISO_DATE_TIME_WITH_ZONE.test(value)) return null;
@@ -160,31 +285,65 @@ function parseDaterange(
 
   const startMs = parseIsoDateTime(startValue);
   const payload = outPayload ?? inPayload;
-  if (startMs === null || !payload || !SCTE35_HEX.test(payload)) {
+  const decoded = payload ? decodeScte35SpliceInsert(payload) : null;
+  if (startMs === null || !decoded) {
     warnings.push(
-      makeWarning(line, 'invalid_scte35_daterange', 'Invalid DATERANGE clock or SCTE-35 hexadecimal payload.')
+      makeWarning(
+        line,
+        'invalid_scte35_daterange',
+        'Invalid DATERANGE clock or SCTE-35 splice_insert payload (unsupported, encrypted, or invalid section/CRC).'
+      )
     );
     return;
   }
 
-  const isOut = outPayload !== undefined;
+  const isOut = outPayload !== undefined && decoded.outOfNetwork;
+  if ((outPayload !== undefined) !== decoded.outOfNetwork) {
+    warnings.push(
+      makeWarning(
+        line,
+        'scte35_direction_mismatch',
+        'DATERANGE SCTE35-OUT/IN attribute conflicts with the decoded splice_insert direction.'
+      )
+    );
+    return;
+  }
+  const safeEventId = eventId.replace(/[^A-Za-z0-9._-]/g, '-').slice(0, 100);
   const event: HlsBreakCueEvent = {
-    eventId: `daterange:${eventId}`,
+    eventId: `daterange-${safeEventId}`,
     type: isOut ? 'break_start' : 'break_end',
     source: 'scte35_daterange',
     programDateTime: toIsoDateTime(startMs),
+    spliceEventId: decoded.spliceEventId,
+    autoReturn: decoded.autoReturn,
   };
 
   if (isOut) {
     const durationValue = attributes.DURATION;
     const endValue = attributes['END-DATE'];
-    let duration: number | undefined;
+    let duration =
+      decoded.breakDurationSeconds !== undefined && decoded.breakDurationSeconds > 0
+        ? decoded.breakDurationSeconds
+        : undefined;
     let endMs: number | undefined;
     if (durationValue !== undefined) {
       const parsedDuration = parseDuration(durationValue);
       if (parsedDuration === null) {
         warnings.push(
           makeWarning(line, 'invalid_daterange_clock', 'DATERANGE has an invalid or conflicting duration/end date.')
+        );
+        return;
+      }
+      if (
+        duration !== undefined &&
+        Math.abs(parsedDuration - duration) > 1
+      ) {
+        warnings.push(
+          makeWarning(
+            line,
+            'scte35_duration_mismatch',
+            'DATERANGE duration conflicts with the decoded SCTE-35 break duration.'
+          )
         );
         return;
       }
@@ -215,7 +374,11 @@ function parseDaterange(
 
     if (duration !== undefined) event.durationSeconds = duration;
     events.push(event);
-    if (endMs !== undefined || duration !== undefined) {
+    if (
+      endMs !== undefined ||
+      (duration !== undefined &&
+        (durationValue !== undefined || decoded.autoReturn === true))
+    ) {
       const endDateMs = endMs ?? startMs + (duration ?? 0) * 1_000;
       events.push({
         eventId: event.eventId,
@@ -294,7 +457,9 @@ export function parseHlsBreakCues(playlist: string): HlsCueParseResult {
     }
 
     if (line.startsWith('#EXT-X-DATERANGE:')) {
+      const eventCount = events.length;
       parseDaterange(line.slice('#EXT-X-DATERANGE:'.length), lineNumber, events, warnings);
+      if (events.length > eventCount) clockAnchored = true;
       continue;
     }
 

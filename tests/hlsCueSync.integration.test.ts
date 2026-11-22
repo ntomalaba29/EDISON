@@ -11,6 +11,7 @@ import {
 } from '../src/server/sharedIntelFleetService.ts';
 import { EdisonPrototypeStore } from '../src/server/store.ts';
 import { parseHlsBreakCues } from '../src/server/hlsCueParser.ts';
+import { makeSpliceInsertPayload } from './fixtures/scte35.ts';
 
 const API_PATH = '/api/shared-intel-fleet/break-events';
 
@@ -45,7 +46,7 @@ describe('local HLS-to-peer break synchronization', () => {
     }
   });
 
-  it('sends a parsed live-clock cue to a peer over HTTP, isolates channels, and rejects replay', async () => {
+  it('sends a decoded SCTE-35 cue to a peer over HTTP, isolates channels, and rejects replay', async () => {
     const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -60,10 +61,10 @@ describe('local HLS-to-peer break synchronization', () => {
 
     const breakStartedAtUtc = new Date(Date.now() - 5_000).toISOString();
     const parsed = parseHlsBreakCues(`#EXTM3U
-#EXT-X-PROGRAM-DATE-TIME:${breakStartedAtUtc}
-#EXT-X-CUE-OUT:30.0`);
+#EXT-X-DATERANGE:ID="live-scte-${Date.now()}",START-DATE="${breakStartedAtUtc}",DURATION=30,SCTE35-OUT="${makeSpliceInsertPayload()}"`);
     const cue = parsed.events.find((event) => event.type === 'break_start');
     expect(cue).toBeDefined();
+    expect(cue?.spliceEventId).toBe(0x01020304);
     expect(cue?.programDateTime).toBe(breakStartedAtUtc);
 
     const channelId = canonicalChannelScopeId({
@@ -76,7 +77,7 @@ describe('local HLS-to-peer break synchronization', () => {
       scopeId: 'gb_freeview_bbcone_androidtv14_dvbt2',
       decoderProfileId: SIMULATED_DEFAULT_DECODER_PROFILE_ID,
       channelId,
-      eventId: cue!.eventId.replace(/[^A-Za-z0-9._-]/g, '-'),
+      eventId: cue!.eventId,
       breakStartedAtUtc: cue!.programDateTime!,
       nonce: `local-http-${Date.now()}`,
       useRegisteredDemoSigner: true,
