@@ -104,8 +104,8 @@ function toIsoDateTime(milliseconds: number | null): string | null {
 
 function makeCueEventId(startMs: number | null, line: number): string {
   return startMs === null
-    ? `cue:line:${line}`
-    : `cue:${new Date(startMs).toISOString()}`;
+    ? `cue-line-${line}`
+    : `cue-${new Date(startMs).toISOString().replace(/[-:.]/g, '')}`;
 }
 
 function makeWarning(line: number, code: string, message: string): HlsCueParseWarning {

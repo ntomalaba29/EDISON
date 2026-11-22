@@ -21,14 +21,14 @@ segment-4.ts`);
     expect(result.clockAnchored).toBe(true);
     expect(result.events).toEqual([
       {
-        eventId: 'cue:2026-11-22T10:00:06.000Z',
+        eventId: 'cue-20261122T100006000Z',
         type: 'break_start',
         source: 'hls_cue_tag',
         programDateTime: '2026-11-22T10:00:06.000Z',
         durationSeconds: 30,
       },
       {
-        eventId: 'cue:2026-11-22T10:00:06.000Z',
+        eventId: 'cue-20261122T100006000Z',
         type: 'break_end',
         source: 'hls_cue_tag',
         programDateTime: '2026-11-22T10:00:26.000Z',
@@ -46,7 +46,7 @@ segment-20.ts`);
 
     expect(result.events).toEqual([
       {
-        eventId: 'cue:2026-11-22T10:00:00.000Z',
+        eventId: 'cue-20261122T100000000Z',
         type: 'break_start',
         source: 'hls_cue_tag',
         programDateTime: '2026-11-22T10:00:00.000Z',
@@ -55,7 +55,7 @@ segment-20.ts`);
         recoveredFromContinuation: true,
       },
       {
-        eventId: 'cue:2026-11-22T10:00:00.000Z',
+        eventId: 'cue-20261122T100000000Z',
         type: 'break_progress',
         source: 'hls_cue_tag',
         programDateTime: '2026-11-22T10:00:20.000Z',
@@ -77,7 +77,7 @@ segment-unanchored.ts
 segment-anchored.ts`);
 
     expect(result.events).toContainEqual({
-      eventId: 'cue:2026-11-22T10:00:00.000Z',
+      eventId: 'cue-20261122T100000000Z',
       type: 'break_start',
       source: 'hls_cue_tag',
       programDateTime: '2026-11-22T10:00:00.000Z',
@@ -144,14 +144,14 @@ segment-1.ts
 
     expect(result.events).toEqual([
       {
-        eventId: 'cue:line:2',
+        eventId: 'cue-line-2',
         type: 'break_start',
         source: 'hls_cue_tag',
         programDateTime: null,
         durationSeconds: 30,
       },
       {
-        eventId: 'cue:line:2',
+        eventId: 'cue-line-2',
         type: 'break_end',
         source: 'hls_cue_tag',
         programDateTime: null,
