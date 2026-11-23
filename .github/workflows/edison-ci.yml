@@ -55,10 +55,7 @@ jobs:
         run: npx tsx src/server/postgres/cli.ts up && npm run migrate:status
 
       - name: Run full Vitest suite (Unit, Security, PG16 PGlite, FFmpeg Worker, AURA, Reliability)
-        # Local: --maxWorkers=1 to avoid 17 concurrency timeouts
-        # CI: using --maxWorkers=1 per stash guidelines — individual filters pass;
-        # full suite times out >30s with Workers=2 but passes with Workers=1
-        run: npm test -- --maxWorkers=1 --testTimeout=60000
+        run: npm test
 
       - name: Run Playwright Chromium end-to-end tests
         run: npm run test:e2e
