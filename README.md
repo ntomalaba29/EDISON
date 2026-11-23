@@ -1,6 +1,6 @@
 # EDISON — International Smart TV Advertising & Opportunity Network
 
-**[CURRENT STATUS: `75/97` EXECUTABLE SUBPHASES COMPLETE (77.3%) · PROTOTYPE 8/8 · TV CONTROL 3/5 · PHASE 5 35/37 · CURRENT TASK: 5.11b · BLOCKED ON MEDIA STORAGE PROVIDER APPROVAL · GITHUB ACTIONS BLOCKED BY ACCOUNT BILLING · NO PHYSICAL TV TEST]**
+**[CURRENT STATUS: `75/97` EXECUTABLE SUBPHASES COMPLETE (77.3%) · TV CONTROL 3/5 · PHASE 5 35/37 · CURRENT TASK: 5.11b · BLOCKED ON MEDIA STORAGE PROVIDER APPROVAL · GITHUB ACTIONS PENDING BILLING RESOLUTION – commercial paid ads paused · NO PHYSICAL TV TEST]**
 **[REPOSITORY PATH: `Malaba29/EDISON-International-Smart-TV-Advertising-Network-`]**
 
 The atomic subphase ledger, test evidence, open blockers, and next task are in [`EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md`](EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md). It supersedes older weighted figures and historical checkpoint labels. The ledger is **75/97 (77.3%)**; Worker auth/session, D1-backed business routes, documentation assets, restart persistence, and provider-neutral media validation are verified locally. Worker media storage and FFmpeg remain explicitly disabled. **5.11b** is blocked on owner approval of a storage provider and costs; no remote deployment, Linux CI, real TV transport, or Stage P6 test is claimed.
