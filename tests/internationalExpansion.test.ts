@@ -6,6 +6,12 @@ import request from 'supertest';
 import { createEdisonApp } from '../src/server/app.ts';
 import { EdisonPrototypeStore } from '../src/server/store.ts';
 import { runInternationalExpansionVerificationSuite } from '../src/server/internationalExpansionEngine.ts';
+import {
+  CONTINENT_TARGET_MARKETS,
+  REGION_PROFILES,
+} from '../src/server/continentCountryRegionData.ts';
+import { validateHouseholdLocationHierarchy } from '../src/server/trackBHouseholdConsent.ts';
+import type { LaunchMarketCode } from '../src/types/edison.ts';
 
 function extractCsrfCookie(setCookies: string[] | string | undefined): string {
   const arr = Array.isArray(setCookies) ? setCookies : setCookies ? [setCookies] : [];
@@ -20,6 +26,33 @@ describe('EDISON Phase 15 Block 15.1 — International Multi-Region Expansion, L
   let tempDir: string;
   let store: EdisonPrototypeStore;
   let app: ReturnType<typeof createEdisonApp>;
+
+  it('uses authoritative geography and region profiles without activation', () => {
+    expect(CONTINENT_TARGET_MARKETS.africa).toEqual(['ZW', 'ZA', 'KE_NG']);
+    expect(CONTINENT_TARGET_MARKETS.asia).toEqual([]);
+    expect(REGION_PROFILES).toHaveLength(4);
+
+    for (const countryCode of CONTINENT_TARGET_MARKETS.africa
+      .concat(CONTINENT_TARGET_MARKETS.europe)
+      .concat(CONTINENT_TARGET_MARKETS.north_america)) {
+      expect(
+        REGION_PROFILES.some((profile) =>
+          profile.targetMarketCodes.includes(countryCode as LaunchMarketCode)
+        )
+      ).toBe(true);
+    }
+
+    const location = validateHouseholdLocationHierarchy({
+      countryCode: 'ZW',
+      provinceOrRegion: 'Harare Metropolitan',
+      metroArea: 'Greater Harare',
+      cityOrTown: 'Harare',
+      district: 'Harare Urban',
+      suburbOrArea: 'Avondale',
+      exactInstallationLocation: 'Test location not exposed',
+    });
+    expect(location.valid).toBe(true);
+  });
 
   beforeAll(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'edison-phase15-test-'));

@@ -32,6 +32,15 @@ export const CONTINENT_NAMES: Record<string, string> = {
   antarctica: 'Antarctica',
 };
 
+export const COUNTRY_NAMES: Record<string, string> = {
+  ZW: 'Zimbabwe',
+  ZA: 'South Africa',
+  GB: 'United Kingdom',
+  EU: 'European Union',
+  US: 'United States',
+  KE_NG: 'Kenya/Nigeria',
+};
+
 // Maps a LaunchMarketCode to its continent
 export function getContinentForMarket(code: LaunchMarketCode): string | undefined {
   for (const [continent, markets] of Object.entries(CONTINENT_TARGET_MARKETS)) {

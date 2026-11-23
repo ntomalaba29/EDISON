@@ -161,6 +161,11 @@ export class FfmpegMediaWorker {
     persistedJobsCount: number;
   } {
     const all = Array.from(this.jobs.values());
+    const persistEnabled = Boolean(this.config.persistEnabled);
+    const persistNamespace = this.config.d1Namespace ?? null;
+    const persistedJobsCount = persistEnabled
+      ? all.filter((job) => job.updatedAt.length > 0).length
+      : 0;
     return {
       ffmpegBin: this.config.ffmpegBin,
       ffprobeBin: this.config.ffprobeBin,
@@ -196,7 +201,9 @@ export class FfmpegMediaWorker {
     if (!record) return;
     try {
       const fallbackPath = path.resolve(process.cwd(), `.edison-jobs-${this.config.d1Namespace}.json`);
-      const fallbackData = { ...(fs.existsSync(fallbackPath) ? fs.readFileSync(fallbackPath, 'utf-8') : '{}') };
+      const fallbackData = fs.existsSync(fallbackPath)
+        ? JSON.parse(fs.readFileSync(fallbackPath, 'utf-8')) as Record<string, unknown>
+        : {};
       fallbackData[jobId] = {
         jobId: record.jobId,
         kind: record.kind,
@@ -220,30 +227,35 @@ export class FfmpegMediaWorker {
     try {
       const fallbackPath = path.resolve(process.cwd(), `.edison-jobs-${this.config.d1Namespace}.json`);
       if (!fs.existsSync(fallbackPath)) return;
-      const fallbackData = JSON.parse(fs.readFileSync(fallbackPath, 'utf-8'));
+      const fallbackData = JSON.parse(
+        fs.readFileSync(fallbackPath, 'utf-8')
+      ) as Record<string, Partial<MediaWorkerJobRecord>>;
       for (const [jobId, persisted] of Object.entries(fallbackData)) {
         if (!this.jobs.has(jobId)) {
           const record: MediaWorkerJobRecord = {
             jobId,
-            creativeId: persisted.creativeId ?? null,
+            creativeId: typeof persisted.creativeId === 'string' ? persisted.creativeId : null,
             requestedByUserId: '',
-            kind: persisted.kind as MediaWorkerJobKind,
+            kind: typeof persisted.kind === 'string' ? persisted.kind as MediaWorkerJobKind : 'probe',
             targetPlatform: 'samsung_tizen',
             sourceFilename: '',
-            outputFilename: persisted.outputFilename ?? null,
-            outputSha256: persisted.outputSha256 ?? null,
-            status: persisted.status as MediaWorkerJobStatus,
+            outputFilename: typeof persisted.outputFilename === 'string' ? persisted.outputFilename : null,
+            outputSha256: typeof persisted.outputSha256 === 'string' ? persisted.outputSha256 : null,
+            status: typeof persisted.status === 'string' ? persisted.status as MediaWorkerJobStatus : 'queued',
             attempts: 0,
             maxAttempts: this.config.maxRetries,
-            ffmpegBinaryExecuted: persisted.ffmpegBinaryExecuted ?? false,
-            ffprobeBinaryExecuted: persisted.ffprobeBinaryExecuted ?? false,
+            ffmpegBinaryExecuted: Boolean(persisted.ffmpegBinaryExecuted),
+            ffprobeBinaryExecuted: Boolean(persisted.ffprobeBinaryExecuted),
             probeResult: null,
             loudnessIntegratedLufs: null,
             loudnessTruePeakDbtp: null,
             durationMs: null,
             errorMessage: null,
-            createdAt: persisted.createdAt,
-            updatedAt: persisted.updatedAt,
+            createdAt: typeof persisted.createdAt === 'string' ? persisted.createdAt : new Date(0).toISOString(),
+            updatedAt: typeof persisted.updatedAt === 'string' ? persisted.updatedAt : new Date(0).toISOString(),
+            startedAt: null,
+            progressPercent: 0,
+            estimatedRemainingMs: null,
           };
           this.jobs.set(jobId, record);
         }
@@ -394,6 +406,8 @@ export class FfmpegMediaWorker {
     return new Promise<MediaWorkerJobRecord>((resolve, reject) => {
       // progress tracking init
       const execute = async () => {
+        const startTime = Date.now();
+        const timeoutMs = effectiveTimeout;
         record.startedAt = new Date().toISOString();
         record.status = 'running';
         record.updatedAt = new Date().toISOString();
