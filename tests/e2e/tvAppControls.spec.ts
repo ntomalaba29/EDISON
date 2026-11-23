@@ -16,6 +16,12 @@ test('keeps EDISON TV-app Ad/Back separate from the phone remote Back command', 
     timeout: 10_000,
   });
 
+  await navigation.getByRole('button', { name: 'Ad Creation Studio' }).click();
+  await page.getByRole('button', { name: 'Save Draft Creative', exact: true }).click();
+  await expect(page.getByText(/Saved creative/i).first()).toBeVisible({
+    timeout: 10_000,
+  });
+
   await navigation.getByRole('button', { name: 'TV Preview & Break Sim' }).click();
   await page.getByRole('button', { name: '3. Break Simulator' }).click();
   const edisonAdButton = page.getByRole('button', { name: 'EDISON Ad', exact: true });

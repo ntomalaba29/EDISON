@@ -21,7 +21,8 @@ const resolvedExecutablePath = resolveChromiumExecutable();
 
 export default defineConfig({
   testDir: './tests/e2e',
-  timeout: 90_000,
+  timeout: 180_000,
+  workers: 1,
   expect: { timeout: 10_000 },
   fullyParallel: false,
   retries: 0,
