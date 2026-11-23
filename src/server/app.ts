@@ -450,9 +450,11 @@ export function createEdisonApp(
       getGovernanceDocById: (id: string) => Promise<GovernanceDocRecord | null>;
     };
     disableMediaProcessing?: boolean;
+    mediaStorageBackend?: import('./mediaStorage.ts').MediaStorageBackend;
   }
 ): Express {
   const uploadsDir = options?.uploadsDir ?? UPLOADS_DIR;
+  const mediaStorageBackend = options?.mediaStorageBackend;
   const authSessionRepository = options?.authSessionRepository ?? store;
   const domainRecordRepository = options?.domainRecordRepository;
   const app = express();
@@ -869,6 +871,7 @@ export function createEdisonApp(
           dataBase64: parsed.data.dataBase64,
           declaredKind: parsed.data.declaredKind,
           uploadsDir,
+          storageBackend: mediaStorageBackend,
         });
         store.recordMediaUploadAudit(
           req.currentUser!,

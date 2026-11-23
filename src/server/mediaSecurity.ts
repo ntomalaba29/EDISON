@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { validateMediaUpload } from './mediaValidation.ts';
+import type { MediaStorageBackend } from './mediaStorage.ts';
 export {
   MAX_IMAGE_BYTES,
   MAX_IMAGE_DIMENSION_PX,
@@ -29,8 +30,28 @@ export function saveValidatedMediaUpload(params: {
   dataBase64: string;
   declaredKind?: 'image' | 'video' | 'any';
   uploadsDir?: string;
+  storageBackend?: MediaStorageBackend;
+  mediaBaseUrl?: string;
 }): ValidatedUploadResult {
   const validated = validateMediaUpload(params);
+  const backend = params.storageBackend;
+
+  if (backend) {
+    const stored = backend.putObject({
+      key: validated.storedFileName,
+      data: validated.data,
+      contentType: validated.mimeType,
+    });
+
+    return {
+      fileUrl: backend.getObjectUrl({ key: validated.storedFileName }),
+      storedFileName: validated.storedFileName,
+      mimeType: validated.mimeType,
+      fileSizeBytes: validated.fileSizeBytes,
+      mediaKind: validated.mediaKind,
+    };
+  }
+
   const targetDir = params.uploadsDir ? path.resolve(params.uploadsDir) : UPLOADS_DIR;
   if (!fs.existsSync(targetDir)) {
     fs.mkdirSync(targetDir, { recursive: true });

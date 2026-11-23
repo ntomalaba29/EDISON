@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { httpServerHandler } from 'cloudflare:node';
 import { D1AuthSessionStore } from '../server/cloudflare/d1AuthSessionStore.ts';
 import { D1DomainRecordRepository } from '../server/cloudflare/d1DomainRecordRepository.ts';
+import { R2MediaStorage, type R2BucketLike } from '../server/cloudflare/r2MediaStorage.ts';
 import type { D1AuthDatabaseBinding } from '../server/cloudflare/d1AuthSessionStore.ts';
 import type { Express } from 'express';
 import type { GovernanceDocMeta, GovernanceDocRecord } from '../server/docsRegistry.ts';
@@ -9,6 +10,7 @@ import type { GovernanceDocMeta, GovernanceDocRecord } from '../server/docsRegis
 interface EdisonWorkerEnv {
   EDISON_DB: D1AuthDatabaseBinding;
   ASSETS: { fetch(request: Request): Promise<Response> };
+  EDISON_R2_BUCKET?: unknown;
 }
 
 interface EdisonWorkerExecutionContext {
@@ -68,6 +70,13 @@ export default {
         import('../server/store.ts'),
         import('../server/docsRegistry.ts'),
       ]);
+      const r2Bucket = env.EDISON_R2_BUCKET;
+      const mediaStorageBackend = r2Bucket
+        ? new R2MediaStorage(
+            r2Bucket as unknown as R2BucketLike,
+            new URL(request.url).origin
+          )
+        : undefined;
       workerRuntime = {
         database,
         api: createEdisonApp(new EdisonPrototypeStore({ storageMode: 'memory' }), {
@@ -90,6 +99,7 @@ export default {
             },
           },
           disableMediaProcessing: true,
+          mediaStorageBackend,
         }),
       };
       workerRuntime.api.get('/api/_cloudflare/compatibility', (_request, response) => {
@@ -99,6 +109,7 @@ export default {
           state: 'd1-backed-app-shell',
           applicationApiReady: false,
           mediaCompatibilityReady: false,
+          durableObjectStorageConfigured: Boolean(mediaStorageBackend),
         });
       });
     }
