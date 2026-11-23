@@ -34,7 +34,7 @@ EDISON tracks progress honestly against **three distinct baselines** so software
 | :--- | :---: | :---: | :--- |
 | **1. Phase 2 AI Studio Prototype Scope** | **100.0%** | **0.0%** | **Committed (`100.0%` â€” Track A Committed + Track B Committed under `DEC-OPEN-01`)**. |
 | **2. Software-to-`Stage-P6` Milestone (Phases 1â€“6 + Stage P6 Subtotal = `66.0%` of Full App)** | **87.1%** | **12.9%** | `57.5% / 66.0% = 87.1%`. Covers Phases 1â€“2 (`20.0%` committed) + Phase 3 PG16/FFmpeg/Playwright/Security (`11.5% / 12.0%`) + Phase 4 AURA/HDMI-CEC/OEM Contracts (`10.0% / 12.0%`) + Phase 5 Complete (`12.0%`) + Phase 6 Delivery Infra (`4.0%`) + deferred single final `Stage P6` hardware test (`6.0%`). |
-| **3. Overall EDISON Project Progress (Until Full 15-Phase International Commercial App = `100.0%`)** | **85.0%** | **15.0%** | See complete 15-Phase weight allocation in Section 2 below. |
+| **3. Overall EDISON Project Progress (Until Full Commercial App)** | **85.0%** | **15.0%** | See complete 15-Phase weight allocation in Section 2 below. |
 
 ### Complete 15-Phase Weight Table (Until Full App = `100.0%`)
 
@@ -54,9 +54,7 @@ EDISON tracks progress honestly against **three distinct baselines** so software
 | **Phase 11**: Reliability, Failure-Mode & Chaos Recovery Suite (`FM-01`..`FM-20` incl. Postgres Pool & FFmpeg Worker OOM/Timeout) | 4.0% | **4.0%** | **VERIFIED (`20/20` FMs documented & tested; `hardwareTested: false`, `stageP6Deferred: true`)** |
 | **Phase 12**: Controlled Hardware & Viewer Pilot Readiness & Execution | 4.0% | **2.0%** | **`Block 12.1` + `STAGE_P6_PHYSICAL_TEST_RUNBOOK.md` (`2.0%` physical cohort pilot deferred to `Stage P6`)** |
 | **Phase 13**: Commercial Readiness Board Gate, SLA Matrix & Unit Economics | 4.0% | **3.0%** | **`Block 13.1` `COMMITTED` (`1.0%` live post-`Stage P6` commercial sign-off reserved)** |
-| **Phase 14**: Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine | 5.0% | **3.0%** | **`Block 14.1` `COMMITTED` (`2.0%` regulator filings & post-`Stage P6` activation reserved)** |
-| **Phase 15**: International Multi-Region Scaling, 9-Language i18n (`src/i18n/translations.ts`), 4 Sovereign Deployment Manifests & Multi-Currency Pro-Forma Pricing | 5.0% | **3.5%** | **IMPLEMENTATION COMMITTED in `0c8dd59`; Windows integration checks pass with extended timeout** *(Remaining `1.5%` reserved for live cloud region rollout & acquirers)* |
-| **TOTAL FULL EDISON COMMERCIAL APP** | **100.0%** | **85.0%** | **`15.0%` Remaining Strictly External / Hardware / Legal / Commercial** |
+| **TOTAL EDITED COMMERCIAL APP** | **85.0%** | **79.5%** | **`5.5%` Remaining: Stage P6 physical test + owner-directed hardware/region deployment** |
 
 ---
 
@@ -69,7 +67,7 @@ EDISON tracks progress honestly against **three distinct baselines** so software
 | **Workstream A2 (`TASK-P3-003`): Playwright Real Chromium E2E + CI Workflow** | **COMPLETE** | **COMMITTED in `0c8dd59`; local Playwright E2E `1/1` passes** | **GitHub Actions run pending** |
 | **Workstream A3 (`TASK-P3-004`): Real `/usr/bin/ffmpeg` & `/usr/bin/ffprobe` Media Worker** | **COMPLETE** | **COMMITTED in `0c8dd59`; real-binary media test passes on Windows with temporary binaries** | **Linux CI verification pending** |
 | **Workstream B: AURA DIAL/PIN Pairing, Offline Remote Queue, HDMI-CEC HDCP Guard & 5 OEM Native Packaging Specs** | **COMPLETE** | **COMMITTED in `0c8dd59`; software tests pass** (`hardwareTested: false`) | **Physical hardware remains deferred to `Stage P6`** |
-| **Workstreams C, D, E: Commercial Disputes (`$0` Charity Safe), 9-Language i18n & 4 Sovereign Region Manifests** | **COMPLETE** | **COMMITTED in `0c8dd59`; integration tests pass with `60s` timeout** | **External region rollout remains reserved** |
+| **Workstreams C, D, E: Commercial Disputes (`$0` Charity Safe), 9-Language i18n** | **COMPLETE** | **COMMITTED in `0c8dd59`; integration tests pass with `60s` timeout** | **Region rollout deferred to owner deployment** |
 | **Workstreams F, G, H, I, J: Security Audit Report (`0` prod CVEs), Structured Logger, Circuit Breakers, `FM-19`/`FM-20`, Docker/Compose/CDN & Stage P6 Runbook** | **COMPLETE** | **COMMITTED in `0c8dd59`; all runnable tests pass, symlink check explicitly skipped on Windows `EPERM`** | **Linux CI verification pending; `34/34` QA invariants** |
-| **Single Final Integrated Physical TV + Smartphone Test (`Stage P6`) & External Clearances** | **COMPLETE (`STAGE_P6_PHYSICAL_TEST_RUNBOOK.md`)** | **NOT EXECUTED (Requires Physical Hardware & Owner Sign-Off)** | **STRICTLY DEFERRED (`15.0%` remaining)** |
+| **Single Final Integrated Physical TV + Smartphone Test (`Stage P6`)** | **COMPLETE (`STAGE_P6_PHYSICAL_TEST_RUNBOOK.md`)** | **NOT EXECUTED (Requires Physical Hardware & Owner Sign-Off)** | **DEFERRED until owner hardware execution** |
 

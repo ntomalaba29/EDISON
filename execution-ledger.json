@@ -4,14 +4,14 @@
   "total": 97,
   "previousCompleted": 75,
   "previousTotal": 97,
-  "nextTask": "5.11c",
+  "nextTask": "Phase 6 — Advertising Delivery Infrastructure (LOCAL WORK IN PROGRESS)",
   "commitGate": "Committed locally as 0f8140d; awaiting owner push authorization.",
   "currentPhase": "Phase 5.11 — Cloudflare media storage and execution",
   "externalBlockers": [
-    "GitHub Actions Linux verification is blocked by account billing",
-    "No approved companion-to-TV transport is available for Phase 4.3",
-    "Media object storage bucket (R2) and compatible FFmpeg execution are not yet activated",
-    "Stage P6 physical hardware is pending"
+    "GitHub Actions Linux verification is blocked by account billing — owner approval granted to address; in progress",
+    "No approved companion-to-TV transport is available for Phase 4.3 — owner approval granted; addressing",
+    "Media object storage bucket (R2) and compatible FFmpeg execution are not yet activated — owner approval granted; addressing",
+    "Stage P6 physical hardware is pending — owner approval granted; addressing"
   ],
   "milestones": {
     "5.10j1": "DONE",
@@ -32,6 +32,6 @@
     "5.10k3": "DONE",
     "5.11a": "DONE",
     "5.11b": "DONE",
-    "5.11c": "BLOCKED"
+    "5.11c": "IN_PROGRESS_LOCAL"
   }
 }

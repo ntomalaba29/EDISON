@@ -57,6 +57,88 @@ export function InternationalExpansionPanel({
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [statusMsg, setStatusMsg] = useState<string>('');
 
+// International Administrator state
+  const [selectedContinent, setSelectedContinent] = useState<'africa' | 'asia' | 'europe' | 'north_america' | 'south_america' | 'oceania' | 'antarctica'>('africa');
+  const [selectedCountryCode, setSelectedCountryCode] = useState<string>('');
+  const [selectedRegionId, setSelectedRegionId] = useState<ExpansionRegionId>('africa_south_zw_za');
+  const [showDashboard, setShowDashboard] = useState<boolean>(false);
+
+  // Available continents per the international administrator requirements
+  const CONTINENTS: { code: string; name: string }[] = [
+    { code: 'africa', name: 'Africa' },
+    { code: 'asia', name: 'Asia' },
+    { code: 'europe', name: 'Europe' },
+    { code: 'north_america', name: 'North America' },
+    { code: 'south_america', name: 'South America' },
+    { code: 'oceania', name: 'Oceania' },
+    { code: 'antarctica', name: 'Antarctica' },
+  ];
+
+  // Country codes for each continent
+  const CONTINENT_COUNTRIES: Record<string, string[]> = {
+    africa: ['ZW', 'ZA', 'KE_NG'],
+    asia: [],
+    europe: ['GB', 'EU'],
+    north_america: ['US'],
+    south_america: [],
+    oceania: [],
+    antarctica: [],
+  };
+
+  // Country names
+  const COUNTRY_NAMES: Record<string, string> = {
+    ZW: 'Zimbabwe',
+    ZA: 'South Africa',
+    GB: 'United Kingdom',
+    EU: 'European Union',
+    US: 'United States',
+    KE_NG: 'Kenya/Nigeria',
+  };
+
+  // Get countries for selected continent
+  const countriesForContinent = CONTINENT_COUNTRIES[selectedContinent] || [];
+
+  // Get region blueprint for a region ID (from the engine)
+  const getRegionConfig = (regionId: ExpansionRegionId): RegionalLocalizationConfig => {
+    return resolveRegionalLocalizationConfig(regionId, storedLocalizationProfiles);
+  };
+
+  // Get regions for selected country
+  const regionsForCountry = useMemo(() => {
+    if (!selectedCountryCode) return [];
+    // Map country codes to region blueprints
+    const countryToRegion: Record<string, ExpansionRegionId> = {
+      ZW: 'africa_south_zw_za',
+      ZA: 'africa_south_zw_za',
+      GB: 'europe_uk_eu',
+      EU: 'europe_uk_eu',
+      US: 'north_america_us',
+      KE_NG: 'africa_east_west_ke_ng',
+    };
+    const regionId = countryToRegion[selectedCountryCode];
+    if (regionId) {
+      return [{
+        regionId,
+        regionName: REGION_PROFILES.find((r) => r.regionId === regionId)?.regionName || regionId,
+        targetMarkets: [selectedCountryCode],
+      }];
+    }
+    return [];
+  }, [selectedCountryCode]);
+
+  // Dashboard overview data
+  const dashboardData = useMemo(() => {
+    const continentSummaries: Array<{ continent: string; regionCount: number; countryCount: number }> = [];
+    for (const continent of ['africa', 'europe', 'north_america']) {
+      const markets = CONTINENT_COUNTRIES[continent] || [];
+      continentSummaries.push({
+        continent,
+        regionCount: markets.length,
+        countryCount: markets.length,
+      });
+    }
+    return { continentSummaries };
+  }, []);
   // Editable regional localization blueprint state
   const [primaryLanguageCode, setPrimaryLanguageCode] = useState<string>('en');
   const [supportedLanguagesInput, setSupportedLanguagesInput] =
@@ -225,6 +307,143 @@ export function InternationalExpansionPanel({
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || 'Failed to calculate multi-currency pro-forma estimate.');
+{/* International Administrator Section */
+  {showDashboard ? (
+    <div className="bg-white border border-slate-200 rounded-lg p-5">
+      <div className="pb-3 border-b border-slate-200">
+        <h3 className="text-sm font-semibold text-slate-900">
+          International Administration Dashboard
+        </h3>
+      </div>
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label className="block space-y-1">
+            <span className="font-medium text-slate-700">Continent</span>
+            <select
+              value={selectedContinent}
+              onChange={(e) => {
+                setSelectedContinent(e.target.value as any);
+                setSelectedCountryCode('');
+                setSelectedRegionId('africa_south_zw_za');
+              }}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono text-xs"
+            >
+              {CONTINENTS.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block space-y-1">
+            <span className="font-medium text-slate-700">Country</span>
+            <select
+              disabled={countriesForContinent.length === 0}
+              value={selectedCountryCode}
+              onChange={(e) => {
+                setSelectedCountryCode(e.target.value as string);
+                setSelectedRegionId(
+                  {
+                    ZW: 'africa_south_zw_za',
+                    ZA: 'africa_south_zw_za',
+                    GB: 'europe_uk_eu',
+                    EU: 'europe_uk_eu',
+                    US: 'north_america_us',
+                    KE_NG: 'africa_east_west_ke_ng',
+                  }[e.target.value as keyof typeof selectedCountryCode] || 'africa_south_zw_za'
+                );
+              }}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono text-xs"
+            >
+              {countriesForContinent.map((code) => (
+                <option key={code} value={code}>
+                  {COUNTRY_NAMES[code] || code}
+                </option>
+              ))}
+              {countriesForContinent.length === 0 && (
+                <option>No ADR-015 markets defined</option>
+              )}
+            </select>
+          </label>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+          <label className="block space-y-1">
+            <span className="font-medium text-slate-700">Region</span>
+            <select
+              disabled={!selectedCountryCode}
+              value={selectedRegionId}
+              onChange={(e) => setSelectedRegionId(e.target.value as ExpansionRegionId)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono text-xs"
+            >
+              {regionsForCountry.map((r) => (
+                <option key={r.regionId} value={r.regionId}>
+                  {r.regionName} ({r.targetMarkets.join(', ')})
+                </option>
+              ))}
+              {regionsForCountry.length === 0 && (
+                <option>No regions defined for this country</option>
+              )}
+            </select>
+          </label>
+
+          <label className="block space-y-1">
+            <span className="font-medium text-slate-700">Global Launch Status</span>
+            <p className="text-xs text-slate-600 mt-1">
+              {selectedRegionId === 'africa_south_zw_za'
+                ? 'Southern Africa cluster (ZW + ZA) · Zero activated · Stage P6 deferred'
+                : selectedRegionId === 'europe_uk_eu'
+                ? 'Europe & UK cluster (GB + EU) · Zero activated · Stage P6 deferred'
+                : 'North America cluster (US) · Zero activated · Stage P6 deferred'}
+            </p>
+          </label>
+        </div>
+
+        <div className="mt-3 p-3 border-l-2 border-slate-300 bg-slate-50">
+          <p className="font-mono text-slate-700 text-xs">
+            International administrator managing {CONTINENTS.length} continents,
+            {Object.keys(CONTINENT_COUNTRIES).reduce((sum, k) => sum + (CONTINENT_COUNTRIES[k]?.length || 0), 0)} countries,
+            {regionsForCountry.length} regions configured
+          </p>
+        </div>
+      </div>
+    </div>
+  ) : (
+    /* Compact view: show continent selector in header */
+    <div className="bg-white border border-slate-200 rounded-lg p-3 mb-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-medium text-slate-700 text-xs">
+          Admin Region: {selectedContinent.charAt(0).toUpperCase() + selectedContinent.slice(1)}
+        </span>
+        <select
+          value={selectedContinent}
+          onChange={(e) => {
+            setSelectedContinent(e.target.value as any);
+            setSelectedCountryCode('');
+            setSelectedRegionId('africa_south_zw_za');
+          }}
+          className="px-2 py-1 text-xs font-medium border border-slate-200 rounded-lg bg-white"
+        >
+          {CONTINENTS.map((c) => (
+            <option key={c.code} value={c.code}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        {selectedCountryCode && (
+          <span className="font-mono text-slate-500 text-xs">
+            · {COUNTRY_NAMES[selectedCountryCode] || selectedCountryCode}
+          </span>
+        )}
+      </div>
+    </div>
+  )}
+
+  {/* Dashboard overview remains below the admin section */}
+</div>
+
+      {/* 4-Cluster Regional Blueprint Matrix */
       }
       const est = data.estimate as MultiCurrencyProFormaEstimate;
       setEstimateResult(est);
@@ -278,7 +497,7 @@ export function InternationalExpansionPanel({
       <div className="bg-white border border-slate-200 rounded-lg p-8 text-center space-y-3">
         <Globe2 className="w-8 h-8 text-slate-400 mx-auto" />
         <h2 className="text-base font-semibold text-slate-900">
-          Phase 15 International Multi-Region Expansion, Localization &amp; Sovereign Residency (Software-First)
+          EDISON Charity Ad Tracker &amp; Sovereign Residency (Software-First)
         </h2>
         <p className="text-sm text-slate-600 max-w-xl mx-auto">
           Sign in to inspect the 4 sovereign expansion clusters (mapping all 6 ADR-015 markets), multilingual caption packs, 7-currency $0.00-Charity pro-forma estimator, and fail-closed region activation gate.
@@ -913,6 +1132,42 @@ export function InternationalExpansionPanel({
                 Recorded International Expansion Gate Decisions ({overview.expansionDecisions.length})
               </div>
               {overview.expansionDecisions.length === 0 ? (
+{/* Global Launch Control */
+  {overview && activeRegion && (
+    <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-4">
+      <div className="pb-3 border-b border-slate-200 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-900">
+            <ClipboardCheck className="w-4 h-4 text-slate-700" /> Global Launch
+          </h3>
+          <p className="text-xs text-slate-600 mt-1">
+            Geographical rollout status for {overview.primaryExpansionWaveRegion}: {overview.activeExpandedRegionsCount} of {overview.totalRegionsInventoriedCount} regions activated · regionalExpansionActive={overview.regionalExpansionActive}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={!isAdmin || submittingDecision}
+            onClick={() => handleSubmitDecision(true)}
+            className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg cursor-pointer whitespace-nowrap ${submittingDecision ? 'opacity-60' : ''}`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5" /> Test Block
+          </button>
+          <button
+            type="button"
+            disabled={!isAdmin || submittingDecision}
+            onClick={() => handleSubmitDecision(false)}
+            className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 rounded-lg cursor-pointer whitespace-nowrap ${submittingDecision ? 'opacity-60' : ''}`)
+          >
+            <XCircle className="w-3.5 h-3.5" /> Safe Test Mode
+          </button>
+        </div>
+      </div>
+      <div className="text-xs text-slate-600">
+        <strong>Fail-Closed Gate:</strong> Expansion region activation is blocked until Stage P6 hardware test, Phase 14 country launches, sovereign cloud clusters, and billing approvals complete. This control performs a safe local test that verifies the fail-closed behavior without actual deployment.
+      </div>
+    </div>
+  ))}
                 <p className="text-slate-500 border border-slate-200 rounded-lg p-3">
                   No Phase 15 expansion governance decisions recorded yet. Administrators may log a staged blueprint or unactivated hold above.
                 </p>
