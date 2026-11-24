@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "edison",
+  "account_id": "f44b66fc6b8662b48c3234a414fd914e",
   "main": "./src/cloudflare/worker.ts",
   "compatibility_date": "2026-11-18",
   "workers_dev": true,
@@ -10,6 +11,12 @@
       "database_name": "edison-staging",
       "database_id": "c4ea0d77-6d50-47b0-b212-93d7b5fe9e63",
       "migrations_dir": "migrations/cloudflare-d1"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "EDISON_R2_BUCKET",
+      "bucket_name": "edison-staging-media"
     }
   ],
   "assets": {

@@ -9,6 +9,8 @@
     "progress": "node scripts/report-progress.mjs",
     "predev:cloudflare": "npm run build",
     "dev:cloudflare": "wrangler dev --local --port 8787",
+    "deploy:cloudflare": "powershell.exe -NoProfile -File scripts/deploy-cloudflare.ps1",
+    "deploy:cloudflare:create-bucket": "powershell.exe -NoProfile -File scripts/deploy-cloudflare.ps1 -CreateR2Bucket",
     "start": "node server.ts",
     "build": "vite build && tsx scripts/packageGovernanceDocs.ts",
     "preview": "vite preview",
