@@ -52,7 +52,7 @@ try {
         throw 'TypeScript validation failed; deployment stopped.'
     }
 
-    & npm.cmd test -- --maxWorkers=1 tests/workerCompatibility.test.ts
+    & npm.cmd test -- tests/workerCompatibility.test.ts
     if ($LASTEXITCODE -ne 0) {
         throw 'Focused Worker media compatibility tests failed; deployment stopped.'
     }
