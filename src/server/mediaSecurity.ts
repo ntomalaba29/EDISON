@@ -26,18 +26,18 @@ export const STATIC_ASSET_SECURITY_HEADERS: Record<string, string> = {
   'Cache-Control': 'public, max-age=86400, immutable',
 };
 
-export function saveValidatedMediaUpload(params: {
+export async function saveValidatedMediaUpload(params: {
   dataBase64: string;
   declaredKind?: 'image' | 'video' | 'any';
   uploadsDir?: string;
   storageBackend?: MediaStorageBackend;
   mediaBaseUrl?: string;
-}): ValidatedUploadResult {
+}): Promise<ValidatedUploadResult> {
   const validated = validateMediaUpload(params);
   const backend = params.storageBackend;
 
   if (backend) {
-    const stored = backend.putObject({
+    await backend.putObject({
       key: validated.storedFileName,
       data: validated.data,
       contentType: validated.mimeType,

@@ -10,7 +10,7 @@ import type { GovernanceDocMeta, GovernanceDocRecord } from '../server/docsRegis
 interface EdisonWorkerEnv {
   EDISON_DB: D1AuthDatabaseBinding;
   ASSETS: { fetch(request: Request): Promise<Response> };
-  EDISON_R2_BUCKET?: unknown;
+  EDISON_R2_BUCKET?: R2BucketLike;
 }
 
 interface EdisonWorkerExecutionContext {
@@ -72,10 +72,7 @@ export default {
       ]);
       const r2Bucket = env.EDISON_R2_BUCKET;
       const mediaStorageBackend = r2Bucket
-        ? new R2MediaStorage(
-            r2Bucket as unknown as R2BucketLike,
-            new URL(request.url).origin
-          )
+        ? new R2MediaStorage(r2Bucket, new URL(request.url).origin)
         : undefined;
       workerRuntime = {
         database,
@@ -109,7 +106,9 @@ export default {
           state: 'd1-backed-app-shell',
           applicationApiReady: false,
           mediaCompatibilityReady: false,
-          durableObjectStorageConfigured: Boolean(mediaStorageBackend),
+          mediaStorageConfigured: Boolean(mediaStorageBackend),
+          mediaUploadReady: Boolean(mediaStorageBackend),
+          mediaProcessingReady: false,
         });
       });
     }

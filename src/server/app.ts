@@ -5,6 +5,7 @@ import express, {
   type NextFunction,
   type RequestHandler,
 } from 'express';
+import { Buffer } from 'node:buffer';
 import {
   ALL_CAMPAIGN_STATUSES,
   ALLOWED_CAMPAIGN_TRANSITIONS,
@@ -849,10 +850,10 @@ export function createEdisonApp(
     '/api/media/upload',
     requireAuth,
     (_req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-      if (options?.disableMediaProcessing) {
+      if (options?.disableMediaProcessing && !mediaStorageBackend) {
         res.status(503).json({
           error: 'MEDIA_PROCESSING_UNAVAILABLE',
-          message: 'Media storage and FFmpeg execution are not configured for this Worker.',
+          message: 'Media storage is not configured for this Worker.',
         });
         return;
       }
@@ -860,14 +861,14 @@ export function createEdisonApp(
     },
     uploadRateMiddleware,
     express.json({ limit: '26mb' }),
-    (req: AuthenticatedRequest, res: Response) => {
+    async (req: AuthenticatedRequest, res: Response) => {
       const parsed = parseWithZod(mediaUploadSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
       try {
-        const result = saveValidatedMediaUpload({
+        const result = await saveValidatedMediaUpload({
           dataBase64: parsed.data.dataBase64,
           declaredKind: parsed.data.declaredKind,
           uploadsDir,
@@ -900,6 +901,38 @@ export function createEdisonApp(
     res.setHeader('Content-Type', resolved.contentType);
     res.sendFile(resolved.fullPath);
   });
+
+  app.get(
+    '/r2-media/:key',
+    asyncHandler(async (req: Request, res: Response) => {
+      if (!mediaStorageBackend) {
+        res.status(404).json({ error: 'Uploaded media asset not found.' });
+        return;
+      }
+
+      let object: Awaited<ReturnType<typeof mediaStorageBackend.getObject>> | null;
+      try {
+        object = await mediaStorageBackend.getObject({ key: req.params.key });
+      } catch (err) {
+        if (err instanceof Error && err.message.startsWith('MEDIA_STORAGE_KEY_REJECTED:')) {
+          res.status(404).json({ error: 'Uploaded media asset not found.' });
+          return;
+        }
+        throw err;
+      }
+      if (!object) {
+        res.status(404).json({ error: 'Uploaded media asset not found.' });
+        return;
+      }
+
+      for (const [header, value] of Object.entries(STATIC_ASSET_SECURITY_HEADERS)) {
+        res.setHeader(header, value);
+      }
+      res.setHeader('Content-Type', object.contentType);
+      res.setHeader('Content-Length', String(object.sizeBytes));
+      res.send(Buffer.from(object.data));
+    })
+  );
 
   app.use(express.json({ limit: '1mb' }));
 

@@ -1,14 +1,22 @@
 {
-  "status": "LOCAL SOFTWARE INTEGRATION",
+  "status": "FREE PREVIEW DEPLOYED; EXTERNAL LAUNCH GATES REMAIN",
   "completed": 76,
   "total": 97,
   "previousCompleted": 75,
   "previousTotal": 97,
-  "nextTask": "Phase 6 — Advertising Delivery Infrastructure (LOCAL WORK IN PROGRESS)",
-  "commitGate": "Committed locally as 0f8140d; awaiting owner push authorization.",
+  "nextTask": "Maintain the free Cloudflare preview; evaluate browser-only media handling without claiming durable uploads",
+  "commitGate": "Current media changes are uncommitted; CI run 45293498597 verified published commit aeaccd4, not the current worktree.",
   "currentPhase": "Phase 5.11 — Cloudflare media storage and execution",
-  "externalBlockers": [],
+  "externalBlockers": [
+    "5.11b: Owner chose the free-only preview; remote R2 is not activated, so durable remote media uploads remain unavailable.",
+    "5.11c: No free hosted processing service is selected; browser-side FFmpeg/WASM is a candidate but is not integrated or production-verified.",
+    "5.12: Full staging still needs media storage, backups, monitoring, and recovery verification.",
+    "4.3: No verified, permissioned TV command transport/platform has been selected.",
+    "11.3: Linux CI passes; time-based soak evidence remains outstanding.",
+    "Hardware, external security review, legal, commercial, and country-launch gates require owner action."
+  ],
   "milestones": {
+    "3.6": "DONE",
     "5.10j1": "DONE",
     "5.10j2": "DONE",
     "5.10j3": "DONE",
@@ -27,6 +35,7 @@
     "5.10k3": "DONE",
     "5.11a": "DONE",
     "5.11b": "BLOCKED",
-    "5.11c": "IN_PROGRESS_LOCAL"
+    "5.11c": "BLOCKED",
+    "11.3": "PENDING"
   }
 }

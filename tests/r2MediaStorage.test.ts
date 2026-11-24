@@ -25,9 +25,15 @@ function makeMockBucket(overrides: {
       if (!entry) return null;
       return {
         body: {
-          pipeTo: async (destination: { write: (chunk: Uint8Array) => void; close: () => void }) => {
-            destination.write(entry.data);
-            destination.close();
+          getReader: () => {
+            let read = false;
+            return {
+              read: async () => {
+                if (read) return { done: true };
+                read = true;
+                return { done: false, value: entry.data };
+              },
+            };
           },
         },
         httpMetadata: { contentType: entry.contentType },
@@ -124,5 +130,19 @@ describe('Phase 5.11b — R2MediaStorage (durable object storage adapter)', () =
     expect(putCalls).toHaveLength(1);
     expect(putCalls[0]!.contentType).toBe('image/png');
     expect(putCalls[0]!.key).toBe('edison_img_abcdef0123456789abcd.png');
+  });
+
+  it('rejects a content type that does not match the media key extension', async () => {
+    const { bucket } = makeMockBucket();
+    const storage = new R2MediaStorage(bucket as R2BucketLike, BASE_URL);
+
+    await expect(
+      storage.putObject({
+        key: 'edison_img_abcdef0123456789abcd.png',
+        data: new Uint8Array([1]),
+        contentType: 'text/html',
+      })
+    ).rejects.toThrow('MEDIA_STORAGE_CONTENT_TYPE_REJECTED');
+    expect(bucket.put).not.toHaveBeenCalled();
   });
 });

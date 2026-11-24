@@ -1,6 +1,6 @@
 # EDISON — AI Studio Handoff and Executable Subphase Ledger
 
-**Status snapshot:** 2026-11-22 (atomic task ledger; 75/97 executable substages complete; next task 5.11b, blocked on provider selection)  
+**Status snapshot:** 2026-11-24 (atomic task ledger; 76/97 executable substages complete; free Cloudflare preview deployed, media storage deferred)
 **Audited starting snapshot:** `main` at `ba1ea76` (`docs: record GitHub Actions startup failure`), clean and tracking `origin/main` before this documentation subphase.  
 **Authority:** This file is the current implementation-status and next-work source of truth. The weighted percentages and older checkpoint labels in the roadmap, tracker, README, and command-centre history are historical and must not override this ledger.
 
@@ -8,7 +8,7 @@
 
 The rewritten ledger defines **one task for one verifiable substage**. A task is complete only after implementation, focused tests, a production/repository check where relevant, status reporting, and the scoped commit/push handoff. External actions—billing, providers, hardware, legal review, and commercial authorization—remain explicitly blocked or deferred.
 
-**Current arithmetic:** **75 / 97 executable substages = 77.3%**. Worker compatibility is split into authentication/session, business APIs, filesystem/media behavior, and restart/migration checks. Media adaptation is split into validation/storage separation, provider-backed durable storage, and compatible media execution; the latter two require owner-approved provider choices. Tasks 5.10j1–5.10j11, 5.10k1–5.10k3, and 5.11a are verified. Run `npm run progress` to reproduce the fraction.
+**Current arithmetic:** **76 / 97 executable substages = 78.4%**. Worker compatibility is split into authentication/session, business APIs, filesystem/media behavior, and restart/migration checks. Media adaptation is split into validation/storage separation, provider-backed durable storage, and compatible media execution; remote R2 billing is deferred and compatible media execution still requires provider approval. Tasks 3.6, 5.10j1–5.10j11, 5.10k1–5.10k3, and 5.11a are verified. Run `npm run progress` to reproduce the fraction.
 
 ### 15-phase sequence
 
@@ -51,12 +51,14 @@ Then **Stage P6**, the one final physical test.
 | 5.10k2c | Define Worker behavior for filesystem-backed docs and media routes | Documentation works without local filesystem access; unsupported media execution fails explicitly rather than as an internal error | **DONE** |
 | 5.10k3 | Verify Worker restart durability and explicit D1 migration requirements | Restart, migration, and failure-recovery checks pass | **DONE** |
 | 5.11a | Separate validated media bytes from filesystem persistence | Pure validation returns safe bytes and metadata; the existing Node file path and upload behavior remain unchanged | **DONE** |
-| 5.11b | Add a durable object-storage adapter for validated media | Upload and retrieval use an owner-approved object store with path/content-type safeguards | **BLOCKED — owner must select/approve the provider and any costs** |
-| 5.11c | Integrate a compatible media-processing service | Probe/transcode jobs run in a selected compatible service with durable job/output evidence | **BLOCKED — requires provider selection and owner approval** |
+| 5.11b | Add a durable object-storage adapter for validated media | Upload and retrieval use an owner-approved object store with path/content-type safeguards | **PARTIAL — local R2 adapter and Worker upload/read verified; owner chose to keep the preview free-only, so remote R2 and durable uploads remain off** |
+| 5.11c | Integrate a compatible media-processing service | Probe/transcode jobs run in a selected compatible service with durable job/output evidence | **BLOCKED — no free hosted provider is selected; browser-side FFmpeg/WASM is a no-cost candidate, not integrated or production-verified** |
 
 **5.10k1 evidence (2026-11-22):** `npm run dev:cloudflare` built and started local Wrangler successfully. Local `GET /api/health` and `GET /api/reports/live` both returned HTTP 200; health reports `memory_only` for the isolate-local domain store and D1 for application-record summary inputs, without claiming durable domain storage. TypeScript, focused media-worker tests (2 passed), lazy-initialization coverage, and the two slow D1 persistence tests (2 passed with an increased test timeout) passed. Media output directories are now created only when a transcode job executes. No remote migration, deployment, or hardware test was performed.
 
 **5.10k3 / 5.11a evidence (2026-11-22):** With Wrangler pointed at a fresh local D1 database, registration, login/logout, campaign/QR writes and reads passed; after stopping and restarting the Worker, user/profile/campaign/QR counts remained in D1. `wrangler d1 migrations list --local` reported no unapplied migrations. A Worker configuration without an `EDISON_DB` binding returned HTTP 503 `CLOUDFLARE_D1_NOT_BOUND`. The temporary database was removed after testing. Media byte validation now produces a storage-neutral `Uint8Array` payload before the existing Node filesystem adapter writes it; validation and existing upload-security regression tests passed (3 selected tests), as did TypeScript, a production build, and Worker health/docs smoke. No remote migration or deployment occurred.
+
+**5.11b local evidence (2026-11-24):** The R2 adapter supports Cloudflare Web streams, validates key/content-type consistency, and safely serves uploaded bytes. Focused media tests (11 passed) and a live local Worker upload/download round-trip passed byte-for-byte. The owner chose to keep the preview free-only after reviewing the R2 subscription terms; no R2 subscription, bucket, or binding was created, and remote uploads remain unavailable.
 
 ### 5.10j7 read-source inventory
 
@@ -75,7 +77,7 @@ The route audit in `src/server/app.ts` classifies the remaining read sources as 
 |---|---:|
 | Phase 1 — Definition and research | 3 / 3 |
 | Phase 2 — Functional prototype | 8 / 8 |
-| Phase 3 — Engineering hardening | 5 / 7 |
+| Phase 3 — Engineering hardening | 6 / 7 |
 | Phase 4 — TV control and adapters | 3 / 5 |
 | Phase 5 — Break intelligence and Cloudflare compatibility | 35 / 37 |
 | Phase 6 — Ad delivery and news distribution | 2 / 6 |
@@ -106,7 +108,7 @@ Every subphase must be completed, verified, reported, reviewed, and committed as
 
 ## 2. Baseline and “test once” record
 
-The last complete local code verification was run against the code snapshot committed as `0281d36`; `ba1ea76` added documentation only.
+The recorded Windows local baseline was run against the code snapshot committed as `0281d36`; `ba1ea76` added documentation only. The latest Linux CI run below verifies the published `main` commit `aeaccd4`; it does not include the current uncommitted media changes.
 
 - `npm ci` — passed; npm reported no vulnerabilities.
 - `npm run lint` — passed.
@@ -114,7 +116,7 @@ The last complete local code verification was run against the code snapshot comm
 - `npm run test:e2e` — passed, 1/1.
 - Vitest — 89 passed, 1 skipped. Command: `npm test -- --maxWorkers=2 --testTimeout=60000`, with `EDISON_FFMPEG_BIN` and `EDISON_FFPROBE_BIN` pointing to temporary Windows binaries outside the repository. The skipped symlink test reported Windows `EPERM`; the test remains enabled on Linux.
 - Environment — Windows, Node.js `22.23.5`, npm `10.9.9`.
-- GitHub Actions — runs `44075853578` and `44075511742` ended `startup_failure` before creating jobs. The owner-visible GitHub error identifies account billing: recent payments failed or the spending limit must be increased. Linux CI is **not verified**; no workflow-code defect is established.
+- GitHub Actions — run [45293498597](https://github.com/ntomalaba29/EDISON/actions/runs/45293498597) passed on 2026-11-24 for published `main` commit `aeaccd4e0d6b44813dab3ee7531ae3b4e83c1027`. Ubuntu CI completed type-check, PostgreSQL 16 migrations, all **155 Vitest tests across 35 files**, **2 Playwright E2E tests**, and production build. This resolves Phase 3.6 for that commit; it is not CI evidence for the current uncommitted media changes.
 - The owner authorized local feature work to continue while Phase 3.6 remains blocked. This is a sequencing exception only: it does not mark 3.6 complete or verify Linux.
 
 **Phase 4.5 verification (2026-11-18):** `npm.cmd run lint`, `npm.cmd run build`, `npm.cmd test -- --maxWorkers=2 tests/formalReport.test.ts` (5 tests), `npm.cmd run test:e2e -- tests/e2e/tvAppControls.spec.ts` (1 test), and `git diff --check` passed. The focused browser test verifies the phone's ordinary AURA Back command, the TV-app Ad/Back path, and automatic return after simulated ad playback. Run Playwright from the repository's canonical `C:\Users\HP\Desktop\Malaba\EDISON` path spelling on this machine; the alternate casing triggered duplicate Playwright module resolution. The production build retains its existing large-chunk advisory. These results validate a software simulation only.
@@ -215,7 +217,7 @@ Dependencies below are actual prerequisites, not an implied dependency on every 
 | 3.3 | PostgreSQL migrations, executor, and JSON backfill. Acceptance: migration up/down and backfill behavior pass against the local PGlite test path; no paid remote DB is required. | 3.2 | **DONE** — `postgresMigration.test.ts`; no remote host provisioned. |
 | 3.4 | FFmpeg/ffprobe worker execution, path confinement, timeout, and retry behavior. Acceptance: real binaries execute in the local test and unsafe paths are rejected. | 3.2 | **DONE** — `mediaWorker.test.ts`, Windows binaries used. |
 | 3.5 | Local static/build/E2E/full-test baseline. Acceptance: the recorded Windows commands pass and platform-specific skips are identified honestly. | 3.1–3.4 | **DONE** — baseline recorded in §2. |
-| 3.6 | Verify GitHub Actions startup and Linux job results. Acceptance: workflow creates jobs and the Linux test suite completes, including the symlink test. | 3.4, 3.5 | **BLOCKED — ACCOUNT BILLING** — the owner-visible GitHub error says recent payments failed or the spending limit must be increased. Runs `44075853578` and `44075511742` created no jobs; the latest two are associated with deleted workflow ID `419486886` (`BuildFailed`), while active workflow ID `419486866` (`.github/workflows/edison-ci.yml`) has zero runs. Resolve the GitHub account issue, then rerun CI; do not change workflow code based only on the API discrepancy. |
+| 3.6 | Verify GitHub Actions startup and Linux job results. Acceptance: workflow creates jobs and the Linux test suite completes, including the symlink test. | 3.4, 3.5 | **DONE** — [run 45293498597](https://github.com/ntomalaba29/EDISON/actions/runs/45293498597) passed on published `main` commit `aeaccd4`; Ubuntu full suite: 155 Vitest tests, 2 Playwright tests, PostgreSQL 16 migrations, type-check, and build. |
 | 3.7 | Provision and verify an approved remote PostgreSQL 16 host, backup/restore, and secure connection configuration. Acceptance: migration and restore checks pass against the owner-approved region/provider without exposing credentials. | 3.3, explicit owner budget/region approval | **DEFERRED** — local PGlite/`pg.Pool` tests pass; no paid remote host is authorized or provisioned. |
 
 ### Phase 4 — TV control and adapters: 3 / 5
@@ -252,7 +254,7 @@ Dependencies below are actual prerequisites, not an implied dependency on every 
 | 5.10i | Persist ad-creative records through D1. Acceptance: list/create/update/attach/delete preserve JSON behavior and owner/admin scope; attach mirrors both creative and campaign records; D1 failures reach Express error handling. | 5.10h, 10.3 | **DONE — LOCAL AD-CREATIVE DOMAIN** — ad-creative collection methods and create/list/update/attach/delete routes are covered by focused D1/API tests. |
 | 5.10j | Move remaining non-media application-domain collections onto D1 and connect their API routes to the Worker. Acceptance: opportunities, households, complaints, appeals, and remaining collections preserve JSON behavior and survive Worker restarts; no endpoint reports readiness while persistence is incomplete. | 5.10i, 10.3 | **DONE — LOCAL D1 / WORKER INTEGRATION** — D1 collection slices and summary routes passed focused persistence tests; local Worker uses D1 repositories for durable records, explicitly reports its isolate-local store as `memory_only`, and passed auth, business-route, restart, migration, and missing-binding checks. Remote deployment is not claimed. |
 | 5.11 | Adapt uploads and media-processing workflows for Cloudflare-compatible storage and execution. Acceptance: validated media uses durable object storage, and FFmpeg work runs only in an explicitly selected compatible service; upload/path safety behavior is preserved. | 5.9, 5.10j | **SPLIT** — 5.11a separates validation; 5.11b provides approved durable object storage; 5.11c integrates compatible media execution. |
-| 5.12 | Deploy the complete application to a Cloudflare staging environment and verify operational readiness. Acceptance: authenticated API and SPA, D1-backed state, media path, backups, monitoring, and owner-approved recovery checks pass after Worker restarts. | 5.10j, 5.11, 5.6, 10.3, 15.2 | **PENDING — DEPLOYMENT / OPERATIONS** — a free-tier account and D1 database exist, but no paid Workers plan, remote migration, or deployment is active. Do not enable billing or deploy until the complete application and any additional costs are reviewed. |
+| 5.12 | Deploy the complete application to a Cloudflare staging environment and verify operational readiness. Acceptance: authenticated API and SPA, D1-backed state, media path, backups, monitoring, and owner-approved recovery checks pass after Worker restarts. | 5.10j, 5.11, 5.6, 10.3, 15.2 | **PARTIAL — FREE-TIER PREVIEW DEPLOYED** — `https://edison.ntomalaba29.workers.dev` serves the SPA and uses the migrated target-account D1. Live home, health, and compatibility checks returned HTTP 200; media storage/upload are explicitly not ready and media reads return 404. This is not full staging or operational readiness: media storage, backups, monitoring, recovery checks, and broader API readiness remain incomplete. |
 
 ### Phase 6 — Ad delivery and news distribution: 2 / 6
 
@@ -307,7 +309,7 @@ Dependencies below are actual prerequisites, not an implied dependency on every 
 |---|---|---|---|
 | 11.1 | Exercise documented failure modes FM-01 through FM-18. Acceptance: recovery is deterministic and ordinary TV is preserved in simulation. | 4.1, 5.1, 6.2 | **DONE — SIMULATION** — `reliabilityChaos.test.ts`. |
 | 11.2 | Exercise PostgreSQL pool and FFmpeg timeout/OOM failure modes FM-19 and FM-20. Acceptance: failures surface explicitly and do not produce success-shaped fallbacks. | 3.3, 3.4 | **DONE — LOCAL TESTS** — `reliabilityChaos.test.ts`, `reliabilityAndPerformance.test.ts`. |
-| 11.3 | Complete Linux CI and cross-platform/soak verification. Acceptance: the full suite passes on Linux and time-based stability evidence is recorded. | 3.6, 11.1, 11.2 | **BLOCKED** — GitHub Actions account billing/spending limit prevents job startup; no Linux result recorded. |
+| 11.3 | Complete Linux CI and cross-platform/soak verification. Acceptance: the full suite passes on Linux and time-based stability evidence is recorded. | 3.6, 11.1, 11.2 | **PENDING** — Linux CI is verified by run 45293498597; time-based soak evidence remains outstanding. |
 
 ### Phase 12 — Pilot readiness: 2 / 2
 
@@ -397,9 +399,9 @@ Research was performed against public GitHub repository root listings, READMEs, 
 
 **Ledger split report:** 5.10i was replaced by two real milestones: `5.10i` is now ad-creative persistence, and `5.10j` is the remaining opportunities/households/complaints/appeals collection migration. This split adds one total row and one completed row: the direct table sum changed from 57/80 to 58/81 (71.6%). No prior percentage was cumulatively added.
 
-**Next bounded task: 5.11b — add durable object storage for validated media.** This is blocked until the owner selects and approves the provider and any associated costs. The provider-neutral validation boundary (5.11a) is complete; do not bind or activate a paid service, run remote migrations, or deploy before approval. After provider selection, implement and validate 5.11b, then 5.11c for compatible media processing.
+**Next bounded task: maintain the free preview and do not claim durable media uploads.** The local R2 adapter and round-trip are verified, but remote storage is off by owner choice. Browser-side FFmpeg/WASM is a possible no-cost local-processing path; it is slower than native FFmpeg, browser-only, has a 2 GB hard input limit, and is not integrated. Linux CI passed on published commit `aeaccd4`; current uncommitted media changes still need to be committed/pushed before they can receive CI verification. Do not claim full staging, commercial readiness, or media upload availability without durable storage.
 
-The Phase 3.6 billing and Phase 4.3 authorized-transport blockers remain open. Local work is authorized while 3.6 is blocked; this does not waive its Linux verification gate. Do not implement an unofficial TV protocol or claim a simulator is a real adapter. Separately, clear the billing notice in GitHub **Settings → Billing & plans** and rerun Linux CI, including the symlink test.
+Phase 4.3 still lacks an approved, verified TV transport/platform. Do not implement an unofficial TV protocol or claim a simulator is a real adapter. Phase 11.3 still needs time-based soak evidence; this is separate from the now-passing Linux CI gate.
 
 ## 7. Documents that must point here
 

@@ -21,7 +21,10 @@ export interface R2BucketLike {
   ): Promise<
     | {
         body: {
-          pipeTo: (destination: { write: (chunk: Uint8Array) => void; close: () => void }) => Promise<void>;
+          getReader: () => {
+            read: () => Promise<{ done: boolean; value?: Uint8Array }>;
+            releaseLock?: () => void;
+          };
         };
         httpMetadata?: { contentType?: string };
       }
@@ -42,17 +45,24 @@ function contentTypeForKey(key: string): string {
 }
 
 async function readableStreamToUint8Array(
-  body: { pipeTo: (destination: { write: (chunk: Uint8Array) => void; close: () => void }) => Promise<void> }
+  body: {
+    getReader: () => {
+      read: () => Promise<{ done: boolean; value?: Uint8Array }>;
+      releaseLock?: () => void;
+    };
+  }
 ): Promise<Uint8Array> {
   const chunks: Array<Uint8Array> = [];
-  await body.pipeTo({
-    write(chunk: Uint8Array) {
-      chunks.push(chunk);
-    },
-    close() {
-      // Stream closed.
-    },
-  });
+  const reader = body.getReader();
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock?.();
+  }
   if (chunks.length === 0) return new Uint8Array(0);
   const total = chunks.reduce((sum, c) => sum + c.length, 0);
   const merged = new Uint8Array(total);
@@ -79,8 +89,11 @@ export class R2MediaStorage {
     contentType: string;
   }): Promise<{ key: string; sizeBytes: number; sha256: string }> {
     assertMediaKey(params.key);
+    if (params.contentType !== contentTypeForKey(params.key)) {
+      throw new Error('MEDIA_STORAGE_CONTENT_TYPE_REJECTED: Content type does not match media key.');
+    }
     const sha256 = crypto.createHash('sha256').update(params.data).digest('hex');
-    await this.bucket.put(params.key, params.data as unknown as ArrayBuffer, {
+    await this.bucket.put(params.key, params.data, {
       httpMetadata: { contentType: params.contentType },
     });
     return { key: params.key, sizeBytes: params.data.byteLength, sha256 };
