@@ -8,7 +8,7 @@
 
 The rewritten ledger defines **one task for one verifiable substage**. A task is complete only after implementation, focused tests, a production/repository check where relevant, status reporting, and the scoped commit/push handoff. External actions—billing, providers, hardware, legal review, and commercial authorization—remain explicitly blocked or deferred.
 
-**Current arithmetic:** **76 / 97 executable substages = 78.4%**. Worker compatibility is split into authentication/session, business APIs, filesystem/media behavior, and restart/migration checks. Media adaptation is split into validation/storage separation, provider-backed durable storage, and compatible media execution; remote R2 billing is deferred and compatible media execution still requires provider approval. Tasks 3.6, 5.10j1–5.10j11, 5.10k1–5.10k3, and 5.11a are verified. Run `npm run progress` to reproduce the fraction.
+**Current arithmetic:** **76 / 97 executable substages = 78.4%**. Worker compatibility is split into authentication/session, business APIs, filesystem/media behavior, and restart/migration checks. Media adaptation is split into validation/storage separation, provider-backed durable storage, and compatible media execution; the R2 binding/deployment path is prepared but billing activation and remote bucket creation remain owner steps. Compatible media execution still requires a provider decision. Tasks 3.6, 5.10j1–5.10j11, 5.10k1–5.10k3, and 5.11a are verified. Run `npm run progress` to reproduce the fraction.
 
 ### 15-phase sequence
 
@@ -108,7 +108,7 @@ Every subphase must be completed, verified, reported, reviewed, and committed as
 
 ## 2. Baseline and “test once” record
 
-The recorded Windows local baseline was run against the code snapshot committed as `0281d36`; `ba1ea76` added documentation only. The latest Linux CI run below verifies the published `main` commit `aeaccd4`; it does not include the current uncommitted media changes.
+The recorded Windows local baseline was run against the code snapshot committed as `0281d36`; `ba1ea76` added documentation only. Later media/R2 adapter changes and Cloudflare deployment preparation are now published on `main`; the newest Linux CI run is recorded below. Only the current handoff/status edits are uncommitted.
 
 - `npm ci` — passed; npm reported no vulnerabilities.
 - `npm run lint` — passed.
@@ -116,7 +116,7 @@ The recorded Windows local baseline was run against the code snapshot committed 
 - `npm run test:e2e` — passed, 1/1.
 - Vitest — 89 passed, 1 skipped. Command: `npm test -- --maxWorkers=2 --testTimeout=60000`, with `EDISON_FFMPEG_BIN` and `EDISON_FFPROBE_BIN` pointing to temporary Windows binaries outside the repository. The skipped symlink test reported Windows `EPERM`; the test remains enabled on Linux.
 - Environment — Windows, Node.js `22.23.5`, npm `10.9.9`.
-- GitHub Actions — run [45293498597](https://github.com/ntomalaba29/EDISON/actions/runs/45293498597) passed on 2026-11-24 for published `main` commit `aeaccd4e0d6b44813dab3ee7531ae3b4e83c1027`. Ubuntu CI completed type-check, PostgreSQL 16 migrations, all **155 Vitest tests across 35 files**, **2 Playwright E2E tests**, and production build. This resolves Phase 3.6 for that commit; it is not CI evidence for the current uncommitted media changes.
+- GitHub Actions — run [45293498597](https://github.com/ntomalaba29/EDISON/actions/runs/45293498597) passed on 2026-11-24 for published `main` commit `aeaccd4e0d6b44813dab3ee7531ae3b4e83c1027`. Ubuntu CI completed type-check, PostgreSQL 16 migrations, all **155 Vitest tests across 35 files**, **2 Playwright E2E tests**, and production build. This resolves Phase 3.6 for that commit. Later media/R2 and deployment-preparation commits are also published; runs [45441747992](https://github.com/ntomalaba29/EDISON/actions/runs/45441747992) and [45442252536](https://github.com/ntomalaba29/EDISON/actions/runs/45442252536) both passed.
 - The owner authorized local feature work to continue while Phase 3.6 remains blocked. This is a sequencing exception only: it does not mark 3.6 complete or verify Linux.
 
 **Phase 4.5 verification (2026-11-18):** `npm.cmd run lint`, `npm.cmd run build`, `npm.cmd test -- --maxWorkers=2 tests/formalReport.test.ts` (5 tests), `npm.cmd run test:e2e -- tests/e2e/tvAppControls.spec.ts` (1 test), and `git diff --check` passed. The focused browser test verifies the phone's ordinary AURA Back command, the TV-app Ad/Back path, and automatic return after simulated ad playback. Run Playwright from the repository's canonical `C:\Users\HP\Desktop\Malaba\EDISON` path spelling on this machine; the alternate casing triggered duplicate Playwright module resolution. The production build retains its existing large-chunk advisory. These results validate a software simulation only.
@@ -357,7 +357,7 @@ Dependencies below are actual prerequisites, not an implied dependency on every 
 - **Ad delivery:** manifests, event ingestion, and failover behavior are tested in software. No production CDN, GAM account, or live ad-network request exists.
 - **Payments and verification:** KYC and billing are readiness/pro-forma software only. No payment collection, acquirer, or external KYC provider is active.
 - **Hardware/legal/commercial:** `hardwareTested: false`, `externalPenTestCompleted: false`, `paymentCollectionActive: false`, `countryActivated: false`, `regionalExpansionActive: false`, and `legalComplianceClaimed: false` remain authoritative.
-- **Open decisions:** preserve `DEC-OPEN-02` (single-slot scheduling policy), `DEC-OPEN-03` (CTV network account/format eligibility), `DEC-OPEN-04` (final test hardware/markets), and new `DEC-OPEN-05` through `DEC-OPEN-08` (news verification, publisher subscription terms, news slot/opt-in rules, and geographical boundary data). `DEC-OPEN-01` is owner-approved and implemented in the software prototype.
+- **Open decisions:** preserve `DEC-OPEN-02` (single-slot scheduling policy), `DEC-OPEN-03` (CTV network account/format eligibility), `DEC-OPEN-04` (final test hardware/markets), and new `DEC-OPEN-05` through `DEC-OPEN-08` (news verification, publisher subscription terms, news slot/opt-in rules, and geographical boundary data). `DEC-OPEN-01` is owner-approved and implemented in Track B.
 - **Safety:** ordinary TV must remain usable; skip on uncertainty; do not intercept protected signals or bypass DRM/HDCP; opportunity verification must remain independent from ad spend; charity stays $0; no commercial outreach or payment collection without authorization.
 
 ## 5. GitHub repository research and reuse recommendation
@@ -401,7 +401,7 @@ Research was performed against public GitHub repository root listings, READMEs, 
 
 **Ledger split report:** 5.10i was replaced by two real milestones: `5.10i` is now ad-creative persistence, and `5.10j` is the remaining opportunities/households/complaints/appeals collection migration. This split adds one total row and one completed row: the direct table sum changed from 57/80 to 58/81 (71.6%). No prior percentage was cumulatively added.
 
-**Next bounded task: maintain the free preview and do not claim durable media uploads.** The local R2 adapter and round-trip are verified, but remote storage is off by owner choice. Browser-side FFmpeg/WASM is a possible no-cost local-processing path; it is slower than native FFmpeg, browser-only, has a 2 GB hard input limit, and is not integrated. Linux CI passed on published commit `aeaccd4`; current uncommitted media changes still need to be committed/pushed before they can receive CI verification. Do not claim full staging, commercial readiness, or media upload availability without durable storage.
+**Next bounded task: owner activates R2 billing, then runs `npm run deploy:cloudflare:create-bucket` from Windows.** The account-pinned R2 binding and deployment script are published and CI-verified; the script prompts before creating the empty bucket, verifies remote D1 migrations, typechecks, runs focused media tests, builds, deploys, and checks the live media readiness flag. Until it is run, the current preview remains upload-disabled. This enables durable object uploads only; Cloudflare FFmpeg/video processing, backups, monitoring/recovery, TV transports, soak, and physical-device tests remain separate work. Browser-side FFmpeg/WASM is an unintegrated candidate, not equivalent to the dedicated processing worker. Do not claim full staging or commercial readiness.
 
 Phase 4.3 still lacks an approved, verified TV transport/platform. Do not implement an unofficial TV protocol or claim a simulator is a real adapter. Phase 11.3 still needs time-based soak evidence; this is separate from the now-passing Linux CI gate.
 

@@ -30,7 +30,7 @@
 
 ## 3. Owner-Approved Consent-Epoch Extension (`DEC-OPEN-01 — RESOLVED`)
 
-The Project Owner selected Scope B and bundled withdrawal on 2026-11-16. The following behavior is implemented in the software prototype; it is not a production or legal-compliance certification:
+The Project Owner selected Scope B and bundled withdrawal on 2026-11-16. The following behavior is implemented; it is not a production or legal-compliance certification:
 
 1. **Household, Consent-Epoch & Expiry Binding**: QR validation checks the approved target/household/epoch binding. Withdrawal revokes prior epoch-bound tokens with `HTTP 403`; expiry/removal remains a distinct inactive-resource response.
 2. **Bundled Withdrawal**: Withdrawing commercial advertising consent also suspends charity advertising, opportunity access, personalisation, and active QR tokens while preserving ordinary TV operation. Restoration requires explicit opt-in.

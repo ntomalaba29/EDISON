@@ -20,7 +20,7 @@
 - Production bundle build (`npm run build` / `vite build`) — exit code `0`.
 
 ### Tier 2: Mandatory Automated Functional, Integration & Security Regression Suite (`Vitest` + `Supertest`)
-All core and shared-intelligence software test scenarios must pass before final completion. `DEC-OPEN-01` is resolved and its prototype behavior is tested; production/hardware validation remains separate:
+All core and shared-intelligence software test scenarios must pass before final completion. `DEC-OPEN-01` is resolved and its behavior is tested; production/hardware validation remains separate:
 
 1. **Alternating Sequence Invariant**: Verify `CHARITY -> COMMERCIAL -> CHARITY -> COMMERCIAL` ordering and zero consecutive same-category ads even when one pool is larger.
 2. **Four-Advertisement Scheduling**: Verify 4-ad break schedules cleanly when remaining break time covers all 4 slots + switching + safety margin.
@@ -45,7 +45,7 @@ All core and shared-intelligence software test scenarios must pass before final 
 21. **Revenue-Report Separation**: Verify separate reporting for Charity (`$0`), Direct-Paid, Network Estimated, Network Confirmed, Actual Received, and Refunds.
 22. **Network-Provider Failures**: Verify `AdNetworkAdapter` timeout/error leaves Commercial slot unused cleanly with zero TV disruption.
 23. **Duplicate Delivery Prevention**: Verify persistent idempotency and bot/prefetch filtering on delivery & QR events.
-24. **Playback Failure & Safe Return to Television**: Verify watchdog timeout and simulated player crash restore ordinary TV immediately (`SimulationTvAdapter` + mock emulator fault injection).
+24. **Playback Failure & Safe Return to Television**: Verify watchdog timeout and player crash restore ordinary TV immediately (playback engine + mock emulator fault injection).
 
 #### Network-Wide Shared Ad Intelligence Software Tests (`v2.2` — Scenarios `25`–`35`, locally tested simulation)
 25. **Multiple Simulated TVs Submitting Observations**: Verify concurrent simulated `SimulationTvAdapter` devices submit signed, scoped break-detection observations independently.

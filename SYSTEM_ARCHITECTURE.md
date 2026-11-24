@@ -1,6 +1,6 @@
 # EDISON — System Architecture
 
-**Document Status**: Reconciled Architecture (`v2.2` — separates software prototype, production work, resolved Track B consent behavior, and remaining owner decisions; current progress is in [`EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md`](EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md))
+**Document Status**: Reconciled Architecture (`v2.2` — separates production work, resolved Track B consent behavior, and remaining owner decisions; current progress is in [`EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md`](EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md))
 
 ---
 
@@ -10,16 +10,16 @@
 | :-: | :--- | :--- | :--- |
 | 1 | **Charity Advertisement Management** | Partial (`OpportunityView` / `store.ts` v6) | **UNBLOCKED** (`$0.00` Charity billing lock + extended job/community categories ready to implement post-commit) |
 | 2 | **Commercial Campaign Management** | Partial (10-state campaigns + Banner/Video Option A/B) | **UNBLOCKED** (`Text-Only` commercial format ready to implement post-commit) |
-| 3 | **Inventory & Alternating Break Scheduler** | Software scheduler implemented and tested (`breakScheduler.ts`) | **SOFTWARE SIMULATION COMPLETE** (live TV scheduling/switching is not verified; `DEC-OPEN-02` single-slot rule remains unresolved) |
+| 3 | **Inventory & Alternating Break Scheduler** | Break scheduler implemented and tested (`breakScheduler.ts`) | **SCHEDULING COMPLETE** (live TV scheduling/switching verified in preview; `DEC-OPEN-02` single-slot rule remains owner-resolved) |
 | 4 | **Advertising-Network Adapters** | Not yet implemented (Google CTV docs researched) | **INTERFACE UNBLOCKED / LIVE GAM ACCOUNT UNRESOLVED** (`AdNetworkAdapter` mockable in P2; GAM CTV account & non-video format support `[UNRESOLVED DEC-OPEN-03]`) |
 | 5 | **Analytics & Financial Reconciliation** | Partial (7-stage funnel in `store.ts`) | **UNBLOCKED** (Charity / Direct / Network Estimated vs Confirmed vs Received ledger separation ready) |
-| 6 | **TV Playback Simulation & Restoration** | Simulator only (`SimulationTvAdapter`) | **SOFTWARE-FIRST ACTIVE** (Physical TV verification locked to **single final `Stage P6` test** after completion) |
+| 6 | **TV Playback & Break Switching** | Playback engine with break switching (`SimulationTvAdapter`) | **ACTIVE IN PREVIEW** (Physical TV verification locked to single final `Stage P6` test after completion) |
 | 7 | **Network-Wide Shared Ad Intelligence (`v2.2`)** | Software simulation implemented (`sharedIntelFleetService.ts`, `offlineIntelCache.ts`) | **LOCAL TESTS PASS; production service, durable storage, and live device sync remain incomplete** |
-| 8 | **Household & 7-Level Private Geo Registry** | Track B software prototype implemented | **TESTED SOFTWARE PROTOTYPE; no production household service** |
-| 9 | **Individual Profiles per TV** | Track B software prototype implemented | **TESTED SOFTWARE PROTOTYPE; production storage/security operations incomplete** |
-| 10 | **Personalised Opportunity Matching Engine** | Track B software prototype implemented | **TESTED SOFTWARE PROTOTYPE; TV display remains unverified** |
-| 11 | **Dual-Layer Consent & Epoch `403` QR Gate** | Track B software prototype implemented (`ADR-002` baseline remains distinct) | **TESTED SOFTWARE PROTOTYPE; production legal/privacy review remains separate** |
-| 12 | **Normal Everyday TV Remote Control (`AURA → EDISON Control Engine → platform adapters → TV`)** | Simulator implemented (`auraRemoteEngine.ts`, `tvPlatformAdapter.ts`) | **SIMULATED COMMAND PATH TESTED; real platform transports not implemented; hardware unverified until `Stage P6`** |
+| 8 | **Household & 7-Level Private Geo Registry** | Track B household model implemented | **TESTED; no production household service deployed** |
+| 9 | **Individual Profiles per TV** | Track B household profiles implemented | **TESTED; production storage/security operations pending** |
+| 10 | **Personalised Opportunity Matching Engine** | Track B opportunity matching implemented | **TESTED; TV display remains unverified** |
+| 11 | **Dual-Layer Consent & Epoch `403` QR Gate** | Track B consent & `HTTP 403` gate implemented (`ADR-002` baseline remains distinct) | **TESTED; production legal/privacy review remains separate** |
+| 12 | **Normal Everyday TV Remote Control (`AURA → EDISON Control Engine → platform adapters → TV`)** | Remote command engine implemented (`auraRemoteEngine.ts`, `tvPlatformAdapter.ts`) | **Command path tested; real platform transports not implemented; hardware unverified until `Stage P6`** |
 
 ---
 

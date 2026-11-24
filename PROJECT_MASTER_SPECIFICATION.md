@@ -10,7 +10,7 @@
 EDISON is an international Smart TV advertising and verified opportunity network connecting television audiences with legitimate `CHARITY ADS` opportunities and `COMMERCIAL ADS` via scannable QR codes—without creating an intrusive mobile ad feed or disrupting ordinary television viewing.
 
 1. **Television First (Fail-Safe, `ADR-005`)**: Ordinary TV must never break, stall, or miss programme resumption if EDISON fails. Uncertain or under-budgeted breaks are skipped.
-2. **Direct-to-Destination Routing (`ADR-002`)**: Commercial QR scans route cleanly to the advertiser's destination via `HTTP 302`—never an intermediate EDISON mobile ad screen. The owner-approved Track B consent withdrawal/epoch behavior is implemented in the software prototype; production/legal behavior remains separately gated.
+2. **Direct-to-Destination Routing (`ADR-002`)**: Commercial QR scans route cleanly to the advertiser's destination via `HTTP 302`—never an intermediate EDISON mobile ad screen. The owner-approved Track B consent withdrawal/epoch behavior is implemented in Track B; production/legal behavior remains separately gated.
 3. **Zero Cost for Charity Opportunities & Job Listings**: Employers, individual hirers, educational bodies, community programmes, and viewers **never** pay to submit, verify, broadcast, scan, or apply for legitimate `CHARITY ADS` (including free employer job listings). Buying commercial ads is never required.
 4. **Independence of Verification (`ADR-003`)**: Three verification tiers (`Identity`, `Organisation`, `Specific Opportunity`) are strictly non-transitive and completely independent of advertising payments.
 5. **No Unlawful Broadcaster Modification (`ADR-001`)**: Never modify, cover, crop, intercept, or rebroadcast broadcaster streams, nor bypass DRM or HDCP.
@@ -56,7 +56,7 @@ Adapts cleanly (`4 -> 2 -> 1 -> 0`) without consecutive same-category stacking (
 
 ## 4. Owner-Approved Multi-Profile, 7-Level Geo & Dual-Consent Model (`DEC-OPEN-01 — RESOLVED`)
 
-The Project Owner selected Scope B and bundled withdrawal on 2026-11-16. The software prototype implements household TV installations, voluntary PIN-protected profiles, matching, consent epochs, and QR revocation. This is a software implementation decision; it does not imply production deployment, legal compliance, or tested TV hardware.
+The Project Owner selected Scope B and bundled withdrawal on 2026-11-16. Track B implements household TV installations, voluntary PIN-protected profiles, matching, consent epochs, and QR revocation. This is a software implementation decision; it does not imply production deployment, legal compliance, or tested TV hardware.
 
 Preserve the accepted consent/withdrawal behavior in future work. Keep production privacy review and physical TV verification distinct from prototype tests.
 

@@ -153,7 +153,7 @@
 
 - Added [`EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md`](EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md) as the current AI Studio/Copilot status authority.
 - Rebased progress on executable work units: **15 phases + final Stage P6; 59 subphases; 42 complete**. This count replaces the older weighted percentages.
-- Reconciled key requirements against code: Track B is owner-approved and implemented in the software prototype; TV remote and shared-intelligence code are simulations, not production/native integrations.
+- Reconciled key requirements against code: Track B is owner-approved and implemented; TV remote and shared-intelligence code are simulations, not production/native integrations.
 - Audited public GitHub remote-control, VAST/IMA, HLS cue-monitoring, and detector projects. Findings are recorded in the handoff plan. No external repository was cloned and no dependency was added.
 - Current code verification remains the Windows baseline at `0281d36` (89 Vitest passed, one Windows symlink permission skip; lint/build/E2E pass). `ba1ea76` contains documentation only.
 - Current blocker/next task: Phase 3.6, clear the GitHub Actions billing/spending-limit restriction, rerun Linux CI, and verify the symlink test. The owner-visible GitHub error says recent account payments failed or the spending limit must be increased.

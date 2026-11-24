@@ -11,7 +11,7 @@
 ### 1.1 Three Commercial Formats (`COMMERCIAL ADS`)
 1. **Image / Banner Ads**: PNG, JPEG, WebP; strict `16:9` (`1.777:1 ±1%`), minimum `1280 x 720` (1080p recommended). Magic-byte validated on `/api/media/upload`.
 2. **Video Ads**: MP4 (H.264/AVC + AAC) and WebM (VP9/Opus); `16:9`, `5s–60s`, normalized loudness (EBU R128 / ATSC A/85 in `P3` FFmpeg pipeline), **preloaded** ahead of break playback.
-3. **Text-Only Commercial Ads (`[SOFTWARE PROTOTYPE IMPLEMENTED]`)**:
+3. **Text-Only Commercial Ads**:
    - Structured JSON payload: `{ advertiserName (required), headline (required), messageBody (required), contactInfo?, qrToken? / destinationUrl? }`.
    - Zero image or video file required; rendered cleanly in a deterministic 16:9 high-contrast typographic canvas (`>= 42 px` headline, `>= 28 px` body at 1080p scale) inside 90% title-safe margins.
 
@@ -69,7 +69,7 @@ Every record ingested or distributed MUST bind to an explicit compatibility tupl
 
 - **10 Lifecycle Analytics Events** (`[SPECIFIED]`): `ad_requested`, `ad_selected`, `ad_delivered`, `ad_started`, `ad_played`, `ad_completed`, `ad_viewable`, `qr_request`, `destination_opened`, `verified_conversion`.
 - **Financial Attribution Separation**: `charity_free`, `direct_commercial_paid`, `ad_network_estimated`, `ad_network_confirmed`, `actual_payment_received`, `refund_adjustment`.
-- **7-Level Private Household Geo Schema (`[DEC-OPEN-01 RESOLVED; SOFTWARE PROTOTYPE IMPLEMENTED]`)**: `countryCode`, `provinceOrRegion`, `metropolitanArea?`, `cityOrTown`, `district?`, `suburbOrResidentialArea?`, `exactInstallationLocation`.
+- **7-Level Private Household Geo Schema (`[DEC-OPEN-01 RESOLVED]`)**: `countryCode`, `provinceOrRegion`, `metropolitanArea?`, `cityOrTown`, `district?`, `suburbOrResidentialArea?`, `exactInstallationLocation`.
 
 ---
 

@@ -76,7 +76,7 @@
 
 ## 5. Known Limitations & Unresolved Decisions (`KNOWN_LIMITATIONS.md` / `DECISIONS_LOG.md`)
 
-1. **`DEC-OPEN-01` (Consent & Profile Model)**: Resolved by the owner on 2026-11-16 (Scope B + bundled withdrawal) and implemented in the software prototype. Production/privacy/legal validation remains separately gated.
+1. **`DEC-OPEN-01` (Consent & Profile Model)**: Resolved by the owner on 2026-11-16 (Scope B + bundled withdrawal) and implemented in Track B. Production/privacy/legal validation remains separately gated.
 2. **`DEC-OPEN-02` & `DEC-OPEN-03`**: `k=1` short-break rule confirmation & GAM CTV eligibility/format support remain open (`MockAdNetworkBackfillAdapter` active).
 3. **Normal Everyday TV Remote & Shared Ad Intelligence Implementation Status**: Both have tested software simulations; neither has production TV transport/fleet deployment. Physical TV compatibility remains unverified until the single `Stage P6` test.
 4. **Infrastructure**: Single-host JSON file persistence (`data/edison-store.json`), zero FFmpeg media pipeline (`TASK-P3-004`), zero real payments (`paymentCollectionActive: false`), zero country legal sign-offs.
