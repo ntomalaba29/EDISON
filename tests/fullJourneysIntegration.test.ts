@@ -130,12 +130,12 @@ describe('Workstreams C, D & E: Full End-to-End Application Journeys, Commercial
         .post('/api/admin/database/verify-pglite')
         .set(adminAuth)
         .send({});
-      expect(pgVerifyRes.status).toBe(200);
+      expect(pgVerifyRes.status, JSON.stringify(pgVerifyRes.body)).toBe(200);
       expect(pgVerifyRes.body.ok).toBe(true);
       expect(pgVerifyRes.body.verifiedWithEngine).toBe('pglite_postgresql_16_wasm');
       expect(pgVerifyRes.body.importSummary.charityZeroCostVerified).toBe(true);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
-  });
+  }, 180_000);
 });

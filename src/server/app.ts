@@ -4581,8 +4581,9 @@ export function createEdisonApp(
   });
 
   app.post('/api/admin/database/verify-pglite', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
-    const executor = await createPgliteExecutor();
+    let executor: Awaited<ReturnType<typeof createPgliteExecutor>> | null = null;
     try {
+      executor = await createPgliteExecutor();
       const dataPath = path.resolve(process.cwd(), 'data', 'edison-store.json');
       const snapshot = fs.existsSync(dataPath)
         ? JSON.parse(fs.readFileSync(dataPath, 'utf8'))
@@ -4618,7 +4619,9 @@ export function createEdisonApp(
       reliabilityMonitor.recordDependencyFailure('postgres_primary', msg);
       res.status(500).json({ error: msg });
     } finally {
-      await executor.close();
+      if (executor) {
+        await executor.close();
+      }
     }
   });
 
@@ -5089,10 +5092,6 @@ export function createEdisonApp(
       res.redirect(302, outcome.record.resolvedUrl);
     }),
   );
-
-  app.use('/api', (_req: Request, res: Response) => {
-    res.status(404).json({ error: 'API_NOT_FOUND', message: 'API route not found.' });
-  });
 
   // Structured JSON error handler prevents Express HTML error pages or stack leaks on malformed JSON / runtime errors
   app.use(apiErrorMiddleware);
