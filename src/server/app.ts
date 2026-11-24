@@ -4587,22 +4587,7 @@ export function createEdisonApp(
       const dataPath = path.resolve(process.cwd(), 'data', 'edison-store.json');
       const snapshot = fs.existsSync(dataPath)
         ? JSON.parse(fs.readFileSync(dataPath, 'utf8'))
-        : {
-            schemaVersion: 8,
-            users: [],
-            sessions: [],
-            qrLinks: store.listQrLinksForUser(req.currentUser!),
-            advertiserProfiles: [],
-            campaigns: store.listCampaignsForUser(req.currentUser!),
-            adCreatives: store.listAdCreativesForUser(req.currentUser!),
-            supportTickets: [],
-            opportunities: store.listOpportunitiesForUser(req.currentUser!),
-            opportunityComplaints: [],
-            opportunityAppeals: [],
-            analyticsEvents: [],
-            physicalQrScanTests: [],
-            auditLogs: [],
-          };
+        : store.getStoreSnapshot();
       const importSummary = await importJsonStoreToPostgres(executor, snapshot);
       const probe = await probePostgresReadiness(executor);
       const backup = await exportPostgresBackupSql(executor);

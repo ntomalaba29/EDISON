@@ -1379,6 +1379,11 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     };
   }
 
+  getStoreSnapshot(): EdisonStoreData {
+    this.syncIfDiskNewer();
+    return structuredClone(this.data);
+  }
+
   private ensureDataDir(): void {
     if (!fs.existsSync(this.dataDir)) {
       fs.mkdirSync(this.dataDir, { recursive: true });

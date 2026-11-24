@@ -86,6 +86,7 @@ import type {
   SupportTicketRecord,
   SupportTicketStatus,
   TextOnlyCommercialSpec,
+  EdisonStoreData,
 } from '../types/edison.ts';
 
 export type EdisonStorageBackend =
@@ -153,6 +154,7 @@ export interface EdisonAuthSessionRepository {
  */
 export interface EdisonDataRepository extends EdisonAuthSessionRepository {
   getStorageBackendMetadata(): StorageBackendMetadata;
+  getStoreSnapshot(): EdisonStoreData;
 
   // --- Auth & Session Hardening ---
   getUserBySessionToken(token: string | undefined): PublicUser | null;
