@@ -180,7 +180,7 @@ describe('EDISON Phase 13 Block 13.1 — Commercial Readiness Board Gate, SLA Ma
     expect(suiteRes.body.report.passedChecks).toBe(8);
     expect(suiteRes.body.report.allPassed).toBe(true);
 
-    // Verify 34/34 QA invariants and 85.0% Full App / 15.0% remaining / 87.1% Stage P6
+    // Verify QA invariants and executable-subphase progress.
     const qaRes = await adminAgent.get('/api/qa/prototype-readiness');
     expect(qaRes.status).toBe(200);
     expect(qaRes.body.automatedInvariantsTotal).toBe(34);
@@ -188,9 +188,8 @@ describe('EDISON Phase 13 Block 13.1 — Commercial Readiness Board Gate, SLA Ma
 
     const liveRes = await request(app).get('/api/reports/live');
     expect(liveRes.status).toBe(200);
-    expect(liveRes.body.progressMetrics.overallFullAppPct).toBe(85.0);
-    expect(liveRes.body.progressMetrics.remainingUntilFullAppPct).toBe(15.0);
-    expect(liveRes.body.progressMetrics.softwareToStageP6Pct).toBe(87.1);
+    expect(liveRes.body.progressMetrics.executionSubphasePct).toBe(77.8);
+    expect(liveRes.body.progressMetrics.remainingExecutionSubphasePct).toBe(22.2);
     expect(liveRes.body.progressMetrics.aiStudioAssignmentPct).toBe(100);
   });
 });

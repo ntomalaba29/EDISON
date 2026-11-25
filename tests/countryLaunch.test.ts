@@ -16,7 +16,7 @@ function extractCsrfCookie(setCookies: string[] | string | undefined): string {
   return '';
 }
 
-describe('EDISON Phase 14 Block 14.1 — Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine (Software-First)', () => {
+describe('Legacy jurisdiction reference checks and retired market activation API', () => {
   let tempDir: string;
   let store: EdisonPrototypeStore;
   let app: ReturnType<typeof createEdisonApp>;
@@ -44,10 +44,9 @@ describe('EDISON Phase 14 Block 14.1 — Country-by-Country Launch Readiness Gat
     expect(report.hardwareTested).toBe(false);
     expect(report.stageP6Deferred).toBe(true);
     expect(report.legalComplianceClaimed).toBe(false);
-    expect(report.noLawyerDependencyPolicy).toBe(true);
   });
 
-  it('enforces auth (401), CSRF (403), admin RBAC (403), strict Zod (400), fail-closed COUNTRY_LAUNCH_GATE_LOCKED (400), 30/30 QA & 81.0% Full App', async () => {
+  it('enforces authorization and validation while retiring phased market activation writes', async () => {
     // 1. Unauthenticated POST without CSRF -> 403
     const unauthPost = await request(app).post('/api/country-launch/verify-suite').send({});
     expect(unauthPost.status).toBe(403);
@@ -111,12 +110,12 @@ describe('EDISON Phase 14 Block 14.1 — Country-by-Country Launch Readiness Gat
       .send({ forceActivate: true });
     expect(strictReject.status).toBe(400);
 
-    // 6. Inspect 6-country overview (ZW Initial + 5 markets, 0 active, Charity=$0.00, noLawyerDependencyPolicy=true)
+    // 6. Inspect legacy jurisdiction overview without treating it as launch approval.
     const overviewRes = await adminAgent.get('/api/country-launch/overview');
     expect(overviewRes.status).toBe(200);
     expect(overviewRes.headers['cache-control']).toContain('no-store');
     const ov = overviewRes.body.overview;
-    expect(ov.initialLaunchMarket).toBe('ZW');
+    expect(ov.referenceTargetingCountryCode).toBe('ZW');
     expect(ov.activeLaunchedMarketsCount).toBe(0);
     expect(ov.totalInventoriedMarketsCount).toBe(6);
     expect(ov.softwareReadyMarketsCount).toBe(6);
@@ -126,12 +125,11 @@ describe('EDISON Phase 14 Block 14.1 — Country-by-Country Launch Readiness Gat
     expect(ov.hardwareTested).toBe(false);
     expect(ov.stageP6Deferred).toBe(true);
     expect(ov.legalComplianceClaimed).toBe(false);
-    expect(ov.noLawyerDependencyPolicy).toBe(true);
     expect(ov.charityListingFeeUsd).toBe(0);
     expect(ov.charityJobFeeLockEnforced).toBe(true);
     expect(ov.countries).toHaveLength(6);
     const zw = ov.countries.find((c: { countryCode: string }) => c.countryCode === 'ZW');
-    expect(zw.isInitialLaunchMarket).toBe(true);
+    expect(zw.isReferenceTargetingProfile).toBe(true);
     expect(zw.countryActivated).toBe(false);
     expect(zw.softwareGatesReadyCount).toBe(4);
     expect(zw.externalClearancesBlockedCount).toBe(2);
@@ -158,7 +156,7 @@ describe('EDISON Phase 14 Block 14.1 — Country-by-Country Launch Readiness Gat
     expect(updatedZw.policyConfig.redactHouseholdGeoFromAdvertisers).toBe(true);
     expect(updatedZw.countryActivated).toBe(false);
 
-    // 8. Fail-closed: Admin requesting territory activation (requestedCountryActivation: true) -> 400 COUNTRY_LAUNCH_GATE_LOCKED
+    // 8. Country-by-country activation is retired; it cannot create a phased release.
     const prematureActivate = await adminAgent
       .post('/api/country-launch/decision')
       .set('X-CSRF-Token', adminCsrf)
@@ -168,10 +166,10 @@ describe('EDISON Phase 14 Block 14.1 — Country-by-Country Launch Readiness Gat
         requestedCountryActivation: true,
         summaryNote: 'Attempting premature ZW live launch before Stage P6 and POTRAZ registration.',
       });
-    expect(prematureActivate.status).toBe(400);
-    expect(prematureActivate.body.error).toContain('COUNTRY_LAUNCH_GATE_LOCKED:');
+    expect(prematureActivate.status).toBe(410);
+    expect(prematureActivate.body.error).toContain('not release waves');
 
-    // 9. Admin records valid unactivated territory staging decision -> 201 with SHA-256 digest
+    // 9. Even a non-activation decision cannot recreate the retired country rollout workflow.
     const validDecision = await adminAgent
       .post('/api/country-launch/decision')
       .set('X-CSRF-Token', adminCsrf)
@@ -179,17 +177,9 @@ describe('EDISON Phase 14 Block 14.1 — Country-by-Country Launch Readiness Gat
         countryCode: 'ZW',
         decisionOutcome: 'stage_software_ready_for_stage_p6_and_filing',
         requestedCountryActivation: false,
-        summaryNote: 'ZW Initial Launch Market software controls verified; holding activation pending Stage P6 physical TV verification and POTRAZ filing.',
+        summaryNote: 'Zimbabwe is a reference targeting geography, not a product-release wave.',
       });
-    expect(validDecision.status).toBe(201);
-    expect(validDecision.body.decision.countryCode).toBe('ZW');
-    expect(validDecision.body.decision.countryActivated).toBe(false);
-    expect(validDecision.body.decision.commercialLaunchAuthorized).toBe(false);
-    expect(validDecision.body.decision.paymentCollectionActive).toBe(false);
-    expect(validDecision.body.decision.hardwareTested).toBe(false);
-    expect(validDecision.body.decision.legalComplianceClaimed).toBe(false);
-    expect(validDecision.body.decision.decisionSha256).toMatch(/^[a-f0-9]{64}$/);
-    expect(validDecision.body.overview.activeLaunchedMarketsCount).toBe(0);
+    expect(validDecision.status).toBe(410);
 
     // 10. Execute verify-suite endpoint
     const suiteRes = await adminAgent
@@ -200,7 +190,7 @@ describe('EDISON Phase 14 Block 14.1 — Country-by-Country Launch Readiness Gat
     expect(suiteRes.body.report.passedChecks).toBe(8);
     expect(suiteRes.body.report.allPassed).toBe(true);
 
-    // 11. Verify 34/34 QA invariants and 85.0% Full App / 15.0% remaining / 87.1% Stage P6
+    // 11. Verify QA invariants and executable-subphase progress.
     const qaRes = await adminAgent.get('/api/qa/prototype-readiness');
     expect(qaRes.status).toBe(200);
     expect(qaRes.body.automatedInvariantsTotal).toBe(34);
@@ -208,9 +198,8 @@ describe('EDISON Phase 14 Block 14.1 — Country-by-Country Launch Readiness Gat
 
     const liveRes = await request(app).get('/api/reports/live');
     expect(liveRes.status).toBe(200);
-    expect(liveRes.body.progressMetrics.overallFullAppPct).toBe(85.0);
-    expect(liveRes.body.progressMetrics.remainingUntilFullAppPct).toBe(15.0);
-    expect(liveRes.body.progressMetrics.softwareToStageP6Pct).toBe(87.1);
+    expect(liveRes.body.progressMetrics.executionSubphasePct).toBe(77.8);
+    expect(liveRes.body.progressMetrics.remainingExecutionSubphasePct).toBe(22.2);
     expect(liveRes.body.progressMetrics.aiStudioAssignmentPct).toBe(100);
   });
 });

@@ -1,170 +1,124 @@
-# EDISON – International Smart TV Advertising & Opportunity Network
+# EDISON
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/ntomalaba29/EDISON/actions)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)](https://www.typescriptlang.org/)
-[![React](https://img.shields.io/badge/React-19-61dafb)](https://reactjs.org/)
-[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare%20Workers-Deployed-F38020)](https://cloudflare.com/workers/)
-[![License](https://img.shields.io/badge/License-MIT-lightgrey)](https://opensource.org/licenses/MIT)
+EDISON is being developed as an interactive Smart TV advertising and community-opportunity service. The repository contains campaign and opportunity workflows, QR-code redirects, household consent controls, and software-tested TV-break behavior; it is not yet a production service.
 
----
+> **Project status:** Pre-production. The Cloudflare preview is a limited app shell backed by D1. Its compatibility endpoint reports `applicationApiReady: false`, `mediaUploadReady: false`, and `mediaProcessingReady: false`. R2 is declared as a future binding but no bucket is active. Real TV remote transports, broadcaster/ad-network integrations, payments, and physical-device validation are not complete.
 
-## Key Features
+## What is in this repository
 
-### 🎨 Advertisement Creation Studio (Option A)
-Guided 16:9 canvas with templates, asset libraries, safe-zone overlays (5% overscan), WCAG 4.5:1 contrast validation, and QR code placement assistance.
+- React 19 and TypeScript single-page application built with Vite.
+- Express application API used by local development, with validation, authentication/session controls, and application workflows.
+- Cloudflare Worker adapter with D1-backed auth/domain repositories and static assets.
+- PostgreSQL migrations and local PGlite integration coverage.
+- Local Node.js media validation and FFmpeg/ffprobe worker code. This is not available in the deployed Worker.
+- Software simulations and tests for TV break scheduling, AURA remote commands, shared break intelligence, consent, QR flows, reliability, and readiness reporting.
 
-### 📤 Advertisement Upload & Validation (Option B)
-Secure upload with magic-byte verification, `jsQR` validation, non-overwrite QR rule enforcement, and FFmpeg transcoding pipeline (H.264 MP4, HLS, `-23 LUFS` audio normalization).
+Simulated and software-tested behavior must not be interpreted as verified TV hardware support, a live ad network, or commercial readiness.
 
-### 📺 16:9 TV Preview & Break Demo
-Playback demonstration for video and timed image sequences, QR scan verification, and a labelled break demonstrating: Live TV → Commercial Break → EDISON Ad → Phone Scan → Return to TV.
+## Availability and ad targeting
 
-### 🔐 QR Code System
-Validated routing via `/r/:token` (302 redirect), anti-phishing checks, direct-to-destination handoff, and epoch-based `HTTP 403` withdrawal behavior for consent revocation.
+The product direction is a single simultaneous release, not country-by-country rollout waves. Campaign geography is used to select eligible ad audiences and does not control whether EDISON is available. The current geographic catalogue represents six grouped market profiles only; it is not complete worldwide targeting coverage. A worldwide product release and worldwide ad-targeting coverage are separate claims, and neither is currently production-ready.
 
-### 📊 Multi-Stage Analytics Funnel
-7-stage funnel distinguishing measured events, anti-bot deduplication, and 10-event revenue separation (direct vs. network fill).
+## Deployed preview
 
-### 🏠 Multi-Profile Household & Geo Targeting
-7-level private geo hierarchy (`Country → Region → City → Suburb → Street → Building → Exact Installation`), optional individual profiles under one TV, Required/Preferred/Optional matching, and personalised TV greetings.
+The current preview is [edison.ntomalaba29.workers.dev](https://edison.ntomalaba29.workers.dev). It serves the frontend and exposes Worker health and compatibility endpoints. The preview is not full staging: application API readiness is reported as false, user uploads are unavailable, and media processing is disabled in the Worker runtime.
 
-### 🧠 Shared Break Intelligence (Network-Wide)
-**"LEARN ONCE. DISTRIBUTE EVERYWHERE. UPDATE CONTINUOUSLY."**  
-Participating TVs share corroborated, privacy-stripped break-detection observations via a Central Shared Intelligence Service with versioned Local Intelligence Cache, background sync, offline fallback, minimum-corroboration trust gating, anti-poisoning validation, and automatic/manual rollback.
+The Worker uses the `edison-staging` D1 database. Wrangler also declares the future `EDISON_R2_BUCKET` binding, but the R2 subscription and `edison-staging-media` bucket have not been activated or created. Do not expect uploads to work until the owner enables R2, creates the bucket, and deploys with the binding.
 
-### 🎮 Conventional TV Remote Control
-First-class capability dispatching everyday remote commands (power, volume, mute, channel, source, D-pad, back, home) via **AURA → EDISON Control Engine → platform adapters → TV**, strictly separated from commercial-break intelligence.
+## Requirements
 
-### 🛡️ Privacy & Consent Architecture
-Household vs. Individual consent modes, post-withdrawal QR behavior (`HTTP 403`), 2h/30d retention purge, zero-PII telemetry, camera/mic hard disable, and DSR export/erasure cascade.
+- Node.js 22 (the GitHub Actions workflow uses Node.js 22)
+- npm
+- Optional for Cloudflare deployment: Wrangler authentication to the configured Cloudflare account
+- Optional for local media-worker tests: `ffmpeg` and `ffprobe`
 
-### ⚙️ Production Hardening
-- Zod-validated APIs, CSRF protection, rate limiting, hashed sessions
-- Versioned PostgreSQL 16 migrations (`.up/.down` SQL) with `PgQueryExecutor` (PGlite + `pg.Pool`)
-- Playwright Chromium E2E CI, PII-redacting logger, circuit breakers
-- **0 production CVEs** (security audits ongoing)
+## Local development
 
----
-
-## Architecture
-
-The system is built on Cloudflare Workers with a D1 SQLite-style database, R2 media storage, and a frontend React application. Key components include:
-
-- **Edge Functions**: Cloudflare Workers for API endpoints and business logic
-- **Database**: D1 for relational data, PostgreSQL migrations for schema management
-- **Media Storage**: R2 bucket for uploaded advertisements and processed media
-- **FFmpeg Integration**: Server-side transcoding pipeline for format conversion and audio normalization
-- **QR Code Validation**: `jsQR` library for QR code reading and validation
-- **Geo-Hierarchy**: 7-level private geo hierarchy for household and region targeting
-
-**EDISON** is an international Smart TV advertising and opportunity network. It enables television broadcasters and advertisers to deliver targeted, interactive commercial breaks to Smart TVs, while viewers engage via QR codes on their phones — creating a measurable, privacy-respecting bridge between linear TV and digital.
-
-The system supports two advertising categories:
-- **COMMERCIAL ADS** — Paid promotions, events, and personal greetings (Image/Banner, Video, Text-Only)
-- **CHARITY ADS** — Free verified listings for jobs, scholarships, training, conferences, and community programs
-
-> **Status**: **Locally fully functional** with comprehensive testing. Cloudflare Workers preview deployed (free tier). Physical Smart TV hardware compatibility test (`Stage P6`) is the one remaining validation step pending owner authorization. All software features work locally and in the deployed preview.
-
----
-
-## Quick Start
-
-### Prerequisites
-- Node.js 20+
-- Bun (recommended) or npm
-- Cloudflare account (for Workers deployment)
-
-### Local Development
-```bash
-# Install dependencies
-bun install
-
-# Start local development server (Vite + Workers)
-bun run dev
-
-# Run tests
-bun run test
-
-# Type check
-bun run typecheck
-
-# Build for production
-bun run build
+```powershell
+npm ci
+npm run dev
 ```
 
-### Cloudflare Workers Deployment
-```bash
-# Deploy to Cloudflare (requires account)
-bun run deploy:cloudflare
+The Express development server listens on `http://localhost:3000`. To run the Cloudflare Worker locally instead:
 
-# Or use the deploy script
-./scripts/deploy-cloudflare.ps1
+```powershell
+npm run dev:cloudflare
 ```
 
----
+This command builds the frontend first, then starts Wrangler on `http://localhost:8787` with local bindings. Local Worker testing does not change or deploy Cloudflare resources.
 
-## Project Structure
+## Common commands
 
+| Command | Purpose |
+| --- | --- |
+| `npm run lint` | TypeScript check (`tsc --noEmit`) |
+| `npm test` | Vitest unit and integration suite |
+| `npm run test:e2e` | Playwright browser end-to-end tests |
+| `npm run build` | Vite production build and governance-document packaging |
+| `npm run progress` | Report the execution-ledger completion count |
+| `npm run migrate:status` | Check local PostgreSQL/PGlite migration status |
+| `npx wrangler d1 migrations list edison-staging --remote` | Inspect remote Cloudflare D1 migrations |
+
+CI is defined in [`.github/workflows/edison-ci.yml`](.github/workflows/edison-ci.yml). The latest verified Linux workflow run is [45454484004](https://github.com/ntomalaba29/EDISON/actions/runs/45454484004); it passed on published commit `a7d86df`. It does not validate uncommitted work.
+
+## Cloudflare deployment
+
+The current Wrangler configuration targets the EDISON Cloudflare account, the existing D1 database, static assets in `dist/`, and a future R2 bucket binding. It does not activate R2 billing or create that bucket.
+
+After enabling R2 in the Cloudflare dashboard and reviewing its billing terms, the owner can run this from Windows PowerShell:
+
+```powershell
+npm run deploy:cloudflare:create-bucket
 ```
-EDISON/
-├── src/                    # React frontend + shared types
-│   ├── components/         # UI components
-│   ├── pages/              # Page-level components
-│   ├── hooks/              # Custom React hooks
-│   ├── services/           # API clients, utilities
-│   └── types/              # TypeScript types
-├── server/                 # Cloudflare Workers backend
-│   ├── routes/             # API route handlers
-│   ├── repositories/       # Data access layer (D1)
-│   ├── services/           # Business logic
-│   └── middleware/         # Auth, CSRF, rate limiting
-├── migrations/             # PostgreSQL/D1 schema migrations
-├── scripts/                # Deploy, migration, utility scripts
-├── tests/                  # Playwright E2E + Vitest unit tests
-├── public/                 # Static assets
-├── dist/                   # Production build output
-└── docs/                   # Additional documentation
+
+The script checks the authenticated account and D1 migration status, asks for the literal confirmation `CREATE` before creating the bucket, runs the TypeScript check, focused Worker media tests and production build, then deploys and verifies health and media readiness. It stops if R2 is not enabled. The ordinary `npm run deploy:cloudflare` command expects the bucket to exist already. Neither command changes billing settings.
+
+Do not run either deployment command while intending to keep the current free-only preview.
+
+## Repository layout
+
+```text
+src/
+  components/       React UI
+  cloudflare/       Cloudflare Worker entry point
+  server/           Express app, domain logic, D1/R2/PostgreSQL adapters
+  types/            Shared TypeScript types
+migrations/         PostgreSQL and Cloudflare D1 migrations
+tests/              Vitest and Playwright tests
+scripts/             Build, migration, and deployment utilities
+deploy/              Deployment manifests and packaging notes
+docs/                 Research, runbooks, security, and hardware test plan
+public/               Static files copied into the Vite build
+wrangler.jsonc        Cloudflare Worker, D1, assets, and future R2 config
 ```
 
----
+## Current completion and remaining work
 
-## Available Scripts
+The project ledger records **77 of 99 executable substages complete (77.8%)**. This is task completion, not a measure of product or launch readiness. See the [execution plan](EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md) and [progress tracker](PROGRESS_TRACKER.md) for acceptance evidence and current blockers.
 
-| Command | Description |
-|---------|-------------|
-| `bun run dev` | Start local dev server (Vite + Wrangler) |
-| `bun run dev:cloudflare` | Start local Wrangler Workers dev server |
-| `bun run build` | Production build (Vite + Workers) |
-| `bun run test` | Run all tests (Playwright + Vitest) |
-| `bun run test:unit` | Run Vitest unit tests |
-| `bun run test:e2e` | Run Playwright E2E tests |
-| `bun run typecheck` | TypeScript type checking |
-| `bun run lint` | ESLint + Prettier check |
-| `bun run deploy:cloudflare` | Deploy to Cloudflare Workers |
-| `bun run progress` | Show implementation progress (76/97 substages) |
+Major work still outstanding includes:
 
----
+- Activate R2 and deploy the future media bucket binding if durable uploads are required; video transcoding is a separate, unresolved service decision.
+- Complete Cloudflare application API readiness, staging backup/restore, monitoring, and recovery verification.
+- Select and implement authorized TV command transports; test on physical Android/Google TV, Samsung Tizen, and LG webOS devices.
+- Resolve ad-network, publisher, global geographic-data coverage, and editorial-policy decisions before live integrations.
+- Complete external security, privacy, safety, and operational review before any commercial release. Payment collection remains off.
 
-## Documentation
+The final physical TV-and-phone procedure is documented in [`docs/testing/STAGE_P6_PHYSICAL_TEST_RUNBOOK.md`](docs/testing/STAGE_P6_PHYSICAL_TEST_RUNBOOK.md). No physical device results are claimed.
 
-- [About EDISON](about.md) — Project overview and vision
-- [Product Requirements](PRODUCT_REQUIREMENTS.md) — Detailed feature specifications
-- [System Architecture](SYSTEM_ARCHITECTURE.md) — Technical architecture
-- [Technical Requirements](TECHNICAL_REQUIREMENTS.md) — Implementation requirements
-- [Development Roadmap](COMPLETE_DEVELOPMENT_ROADMAP.md) — Full phase breakdown
-- [Progress Tracker](PROGRESS_TRACKER.md) — Current status
-- [Execution Ledger](EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md) — Atomic task ledger
-- [Privacy & Security](PRIVACY_SECURITY_AND_COMPLIANCE.md) — Compliance architecture
-- [Testing Strategy](TESTING_STRATEGY.md) — Test approach and coverage
+## Project documentation
 
----
+- [Product requirements](PRODUCT_REQUIREMENTS.md)
+- [System architecture](SYSTEM_ARCHITECTURE.md)
+- [Technical requirements](TECHNICAL_REQUIREMENTS.md)
+- [Known limitations](KNOWN_LIMITATIONS.md)
+- [Privacy, security, and compliance boundaries](PRIVACY_SECURITY_AND_COMPLIANCE.md)
+- [Jurisdiction compliance considerations](JURISDICTION_COMPLIANCE_REGISTER.md)
+- Draft policies — [Privacy Notice](docs/legal/PRIVACY_POLICY_DRAFT.md), [Cookie Policy](docs/legal/COOKIE_POLICY_DRAFT.md), and [Terms and Conditions](docs/legal/TERMS_AND_CONDITIONS_DRAFT.md). These are not approved for publication.
+- [Testing strategy](TESTING_STRATEGY.md)
+- [Execution plan and status ledger](EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md)
+- [Physical device test runbook](docs/testing/STAGE_P6_PHYSICAL_TEST_RUNBOOK.md)
 
 ## License
 
-MIT License.
-
----
-
-## Contributing
-
-Development workflow, coding standards, and pull request process follow the project conventions.
+No license file is currently included. Unless and until the repository owner adds a license, no reuse rights are granted by this README.

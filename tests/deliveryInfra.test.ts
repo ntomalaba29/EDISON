@@ -105,6 +105,28 @@ function makeWebmCreative(id: string, campaignId: string): AdCreativeRecord {
 }
 
 describe('Phase 6 Block 6.1: Advertising Delivery Infrastructure (Software-First)', () => {
+  it('uses campaign geography for targeting without limiting worldwide campaigns to listed reference profiles', () => {
+    const infra = new AdvertisingDeliveryInfrastructure();
+    const manifest = infra.compilePreloadManifest({
+      platformId: 'android_tv_tif',
+      deviceSlotId: 'slot_jp_1',
+      regionCode: 'JP',
+      daypart: 'daytime',
+      campaigns: [
+        makeCampaign({ id: 'cmp_worldwide', targetRegions: ['GLOBAL'] }),
+        makeCampaign({ id: 'cmp_uk_only', targetRegions: ['United Kingdom'] }),
+      ],
+      creatives: [],
+      qrLinks: [makeQr('dlv-active')],
+      referenceDateIso: '2026-11-16T12:00:00.000Z',
+    });
+
+    expect(manifest.items.map((item) => item.campaignId)).toEqual(['cmp_worldwide']);
+    expect(
+      manifest.excluded.find((item) => item.campaignId === 'cmp_uk_only')?.reasonCode
+    ).toBe('SKIP_REGION_MISMATCH');
+  });
+
   it('compiles SHA-256 preload manifests, locks $0.00 Charity cost, enforces regional/QR/Tizen codec gates & CDN failover', () => {
     const infra = new AdvertisingDeliveryInfrastructure();
     const nowIso = '2026-11-16T12:00:00.000Z';

@@ -1,14 +1,14 @@
 # EDISON — AI Studio Handoff and Executable Subphase Ledger
 
-**Status snapshot:** 2026-11-24 (atomic task ledger; 76/97 executable substages complete; free Cloudflare preview deployed, media storage deferred)
-**Audited starting snapshot:** `main` at `ba1ea76` (`docs: record GitHub Actions startup failure`), clean and tracking `origin/main` before this documentation subphase.  
+**Status snapshot:** 2026-11-25 (atomic task ledger; 77/99 executable substages complete; free Cloudflare preview deployed, media storage deferred)
+**Audited starting snapshot:** `main` at `a7d86df` (`Update EDISON documentation to production-ready status`); current worktree changes are not covered by the published CI result.
 **Authority:** This file is the current implementation-status and next-work source of truth. The weighted percentages and older checkpoint labels in the roadmap, tracker, README, and command-centre history are historical and must not override this ledger.
 
 ## 1. Atomic execution ledger
 
 The rewritten ledger defines **one task for one verifiable substage**. A task is complete only after implementation, focused tests, a production/repository check where relevant, status reporting, and the scoped commit/push handoff. External actions—billing, providers, hardware, legal review, and commercial authorization—remain explicitly blocked or deferred.
 
-**Current arithmetic:** **76 / 97 executable substages = 78.4%**. Worker compatibility is split into authentication/session, business APIs, filesystem/media behavior, and restart/migration checks. Media adaptation is split into validation/storage separation, provider-backed durable storage, and compatible media execution; the R2 binding/deployment path is prepared but billing activation and remote bucket creation remain owner steps. Compatible media execution still requires a provider decision. Tasks 3.6, 5.10j1–5.10j11, 5.10k1–5.10k3, and 5.11a are verified. Run `npm run progress` to reproduce the fraction.
+**Current arithmetic:** **77 / 99 executable substages = 77.8%**. This count includes one completed task for preparing the three policy drafts and one pending task for owner/counsel approval and publication. It is not commercial or launch readiness. Worker compatibility is split into authentication/session, business APIs, filesystem/media behavior, and restart/migration checks. Media adaptation is split into validation/storage separation, provider-backed durable storage, and compatible media execution; the R2 binding/deployment path is prepared but R2 billing and remote bucket creation remain owner steps. Compatible media execution still requires a provider decision. Tasks 3.6, 5.10j1–5.10j11, 5.10k1–5.10k3, and 5.11a are verified. Run `npm run progress` to reproduce the fraction.
 
 ### 15-phase sequence
 
@@ -25,8 +25,8 @@ The rewritten ledger defines **one task for one verifiable substage**. A task is
 11. Reliability
 12. Pilot readiness
 13. Commercial readiness
-14. Country activation
-15. International expansion
+14. Worldwide release readiness
+15. Ad-targeting geography and localization
 
 Then **Stage P6**, the one final physical test.
 
@@ -84,25 +84,25 @@ The route audit in `src/server/app.ts` classifies the remaining read sources as 
 | Phase 7 — Advertiser and publisher operations | 2 / 4 |
 | Phase 8 — Creative rendering | 2 / 3 |
 | Phase 9 — Opportunity and editorial operations | 2 / 4 |
-| Phase 10 — Privacy and security readiness | 4 / 5 |
+| Phase 10 — Privacy and security readiness | 5 / 7 |
 | Phase 11 — Reliability | 2 / 3 |
 | Phase 12 — Pilot readiness | 2 / 2 |
 | Phase 13 — Commercial readiness | 1 / 3 |
-| Phase 14 — Country activation | 2 / 3 |
-| Phase 15 — International expansion | 2 / 3 |
+| Phase 14 — Worldwide release readiness | 2 / 3 |
+| Phase 15 — Ad-targeting geography and localization | 2 / 3 |
 | Stage P6 — One final physical test | 0 / 1 |
-| **Overall** | **75 / 97** |
+| **Overall** | **77 / 99** |
 
 These are **subphase counts**, not the older weighted business-progress percentages. “Completed” means the software/documentation deliverable met its stated local acceptance criteria and its test evidence is recorded. It does **not** imply production deployment, legal compliance, commercial authorization, or real-TV compatibility.
 
-The phase/stage counts above sum to **75 / 97 executable substages (77.3%)**. This direct sum is maintained in `execution-ledger.json` and reproduced with `npm run progress`; no historical weighted percentage is used for current reporting.
+The phase/stage counts above sum to **77 / 99 executable substages (77.8%)**. This direct sum is maintained in `execution-ledger.json` and reproduced with `npm run progress`; it is not a measure of launch readiness.
 
 ### Status vocabulary
 
 - **DONE** — deliverable and acceptance criteria are complete; verification is recorded below or in the named test.
 - **BLOCKED** — implementation or evidence is waiting on a concrete external blocker; do not mark complete.
 - **PENDING** — not started; available for work only after its prerequisites and any owner decisions are satisfied.
-- **DEFERRED** — intentionally held for an owner, legal, commercial, deployment, or one-time hardware gate.
+- **DEFERRED** — intentionally held for owner approval, qualified legal review, commercial authorization, deployment, or one-time hardware evidence.
 
 Every subphase must be completed, verified, reported, reviewed, and committed as one unit. If it cannot meet all acceptance criteria in one bounded task, split it before implementation. Do not mark a subphase complete on the strength of a plan, mock, UI, or a passing test that does not cover its acceptance boundary.
 
@@ -295,15 +295,17 @@ Dependencies below are actual prerequisites, not an implied dependency on every 
 | 9.3 | Connect an authorized external identity/organization verification provider. Acceptance: vendor response and outages are handled without promoting unverified evidence. | 9.1, 10.1 | **DEFERRED** — no KYC vendor connected or authorized. |
 | 9.4 | Define and implement the journalist-news review lifecycle: publisher/source checks, evidence and affected-area record, review decision, expiry, correction/retraction, complaints, audit, and separation of editorial from sponsored content. | 7.4, 9.1, 9.2, 10.2 | **BLOCKED — `DEC-OPEN-05`** — editorial verification and fast-review safeguards require owner decisions before implementation. |
 
-### Phase 10 — Privacy and security readiness: 4 / 5
+### Phase 10 — Privacy and security readiness: 5 / 7
 
 | ID | Single-task deliverable and acceptance boundary | Depends on | Status / evidence |
 |---|---|---|---|
 | 10.1 | Implement consent epoch, QR revocation, data-subject export/erasure, and ordinary-TV-preservation behavior. Acceptance: approved withdrawal and deletion paths pass tests. | 2.8, 3.1 | **DONE — SOFTWARE** — `privacyCompliance.test.ts`; no independent legal finding implied. |
 | 10.2 | Enforce retention bounds, zero-PII telemetry, and camera/microphone restrictions. Acceptance: prohibited fields are blocked or redacted in tests. | 10.1, 5.2 | **DONE — SOFTWARE** — privacy/security regression coverage. |
 | 10.3 | Run dependency/security checks and maintain the internal security test report. Acceptance: report is tied to a dependency snapshot and test evidence. | 3.1, 3.5 | **DONE — INTERNAL CHECKS** — `docs/security/SECURITY_TEST_REPORT.md`; not an external penetration test. |
-| 10.4 | Maintain the country statutory source register and mark evidence, uncertainty, and non-compliance claims accurately. Acceptance: country rules are traceable to public sources. | 1.2 | **DONE — RESEARCH/READINESS RECORD** — does not claim legal compliance or market authorization. |
+| 10.4 | Maintain a jurisdiction issue register with unresolved questions and no unsupported compliance claims. Acceptance: the register is explicitly non-exhaustive and is not a launch-by-country switch. | 1.2 | **DONE — ENGINEERING REGISTER** — `JURISDICTION_COMPLIANCE_REGISTER.md`; qualified review remains outstanding. |
 | 10.5 | Obtain independent penetration testing and resolve findings. Acceptance: findings have closure evidence. | 10.3 | **DEFERRED** — no external pen test performed. |
+| 10.6 | Prepare original Privacy, Cookie, and Terms drafts from verified application behavior. Acceptance: unknown company facts, data flows, and legal choices are explicit; drafts are not presented as effective policies. | 10.1, 10.2 | **DONE — DRAFTS ONLY** — `docs/legal/`; no legal approval is claimed. |
+| 10.7 | Complete owner fact-checking and qualified legal review, then publish effective policies. Acceptance: all placeholders are resolved, production behavior matches, approval and effective dates are recorded. | 10.6, 14.2 | **PENDING** — drafts are not approved or for publication. |
 
 ### Phase 11 — Reliability: 2 / 3
 
@@ -328,27 +330,27 @@ Dependencies below are actual prerequisites, not an implied dependency on every 
 | 13.2 | Conduct and record human board/owner approval. Acceptance: named authorization and constraints are explicit. | 13.1, 12.2 | **PENDING** — software readiness is not approval. |
 | 13.3 | Authorize commercial operation, contracts, live payments, and related customer operations. Acceptance: separate explicit owner authorization and operational safeguards. | 13.2, 7.3 | **DEFERRED** — outreach and payment collection remain off. |
 
-### Phase 14 — Country activation: 2 / 3
+### Phase 14 — Worldwide release readiness: 2 / 3
 
 | ID | Single-task deliverable and acceptance boundary | Depends on | Status / evidence |
 |---|---|---|---|
-| 14.1 | Implement country policy and fail-closed activation gates for the documented markets. Acceptance: no market activates when required controls are missing. | 10.4, 12.1 | **DONE — SOFTWARE** — `countryLaunch.test.ts`. |
-| 14.2 | Keep public-source statutory research current and each market’s gaps explicitly listed. Acceptance: records are dated and no legal-compliance claim is inferred. | 10.4, 14.1 | **DONE — RESEARCH RECORD** — launch activation remains separate. |
-| 14.3 | Complete required regulator filings and owner-authorized market activation. Acceptance: filed evidence and explicit owner authorization are recorded before any market flag can activate. | 13.2, 14.1, 14.2 | **DEFERRED** — no country is activated. |
+| 14.1 | Retire country-by-country and region-by-region activation controls; keep service availability independent of campaign targeting geography. Acceptance: UI panels are removed, legacy decision endpoints cannot create market/region activation records, and global ad targets are not restricted to the six listed profiles. | 6.1, 10.2 | **DONE — SOFTWARE** — targeted delivery test and HTTP 410 decision-endpoint tests. |
+| 14.2 | Maintain non-exhaustive jurisdiction questions separately from product availability. Acceptance: no legal-compliance claim or country activation prerequisite is inferred. | 10.4 | **DONE — ENGINEERING REGISTER** — `JURISDICTION_COMPLIANCE_REGISTER.md`; counsel review is pending. |
+| 14.3 | Complete global product readiness and obtain owner authorization for one simultaneous release. Acceptance: operational, safety, privacy, security, and applicable legal obligations are evidenced before release; there are no per-country launch switches. | 13.2, 13.3, 10.7 | **PENDING** — no production release is authorized. |
 
-### Phase 15 — International expansion: 2 / 3
+### Phase 15 — Ad-targeting geography and localization: 2 / 3
 
 | ID | Single-task deliverable and acceptance boundary | Depends on | Status / evidence |
 |---|---|---|---|
-| 15.1 | Complete localization, currency estimate, and accessibility/caption resource packs. Acceptance: all shipped locale keys and formatting are covered. | 2.3, 14.1 | **DONE — SOFTWARE** — `internationalExpansion.test.ts`. |
-| 15.2 | Prepare sovereign-region deployment manifests and container/CDN deployment configuration. Acceptance: residency constraints are explicit and fail closed. | 10.2, 14.1 | **DONE — DEPLOYMENT BLUEPRINT** — not a live regional deployment. |
-| 15.3 | Deploy and operate approved sovereign regions with real data residency, monitoring, and contracted providers. Acceptance: residency, backup/restore, observability, and no-cross-border-PII controls pass against the deployed environment. | 13.2, 14.3, 15.2 | **PENDING** — no live region or acquirer rollout. |
+| 15.1 | Maintain localization and accessibility resources independently of launch geography. Acceptance: current locale data and formatting tests pass; no region wave is implied. | 2.3 | **DONE — SOFTWARE** — `internationalExpansion.test.ts`. |
+| 15.2 | Maintain the representative campaign-targeting geography catalogue. Acceptance: campaign target matching is tested independently of product release status and the coverage limit is explicit. | 2.3, 6.1 | **DONE — PARTIAL DATASET** — current catalogue represents six grouped market profiles only. |
+| 15.3 | Build and validate complete worldwide ad-targeting geography and production location matching. Acceptance: licensed/authoritative coverage, privacy controls, and boundary fixtures are verified before global targeting claims. | 6.5, 10.2, 15.2 | **PENDING** — current data is incomplete; no live global location source is configured. |
 
 ### Final Stage P6 — one physical test: 0 / 1
 
 | ID | Single-task deliverable and acceptance boundary | Depends on | Status / evidence |
 |---|---|---|---|
-| P6.1 | Execute the **single** end-to-end physical TV + phone test only after software gates and owner hardware selection are ready. Acceptance: complete the approved runbook once, record the actual hardware/results, and do not claim unsupported platforms. | 3.6, 4.4, 12.2, 13.2, 14.1 | **DEFERRED** — runbook exists; no physical TV test has been performed. |
+| P6.1 | Execute the **single** end-to-end physical TV + phone test only after software gates and owner hardware selection are ready. Acceptance: complete the approved runbook once, record the actual hardware/results, and do not claim unsupported platforms. | 3.6, 4.4, 12.2, 13.2 | **DEFERRED** — runbook exists; no physical TV test has been performed. |
 
 ## 4. Current product truth and non-negotiable limits
 
@@ -356,7 +358,7 @@ Dependencies below are actual prerequisites, not an implied dependency on every 
 - **Shared intelligence:** `sharedIntelFleetService.ts` and `offlineIntelCache.ts` implement local software simulations and tests. The fleet devices are seeded in memory and keys are generated by the process. Do not call this a production shared service or live fleet.
 - **Ad delivery:** manifests, event ingestion, and failover behavior are tested in software. No production CDN, GAM account, or live ad-network request exists.
 - **Payments and verification:** KYC and billing are readiness/pro-forma software only. No payment collection, acquirer, or external KYC provider is active.
-- **Hardware/legal/commercial:** `hardwareTested: false`, `externalPenTestCompleted: false`, `paymentCollectionActive: false`, `countryActivated: false`, `regionalExpansionActive: false`, and `legalComplianceClaimed: false` remain authoritative.
+- **Hardware/security/commercial:** `hardwareTested: false`, `externalPenTestCompleted: false`, `paymentCollectionActive: false`, and `legalComplianceClaimed: false` remain authoritative. There is no country-by-country launch switch; global release readiness remains pending.
 - **Open decisions:** preserve `DEC-OPEN-02` (single-slot scheduling policy), `DEC-OPEN-03` (CTV network account/format eligibility), `DEC-OPEN-04` (final test hardware/markets), and new `DEC-OPEN-05` through `DEC-OPEN-08` (news verification, publisher subscription terms, news slot/opt-in rules, and geographical boundary data). `DEC-OPEN-01` is owner-approved and implemented in Track B.
 - **Safety:** ordinary TV must remain usable; skip on uncertainty; do not intercept protected signals or bypass DRM/HDCP; opportunity verification must remain independent from ad spend; charity stays $0; no commercial outreach or payment collection without authorization.
 

@@ -583,7 +583,7 @@ export interface EdisonStoreData {
   stageP6PrepNotes?: Record<string, string>;
   commercialBoardDecisions?: CommercialBoardDecisionRecord[];
   commercialCostAssumptions?: CommercialCostAssumptionsInput;
-  countryPolicyProfiles?: Partial<Record<LaunchMarketCode, CountryJurisdictionPolicyConfig>>;
+  countryPolicyProfiles?: Partial<Record<TargetingGeographyCode, CountryJurisdictionPolicyConfig>>;
   countryLaunchDecisions?: CountryLaunchDecisionRecord[];
   regionalLocalizationProfiles?: Partial<Record<ExpansionRegionId, RegionalLocalizationConfig>>;
   internationalExpansionDecisions?: InternationalExpansionDecisionRecord[];
@@ -591,9 +591,10 @@ export interface EdisonStoreData {
 
 export interface EdisonProgressMetrics {
   aiStudioAssignmentPct: number;
-  softwareToStageP6Pct: number;
-  overallFullAppPct: number;
-  remainingUntilFullAppPct: number;
+  executionSubphasesCompleted: number;
+  executionSubphasesTotal: number;
+  executionSubphasePct: number;
+  remainingExecutionSubphasePct: number;
   consentBlockedScopePct: number;
   trackBStatus?: string;
   rubricSummary: string;
@@ -1816,7 +1817,7 @@ export interface CountryGeoProvinceConfig {
 export interface CountryGeoConfig {
   countryCode: string;
   countryName: string;
-  isInitialLaunchMarket: boolean;
+  isReferenceTargetingProfile: boolean;
   countryActivated: false;
   metroAreasSupported: boolean;
   bundledWithdrawalEnforced: true;
@@ -2026,7 +2027,7 @@ export interface TrackBVerificationCheckItem {
 export interface TrackBVerificationReport {
   generatedAt: string;
   decOpen01Status: 'LOCKED_SCOPE_B_BUNDLED_WITHDRAWAL';
-  initialLaunchMarket: 'ZW';
+  referenceTargetingCountryCode: 'ZW';
   totalChecks: number;
   passedChecks: number;
   allPassed: boolean;
@@ -2344,10 +2345,9 @@ export interface OpportunityOpsVerificationReport {
 export interface CountryStatutoryComplianceRecord {
   countryCode: string;
   countryName: string;
-  isInitialLaunchMarket: boolean;
+  isReferenceTargetingProfile: boolean;
   countryActivated: false;
   legalComplianceClaimed: false;
-  noLawyerDependencyPolicy: true;
   statutesResearched: string[];
   enforcedTechnicalControls: {
     bundledConsentWithdrawal: true;
@@ -2393,7 +2393,6 @@ export interface PrivacyComplianceOverview {
   externalPenTestCompleted: false;
   hardwareTested: false;
   stageP6Deferred: true;
-  noLawyerDependencyPolicy: true;
   legalComplianceClaimed: false;
   cameraMicAttentionTrackingEnabled: false;
   posture: {
@@ -2841,9 +2840,9 @@ export interface CommercialReadinessVerificationReport {
   checks: CommercialReadinessVerifyCheckItem[];
 }
 
-// --- Phase 14 Block 14.1: Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine (Software-First) ---
+// --- Legacy jurisdiction reference and policy data; not a product-release control ---
 
-export type LaunchMarketCode = 'ZW' | 'GB' | 'EU' | 'US' | 'ZA' | 'KE_NG';
+export type TargetingGeographyCode = 'ZW' | 'GB' | 'EU' | 'US' | 'ZA' | 'KE_NG';
 
 export type CountryLaunchReadinessGateStatus =
   | 'software_controls_verified_awaiting_external_clearances';
@@ -2857,7 +2856,7 @@ export interface CountryLaunchPreflightItem {
 }
 
 export interface CountryJurisdictionPolicyConfig {
-  countryCode: LaunchMarketCode;
+  countryCode: TargetingGeographyCode;
   consentBannerStrictMode: boolean;
   requirePreBroadcastHumanModeration: boolean;
   jobFeeZeroLockEnforced: true;
@@ -2870,12 +2869,11 @@ export interface CountryJurisdictionPolicyConfig {
 }
 
 export interface CountryLaunchAssessment {
-  countryCode: LaunchMarketCode;
+  countryCode: TargetingGeographyCode;
   countryName: string;
-  isInitialLaunchMarket: boolean;
+  isReferenceTargetingProfile: boolean;
   countryActivated: false;
   legalComplianceClaimed: false;
-  noLawyerDependencyPolicy: true;
   gateStatus: CountryLaunchReadinessGateStatus;
   softwareGatesReadyCount: number;
   softwareGatesTotalCount: number;
@@ -2899,7 +2897,7 @@ export type CountryLaunchDecisionOutcome =
 
 export interface CountryLaunchDecisionRecord {
   id: string;
-  countryCode: LaunchMarketCode;
+  countryCode: TargetingGeographyCode;
   reviewerEmail: string;
   decisionOutcome: CountryLaunchDecisionOutcome;
   summaryNote: string;
@@ -2908,14 +2906,13 @@ export interface CountryLaunchDecisionRecord {
   paymentCollectionActive: false;
   hardwareTested: false;
   legalComplianceClaimed: false;
-  noLawyerDependencyPolicy: true;
   decisionSha256: string;
   createdAt: string;
 }
 
 export interface CountryLaunchOverview {
   generatedAt: string;
-  initialLaunchMarket: 'ZW';
+  referenceTargetingCountryCode: 'ZW';
   activeLaunchedMarketsCount: 0;
   totalInventoriedMarketsCount: 6;
   softwareReadyMarketsCount: number;
@@ -2929,12 +2926,11 @@ export interface CountryLaunchOverview {
   externalPenTestCompleted: false;
   externalKycVendorConnected: false;
   legalComplianceClaimed: false;
-  noLawyerDependencyPolicy: true;
   charityListingFeeUsd: 0;
   charityJobFeeLockEnforced: true;
   countries: CountryLaunchAssessment[];
   launchDecisions: CountryLaunchDecisionRecord[];
-  globalLaunchBlockers: string[];
+  releaseReadinessBlockers: string[];
   manifestSha256: string;
 }
 
@@ -2955,7 +2951,6 @@ export interface CountryLaunchVerificationReport {
   hardwareTested: false;
   stageP6Deferred: true;
   legalComplianceClaimed: false;
-  noLawyerDependencyPolicy: true;
   totalChecks: number;
   passedChecks: number;
   allPassed: boolean;
@@ -2997,7 +2992,7 @@ export interface ExpansionPreflightItem {
 export interface InternationalRegionProfileAssessment {
   regionId: ExpansionRegionId;
   regionName: string;
-  targetMarketCodes: LaunchMarketCode[];
+  targetMarketCodes: TargetingGeographyCode[];
   sovereignResidencyZone: string;
   cdnEdgeClusterTarget: string;
   regionalExpansionActive: false;
@@ -3053,7 +3048,7 @@ export interface InternationalExpansionDecisionRecord {
 
 export interface InternationalExpansionOverview {
   generatedAt: string;
-  primaryExpansionWaveRegion: 'africa_south_zw_za';
+  primaryTargetingReferenceRegion: 'africa_south_zw_za';
   activeExpandedRegionsCount: 0;
   totalRegionsInventoriedCount: 4;
   softwareReadyRegionsCount: number;
@@ -3068,13 +3063,12 @@ export interface InternationalExpansionOverview {
   pilotHardwareExecuted: false;
   stageP6Deferred: true;
   legalComplianceClaimed: false;
-  noLawyerDependencyPolicy: true;
   prohibitCrossBorderPiiTransfer: true;
   charityListingFeeUsd: 0;
   charityJobFeeLockEnforced: true;
   regions: InternationalRegionProfileAssessment[];
   expansionDecisions: InternationalExpansionDecisionRecord[];
-  globalExpansionBlockers: string[];
+  targetingAndReadinessCaveats: string[];
   manifestSha256: string;
 }
 

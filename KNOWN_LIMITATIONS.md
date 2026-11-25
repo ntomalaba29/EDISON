@@ -1,35 +1,42 @@
-# EDISON — Known Limitations
+# EDISON — Current Limitations and Release Readiness
 
-**Honesty Standard**: Separates committed & verified software/infrastructure engineering (`postgres/migrator`, `FfmpegMediaWorker` running `/usr/bin/ffmpeg` & `/usr/bin/ffprobe`, Playwright headless Chromium E2E, `auraRemoteEngine`, `commercialDisputeEngine`, 9-language i18n, sovereign deployment manifests, Docker/Compose/CDN, `internationalExpansionEngine`, `countryLaunchEngine`, `commercialReadinessEngine`, `pilotReadinessEngine`, `reliabilityChaosEngine`, `privacyComplianceEngine`, `opportunityOpsEngine`, `BroadcastRenderEngine`) from strictly deferred physical hardware, external cloud host provisioning, external security/KYC partners, and regulatory/commercial activation. Overall completion stands at **85.0% of the full 15-phase international commercial app** (**`15.0%` remaining**), **87.1% of the software milestone leading to Stage P6**, and **100.0% of the Phase 2 AI Studio scope**.
+**Status:** Pre-production. This document distinguishes code and test evidence from deployed services, external approvals, legal review, and physical-device results. Passing software tests do not establish production readiness.
 
-1. **`[EXTERNAL & PHYSICAL BOUNDARIES — REMAINING 15.0% REQUIRES OWNER HARDWARE, REMOTE CLOUD DB, EXTERNAL VENDORS & LEGAL SIGN-OFF]`**:
-   - **PostgreSQL 16+ Persistence (`TASK-P3-001` Implemented Locally)**: 3 versioned `.sql`/`.down.sql` migrations, `PgQueryExecutor` (`pg.Pool` + in-process PG16 PGlite WASM), ACID JSON backfill & CLI are implemented and verified (`tests/postgresMigration.test.ts` + live UI PGlite probe). Default AI Studio preview runs on atomic JSON (`schemaVersion: 8`) until a remote `DATABASE_URL` & `EDISON_STORAGE_BACKEND=postgresql_pg` host is provisioned (`0.5%` reserved).
-   - **FFmpeg Worker (`TASK-P3-004` Implemented Locally)**: `FfmpegMediaWorker` (`src/server/mediaWorker.ts`) executes real `/usr/bin/ffmpeg` 4.4.2 & `/usr/bin/ffprobe` binaries for WebM->H.264 MP4 Tizen transcoding, HLS segmentation, and `-23 LUFS` loudness normalisation (`tests/mediaWorker.test.ts`). Hardware TV decoder verification remains deferred until `Stage P6`.
-   - **Phase 9 (`opportunityOpsEngine.ts`)**: Enforces Tier 1–3 vault seals & fee independence with `externalKycVendorConnected: false` (live commercial ID/KYC API credentials deferred).
-   - **Phase 10 (`privacyComplianceEngine.ts` + `docs/security/SECURITY_TEST_REPORT.md`)**: DSR export/erasure, `HTTP 403` revocation, Zero-PII scanner, and automated `npm audit --omit=dev` (`0` vulnerabilities) verified; `externalPenTestCompleted: false`, `legalComplianceClaimed: false`, and all 6 markets `countryActivated: false`.
-   - **Phase 11 (`reliabilityChaosEngine.ts` + `FM-19`/`FM-20`)**: Deterministic software chaos across `FM-01`..`FM-18` plus Postgres pool (`FM-19`) & FFmpeg OOM/timeout (`FM-20`) recovery verified (`hardwareTested: false`, `realBroadcastTunerConnected: false`, `stageP6Deferred: true`).
-   - **Phase 12 (`pilotReadinessEngine.ts` + `docs/testing/STAGE_P6_PHYSICAL_TEST_RUNBOOK.md`)**: Single final `Stage P6` physical runbook (`P6-01`..`P6-08`) prepared; `hardwareTested: false`, `pilotHardwareExecuted: false`, `stageP6Deferred: true` (`2.0%` pilot + `6.0%` `Stage P6` reserved until physical execution). All software logic is verified via simulation; physical TV execution is the single final validation step.
-   - **Phase 13–15 Commercial & International Gates**: `commercialLaunchAuthorized: false`, `paymentCollectionActive: false`, `countryActivated: false`, `regionalExpansionActive: false`, `activeExpandedRegionsCount: 0`, `prohibitCrossBorderPiiTransfer: true` (`1.0% + 2.0% + 1.5%` reserved for external approvals, cloud clusters & acquirers).
-   - `.git` metadata is absent inside `/app/applet`; commits are applied manually by the Project Owner.
+## Application and infrastructure
 
-2. **`[DEC-OPEN-01 LOCKED — HOUSEHOLD PRIVACY & BUNDLED CONSENT SCOPE]`**:
-   - Locked under **Scope B (Full EDISON Model) + Bundled Consent Withdrawal**: Track B implements Zimbabwe (`ZW`) initial launch geo hierarchy + international configs (`countryActivated: false`), PIN-isolated household profiles, opportunity matching, safe TV greetings, bundled commercial/charity withdrawal, and `HTTP 403` epoch QR revocation.
-   - All consent checks and QR revocations are verified in application code/tests against the JSON store (`schemaVersion: 8`), not yet against a live PostgreSQL instance (`TASK-P3-001` remains `READY`).
+- The public Cloudflare Worker is a limited preview. Its compatibility endpoint reports `applicationApiReady: false`, `mediaUploadReady: false`, and `mediaProcessingReady: false`.
+- The Worker uses D1 bindings for authentication and domain records, but the application also has in-memory state. Restart durability and full production data-path readiness are not established by the public preview.
+- The R2 binding and local adapter exist, but R2 is not active and the remote bucket has not been created. Durable media upload is unavailable.
+- The Node.js FFmpeg worker is for compatible Node environments only. Media processing is explicitly disabled in Cloudflare Workers; no remote transcoding provider is selected.
+- Production backups, restore drills, monitoring, alerting, incident response, and an external security review have not been completed.
 
-3. **`[NORMAL TV REMOTE, SMART TV ADAPTERS & SHARED AD INTELLIGENCE STATUS]`**:
-   - **Normal Everyday TV Remote Control (`ADR-017` / `PRD-20`) & Phase 4 Adapters (`Blocks 4.1–4.3`)**: Software exit suite (`10/10` checks, `16/16` fault cases, `8/8` conformance vectors) committed cleanly—**zero physical TV hardware compatibility claimed or tested prior to `Stage P6` (`hardwareTested: false`)**. All remote command logic is verified via software simulation; physical TV transport compatibility remains deferred to Stage P6.
-   - **Network-Wide Shared Ad Intelligence & Break Predictor (`Blocks 5.1–5.2`)**: Ed25519 attested fleet service (`11/11` Scenarios `25`–`35`) and per-channel `p10`/`p5` ML predictor (`10/10` fixtures, `0%` FPR) committed as **software engines only** against recorded fixtures—real broadcaster field calibration awaits `Stage P6` and Phase 12 pilots. The simulation layer is fully instrumented for software validation.
+## Product integrations and real-world operation
 
-4. **`[GOOGLE AD MANAGER CTV FORMAT & ACCOUNT ELIGIBILITY — UNRESOLVED DEC-OPEN-03 & DEC-OPEN-02]`**:
-   - **`DEC-OPEN-03`**: Standard AdSense/AFV are ineligible for native CTV apps; GAM + IMA SDK is the official path, **but** EDISON holds zero GAM CTV account today (`MockAdNetworkBackfillAdapter` active), and whether GAM CTV supports third-party static banner or text-only backfill remains **`UNRESOLVED`**.
-   - **`DEC-OPEN-02`**: Final confirmation of `k=1` short-break alternating rule remains open for Phase 12 calibration review.
+- TV-control adapters, shared ad intelligence, and break behavior have software tests, but no physical Smart TV transport or device compatibility has been verified.
+- No live broadcaster, advertising-network, publisher, settlement, payment-provider, or KYC integration is verified.
+- Payment collection is disabled. Advertiser estimates and revenue examples must not be presented as collected money or live campaign performance.
+- There is no verified commercial launch authorization or operating support process.
+- The intended product release is simultaneous, not a series of country or region launches. Per-country and per-region activation decision endpoints are retired and return HTTP 410; they do not gate ad delivery.
 
-5. **`[INACCESSIBLE / UNVERIFIED DEFERRED GITHUB CANDIDATES]`**:
-   - Among the 9 named research candidates (`DEFERRED` to Phase 4/5 reference studies; zero cloning/integration): `scottn12/Sports-Broadcast-Commercial-Detector` and `FlyingCow/remo` could not be verified publicly (`INACCESSIBLE / UNVERIFIED`); `abdullaabdullazade/audio-ad-detection` has `LICENCE UNVERIFIED`; `nicolasrondan/tv_commercial_break_detector` has partial public verification with unverified licence/history.
+## Geographic targeting
 
-6. **`[PHYSICAL HARDWARE, BROWSER E2E, BILLING & LEGAL RESEARCH BOUNDARIES]`**:
-   - **Zero physical Smart TV hardware tests** have been executed—**repeated physical testing is prohibited during development**, deferred strictly to **one final integrated physical test at app completion (`Stage P6`)**.
-   - **Physical Phone QR Scan Gate**: Live runtime store starts with `0` owner-submitted smartphone camera scans (`PENDING_OWNER_DEVICE_TEST`); never fabricated in code.
-   - **Browser E2E & Cloud Persistence**: Single-host JSON atomic store (`schemaVersion: 8`, `EdisonDataRepository` port) is retained in AI Studio without paid Cloud SQL (`TASK-P3-001` ready for external PostgreSQL execution).
-   - **Non-Transactional Billing & Outreach Lock**: `paymentCollectionActive: false`, `realPaymentGatewayConnected: false`, `actualCashChargedUsd: 0`, and `automatedOutreachBlocked: true` remain strictly enforced.
-   - **Independent Legal Research Policy**: Country statutes (`COUNTRY_ACTIVATION_REGISTER.md`) are researched independently from public official sources; **`ZERO LEGAL COMPLIANCE CLAIMED`** and all countries remain `NOT ACTIVATED` until Phase 14 country launch approval.
+- Campaign selection uses campaign `targetRegions`; geographic selection is for ad targeting, not service availability.
+- A campaign can use the `GLOBAL` target token, but this does not prove that EDISON has worldwide users, inventory, valid location data, or legal authorization to serve ads in every location.
+- The built-in geography profiles cover six grouped market labels and selected subregions. The list is incomplete, includes a combined Kenya/Nigeria profile and a grouped EU profile, and is not an authoritative world-boundary dataset.
+- No complete country/region polygon dataset, verified TV location source, radius targeting, device-movement verification, or global targeting accuracy has been established.
+
+## Privacy, cookies, and legal readiness
+
+- Household location, consent state, and optional member education/career profiles exist in the application model. Production data minimization, purpose configuration, access review, and retention enforcement still require end-to-end verification.
+- Authentication uses a session cookie and a CSRF cookie; see the draft Cookie Policy for implementation details. The current source review did not identify a cookie preference interface or non-essential analytics cookie.
+- Source code defines selected session, QR, and audit retention settings, but a complete production retention and backup-deletion schedule is not verified.
+- Draft Privacy, Cookie, and Terms documents are in `docs/legal/`. They contain unresolved owner facts and are **not approved for publication**. Qualified counsel must review them against actual data flows and applicable jurisdictions.
+- The jurisdiction register is a non-exhaustive issue list, not legal advice or a compliance certification. No formal legal opinion, regulator approval, registration confirmation, or external privacy audit is verified.
+- Region residency manifests are blueprints only. They do not prove actual production storage locations or prevent cross-border access.
+- The code includes consent and privacy controls, but they must be validated against each production integration and applicable rules before use.
+
+## Progress accounting
+
+The executable subphase ledger in [`execution-ledger.json`](execution-ledger.json) is the authoritative software-task count. It measures completed subphases; it is not a percentage of commercial readiness, legal compliance, or launch readiness. The current fraction is reproduced by `npm run progress`.
+
+The final physical TV-and-phone procedure is documented in [`docs/testing/STAGE_P6_PHYSICAL_TEST_RUNBOOK.md`](docs/testing/STAGE_P6_PHYSICAL_TEST_RUNBOOK.md). No physical device results are claimed.

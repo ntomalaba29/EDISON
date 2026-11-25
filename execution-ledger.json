@@ -1,19 +1,19 @@
 {
   "status": "FREE PREVIEW DEPLOYED; EXTERNAL LAUNCH GATES REMAIN",
-  "completed": 76,
-  "total": 97,
-  "previousCompleted": 75,
+  "completed": 77,
+  "total": 99,
+  "previousCompleted": 76,
   "previousTotal": 97,
-  "nextTask": "Owner: activate Cloudflare R2 billing, then run npm run deploy:cloudflare:create-bucket",
-  "commitGate": "Cloudflare binding/deploy setup is published through 65af4c2; GitHub Actions run 45442252536 passed. The tracker edits in the current worktree are uncommitted.",
-  "currentPhase": "Phase 5.11 — Cloudflare media storage and execution",
+  "nextTask": "10.7: Owner fact-check and qualified legal review of policy drafts; publish only after approval",
+  "commitGate": "Draft policies, product wording, and runtime reporting are being reconciled; policy approval, production readiness, and global release authorization remain pending.",
+  "currentPhase": "Phase 10 — policy drafts complete; owner and qualified-counsel review pending",
   "externalBlockers": [
     "5.11b: Account-pinned R2 binding and guarded deploy script are prepared; owner must activate R2 billing and run the deploy script before durable remote uploads exist.",
     "5.11c: No free hosted processing service is selected; browser-side FFmpeg/WASM is a candidate but is not integrated or production-verified.",
     "5.12: Full staging still needs media storage, backups, monitoring, and recovery verification.",
     "4.3: No verified, permissioned TV command transport/platform has been selected.",
     "11.3: Linux CI passes; time-based soak evidence remains outstanding.",
-    "Hardware, external security review, legal, commercial, and country-launch gates require owner action."
+    "Physical hardware testing, external security review, policy review, production integrations, and commercial launch authorization require owner action."
   ],
   "milestones": {
     "3.6": "DONE",
@@ -36,6 +36,11 @@
     "5.11a": "DONE",
     "5.11b": "BLOCKED",
     "5.11c": "BLOCKED",
-    "11.3": "PENDING"
+    "11.3": "PENDING",
+    "10.6": "DONE",
+    "10.7": "PENDING",
+    "14.1": "DONE",
+    "15.1": "DONE",
+    "15.2": "DONE"
   }
 }

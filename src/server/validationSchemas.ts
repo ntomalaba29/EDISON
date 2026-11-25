@@ -1009,11 +1009,11 @@ export const commercialBoardDecisionSchema = z
   })
   .strict();
 
-export const launchMarketCodeEnum = z.enum(['ZW', 'GB', 'EU', 'US', 'ZA', 'KE_NG']);
+export const targetingGeographyCodeEnum = z.enum(['ZW', 'GB', 'EU', 'US', 'ZA', 'KE_NG']);
 
 export const countryPolicyUpdateSchema = z
   .object({
-    countryCode: launchMarketCodeEnum,
+    countryCode: targetingGeographyCodeEnum,
     consentBannerStrictMode: z.boolean(),
     requirePreBroadcastHumanModeration: z.boolean(),
     enforceVppsOrLocalPrivacyLock: z.boolean(),
@@ -1023,7 +1023,7 @@ export const countryPolicyUpdateSchema = z
 
 export const countryLaunchDecisionSchema = z
   .object({
-    countryCode: launchMarketCodeEnum,
+    countryCode: targetingGeographyCodeEnum,
     decisionOutcome: z.enum([
       'hold_country_unactivated_pending_clearances',
       'stage_software_ready_for_stage_p6_and_filing',

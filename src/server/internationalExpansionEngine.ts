@@ -13,7 +13,7 @@ import type {
   InternationalExpansionVerificationReport,
   InternationalExpansionVerifyCheckItem,
   InternationalRegionProfileAssessment,
-  LaunchMarketCode,
+  TargetingGeographyCode,
   MultiCurrencyProFormaEstimate,
   OpportunityRecord,
   QrLinkRecord,
@@ -24,7 +24,7 @@ import { buildCountryLaunchOverview } from './countryLaunchEngine.ts';
 interface RegionBlueprintDefinition {
   regionId: ExpansionRegionId;
   regionName: string;
-  targetMarketCodes: LaunchMarketCode[];
+  targetMarketCodes: TargetingGeographyCode[];
   sovereignResidencyZone: string;
   cdnEdgeClusterTarget: string;
   defaultConfig: Omit<RegionalLocalizationConfig, 'updatedAt' | 'updatedByEmail'>;
@@ -292,7 +292,7 @@ export function buildInternationalExpansionOverview(params: {
   campaigns: CampaignRecord[];
   opportunities: OpportunityRecord[];
   qrLinks: QrLinkRecord[];
-  storedPolicyProfiles?: Partial<Record<LaunchMarketCode, CountryJurisdictionPolicyConfig>>;
+  storedPolicyProfiles?: Partial<Record<TargetingGeographyCode, CountryJurisdictionPolicyConfig>>;
   countryLaunchDecisions?: CountryLaunchDecisionRecord[];
   storedLocalizationProfiles?: Partial<Record<ExpansionRegionId, RegionalLocalizationConfig>>;
   expansionDecisions?: InternationalExpansionDecisionRecord[];
@@ -348,17 +348,17 @@ export function buildInternationalExpansionOverview(params: {
       },
       {
         gateId: `${bp.regionId}-SW-04`,
-        label: 'Upstream Phase 14 Country Launch Software Gate Alignment',
+        label: 'Reference jurisdiction profile alignment',
         scope: 'software_architecture',
         passed: linkedMarkets.length === bp.targetMarketCodes.length && linkedSoftwareGatesReady,
-        detail: `All linked ADR-015 territory software gates ready (${linkedMarkets.map((m) => `${m.countryCode}: 4/4`).join(', ')}; all territories remain NOT ACTIVATED).`,
+        detail: `Linked jurisdiction references found (${linkedMarkets.map((m) => `${m.countryCode}: 4/4`).join(', ')}); this is not launch approval or targeting-coverage evidence.`,
       },
       {
         gateId: `${bp.regionId}-EXT-01`,
-        label: 'Phase 14 Country Launch Activation & Stage P6 Physical TV Verification',
+        label: 'Physical Smart TV and smartphone verification',
         scope: 'external_rollout_or_acquirer',
         passed: false,
-        detail: `BLOCKED: Linked territories (${bp.targetMarketCodes.join(', ')}) have countryActivated=false and Stage P6 physical TV test remains strictly deferred until app completion.`,
+        detail: `NOT VERIFIED: Stage P6 physical TV and smartphone testing remains outstanding for the product; it is not a per-region activation gate.`,
       },
       {
         gateId: `${bp.regionId}-EXT-02`,
@@ -373,8 +373,8 @@ export function buildInternationalExpansionOverview(params: {
     const externalGates = preflightChecks.filter((p) => p.scope === 'external_rollout_or_acquirer');
 
     const blockers = [
-      `Region "${bp.regionName}" holds regionalExpansionActive=false pending Phase 14 country activation.`,
-      `Single final integrated physical Smart TV & smartphone check (Stage P6) deferred until app completion.`,
+      `The product is not authorized for release; EDISON is intended to release simultaneously rather than by regional waves.`,
+      `Physical Smart TV and smartphone verification (Stage P6) remains outstanding.`,
       `Multi-currency billing (${config.multiCurrencyCode}) remains non-transactional pro-forma only (paymentCollectionActive=false).`,
     ];
 
@@ -410,16 +410,16 @@ export function buildInternationalExpansionOverview(params: {
     (r) => r.softwareGatesReadyCount === r.softwareGatesTotalCount
   ).length;
 
-  const globalExpansionBlockers = [
-    'activeExpandedRegionsCount=0: Zero international expansion clusters activated (regionalExpansionActive=false).',
-    'Phase 14 upstream dependency: activeLaunchedMarketsCount=0 (all 6 ADR-015 markets remain NOT ACTIVATED).',
-    'Stage P6 single final physical Smart TV & smartphone camera verification remains deferred until app completion (hardwareTested=false).',
+  const targetingAndReadinessCaveats = [
+    'Targeting catalogue is representative and does not establish complete worldwide geographic coverage.',
+    'One simultaneous product release is intended; owner authorization and operational evidence remain outstanding.',
+    'Physical Smart TV and smartphone verification (Stage P6) remains outstanding (hardwareTested=false).',
     'Commercial launch authorization & multi-currency payment collection remain disabled (commercialLaunchAuthorized=false, paymentCollectionActive=false).',
     'TASK-P3-001 regional PostgreSQL residency clusters remain READY blueprints only (single-host JSON retained without Cloud SQL).',
   ];
 
   const manifestCanonical = {
-    primaryExpansionWaveRegion: 'africa_south_zw_za',
+    primaryTargetingReferenceRegion: 'africa_south_zw_za',
     regions: regions.map((r) => ({ id: r.regionId, hash: r.assessmentSha256 })),
     decisions: expansionDecisions.map((d) => d.decisionSha256),
     activeExpandedRegionsCount: 0,
@@ -427,7 +427,7 @@ export function buildInternationalExpansionOverview(params: {
 
   return {
     generatedAt: new Date().toISOString(),
-    primaryExpansionWaveRegion: 'africa_south_zw_za',
+    primaryTargetingReferenceRegion: 'africa_south_zw_za',
     activeExpandedRegionsCount: 0,
     totalRegionsInventoriedCount: 4,
     softwareReadyRegionsCount,
@@ -442,13 +442,12 @@ export function buildInternationalExpansionOverview(params: {
     pilotHardwareExecuted: false,
     stageP6Deferred: true,
     legalComplianceClaimed: false,
-    noLawyerDependencyPolicy: true,
     prohibitCrossBorderPiiTransfer: true,
     charityListingFeeUsd: 0,
     charityJobFeeLockEnforced: true,
     regions,
     expansionDecisions,
-    globalExpansionBlockers,
+    targetingAndReadinessCaveats,
     manifestSha256: crypto
       .createHash('sha256')
       .update(JSON.stringify(manifestCanonical))
@@ -466,22 +465,22 @@ export function runInternationalExpansionVerificationSuite(): InternationalExpan
     qrLinks: [],
   });
 
-  // 1. All 4 sovereign expansion regions inventoried with Wave 1 Southern Africa (ZW + ZA)
+  // 1. Four representative targeting profiles include Southern Africa.
   const wave1 = overview.regions.find((r) => r.regionId === 'africa_south_zw_za');
   checks.push({
-    checkId: 'p15_4_sovereign_regions_mapped',
-    label: 'All 4 sovereign expansion clusters mapped covering all 6 ADR-015 markets with Wave 1 ZW/ZA',
+    checkId: 'p15_4_targeting_profiles_mapped',
+    label: 'Four representative targeting profiles cover the configured geographies',
     passed:
       overview.regions.length === 4 &&
-      overview.primaryExpansionWaveRegion === 'africa_south_zw_za' &&
+      overview.primaryTargetingReferenceRegion === 'africa_south_zw_za' &&
       Boolean(wave1 && wave1.targetMarketCodes.includes('ZW') && wave1.targetMarketCodes.includes('ZA')),
-    detail: `4/4 regions mapped; Wave 1=${overview.primaryExpansionWaveRegion}; markets=${overview.regions.flatMap((r) => r.targetMarketCodes).join(', ')}.`,
+    detail: `Four representative targeting profiles mapped; reference=${overview.primaryTargetingReferenceRegion}; geographies=${overview.regions.flatMap((r) => r.targetMarketCodes).join(', ')}. This does not describe release waves.`,
   });
 
   // 2. Zero active expanded regions & Stage P6 / Phase 14 blocks respected
   checks.push({
     checkId: 'p15_zero_regions_activated_honesty',
-    label: 'Zero multi-region clusters activated (regionalExpansionActive=false, countryActivated=false)',
+    label: 'No product release is authorized and no regional rollout wave is represented',
     passed:
       overview.activeExpandedRegionsCount === 0 &&
       overview.regionalExpansionActive === false &&
@@ -580,11 +579,11 @@ export function runInternationalExpansionVerificationSuite(): InternationalExpan
     actorEmail: 'admin@edison.demo',
     decisionOutcome: 'stage_multi_region_blueprint_for_post_launch',
     requestedRegionActivation: false,
-    summaryNote: 'Staged Wave 1 ZW/ZA sovereign residency & multi-currency pro-forma blueprint; awaiting Stage P6 and Phase 14.',
+    summaryNote: 'Targeting reference and multi-currency pro-forma configuration; no regional release wave is represented.',
   });
   checks.push({
     checkId: 'p15_decision_sha256_integrity',
-    label: 'Expansion governance decision generates SHA-256 digest keeping regionalExpansionActive=false',
+    label: 'Legacy regional decision builder keeps digest integrity; public decision writes are retired',
     passed:
       stagedDecision.regionalExpansionActive === false &&
       stagedDecision.countryActivated === false &&

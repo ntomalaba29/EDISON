@@ -50,7 +50,7 @@ export const GOVERNANCE_DOCS_ALLOWLIST: GovernanceDocMeta[] = [
   { id: 'opportunity-mgmt', title: 'Opportunity Management', filename: 'OPPORTUNITY_MANAGEMENT.md', category: 'Product & Studios' },
   { id: 'advertiser-mgmt', title: 'Advertiser Management', filename: 'ADVERTISER_MANAGEMENT.md', category: 'Product & Studios' },
   { id: 'privacy-security', title: 'Privacy, Security & Compliance', filename: 'PRIVACY_SECURITY_AND_COMPLIANCE.md', category: 'Compliance, Risk & QA' },
-  { id: 'country-reg', title: 'Country Activation Register', filename: 'COUNTRY_ACTIVATION_REGISTER.md', category: 'Compliance, Risk & QA' },
+  { id: 'jurisdiction-register', title: 'Jurisdiction Compliance Considerations', filename: 'JURISDICTION_COMPLIANCE_REGISTER.md', category: 'Compliance, Risk & QA' },
   { id: 'risk-reg', title: 'Risk Register', filename: 'RISK_REGISTER.md', category: 'Compliance, Risk & QA' },
   { id: 'fmea', title: 'Failure Mode Analysis (FMEA)', filename: 'FAILURE_MODE_ANALYSIS.md', category: 'Compliance, Risk & QA' },
   { id: 'testing-strategy', title: 'Testing Strategy', filename: 'TESTING_STRATEGY.md', category: 'Compliance, Risk & QA' },

@@ -1571,9 +1571,10 @@ describe('D1 authentication/session Express integration', () => {
         countryCode: 'ZW',
         decisionOutcome: 'stage_software_ready_for_stage_p6_and_filing',
         requestedCountryActivation: false,
-        summaryNote: 'Keep activation pending external review and physical testing.',
+        summaryNote: 'Legacy market activation decision writes must be rejected.',
       });
-    expect(countryDecision.status).toBe(201);
+    expect(countryDecision.status).toBe(410);
+    expect(await domainRecordRepository.listCountryLaunchDecisions()).toEqual([]);
     expect(await domainRecordRepository.listCountryPolicyProfiles()).toEqual([
       expect.objectContaining({
         countryCode: 'ZW',
@@ -1600,9 +1601,10 @@ describe('D1 authentication/session Express integration', () => {
         regionId: 'europe_uk_eu',
         decisionOutcome: 'stage_multi_region_blueprint_for_post_launch',
         requestedRegionActivation: false,
-        summaryNote: 'Stage a regional blueprint only; all launch gates remain closed.',
+        summaryNote: 'Legacy regional activation decision writes must be rejected.',
       });
-    expect(expansionDecision.status).toBe(201);
+    expect(expansionDecision.status).toBe(410);
+    expect(await domainRecordRepository.listInternationalExpansionDecisions()).toEqual([]);
     expect(await domainRecordRepository.listRegionalLocalizationProfiles()).toEqual([
       expect.objectContaining({
         regionId: 'europe_uk_eu',
@@ -1657,9 +1659,7 @@ describe('D1 authentication/session Express integration', () => {
       .get('/api/country-launch/overview')
       .set('Authorization', `Bearer ${restartedAdminLogin.body.token}`);
     expect(countryOverview.status).toBe(200);
-    expect(countryOverview.body.overview.launchDecisions).toEqual([
-      expect.objectContaining({ id: countryDecision.body.decision.id }),
-    ]);
+    expect(countryOverview.body.overview.launchDecisions).toEqual([]);
     expect(
       countryOverview.body.overview.countries.find(
         (country: { countryCode: string }) => country.countryCode === 'ZW'
@@ -1670,9 +1670,7 @@ describe('D1 authentication/session Express integration', () => {
       .get('/api/international-expansion/overview')
       .set('Authorization', `Bearer ${restartedAdminLogin.body.token}`);
     expect(expansionOverview.status).toBe(200);
-    expect(expansionOverview.body.overview.expansionDecisions).toEqual([
-      expect.objectContaining({ id: expansionDecision.body.decision.id }),
-    ]);
+    expect(expansionOverview.body.overview.expansionDecisions).toEqual([]);
     expect(
       expansionOverview.body.overview.regions.find(
         (region: { regionId: string }) => region.regionId === 'europe_uk_eu'

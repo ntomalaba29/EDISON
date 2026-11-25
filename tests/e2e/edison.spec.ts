@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-test.describe('EDISON Full Browser End-to-End Verification (TASK-P3-003)', () => {
-  test('renders navigation shell, signs in via UI, verifies Runtime Infra (PG16/FFmpeg/AURA), Country/Intl gates, Households, Campaigns, Ad Studio, TV Preview, QR Redirect, and mobile responsiveness', async ({
+test.describe('EDISON Pre-production Browser Verification (TASK-P3-003)', () => {
+  test('renders navigation shell, signs in via UI, verifies runtime and product workflows, retired rollout UI, QR redirect, and mobile responsiveness', async ({
     page,
     request,
   }) => {
@@ -39,11 +39,9 @@ test.describe('EDISON Full Browser End-to-End Verification (TASK-P3-003)', () =>
     await page.getByRole('button', { name: /Pair Test TV/i }).click();
     await expect(page.getByText(/AURA paired cleanly:/i)).toBeVisible({ timeout: 10_000 });
 
-    // 3. Check Phase 14 Country Launch & Phase 15 Intl Expansion Panels
-    await page.getByRole('button', { name: /Phase 14 Country Launch/i }).click();
-    await expect(page.getByText(/Initial Market: ZW/i).first()).toBeVisible();
-    await page.getByRole('button', { name: /Phase 15 Intl Expansion/i }).click();
-    await expect(page.getByText(/International Multi-Region Expansion/i).first()).toBeVisible();
+    // Product availability is not controlled by market-by-market activation panels.
+    await expect(page.getByRole('button', { name: /Phase 14 Country Launch/i })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Phase 15 Intl Expansion/i })).toHaveCount(0);
 
     // 4. Navigate across key operator & household flows
     await sidebarNav.getByRole('button', { name: 'Campaigns (10-State)' }).click();

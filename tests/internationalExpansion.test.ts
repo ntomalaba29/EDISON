@@ -11,7 +11,7 @@ import {
   REGION_PROFILES,
 } from '../src/server/continentCountryRegionData.ts';
 import { validateHouseholdLocationHierarchy } from '../src/server/trackBHouseholdConsent.ts';
-import type { LaunchMarketCode } from '../src/types/edison.ts';
+import type { TargetingGeographyCode } from '../src/types/edison.ts';
 
 function extractCsrfCookie(setCookies: string[] | string | undefined): string {
   const arr = Array.isArray(setCookies) ? setCookies : setCookies ? [setCookies] : [];
@@ -37,7 +37,7 @@ describe('EDISON Phase 15 Block 15.1 — International Multi-Region Expansion, L
       .concat(CONTINENT_TARGET_MARKETS.north_america)) {
       expect(
         REGION_PROFILES.some((profile) =>
-          profile.targetMarketCodes.includes(countryCode as LaunchMarketCode)
+          profile.targetMarketCodes.includes(countryCode as TargetingGeographyCode)
         )
       ).toBe(true);
     }
@@ -64,7 +64,7 @@ describe('EDISON Phase 15 Block 15.1 — International Multi-Region Expansion, L
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('runs deterministic 8/8 international expansion suite with 4 clusters, 7-currency $0 Charity locks & fail-closed activation', () => {
+  it('runs deterministic 8/8 targeting geography suite with 4 profiles and 7-currency $0 Charity locks', () => {
     const report = runInternationalExpansionVerificationSuite();
     expect(report.totalChecks).toBe(8);
     expect(report.passedChecks).toBe(8);
@@ -81,7 +81,7 @@ describe('EDISON Phase 15 Block 15.1 — International Multi-Region Expansion, L
     expect(report.prohibitCrossBorderPiiTransfer).toBe(true);
   });
 
-  it('enforces auth (401), CSRF (403), admin RBAC (403), strict Zod (400), fail-closed EXPANSION_REGION_GATE_LOCKED (400), 30/30 QA & 81.0% Full App', async () => {
+  it('enforces authorization and validation while retiring regional activation writes', async () => {
     // 1. Unauthenticated POST without CSRF -> 403
     const unauthPost = await request(app)
       .post('/api/international-expansion/verify-suite')
@@ -169,7 +169,7 @@ describe('EDISON Phase 15 Block 15.1 — International Multi-Region Expansion, L
     expect(overviewRes.status).toBe(200);
     expect(overviewRes.headers['cache-control']).toContain('no-store');
     const ov = overviewRes.body.overview;
-    expect(ov.primaryExpansionWaveRegion).toBe('africa_south_zw_za');
+    expect(ov.primaryTargetingReferenceRegion).toBe('africa_south_zw_za');
     expect(ov.activeExpandedRegionsCount).toBe(0);
     expect(ov.totalRegionsInventoriedCount).toBe(4);
     expect(ov.softwareReadyRegionsCount).toBe(4);
@@ -228,7 +228,7 @@ describe('EDISON Phase 15 Block 15.1 — International Multi-Region Expansion, L
     expect(ngnEstimate.body.estimate.charityCostUsd).toBe(0);
     expect(ngnEstimate.body.estimate.paymentCollectionActive).toBe(false);
 
-    // 9. Fail-closed: Admin requesting premature region activation -> 400 EXPANSION_REGION_GATE_LOCKED
+    // 9. Regional expansion activation is retired; product release is not staged by region.
     const prematureActivate = await adminAgent
       .post('/api/international-expansion/decision')
       .set('X-CSRF-Token', adminCsrf)
@@ -238,10 +238,10 @@ describe('EDISON Phase 15 Block 15.1 — International Multi-Region Expansion, L
         requestedRegionActivation: true,
         summaryNote: 'Attempting premature Southern Africa expansion activation before Stage P6.',
       });
-    expect(prematureActivate.status).toBe(400);
-    expect(prematureActivate.body.error).toContain('EXPANSION_REGION_GATE_LOCKED:');
+    expect(prematureActivate.status).toBe(410);
+    expect(prematureActivate.body.error).toContain('sequential regional releases');
 
-    // 10. Valid unactivated expansion governance decision -> 201 with SHA-256 digest
+    // 10. Non-activation governance decisions cannot recreate the retired regional rollout workflow.
     const validDecision = await adminAgent
       .post('/api/international-expansion/decision')
       .set('X-CSRF-Token', adminCsrf)
@@ -250,18 +250,9 @@ describe('EDISON Phase 15 Block 15.1 — International Multi-Region Expansion, L
         decisionOutcome: 'stage_multi_region_blueprint_for_post_launch',
         requestedRegionActivation: false,
         summaryNote:
-          'Southern Africa Wave 1 sovereign residency, Shona/Ndebele/Zulu captions, and USD/ZWG/ZAR $0 Charity blueprint staged; held unactivated until Stage P6 and Phase 14 launch.',
+          'Southern Africa targeting reference, language captions, and multi-currency $0 Charity settings are documented; no regional release wave is represented.',
       });
-    expect(validDecision.status).toBe(201);
-    expect(validDecision.body.decision.regionId).toBe('africa_south_zw_za');
-    expect(validDecision.body.decision.regionalExpansionActive).toBe(false);
-    expect(validDecision.body.decision.countryActivated).toBe(false);
-    expect(validDecision.body.decision.commercialLaunchAuthorized).toBe(false);
-    expect(validDecision.body.decision.paymentCollectionActive).toBe(false);
-    expect(validDecision.body.decision.hardwareTested).toBe(false);
-    expect(validDecision.body.decision.legalComplianceClaimed).toBe(false);
-    expect(validDecision.body.decision.decisionSha256).toMatch(/^[a-f0-9]{64}$/);
-    expect(validDecision.body.overview.activeExpandedRegionsCount).toBe(0);
+    expect(validDecision.status).toBe(410);
 
     // 11. Run Phase 15 verify-suite endpoint
     const suiteRes = await adminAgent
@@ -272,7 +263,7 @@ describe('EDISON Phase 15 Block 15.1 — International Multi-Region Expansion, L
     expect(suiteRes.body.report.passedChecks).toBe(8);
     expect(suiteRes.body.report.allPassed).toBe(true);
 
-    // 12. Verify 34/34 QA invariants and 85.0% Full App / 15.0% remaining / 87.1% Stage P6
+    // 12. Verify QA invariants and executable-subphase progress.
     const qaRes = await adminAgent.get('/api/qa/prototype-readiness');
     expect(qaRes.status).toBe(200);
     expect(qaRes.body.automatedInvariantsTotal).toBe(34);
@@ -280,9 +271,8 @@ describe('EDISON Phase 15 Block 15.1 — International Multi-Region Expansion, L
 
     const liveRes = await request(app).get('/api/reports/live');
     expect(liveRes.status).toBe(200);
-    expect(liveRes.body.progressMetrics.overallFullAppPct).toBe(85.0);
-    expect(liveRes.body.progressMetrics.remainingUntilFullAppPct).toBe(15.0);
-    expect(liveRes.body.progressMetrics.softwareToStageP6Pct).toBe(87.1);
+    expect(liveRes.body.progressMetrics.executionSubphasePct).toBe(77.8);
+    expect(liveRes.body.progressMetrics.remainingExecutionSubphasePct).toBe(22.2);
     expect(liveRes.body.progressMetrics.aiStudioAssignmentPct).toBe(100);
   });
 });

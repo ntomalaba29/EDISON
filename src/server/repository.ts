@@ -39,7 +39,7 @@ import type {
   InternationalExpansionDecisionOutcome,
   InternationalExpansionDecisionRecord,
   InternationalExpansionOverview,
-  LaunchMarketCode,
+  TargetingGeographyCode,
   RegionalLocalizationConfig,
   LiveReportSnapshot,
   MultiCurrencyProFormaEstimate,
@@ -883,7 +883,7 @@ export interface EdisonDataRepository extends EdisonAuthSessionRepository {
     overview: CommercialReadinessOverview;
   };
 
-  // --- Phase 14 Block 14.1: Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine ---
+  // Legacy jurisdiction reference records; these do not control product availability.
   getCountryLaunchOverview(actor: PublicUser): CountryLaunchOverview;
   replaceCountryLaunchStateFromPersistence(
     profiles: CountryJurisdictionPolicyConfig[],
@@ -893,7 +893,7 @@ export interface EdisonDataRepository extends EdisonAuthSessionRepository {
   updateCountryPolicyConfig(
     actor: PublicUser,
     input: {
-      countryCode: LaunchMarketCode;
+      countryCode: TargetingGeographyCode;
       consentBannerStrictMode: boolean;
       requirePreBroadcastHumanModeration: boolean;
       enforceVppsOrLocalPrivacyLock: boolean;
@@ -904,7 +904,7 @@ export interface EdisonDataRepository extends EdisonAuthSessionRepository {
   submitCountryLaunchDecision(
     actor: PublicUser,
     input: {
-      countryCode: LaunchMarketCode;
+      countryCode: TargetingGeographyCode;
       decisionOutcome: CountryLaunchDecisionOutcome;
       requestedCountryActivation: boolean;
       summaryNote: string;

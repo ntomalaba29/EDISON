@@ -26,8 +26,6 @@ import type {
 import { QrCodePreview } from './QrCodePreview';
 import { PilotReadinessPanel } from './PilotReadinessPanel';
 import { CommercialReadinessPanel } from './CommercialReadinessPanel';
-import { CountryLaunchPanel } from './CountryLaunchPanel';
-import { InternationalExpansionPanel } from './InternationalExpansionPanel';
 import { RuntimeInfraPanel } from './RuntimeInfraPanel';
 import { CopyReportFooter, copyTextWithFallback } from './CopyReportFooter';
 import { edisonFetch } from '../lib/csrfFetch';
@@ -43,8 +41,6 @@ type QaSubTab =
   | 'qa_audit'
   | 'pilot_readiness'
   | 'commercial_readiness'
-  | 'country_launch'
-  | 'intl_expansion'
   | 'runtime_infra'
   | 'handover';
 
@@ -456,30 +452,6 @@ export function QaHandoverView({
           >
             <ClipboardCheck className="w-3.5 h-3.5 shrink-0" />
             <span>Phase 13 Commercial Readiness</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setSubTab('country_launch')}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-              subTab === 'country_launch'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
-            <span>Phase 14 Country Launch</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setSubTab('intl_expansion')}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-              subTab === 'intl_expansion'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
-            <span>Phase 15 Intl Expansion</span>
           </button>
           <button
             type="button"
@@ -1073,24 +1045,6 @@ export function QaHandoverView({
       {/* SUB-TAB 4: PHASE 13 COMMERCIAL READINESS BOARD GATE */}
       {subTab === 'commercial_readiness' && (
         <CommercialReadinessPanel
-          currentUser={currentUser}
-          onNavigateAuth={onNavigateAuth}
-          onSummaryRefresh={onSummaryRefresh}
-        />
-      )}
-
-      {/* SUB-TAB 5: PHASE 14 COUNTRY-BY-COUNTRY LAUNCH READINESS GATE */}
-      {subTab === 'country_launch' && (
-        <CountryLaunchPanel
-          currentUser={currentUser}
-          onNavigateAuth={onNavigateAuth}
-          onSummaryRefresh={onSummaryRefresh}
-        />
-      )}
-
-      {/* SUB-TAB 6: PHASE 15 INTERNATIONAL MULTI-REGION EXPANSION & RESIDENCY */}
-      {subTab === 'intl_expansion' && (
-        <InternationalExpansionPanel
           currentUser={currentUser}
           onNavigateAuth={onNavigateAuth}
           onSummaryRefresh={onSummaryRefresh}

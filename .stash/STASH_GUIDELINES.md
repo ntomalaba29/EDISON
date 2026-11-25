@@ -2,6 +2,8 @@
 
 *Read this file first when continuing work in VSCode.*
 
+> Historical handoff; current branch state, project progress, and release direction are documented in `.stash/PROJECT_STATUS.md`, `PROGRESS_TRACKER.md`, and `EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md`. Older rollout gates and instructions below are superseded.
+
 ---
 
 ## KEY CONTEXTS
@@ -68,7 +70,7 @@
 ### Frontend changes
 - Panel imports geography from `../server/continentCountryRegionData` — don't manage state locally
 - Preserve `useMemo` addition
-- Preserve fail-closed gate UI message: "Fail-Closed Gate: Expansion region activation is blocked until Stage P6 hardware test, Phase 14 country launches, sovereign cloud clusters, and billing approvals complete."
+- Do not restore phased market-activation controls. Campaign geography is for ad targeting; applicable legal, privacy, safety, and security duties remain separate requirements.
 
 ---
 

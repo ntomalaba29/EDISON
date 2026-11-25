@@ -1,10 +1,10 @@
 // Continent-Country-Region data for EDISON international administrator
-// Maps continents to their ADR-015 launch markets and provides region profiles
+// Maps representative ad-targeting geographies to continent profiles.
 
-import type { ExpansionRegionId, LaunchMarketCode, RegionalLocalizationConfig, ExpansionCurrencyCode } from '../types/edison.ts';
+import type { ExpansionRegionId, TargetingGeographyCode, RegionalLocalizationConfig, ExpansionCurrencyCode } from '../types/edison.ts';
 
-// continent code -> list of target market codes (LaunchMarketCode)
-export const CONTINENT_TARGET_MARKETS: Record<string, LaunchMarketCode[]> = {
+// continent code -> list of target geography codes
+export const CONTINENT_TARGET_MARKETS: Record<string, TargetingGeographyCode[]> = {
   // Africa: Zimbabwe, South Africa, Kenya/Nigeria
   africa: ['ZW', 'ZA', 'KE_NG'],
   // Asia: no ADR-015 markets defined yet; placeholder for future expansion
@@ -41,16 +41,16 @@ export const COUNTRY_NAMES: Record<string, string> = {
   KE_NG: 'Kenya/Nigeria',
 };
 
-// Maps a LaunchMarketCode to its continent
-export function getContinentForMarket(code: LaunchMarketCode): string | undefined {
+// Maps a configured targeting geography to its continent
+export function getContinentForMarket(code: TargetingGeographyCode): string | undefined {
   for (const [continent, markets] of Object.entries(CONTINENT_TARGET_MARKETS)) {
     if (markets.includes(code)) return continent;
   }
   return undefined;
 }
 
-// Gets all countries (launch markets) for a given continent
-export function getCountriesForContinent(continent: string): LaunchMarketCode[] {
+// Gets configured targeting geographies for a given continent
+export function getCountriesForContinent(continent: string): TargetingGeographyCode[] {
   return CONTINENT_TARGET_MARKETS[continent] || [];
 }
 
@@ -58,7 +58,7 @@ export function getCountriesForContinent(continent: string): LaunchMarketCode[] 
 export interface RegionProfileAssessment {
   regionId: ExpansionRegionId;
   regionName: string;
-  targetMarketCodes: LaunchMarketCode[];
+  targetMarketCodes: TargetingGeographyCode[];
   sovereignResidencyZone: string;
   cdnEdgeClusterTarget: string;
   primaryLanguageCode: string;

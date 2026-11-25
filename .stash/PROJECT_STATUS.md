@@ -1,5 +1,11 @@
 # EDISON Project Stash
 
+## CURRENT HANDOFF — 2026-11-25
+
+**Current progress:** 77/99 executable subphases (77.8%); see the root `PROGRESS_TRACKER.md` and execution plan. The historical repair instructions below are superseded where they preserve country/region rollout controls or claim legal review is unnecessary. The user-directed release model is simultaneous; geography is for campaign targeting. Draft policies still require owner and qualified-counsel review.
+
+Read [`.stash/CONTINUATION_2026-11-25_GLOBAL_LAUNCH_AUDIT.md`](CONTINUATION_2026-11-25_GLOBAL_LAUNCH_AUDIT.md) before continuing. It records the user's global-launch/geographic-targeting request, the read-only Copilot audit attachment, starting worktree changes, safety boundaries, and ordered investigation/verification/commit/push steps. Starting HEAD was `a7d86df`; use `new-origin`, never legacy `origin`, for the user's explicitly requested push. Do not activate billing, R2, or deploy without separate authorization. Preserve all pre-existing worktree changes.
+
 ## REPAIR HANDOVER COMPLETED ✅
 
 **7 Files Committed & Pushed:**
@@ -70,7 +76,7 @@
 ### When making frontend changes:
 - Panel imports geography from `../server/continentCountryRegionData` — don't manage state locally
 - Preserve `useMemo` addition
-- Preserve fail-closed gate UI message: "Fail-Closed Gate: Expansion region activation is blocked until Stage P6 hardware test, Phase 14 country launches, sovereign cloud clusters, and billing approvals complete."
+- Do not restore phased market-activation controls. Campaign geography is for ad targeting; applicable legal, privacy, safety, and security duties remain separate requirements.
 
 ---
 *Copilot guidelines section added.*

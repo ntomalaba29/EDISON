@@ -165,9 +165,8 @@ describe('Phase 11 Block 11.1 — Reliability, Failure-Mode & Chaos Recovery Sui
 
     const liveRes = await request(app).get('/api/reports/live');
     expect(liveRes.status).toBe(200);
-    expect(liveRes.body.progressMetrics.overallFullAppPct).toBe(85.0);
-    expect(liveRes.body.progressMetrics.remainingUntilFullAppPct).toBe(15.0);
-    expect(liveRes.body.progressMetrics.softwareToStageP6Pct).toBe(87.1);
+    expect(liveRes.body.progressMetrics.executionSubphasePct).toBe(77.8);
+    expect(liveRes.body.progressMetrics.remainingExecutionSubphasePct).toBe(22.2);
     expect(liveRes.body.progressMetrics.aiStudioAssignmentPct).toBe(100);
   });
 });

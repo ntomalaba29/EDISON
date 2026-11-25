@@ -21,7 +21,7 @@ export const ROADMAP_PHASES: RoadmapPhaseItem[] = [
     phase: 2,
     title: 'AI Studio Functional Prototype (Track A + Track B Complete)',
     summary:
-      'Track A (Blocks 2.1–2.7 + P2-V2.1–P2-V2.4, 85% AI Studio) + Track B (15% AI Studio: ZW-first 7-level geo households, multi-member PIN profiles, required/preferred/optional opportunity matching, safe TV personalisation, bundled consent withdrawal, and HTTP 403 epoch QR revocation under DEC-OPEN-01) Committed (100% AI Studio scope).',
+      'Track A (Blocks 2.1–2.7 + P2-V2.1–P2-V2.4, 85% AI Studio) + Track B (15% AI Studio: Zimbabwe-based reference geography for targeting, multi-member PIN profiles, required/preferred/optional opportunity matching, safe TV personalisation, bundled consent withdrawal, and HTTP 403 epoch QR revocation under DEC-OPEN-01) Committed (100% AI Studio scope).',
     milestoneGate: 'Track A & Track B committed cleanly (100% Phase 2 AI Studio scope).',
     status: 'COMMITTED',
   },
@@ -83,10 +83,10 @@ export const ROADMAP_PHASES: RoadmapPhaseItem[] = [
   },
   {
     phase: 10,
-    title: 'Privacy, Security & Legal Compliance',
+    title: 'Privacy, Security & Statutory Register',
     summary:
-      'Block 10.1 COMMITTED (4.0% Software-First: SHA-256 DSR export PIN-hash redaction, Right-to-Erasure cascade anonymisation + bundled HTTP 403 QR revocation, automated 2h-session/30d-QR retention cleanup, zero-PII analytics scanner & 6-country ADR-015 statutory register; externalPenTestCompleted: false, legalComplianceClaimed: false).',
-    milestoneGate: 'External security audit & Phase 14 country-by-country statutory sign-off prior to live commercial launch.',
+      'Block 10.1 COMMITTED (4.0% Software-First: SHA-256 DSR export PIN-hash redaction, Right-to-Erasure cascade anonymisation + bundled HTTP 403 QR revocation, automated 2h-session/30d-QR retention cleanup, zero-PII analytics scanner & 6-country ADR-015 statutory register; externalPenTestCompleted: false).',
+    milestoneGate: 'External security audit prior to live launch.',
     status: 'COMMITTED',
   },
   {
@@ -107,26 +107,26 @@ export const ROADMAP_PHASES: RoadmapPhaseItem[] = [
   },
   {
     phase: 13,
-    title: 'Commercial Readiness',
+    title: 'Readiness & Unit Economics',
     summary:
-      'Block 13.1 COMMITTED (3.0% / 4.0% Software-First Commercial Readiness: 10-pillar commercial board gate, 7-domain Production SLA matrix, unit-economics OPEX/CPM model keeping $0.00 Charity lock & fail-closed premature launch block; remaining 1.0% reserved for live post-Stage-P6 authorization).',
-    milestoneGate: 'Commercial readiness board approval (after Stage P6, external pen-test, KYC & market compliance).',
+      'Block 13.1 COMMITTED (3.0% / 4.0% Software-First: 10-pillar board gate, 7-domain Production SLA matrix, unit-economics OPEX/CPM model keeping $0.00 Charity lock & fail-closed premature launch block; remaining 1.0% reserved for live post-Stage-P6 authorization).',
+    milestoneGate: 'Board approval (after Stage P6, external pen-test, KYC & market compliance).',
     status: 'COMMITTED',
   },
   {
     phase: 14,
-    title: 'Country-by-Country Launch',
+    title: 'Worldwide Release Readiness',
     summary:
-      'Block 14.1 COMMITTED (3.0% / 5.0% Software-First Country Launch Readiness Gate & Jurisdiction Policy Engine: all 6 ADR-015 territories ZW Initial + GB/EU/US/ZA/KE-NG mapped with 4/4 software controls separated from 2 external clearances, editable tax/consent notices locking $0 Charity & no signal hijacking, and fail-closed COUNTRY_LAUNCH_GATE_LOCKED on activation; 2.0% live filing/Stage P6 activation reserved).',
-    milestoneGate: 'Approved Country Activation Register entry per territory (after Stage P6 & filings).',
+      'A single simultaneous product release is intended; market-by-market activation has been retired. Existing jurisdiction and safety work remains a separate readiness responsibility. The release is not authorized or production-ready.',
+    milestoneGate: 'Verify the complete global service, safety, privacy, security, and operational requirements before one release.',
     status: 'COMMITTED',
   },
   {
     phase: 15,
-    title: 'International Multi-Region Expansion, 9-Language i18n & Sovereign Manifests',
+    title: 'Ad-Targeting Geography & Localization',
     summary:
-      'Block 15.1 + Workstream D/E Complete (3.5% / 5.0%): 4 sovereign expansion cluster manifests (africa_south_zw_za, europe_uk_eu, africa_east_west_ke_ng, north_america_us) with prohibitCrossBorderPiiTransfer=true, full 9-locale i18n translation matrix (en, sn, nd, zu, fr, de, pt, es, sw), 7-currency $0.00 Charity pro-forma estimator & Docker/CDN deployment pack; 1.5% reserved for live multi-region cloud clusters & acquirers.',
-    milestoneGate: 'Sustained SLA, compliance, and unit economics in launched territories.',
+      'Existing campaign geography and localization profiles support only representative market groups; they are not a complete worldwide boundary dataset or proof of global ad-delivery coverage. Geography is for campaign targeting, not release sequencing.',
+    milestoneGate: 'Verify global targeting data coverage and production behavior before claiming worldwide targeting.',
     status: 'AWAITING COMMIT',
   },
 ];
@@ -220,7 +220,7 @@ export const PHASE1_CHECKLIST: Phase1ChecklistItem[] = [
   { id: 11, item: 'Opportunity Management & 3-Tier Verification (OPPORTUNITY_MANAGEMENT.md)', status: 'VERIFIED · COMMITTED' },
   { id: 12, item: 'Advertiser Management Specification (ADVERTISER_MANAGEMENT.md)', status: 'VERIFIED · COMMITTED' },
   { id: 13, item: 'Privacy, Security & Compliance Baseline (PRIVACY_SECURITY_AND_COMPLIANCE.md)', status: 'VERIFIED · COMMITTED' },
-  { id: 14, item: 'Country Activation Register, Risk Register & 18 Failure Modes', status: 'VERIFIED · COMMITTED' },
+  { id: 14, item: 'Jurisdiction Compliance Register, Risk Register & 18 Failure Modes', status: 'VERIFIED · COMMITTED' },
   { id: 15, item: 'Complete 15-Phase Roadmap, Testing Strategy & Known Limitations', status: 'VERIFIED · COMMITTED' },
   { id: 16, item: 'AI Studio Working Boundary, Progress Tracker, Decisions Log & VS Code Handover Plan', status: 'VERIFIED · COMMITTED' },
   { id: 17, item: 'Shared Command Centre (coordination/EDISON_COMMAND_CENTER.md) & Copy Report Console', status: 'VERIFIED · COMMITTED' },
@@ -234,7 +234,7 @@ export type ReportCommandType =
   | 'COMMIT';
 
 const subphaseProgressLine =
-  'EXECUTABLE SUBPHASE PROGRESS: 48 / 69 complete (69.6%) as of 2026-11-18.';
+  'EXECUTABLE SUBPHASE PROGRESS: 77 / 99 complete (77.8%) as of 2026-11-25.';
 
 export function generateFormalReport(
   command: ReportCommandType,
@@ -243,55 +243,45 @@ export function generateFormalReport(
   const s = liveSnapshot?.summary;
   const generatedAt = liveSnapshot?.generatedAt ?? new Date().toISOString();
   const countsLine = s
-    ? `Users: ${s.userCount} | Profiles: ${s.profileCount} | Campaigns: ${s.campaignCount} (Active: ${s.activeCampaignCount}) | Ad Creatives: ${s.adCreativeCount} | Opportunities: ${s.opportunityCount ?? 0} (Live: ${s.verifiedLiveOpportunityCount ?? 0}) | QR Links: ${s.qrCount} | Sim Events: ${s.simulatedEventsTotal ?? 0} | Real 302s: ${s.redirectIssuedTotal} | Physical Phone QR Scans: ${s.physicalQrPassedCount ?? 0}/${s.physicalQrTestsCount ?? 0} | Audits: ${s.auditLogCount}`
+    ? `Application store counts (may include demo/seed records): Users=${s.userCount} | Profiles=${s.profileCount} | Campaigns=${s.campaignCount} (Active=${s.activeCampaignCount}) | Ad creatives=${s.adCreativeCount} | Opportunities=${s.opportunityCount ?? 0} (Verified live=${s.verifiedLiveOpportunityCount ?? 0}) | QR links=${s.qrCount} | Simulated events=${s.simulatedEventsTotal ?? 0} | Redirects issued=${s.redirectIssuedTotal} | Physical phone scans=${s.physicalQrPassedCount ?? 0}/${s.physicalQrTestsCount ?? 0} | Audit records=${s.auditLogCount}`
     : 'Live store telemetry connecting...';
 
   const pm = liveSnapshot?.progressMetrics;
   const pctBlock = pm
-    ? `${pm.overallFullAppPct}% of Full 15-Phase App (${pm.remainingUntilFullAppPct}% remaining) · ${pm.softwareToStageP6Pct}% of Software-to-Stage-P6 Milestone · ${pm.aiStudioAssignmentPct}% of Phase 2 AI Studio Scope (${pm.consentBlockedScopePct}% blocked on DEC-OPEN-01)`
-    : '85.0% of Full 15-Phase App (15.0% remaining) · 87.1% of Software-to-Stage-P6 · 100% of Phase 2 AI Studio Scope (DEC-OPEN-01 Locked: 0% blocked)';
+    ? `${pm.executionSubphasesCompleted}/${pm.executionSubphasesTotal} executable subphases (${pm.executionSubphasePct}% complete, ${pm.remainingExecutionSubphasePct}% remaining); ${pm.aiStudioAssignmentPct}% of Phase 2 scope`
+    : '77/99 executable subphases (77.8% complete, 22.2% remaining); 100% of Phase 2 scope';
 
   if (command === 'STATUS') {
     return {
       title: 'EDISON — STATUS REPORT',
-      subtitle: 'Live phase, stage, block, and honest progress percentages until full app',
+      subtitle: 'Live phase, stage, block, and verified executable subphase progress',
       body: [
         'EDISON — PROJECT STATUS REPORT',
         `Generated: ${generatedAt}`,
-        `Current Phase: ${liveSnapshot?.phase ?? 'Phases 1–15 Software & Infrastructure Engineering Complete (85.0% Full App · Stage P6 & External Clearances Deferred)'}`,
-        `Current Stage: ${liveSnapshot?.stage ?? 'Workstreams A–K Complete · TASK-P3-001/003/004 Implemented · Stage P6 Runbook Ready'}`,
-        `Current Block: ${liveSnapshot?.block ?? 'Master Completion Handover Release (34/34 Automated QA Invariants · Awaiting Owner Review & Commit)'}`,
-        `Commit Gate: ${liveSnapshot?.gateStatus ?? 'ALL IMPLEMENTABLE SOFTWARE, INFRASTRUCTURE & PACKAGING WORK COMPLETE — AWAITING COMMIT & STAGE P6'}`,
+        `Current Phase: ${liveSnapshot?.phase ?? 'Pre-production — 77 of 99 executable subphases complete'}`,
+        `Current Stage: ${liveSnapshot?.stage ?? 'Cloudflare preview only; production infrastructure remains incomplete'}`,
+        `Current Block: ${liveSnapshot?.block ?? 'Worldwide release model; policy drafts require owner and counsel review'}`,
+        `Commit Gate: ${liveSnapshot?.gateStatus ?? 'NOT PRODUCTION-READY — release authorization and operational evidence are outstanding'}`,
         '',
         subphaseProgressLine,
-        `PROGRESS UNTIL FULL APP: ${pctBlock}`,
+        `EXECUTABLE SUBPHASE PROGRESS: ${pctBlock}`,
         '',
-        'PHASE 1 TO PHASE 15 PROGRESS:',
-        '- Phase 1 + Blueprint v2.1 + v2.2 Shared Ad Intelligence Specs: COMMITTED (6.0% Full App)',
-        '- Phase 2 Track A + Track B Complete (DEC-OPEN-01 Locked, 100% AI Studio): COMMITTED (14.0% / 14.0% Full App)',
-        '- Phase 3 Complete Hardening (PG16 SQL Migrations/ACID Backfill, Playwright Chromium E2E, Real FFmpeg Worker, Observability & Security Audit): VERIFIED · AWAITING COMMIT (11.5% / 12.0%; 0.5% live remote PG host)',
-        '- Phase 4 Smart TV OS Adapters, AURA DIAL/PIN Pairing, Offline Queue, HDMI-CEC HDCP Guard & 5 OEM Contracts: VERIFIED · AWAITING COMMIT (10.0% / 12.0%; 2.0% OEM partner signing & Stage P6)',
-        '- Phase 5 Complete Software-First (Block 5.1 Fleet Intelligence + Block 5.2 p10/p5 ML Predictor): COMMITTED (12.0% / 12.0% Full App)',
-        '- Phase 6 Block 6.1 (Advertising Delivery Infrastructure Software-First): COMMITTED (4.0% / 4.0% Full App)',
-        '- Phase 7 Block 7.1 + Commercial Disputes Engine (Advertiser Ops & Credit Adjustments): VERIFIED (3.0% / 3.0%; paymentCollectionActive=false)',
-        '- Phase 8 Block 8.1 + Real /usr/bin/ffmpeg Worker (Tizen H.264, HLS & EBU R128 -23 LUFS): VERIFIED (3.0% / 3.0%)',
-        '- Phase 9 Block 9.1 (Opportunity Verification Ops Hardening): COMMITTED (2.0% / 2.0%; externalKycVendorConnected=false)',
-        '- Phase 10 Block 10.1 + Application Security Test Report (0 dev/prod CVEs via npm audit): VERIFIED (4.0% / 4.0%; externalPenTestCompleted=false, legalComplianceClaimed=false)',
-        '- Phase 11 Block 11.1 + FM-19/FM-20 Postgres/FFmpeg FMEA Extensions: VERIFIED (4.0% / 4.0%; hardwareTested=false, stageP6Deferred=true)',
-        '- Phase 12 Block 12.1 + Single Final Stage P6 Physical Test Runbook: VERIFIED (2.0% / 4.0%; 2.0% physical pilot deferred to Stage P6)',
-        '- Phase 13 Block 13.1 (Commercial Readiness Board Gate, 7-SLA Matrix & Unit Economics): COMMITTED (3.0% / 4.0%; commercialLaunchAuthorized=false)',
-        '- Phase 14 Block 14.1 (Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine): COMMITTED (3.0% / 5.0%; activeLaunchedMarketsCount=0, countryActivated=false)',
-        '- Phase 15 Block 15.1 + 9-Language i18n & 4 Sovereign Region Manifests + Docker/CDN Pack: VERIFIED (3.5% / 5.0%; activeExpandedRegionsCount=0, regionalExpansionActive=false, prohibitCrossBorderPiiTransfer=true)',
+        'STATUS BOUNDARY:',
+        `- Executable-subphase count: ${pctBlock}. This is task progress, not product completeness or launch readiness.`,
+        '- The Cloudflare deployment is a limited preview; its compatibility endpoint reports the application API, media upload, and media processing unavailable.',
+        '- R2 is inactive, production media processing and payment collection are not configured, and no physical TV compatibility results are claimed.',
+        '- The product direction is a simultaneous release; geography is for ad targeting. Current geographic profiles do not establish worldwide targeting coverage.',
+        '- Privacy, Cookie, and Terms documents are drafts pending owner fact-check and qualified legal review.',
         '',
         'OVERALL EDISON PROJECT PROGRESS:',
-        `- ${pm?.rubricSummary ?? '85.0% of Full 15-Phase Commercial App (87.1% to Stage P6; 15.0% remaining strictly for Stage P6 physical TV/phone execution, external pen-test, live remote DB/acquirer provisioning & regulatory approvals).'}`,
-        '- Verified with zero real payments activated, zero external KYC vendor APIs connected, zero external penetration tests claimed, zero formal legal compliance claimed, zero country launches or expansion regions activated, and zero physical hardware tested (Stage P6 strictly deferred).',
+        `- ${pm?.rubricSummary ?? '77 of 99 executable subphases complete (77.8%); this is software task progress, not production or launch readiness.'}`,
+        '- Payment collection, external KYC, external security review, production media processing, and physical hardware testing are not verified.',
         '',
         'LIVE STORE COUNTS:',
         countsLine,
         '',
         'NEXT AUTHORISED ACTION:',
-        'Review and manually commit the Master Completion updates (PostgreSQL 16+ migrations, Real FFmpeg worker, Playwright E2E, AURA/HDMI-CEC, Disputes, 9-Language i18n, Sovereign Manifests, Docker/CDN & Stage P6 Runbook), then execute Stage P6 physical TV + smartphone verification and external regulatory/partner clearances.',
+        'Complete owner and qualified-counsel review of policy drafts, production infrastructure and integrations, and required physical-device verification before any simultaneous product release.',
       ].join('\n'),
     };
   }
@@ -303,38 +293,25 @@ export function generateFormalReport(
       body: [
         'EDISON — VERIFICATION & GATE CHECK',
         `Generated: ${generatedAt}`,
-        `Active Block: ${liveSnapshot?.block ?? 'Block 11.1 (Deterministic Fault Injection & Live-TV Preservation Across All 18 FMEA Modes FM-01..FM-18)'}`,
+        `Active Block: ${liveSnapshot?.block ?? 'Pre-production verification; production readiness is not established'}`,
         subphaseProgressLine,
         `Progress Metrics: ${pctBlock}`,
         `Live Store Telemetry: ${countsLine}`,
         `QR Telemetry: Redirect Requests=${s?.redirectRequestsTotal ?? 0} | Redirects Issued=${s?.redirectIssuedTotal ?? 0} | Suspected Bots=${s?.suspectedBotRedirects ?? 0} | Verified Destination Opens=${s?.verifiedDestinationOpens ?? 0} | Verified Conversions=${s?.verifiedConversionsTotal ?? 0}`,
         `Physical Phone Scan Logs: ${s?.physicalQrPassedCount ?? 0} passed / ${s?.physicalQrTestsCount ?? 0} total`,
         '',
-        'VERIFIED IMPLEMENTATIONS (PHASES 1–10 COMMITTED + PHASE 11 BLOCK 11.1):',
-        '- Persistence portability via EdisonDataRepository interface (JSON store schemaVersion 8 retained; zero Cloud SQL cost)',
-        '- Auth/RBAC (advertiser, opportunity_submitter, household_viewer, admin) with scrypt hashing, session rotation & 2h idle timeout',
-        '- API Zod validation schemas, cookie/header CSRF + edisonFetch, sliding-window rate limiting, 504 timeout & opaque JSON error middleware',
-        '- X-Request-Id correlation middleware, sanitised request telemetry & CSV formula-neutralized Admin Audit Export (/api/admin/audit-logs/export)',
-        '- Hardened /uploads/* static serving (CSP default-src none; sandbox, CORP same-origin, canonical realpath symlink guard, SVG/polyglot blocking)',
-        '- Software-First Android TV TIF, Samsung Tizen & LG webOS harnesses + 16-case fault suite + AURA Remote + 8 conformance vectors + 10-check Phase 4 software exit gate',
-        '- Phase 5 Fleet Shared Ad Intelligence Service (11/11 Scenarios 25–35) & Per-Channel p10/p5 ML Break Predictor (10/10 recorded stream fixtures, 0% FPR)',
-        '- Phase 6 Block 6.1 Advertising Delivery Infrastructure: SHA-256 preload manifests, coarse regional & Tizen/WebM codec gating, $0.00 Charity lock, daily frequency caps, edge CDN outage failover & idempotent ingestion (8/8 checks passed)',
-        '- Phase 7 Block 7.1 Advertiser & Campaign Operations: 6-gate KYC readiness evaluation, automated campaign pacing, SHA-256 Pro-Forma invoice blueprints ($0.00 actual cash, $0.00 Charity isolation, paymentCollectionActive=false), SLA ticket breach triage & 8/8 ops suite passed',
-        '- Phase 8 Block 8.1 Broadcast Rendering Validation: 1080p/4K target specs, 5%-95% TV overscan margins, WCAG >=4.5:1 contrast, non-overwrite QR vision gate, ITU-R BS.1770-4 / EBU R128 -23 LUFS filter graph, Samsung Tizen WebM->H.264 MP4 rule & 8/8 render checks (ffmpegBinaryExecuted=false)',
-        '- Phase 9 Block 9.1 Opportunity Verification Ops Hardening: Tier 1–3 SHA-256 AES-256-GCM blueprint vault seals, strict Tier 2->3 non-transitivity, informal employer Tier 2 N/A accommodation, 90-day re-verification quarantine, 4h/24h/48h SLA breach tracking & 8/8 ops suite passed',
-        '- Phase 10 Block 10.1 Privacy, Security & Statutory Compliance Readiness: SHA-256 DSR JSON export (PIN-hash redacted), Right-to-Erasure anonymisation + bundled HTTP 403 QR revocation, automated 2h-session/30d-QR retention sweep, zero-PII analytics scanner, camera/mic hard disable & 6-country ADR-015 statutory register (externalPenTestCompleted=false, legalComplianceClaimed=false)',
-        '- Phase 11 Block 11.1 Reliability & Chaos Failure Testing Suite: All 18/18 FMEA modes (FM-01..FM-18) verified under extreme chaos injection, 100% ordinary live TV preserved, FM-09 watchdog across 4 TV adapters, network/CDN outage failover, Tizen WebM exclusion, KYC/scam/billing isolation, mid-break erasure HTTP 403 & replay dedup (hardwareTested=false, stageP6Deferred=true)',
-        '- Phase 12 Block 12.1 Controlled Pilot Readiness & Stage P6 Runbook: Phase 4–11 pre-pilot software gates, Zero-PII & consent-epoch telemetry guard, closed cohort blueprint registration & 8-step single final Stage P6 physical TV + smartphone runbook (hardwareTested=false, pilotHardwareExecuted=false, countryActivated=false)',
-        '- Phase 13 Block 13.1 Commercial Readiness Board Gate, 7-SLA Matrix & Unit Economics: 10-pillar commercial board evaluation, 7 operational SLAs, $0.00 Charity unit-economics budget model & fail-closed premature launch authorization lock (commercialLaunchAuthorized=false, paymentCollectionActive=false)',
-        '- Track B (DEC-OPEN-01 Locked: Scope B + Bundled Withdrawal): ZW-first 7-level geo households, PIN-isolated multi-member profiles, required/preferred/optional matching, safe TV personalisation, bundled withdrawal & HTTP 403 epoch QR revocation (7/7 checks)',
-        '- Phase 14 Block 14.1 Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine: 6 ADR-015 markets (ZW Initial Launch Market + GB, EU, US, ZA, KE/NG) with 4/4 software controls separated from 2 external clearances, non-overridable $0 Charity/no-hijack policy locks & fail-closed COUNTRY_LAUNCH_GATE_LOCKED on activation (8/8 checks, countryActivated=false, legalComplianceClaimed=false)',
-        '- Phase 15 Block 15.1 International Multi-Region Expansion, Localization & Sovereign Residency: 4 sovereign clusters mapping all 6 ADR-015 markets (Wave 1 ZW+ZA), 9+ locales & DVB/EBU-TT-D/CEA-708 captions, 7-currency pro-forma estimator keeping permanent 0 Charity fee, prohibitCrossBorderPiiTransfer=true & fail-closed EXPANSION_REGION_GATE_LOCKED (8/8 checks, regionalExpansionActive=false)',
-        '- Vitest + Supertest Automated Suite (npx vitest run — 34/34 automated QA invariants across Phases 2–15, Track B & Runtime Infra) + Playwright Chromium E2E',
+        'IMPLEMENTATION AND VERIFICATION BOUNDARY:',
+        '- Repository tests cover software behavior; passing software tests do not demonstrate production operation, legal compliance, or physical-device support.',
+        '- Local PostgreSQL/PGlite migrations and Node media-worker code are present; a production database host and Cloudflare-compatible media-processing service are not verified.',
+        '- The Cloudflare Worker currently serves a limited preview and reports application API, uploads, and media processing unavailable.',
+        '- Geographic targeting uses a limited catalogue. A global campaign can target a geography outside the listed profiles, but the catalogue is not comprehensive worldwide coverage.',
+        '- Legacy country/region activation UI is removed and decision-write endpoints return HTTP 410. This does not authorize or certify a global release.',
+        '- Policy documents remain drafts; owner facts, qualified legal review, applicable obligations, and effective dates are unresolved.',
         '',
-        'OUTSTANDING CHECKS & EXTERNAL / HARDWARE MILESTONES (15.0%):',
-        '- Physical smartphone camera scan verification logged by Project Owner on real mobile hardware.',
-        '- Physical Smart TV OS compatibility test (Stage P6): STRICTLY DEFERRED UNTIL APP COMPLETION (Zero real TV hardware tested yet).',
-        '- Remote PostgreSQL host provisioning (PG16 migrations/backfill CLI complete & verified on PGlite), external KYC vendor, external pen-test, regulator filings & acquirer onboarding.',
+        'OUTSTANDING PRODUCT AND OPERATIONAL WORK:',
+        '- Production API, storage, media processing, backups, monitoring, and recovery verification.',
+        '- Authorized TV transports and physical Android/Google TV, Tizen, and webOS device testing.',
+        '- Owner fact-check, qualified legal review, external security review, commercial-provider decisions, and release authorization.',
       ].join('\n'),
     };
   }
@@ -342,21 +319,21 @@ export function generateFormalReport(
   if (command === 'NEXT') {
     return {
       title: 'EDISON — NEXT AUTHORISED ACTION',
-      subtitle: 'All implementable software & infrastructure complete (85.0% Full App); ready for Stage P6 & external clearances',
+      subtitle: 'Pre-production work remains; one simultaneous release is not yet authorized',
       body: [
         'EDISON — NEXT GATE EVALUATION',
         `Generated: ${generatedAt}`,
-        `Current Gate: ${liveSnapshot?.gateStatus ?? 'ALL IMPLEMENTABLE SOFTWARE & INFRASTRUCTURE COMPLETE'}`,
+        `Current Gate: ${liveSnapshot?.gateStatus ?? 'NOT PRODUCTION-READY — release authorization and operational evidence are outstanding'}`,
         subphaseProgressLine,
-        `Progress Until Full App: ${pctBlock}`,
+        `Executable Subphase Progress: ${pctBlock}`,
         '',
-        'GATE STATUS & NEXT STEP:',
-        'Workstreams A–K (PG16 migrations + ACID backfill, real /usr/bin/ffmpeg worker, Playwright Chromium E2E, AURA/HDMI-CEC + 5 OEM SDK contracts, Commercial Disputes, 9-lang i18n, 4 sovereign manifests, Docker/CDN pack, Security Report & Stage P6 Runbook) are COMPLETE & VERIFIED. activeExpandedRegionsCount=0, activeLaunchedMarketsCount=0, commercialLaunchAuthorized=false, paymentCollectionActive=false, hardwareTested=false, pilotHardwareExecuted=false, countryActivated=false, regionalExpansionActive=false, legalComplianceClaimed=false, and realBroadcastTunerConnected=false remain strictly enforced.',
+        'CURRENT STATUS:',
+        'EDISON remains pre-production. The intended release is simultaneous rather than country- or region-staged; it is not currently authorized. Payment collection, physical hardware testing, external security review, production media processing, and complete worldwide ad-targeting coverage are not verified.',
         '',
-        'AUTHORISED POST-SOFTWARE MILESTONES (REQUIRES OWNER / EXTERNAL EXECUTION):',
-        '- Review & manually commit current Workspace changes to GitHub.',
-        '- Execute single integrated physical Smart TV + smartphone camera test (docs/testing/STAGE_P6_PHYSICAL_TEST_RUNBOOK.md Steps P6-01..P6-08) and closed controlled pilot.',
-        '- Provision remote PostgreSQL host using deploy/docker-compose.yml, resolve DEC-OPEN-02 & DEC-OPEN-03, complete external pen-test, regulator filings, and acquirer onboarding.',
+        'NEXT ACCEPTANCE WORK:',
+        '- Complete owner fact-check and qualified legal review of policy drafts; publish only after approval.',
+        '- Select and implement production API, storage, media-processing, backup, monitoring, and recovery services.',
+        '- Select authorized TV transports, complete physical-device tests, and obtain owner authorization before a simultaneous release.',
       ].join('\n'),
     };
   }
@@ -364,16 +341,16 @@ export function generateFormalReport(
   if (command === 'COMMIT') {
     return {
       title: 'EDISON — COMMIT CHECKPOINT',
-      subtitle: 'Master Software & Infrastructure Completion (85.0% Full App) Awaiting Owner Commit',
+      subtitle: '77/99 executable subphases complete; worktree changes await review',
       body: [
-        'EDISON — COMMIT CHECKPOINT (85.0% FULL APP · WORKSTREAMS A–K)',
+        'EDISON — COMMIT CHECKPOINT (77/99 EXECUTABLE SUBPHASES)',
         `Generated: ${generatedAt}`,
         subphaseProgressLine,
         `Progress Metrics: ${pctBlock}`,
         `Live Store Telemetry: ${countsLine}`,
         '',
-        'STATUS: ALL IMPLEMENTABLE SOFTWARE, INFRASTRUCTURE & PACKAGING WORK VERIFIED (85.0% FULL APP · 87.1% TO STAGE P6)',
-        'NEXT GATE: Review changes, manually commit to GitHub, then execute Stage P6 physical hardware tests & external clearances.',
+        'STATUS: PRE-PRODUCTION; SOFTWARE SUBPHASE COUNT DOES NOT REPRESENT COMMERCIAL OR LAUNCH READINESS.',
+        'NEXT GATE: Review the current changes; production infrastructure, legal review, payment-provider setup, and physical hardware evidence remain outstanding.',
       ].join('\n'),
     };
   }
@@ -385,24 +362,24 @@ export function generateFormalReport(
       'EDISON — IMPLEMENTATION & HANDOVER STATUS REPORT',
       '',
       'Project: EDISON — International Smart TV Advertising & Opportunities Network',
-      `Production Phase: ${liveSnapshot?.phase ?? 'Phases 1–15 Software & Infrastructure Engineering Complete (85.0% Full App)'}`,
-      `Stage: ${liveSnapshot?.stage ?? 'Workstreams A–K Complete · TASK-P3-001/003/004 Implemented · Stage P6 Deferred'}`,
-      `Implementation Block: ${liveSnapshot?.block ?? 'Final Software & Infrastructure Handover Release (34/34 QA Invariants)'}`,
-      `Status: ${liveSnapshot?.gateStatus ?? 'VERIFIED · AWAITING COMMIT'}`,
+      `Production Phase: ${liveSnapshot?.phase ?? 'Pre-production — 77 of 99 executable subphases complete'}`,
+      `Stage: ${liveSnapshot?.stage ?? 'Cloudflare preview only; production infrastructure remains incomplete'}`,
+      `Implementation Block: ${liveSnapshot?.block ?? 'Policy drafts require owner and counsel review; production readiness remains outstanding'}`,
+      `Status: ${liveSnapshot?.gateStatus ?? 'NOT PRODUCTION-READY — release authorization and operational evidence are outstanding'}`,
       '',
       `PHASE 2 AI STUDIO SCOPE: ${pm?.aiStudioAssignmentPct ?? 100}% (Track A & Track B Committed; 0% Blocked)`,
-      `OVERALL EDISON PROJECT PROGRESS: ${pm?.overallFullAppPct ?? 85.0}% of Full 15-Phase App (${pm?.remainingUntilFullAppPct ?? 15.0}% remaining) · ${pm?.softwareToStageP6Pct ?? 87.1}% of Software-to-Stage-P6 Milestone`,
+      `EXECUTABLE SUBPHASE PROGRESS: ${pctBlock}`,
       subphaseProgressLine,
       '',
       'LIVE STORE TELEMETRY:',
       countsLine,
       `Latest Audit: ${liveSnapshot?.latestAuditAction ?? 'N/A'} (${liveSnapshot?.latestAuditAt ?? 'N/A'})`,
       '',
-      'NEXT AUTHORISED STEP:',
-      'Review and manually commit all Workstream A–K engineering deliverables, then execute Stage P6 physical Smart TV + smartphone verification and external clearances.',
+      'NEXT OWNER DECISIONS:',
+      'Complete the policy review and decide production hosting, media processing, payment-provider, ad-network, and hardware-testing requirements.',
       '',
-      'PRODUCTION GATE:',
-      'COMMERCIAL LAUNCH LOCKED PENDING STAGE P6 HARDWARE TEST, REMOTE CLOUD DB PROVISIONING, EXTERNAL PEN-TEST & REGULATORY APPROVALS.',
+      'RELEASE MODEL:',
+      'One simultaneous product release is intended. Campaign geography is for ad targeting, not country or regional release waves.',
     ].join('\n'),
   };
 }

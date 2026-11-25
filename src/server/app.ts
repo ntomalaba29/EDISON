@@ -3807,7 +3807,7 @@ export function createEdisonApp(
     }
   );
 
-  // --- Phase 14 Block 14.1: Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine (Software-First) ---
+  // Legacy jurisdiction endpoints remain for compatibility; phased activation decision writes are retired.
   app.get(
     '/api/country-launch/overview',
     requireAuth,
@@ -3857,27 +3857,17 @@ export function createEdisonApp(
   app.post(
     '/api/country-launch/decision',
     requireAdmin,
-    asyncHandler(async (req, res) => {
-      const user = (req as AuthenticatedRequest).currentUser!;
+    (req: AuthenticatedRequest, res: Response) => {
       const parsed = parseWithZod(countryLaunchDecisionSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
-      try {
-        await synchronizeCountryLaunchStateFromD1();
-        const result = store.submitCountryLaunchDecision(user, parsed.data);
-        if (domainRecordRepository) {
-          await domainRecordRepository.putCountryLaunchDecision(result.decision);
-        }
-        res.setHeader('Cache-Control', 'no-store, private');
-        res.status(201).json(result);
-      } catch (err) {
-        if (isD1DomainError(err)) throw err;
-        const { code, message } = mapErrorStatus(err);
-        res.status(code).json({ error: message });
-      }
-    })
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.status(410).json({
+        error: 'Per-country launch activation is retired. Campaign geography is used for ad targeting, not release waves.',
+      });
+    }
   );
 
   app.post(
@@ -3894,7 +3884,7 @@ export function createEdisonApp(
         req.currentUser!,
         'COUNTRY_LAUNCH_SUITE_RUN',
         'phase14_country_launch',
-        `[${req.requestId ?? 'req'}] Phase 14 country launch readiness suite: ${report.passedChecks}/${report.totalChecks} passed (countryActivated=false, activeLaunchedMarketsCount=0, legalComplianceClaimed=false, hardwareTested=false).`
+        `[${req.requestId ?? 'req'}] Jurisdiction reference verification: ${report.passedChecks}/${report.totalChecks} passed (legalComplianceClaimed=false, hardwareTested=false).`
       );
       res.setHeader('Cache-Control', 'no-store, private');
       res.json({ report });
@@ -3977,27 +3967,17 @@ export function createEdisonApp(
   app.post(
     '/api/international-expansion/decision',
     requireAdmin,
-    asyncHandler(async (req, res) => {
-      const user = (req as AuthenticatedRequest).currentUser!;
+    (req: AuthenticatedRequest, res: Response) => {
       const parsed = parseWithZod(internationalExpansionDecisionSchema, req.body);
       if (!parsed.ok) {
         sendValidationError(res, parsed);
         return;
       }
-      try {
-        await synchronizeInternationalExpansionStateFromD1();
-        const result = store.submitInternationalExpansionDecision(user, parsed.data);
-        if (domainRecordRepository) {
-          await domainRecordRepository.putInternationalExpansionDecision(result.decision);
-        }
-        res.setHeader('Cache-Control', 'no-store, private');
-        res.status(201).json(result);
-      } catch (err) {
-        if (isD1DomainError(err)) throw err;
-        const { code, message } = mapErrorStatus(err);
-        res.status(code).json({ error: message });
-      }
-    })
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.status(410).json({
+        error: 'Regional expansion activation is retired. EDISON is not configured for sequential regional releases.',
+      });
+    }
   );
 
   app.post(
@@ -4014,7 +3994,7 @@ export function createEdisonApp(
         req.currentUser!,
         'INTERNATIONAL_EXPANSION_SUITE_RUN',
         'phase15_international_expansion',
-        `[${req.requestId ?? 'req'}] Phase 15 international expansion suite: ${report.passedChecks}/${report.totalChecks} passed (regionalExpansionActive=false, activeExpandedRegionsCount=0, prohibitCrossBorderPiiTransfer=true, stageP6Deferred=true).`
+        `[${req.requestId ?? 'req'}] Campaign geography verification: ${report.passedChecks}/${report.totalChecks} passed (targeting profiles are representative; stageP6Deferred=true).`
       );
       res.setHeader('Cache-Control', 'no-store, private');
       res.json({ report });
@@ -4025,7 +4005,7 @@ export function createEdisonApp(
   app.get('/api/track-b/country-configs', requireAuth, (_req: AuthenticatedRequest, res: Response) => {
     res.json({
       decOpen01Status: 'LOCKED_SCOPE_B_BUNDLED_WITHDRAWAL',
-      initialLaunchMarket: 'ZW',
+      referenceTargetingCountryCode: 'ZW',
       countries: listCountryGeoConfigs(),
     });
   });

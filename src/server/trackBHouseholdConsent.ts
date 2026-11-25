@@ -21,13 +21,13 @@ export const NON_GUARANTEE_OPPORTUNITY_DISCLAIMER =
 export const COUNTRY_GEO_CONFIGS: readonly CountryGeoConfig[] = [
   {
     countryCode: 'ZW',
-    countryName: 'Zimbabwe (Initial Launch Market)',
-    isInitialLaunchMarket: true,
+    countryName: 'Zimbabwe',
+    isReferenceTargetingProfile: true,
     countryActivated: false,
     metroAreasSupported: true,
     bundledWithdrawalEnforced: true,
     legalConsentBaseline:
-      'Zimbabwe Cyber & Data Protection Act baseline (Country Activation Register NOT ACTIVATED until Phase 14 approval)',
+      'Zimbabwe Cyber & Data Protection Act reference only; not a compliance determination. Qualified review required.',
     provinces: [
       {
         name: 'Harare Metropolitan',
@@ -120,11 +120,11 @@ export const COUNTRY_GEO_CONFIGS: readonly CountryGeoConfig[] = [
   {
     countryCode: 'ZA',
     countryName: 'South Africa',
-    isInitialLaunchMarket: false,
+    isReferenceTargetingProfile: false,
     countryActivated: false,
     metroAreasSupported: true,
     bundledWithdrawalEnforced: true,
-    legalConsentBaseline: 'POPIA baseline (NOT ACTIVATED)',
+    legalConsentBaseline: 'POPIA reference only; not a compliance determination. Qualified review required.',
     provinces: [
       {
         name: 'Gauteng',
@@ -161,11 +161,11 @@ export const COUNTRY_GEO_CONFIGS: readonly CountryGeoConfig[] = [
   {
     countryCode: 'GB',
     countryName: 'United Kingdom',
-    isInitialLaunchMarket: false,
+    isReferenceTargetingProfile: false,
     countryActivated: false,
     metroAreasSupported: true,
     bundledWithdrawalEnforced: true,
-    legalConsentBaseline: 'UK GDPR & PECR baseline (NOT ACTIVATED)',
+    legalConsentBaseline: 'UK GDPR & PECR references only; not a compliance determination. Qualified review required.',
     provinces: [
       {
         name: 'Greater London',
@@ -221,11 +221,11 @@ export const COUNTRY_GEO_CONFIGS: readonly CountryGeoConfig[] = [
   {
     countryCode: 'KE',
     countryName: 'Kenya',
-    isInitialLaunchMarket: false,
+    isReferenceTargetingProfile: false,
     countryActivated: false,
     metroAreasSupported: true,
     bundledWithdrawalEnforced: true,
-    legalConsentBaseline: 'Kenya Data Protection Act baseline (NOT ACTIVATED)',
+    legalConsentBaseline: 'Kenya Data Protection Act reference only; not a compliance determination. Qualified review required.',
     provinces: [
       {
         name: 'Nairobi County',
@@ -247,11 +247,11 @@ export const COUNTRY_GEO_CONFIGS: readonly CountryGeoConfig[] = [
   {
     countryCode: 'NG',
     countryName: 'Nigeria',
-    isInitialLaunchMarket: false,
+    isReferenceTargetingProfile: false,
     countryActivated: false,
     metroAreasSupported: true,
     bundledWithdrawalEnforced: true,
-    legalConsentBaseline: 'NDPA baseline (NOT ACTIVATED)',
+    legalConsentBaseline: 'Nigeria NDPA reference only; not a compliance determination. Qualified review required.',
     provinces: [
       {
         name: 'Lagos State',
@@ -273,11 +273,11 @@ export const COUNTRY_GEO_CONFIGS: readonly CountryGeoConfig[] = [
   {
     countryCode: 'DE',
     countryName: 'Germany',
-    isInitialLaunchMarket: false,
+    isReferenceTargetingProfile: false,
     countryActivated: false,
     metroAreasSupported: true,
     bundledWithdrawalEnforced: true,
-    legalConsentBaseline: 'EU GDPR & TDDDG baseline (NOT ACTIVATED)',
+    legalConsentBaseline: 'EU GDPR and TDDDG references only; not a compliance determination. Qualified review required.',
     provinces: [
       {
         name: 'Berlin',
@@ -299,11 +299,11 @@ export const COUNTRY_GEO_CONFIGS: readonly CountryGeoConfig[] = [
   {
     countryCode: 'US',
     countryName: 'United States',
-    isInitialLaunchMarket: false,
+    isReferenceTargetingProfile: false,
     countryActivated: false,
     metroAreasSupported: true,
     bundledWithdrawalEnforced: true,
-    legalConsentBaseline: 'State Privacy Baseline (NOT ACTIVATED)',
+    legalConsentBaseline: 'US state privacy references only; not a compliance determination. Qualified review required.',
     provinces: [
       {
         name: 'California',
@@ -814,7 +814,7 @@ export function computeAdvertiserGeoAggregates(
 
 /**
  * Deterministic 12-check Track B verification suite covering:
- * - Country ZW initial launch config & international expansion configs
+ * - Representative targeting geography profiles
  * - Geo hierarchy validation & missing-location targeting disablement (ordinary TV preserved)
  * - Multi-profile isolation & distinct consent
  * - Opportunity matching (required/preferred/optional; 0/1/multi members; unconsented excluded; no guarantees)
@@ -1026,12 +1026,12 @@ export function runTrackBVerificationSuite(): TrackBVerificationReport {
   const checks: TrackBVerificationCheckItem[] = [
     {
       checkId: 'TB-01-ZW-AND-INTL-CONFIG',
-      label: 'Zimbabwe (ZW) Initial Launch Config + International Country Expansion Preserved',
+      label: 'Zimbabwe reference targeting profile and additional geography profiles are configured',
       passed:
-        Boolean(zwConfig?.isInitialLaunchMarket) &&
+        Boolean(zwConfig?.isReferenceTargetingProfile) &&
         COUNTRY_GEO_CONFIGS.length >= 6 &&
         COUNTRY_GEO_CONFIGS.every((c) => c.countryActivated === false && c.bundledWithdrawalEnforced),
-      detail: `${COUNTRY_GEO_CONFIGS.length} country configs active; ZW flagged initial launch market (all unactivated pending Phase 14).`,
+      detail: `${COUNTRY_GEO_CONFIGS.length} representative targeting profiles are configured; this is not a product-release or coverage assertion.`,
     },
     {
       checkId: 'TB-02-GEO-HIERARCHY-PRIVACY',
@@ -1099,7 +1099,7 @@ export function runTrackBVerificationSuite(): TrackBVerificationReport {
   return {
     generatedAt: now,
     decOpen01Status: 'LOCKED_SCOPE_B_BUNDLED_WITHDRAWAL',
-    initialLaunchMarket: 'ZW',
+    referenceTargetingCountryCode: 'ZW',
     totalChecks: checks.length,
     passedChecks,
     allPassed: passedChecks === checks.length,

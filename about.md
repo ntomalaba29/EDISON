@@ -1,41 +1,29 @@
 # About EDISON
 
-**EDISON** is an international Smart TV advertising and opportunity network. It enables television broadcasters and advertisers to deliver targeted, interactive commercial breaks to Smart TVs, while viewers engage via QR codes on their phones — creating a measurable, privacy-respecting bridge between linear TV and digital television.
+EDISON is being developed as an interactive Smart TV advertising and community-opportunity service. Its React/TypeScript application includes campaign and opportunity workflows, QR-code routing, household consent controls, and software-tested TV-break and remote-control behavior. It is not yet production-ready.
 
-## Vision
+The project is designed around fail-safe behavior and privacy boundaries: payment does not determine opportunity verification, consent withdrawal must revoke applicable QR links, and uncertain TV-break behavior should not interrupt ordinary viewing.
 
-To modernize television advertising by combining the reach of linear TV with the interactivity and measurement capabilities of digital platforms, all while respecting viewer privacy and consent.
+## Current implementation
 
-## Categories
+- A React 19 and TypeScript frontend built with Vite.
+- An Express application used for local development and application workflows.
+- A Cloudflare Worker shell serving static assets and using D1-backed authentication and domain repositories.
+- PostgreSQL migrations, local PGlite testing, and a local FFmpeg/ffprobe media worker.
+- Automated Vitest and Playwright coverage, plus software simulations for TV controls, break scheduling, shared intelligence, privacy, and readiness.
 
-The system supports two types of advertising:
-- **COMMERCIAL ADS** — Paid promotions, events, and personal greetings (Image/Banner, Video, Text-Only)
-- **CHARITY ADS** — Free verified listings for jobs, scholarships, training, conferences, and community programs
+## Current deployment boundary
 
-## Status
+The public preview is [edison.ntomalaba29.workers.dev](https://edison.ntomalaba29.workers.dev). It is not a complete production or staging deployment. The Worker compatibility response reports `applicationApiReady: false`, `mediaUploadReady: false`, and `mediaProcessingReady: false`.
 
-EDISON is **locally fully functional** with comprehensive testing across all software features. Cloudflare Workers preview is deployed on the free tier. All core features work locally and in the deployed preview — broadcast ad creation, upload/transcoding, TV preview & break simulation, QR routing & consent, analytics funnel, household & geo targeting, remote control via AURA, shared break intelligence, and privacy architecture.
+The local R2 adapter and future Wrangler binding are prepared, but R2 has not been activated and the remote media bucket does not exist. Uploaded media and video processing are therefore unavailable in the deployed preview. Software TV adapters and remote controls have not been verified against physical devices.
 
-Physical Smart TV hardware compatibility test (`Stage P6`) is the one remaining validation step pending owner authorization.
+## Product and operational limits
 
-## Technology Stack
+- No live broadcaster, ad-network, or payment-provider integration is active.
+- Payment collection is disabled; the intended product release is simultaneous, with geography used only for campaign targeting.
+- Shared ad intelligence is a software prototype, not a deployed fleet service.
+- Physical hardware testing has not been completed.
+- The project ledger reports 77/99 executable substages complete (77.8%). This is task completion, not product or launch readiness; consult the [execution plan](EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md) for evidence and blockers.
 
-- **Frontend**: React 19
-- **Edge Runtime**: Cloudflare Workers (deployed)
-- **Database**: D1 (SQLite-style) + PostgreSQL migrations
-- **Media Storage**: R2 bucket (adapter prepared; binding/bucket activation pending owner)
-- **FFmpeg**: Server-side transcoding pipeline
-- **QR Code**: `jsQR` validation library
-
-## Key Features
-
-- 16:9 TV preview and break simulator
-- QR code routing and consent management
-- Multi-profile household and geo targeting
-- Shared break intelligence network
-- Privacy-first architecture with household/individual consent modes
-- Production hardening with Zod validation, rate limiting, hashed sessions
-
----
-
-For more information, see the [README.md](README.md) and associated documentation files.
+See the [README](README.md) for setup and commands, and [Known Limitations](KNOWN_LIMITATIONS.md) for the detailed boundary between implemented software and external or physical work.

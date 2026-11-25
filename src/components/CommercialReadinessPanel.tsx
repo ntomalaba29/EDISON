@@ -214,7 +214,7 @@ export function CommercialReadinessPanel({
             Phase 13 Block 13.1 — Commercial Readiness Board Gate, SLA Matrix &amp; Unit Economics (Software-First)
           </h2>
           <p className="text-xs text-slate-600">
-            Honest Launch Lock: commercialLaunchAuthorized=false · paymentCollectionActive=false · countryActivated=false · hardwareTested=false (Stage P6 deferred) · Charity Jobs=$0.00 / FREE
+            Pre-production: commercialLaunchAuthorized=false · paymentCollectionActive=false · hardwareTested=false · Charity job listings remain $0.00 / free
           </p>
         </div>
 

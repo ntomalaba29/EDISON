@@ -10,7 +10,7 @@ import type {
   CountryLaunchVerificationReport,
   CountryLaunchVerifyCheckItem,
   HouseholdInstallationRecord,
-  LaunchMarketCode,
+  TargetingGeographyCode,
   OpportunityRecord,
   QrLinkRecord,
 } from '../types/edison.ts';
@@ -23,7 +23,7 @@ import { runPilotReadinessVerificationSuite } from './pilotReadinessEngine.ts';
 import { runCommercialReadinessVerificationSuite } from './commercialReadinessEngine.ts';
 
 const DEFAULT_POLICY_BY_MARKET: Record<
-  LaunchMarketCode,
+  TargetingGeographyCode,
   Omit<CountryJurisdictionPolicyConfig, 'updatedAt' | 'updatedByEmail'>
 > = {
   ZW: {
@@ -89,8 +89,8 @@ const DEFAULT_POLICY_BY_MARKET: Record<
 };
 
 export function resolveCountryPolicyConfig(
-  countryCode: LaunchMarketCode,
-  storedProfiles?: Partial<Record<LaunchMarketCode, CountryJurisdictionPolicyConfig>>
+  countryCode: TargetingGeographyCode,
+  storedProfiles?: Partial<Record<TargetingGeographyCode, CountryJurisdictionPolicyConfig>>
 ): CountryJurisdictionPolicyConfig {
   const defaults = DEFAULT_POLICY_BY_MARKET[countryCode];
   const saved = storedProfiles?.[countryCode];
@@ -112,7 +112,7 @@ export function resolveCountryPolicyConfig(
 }
 
 export function buildUpdatedCountryPolicyConfig(params: {
-  countryCode: LaunchMarketCode;
+  countryCode: TargetingGeographyCode;
   consentBannerStrictMode: boolean;
   requirePreBroadcastHumanModeration: boolean;
   enforceVppsOrLocalPrivacyLock: boolean;
@@ -133,7 +133,7 @@ export function buildUpdatedCountryPolicyConfig(params: {
   };
 }
 
-function doesCampaignTargetMarket(campaign: CampaignRecord, code: LaunchMarketCode): boolean {
+function doesCampaignTargetMarket(campaign: CampaignRecord, code: TargetingGeographyCode): boolean {
   const regions = campaign.targetRegions.map((r) => r.toUpperCase());
   if (regions.includes('GLOBAL') || regions.includes(code)) return true;
   if (code === 'ZW') {
@@ -150,17 +150,16 @@ function doesCampaignTargetMarket(campaign: CampaignRecord, code: LaunchMarketCo
 }
 
 export function buildCountryLaunchDecision(params: {
-  countryCode: LaunchMarketCode;
+  countryCode: TargetingGeographyCode;
   actorEmail: string;
   decisionOutcome: CountryLaunchDecisionOutcome;
   requestedCountryActivation: boolean;
   summaryNote: string;
 }): CountryLaunchDecisionRecord {
-  // Fail-closed honesty gate: No country territory can transition from NOT ACTIVATED while
-  // Stage P6 physical TV verification, external pen-test, commercial authorization, and PSP settlement are unexecuted.
+  // The legacy market-by-market activation path is retired.
   if (params.requestedCountryActivation) {
     throw new Error(
-      `COUNTRY_LAUNCH_GATE_LOCKED: Territory "${params.countryCode}" cannot be activated because hardwareTested=false (Stage P6 deferred), commercialLaunchAuthorized=false, paymentCollectionActive=false, externalPenTestCompleted=false, and legalComplianceClaimed=false.`
+      `COUNTRY_LAUNCH_RETIRED: Territory "${params.countryCode}" cannot be activated through a phased release workflow.`
     );
   }
 
@@ -176,7 +175,6 @@ export function buildCountryLaunchDecision(params: {
     paymentCollectionActive: false as const,
     hardwareTested: false as const,
     legalComplianceClaimed: false as const,
-    noLawyerDependencyPolicy: true as const,
     createdAt: nowIso,
   };
 
@@ -191,7 +189,7 @@ export function buildCountryLaunchOverview(params: {
   campaigns: CampaignRecord[];
   opportunities: OpportunityRecord[];
   qrLinks: QrLinkRecord[];
-  storedPolicyProfiles?: Partial<Record<LaunchMarketCode, CountryJurisdictionPolicyConfig>>;
+  storedPolicyProfiles?: Partial<Record<TargetingGeographyCode, CountryJurisdictionPolicyConfig>>;
   launchDecisions?: CountryLaunchDecisionRecord[];
 }): CountryLaunchOverview {
   const statutoryRecords = listCountryStatutoryComplianceRecords();
@@ -202,7 +200,7 @@ export function buildCountryLaunchOverview(params: {
   const commercialSuite = runCommercialReadinessVerificationSuite();
 
   const countries: CountryLaunchAssessment[] = statutoryRecords.map((stat) => {
-    const code = stat.countryCode as LaunchMarketCode;
+    const code = stat.countryCode as TargetingGeographyCode;
     const policyConfig = resolveCountryPolicyConfig(code, params.storedPolicyProfiles);
     const hasGeoConfig = geoConfigs.some((g) => g.countryCode === code);
 
@@ -306,10 +304,9 @@ export function buildCountryLaunchOverview(params: {
     return {
       countryCode: code,
       countryName: stat.countryName,
-      isInitialLaunchMarket: stat.isInitialLaunchMarket,
+      isReferenceTargetingProfile: stat.isReferenceTargetingProfile,
       countryActivated: false,
       legalComplianceClaimed: false,
-      noLawyerDependencyPolicy: true,
       gateStatus: 'software_controls_verified_awaiting_external_clearances',
       softwareGatesReadyCount: softwareGates.filter((g) => g.passed).length,
       softwareGatesTotalCount: softwareGates.length,
@@ -337,10 +334,10 @@ export function buildCountryLaunchOverview(params: {
 
   const launchDecisions = params.launchDecisions ?? [];
 
-  const globalLaunchBlockers = [
-    'ALL MARKETS UNACTIVATED: 0 of 6 markets activated (ZW Initial Launch Market, GB, EU, US, ZA, KE/NG all strictly countryActivated=false).',
-    'STAGE P6 HARDWARE DEFERRED: Single final physical Smart TV + mobile scan test (hardwareTested=false) required before ZW or any market goes live.',
-    'INDEPENDENT STATUTORY RESEARCH ONLY (NO LAWYER DEPENDENCY): Public statutes & regulator guidance mapped to code, but legalComplianceClaimed=false until operator registration/filing completes.',
+  const releaseReadinessBlockers = [
+    'SIMULTANEOUS RELEASE NOT AUTHORIZED: owner approval and operational evidence are outstanding; geographic profiles do not sequence product availability.',
+    'PHYSICAL TV EVIDENCE OUTSTANDING: the Stage P6 hardware test is not complete and does not activate individual markets.',
+    'LEGAL REVIEW OUTSTANDING: Statutory references are not legal advice or evidence of compliance; qualified review remains necessary.',
     'COMMERCIAL & SECURITY GATES LOCKED: commercialLaunchAuthorized=false, paymentCollectionActive=false, externalPenTestCompleted=false, externalKycVendorConnected=false.',
   ];
 
@@ -357,7 +354,7 @@ export function buildCountryLaunchOverview(params: {
 
   return {
     generatedAt: new Date().toISOString(),
-    initialLaunchMarket: 'ZW',
+    referenceTargetingCountryCode: 'ZW',
     activeLaunchedMarketsCount: 0,
     totalInventoriedMarketsCount: 6,
     softwareReadyMarketsCount,
@@ -371,12 +368,11 @@ export function buildCountryLaunchOverview(params: {
     externalPenTestCompleted: false,
     externalKycVendorConnected: false,
     legalComplianceClaimed: false,
-    noLawyerDependencyPolicy: true,
     charityListingFeeUsd: 0,
     charityJobFeeLockEnforced: true,
     countries,
     launchDecisions,
-    globalLaunchBlockers,
+    releaseReadinessBlockers,
     manifestSha256: crypto
       .createHash('sha256')
       .update(JSON.stringify(manifestCanonical))
@@ -394,48 +390,46 @@ export function runCountryLaunchVerificationSuite(): CountryLaunchVerificationRe
     qrLinks: [],
   });
 
-  // 1. All 6 baseline markets inventoried & ZW flagged as Initial Launch Market
+  // 1. Representative jurisdiction profiles include Zimbabwe as the reference profile.
   const zw = overview.countries.find((c) => c.countryCode === 'ZW');
   checks.push({
     checkId: 'p14_6_markets_zw_initial',
-    label: 'All 6 Country Activation Register markets inventoried with ZW as Initial Launch Market',
+    label: 'Representative jurisdiction profiles include the Zimbabwe reference profile',
     passed:
       overview.countries.length === 6 &&
-      overview.initialLaunchMarket === 'ZW' &&
-      Boolean(zw && zw.isInitialLaunchMarket) &&
-      overview.countries.filter((c) => c.isInitialLaunchMarket).length === 1,
-    detail: `6/6 territories mapped (${overview.countries.map((c) => c.countryCode).join(', ')}); ZW initial=${Boolean(zw?.isInitialLaunchMarket)}.`,
+      overview.referenceTargetingCountryCode === 'ZW' &&
+      Boolean(zw && zw.isReferenceTargetingProfile) &&
+      overview.countries.filter((c) => c.isReferenceTargetingProfile).length === 1,
+    detail: `6/6 representative profiles mapped (${overview.countries.map((c) => c.countryCode).join(', ')}); ZW reference=${Boolean(zw?.isReferenceTargetingProfile)}. This is not a release-coverage claim.`,
   });
 
-  // 2. Zero markets activated & legalComplianceClaimed=false across every territory
+  // 2. No market activation or legal-compliance claim is recorded.
   checks.push({
     checkId: 'p14_zero_markets_activated_honesty',
-    label: 'Zero markets activated & Independent Statutory Research honesty flags preserved',
+    label: 'No market activation or legal-compliance claim is recorded',
     passed:
       overview.activeLaunchedMarketsCount === 0 &&
       overview.countryActivated === false &&
       overview.legalComplianceClaimed === false &&
-      overview.noLawyerDependencyPolicy === true &&
       overview.countries.every(
         (c) =>
           c.countryActivated === false &&
           c.legalComplianceClaimed === false &&
-          c.noLawyerDependencyPolicy === true &&
           c.externalClearancesBlockedCount === 2
       ),
-    detail: `activeLaunchedMarketsCount=0, legalComplianceClaimed=false, noLawyerDependencyPolicy=true across all 6 markets.`,
+    detail: 'No market activation or legal-compliance claim is recorded; external legal review remains outstanding.',
   });
 
   // 3. All 6 markets have 4/4 software preflight gates verified & 2 external gates honestly blocked
   checks.push({
     checkId: 'p14_software_vs_external_gate_split',
-    label: 'Software-first controls (4/4 per market) strictly separated from Stage P6 & statutory clearances',
+    label: 'Software profile checks are distinct from physical and legal review',
     passed:
       overview.softwareReadyMarketsCount === 6 &&
       overview.countries.every(
         (c) => c.softwareGatesTotalCount === 4 && c.softwareGatesReadyCount === 4
       ),
-    detail: `${overview.softwareReadyMarketsCount}/6 markets pass all 4 software gates while keeping 2 external gates blocked.`,
+    detail: `${overview.softwareReadyMarketsCount}/6 representative profiles pass 4 software checks; this is not launch approval.`,
   });
 
   // 4. Non-overridable statutory safety locks cannot be turned off by policy update
@@ -470,7 +464,7 @@ export function runCountryLaunchVerificationSuite(): CountryLaunchVerificationRe
     });
   } catch (err) {
     zwActivationRejected =
-      err instanceof Error && err.message.startsWith('COUNTRY_LAUNCH_GATE_LOCKED:');
+      err instanceof Error && err.message.startsWith('COUNTRY_LAUNCH_RETIRED:');
   }
   try {
     buildCountryLaunchDecision({
@@ -482,11 +476,11 @@ export function runCountryLaunchVerificationSuite(): CountryLaunchVerificationRe
     });
   } catch (err) {
     gbActivationRejected =
-      err instanceof Error && err.message.startsWith('COUNTRY_LAUNCH_GATE_LOCKED:');
+      err instanceof Error && err.message.startsWith('COUNTRY_LAUNCH_RETIRED:');
   }
   checks.push({
     checkId: 'p14_fail_closed_country_activation_block',
-    label: 'Country activation requests fail closed with COUNTRY_LAUNCH_GATE_LOCKED before Stage P6',
+    label: 'Legacy activation helper rejects phased release requests',
     passed: zwActivationRejected && gbActivationRejected,
     detail: `ZW premature activation blocked=${zwActivationRejected}; GB blocked=${gbActivationRejected}.`,
   });
@@ -501,7 +495,7 @@ export function runCountryLaunchVerificationSuite(): CountryLaunchVerificationRe
   });
   checks.push({
     checkId: 'p14_decision_sha256_integrity',
-    label: 'Territory launch review decision creates SHA-256 digest keeping countryActivated=false',
+    label: 'Legacy test fixture digest is valid; the public decision endpoint is retired',
     passed:
       zwDecision.countryActivated === false &&
       zwDecision.commercialLaunchAuthorized === false &&
@@ -512,10 +506,10 @@ export function runCountryLaunchVerificationSuite(): CountryLaunchVerificationRe
     detail: `decision=${zwDecision.id} (ZW), sha=${zwDecision.decisionSha256.slice(0, 12)}`,
   });
 
-  // 7. ZW Initial Launch Market carries POTRAZ, BAZ, Labour Act & Track B geo statutes
+  // 7. Zimbabwe's reference jurisdiction profile lists relevant statutory sources.
   checks.push({
     checkId: 'p14_zw_statutes_and_track_b_geo',
-    label: 'ZW Initial Launch Market maps POTRAZ, BAZ, Labour Act, ZIMRA & Track B geo controls',
+    label: 'Zimbabwe reference profile lists statutory sources and targeting controls',
     passed:
       Boolean(zw) &&
       zw!.statutesResearched.some((s) => s.includes('POTRAZ')) &&
@@ -555,7 +549,6 @@ export function runCountryLaunchVerificationSuite(): CountryLaunchVerificationRe
     hardwareTested: false,
     stageP6Deferred: true,
     legalComplianceClaimed: false,
-    noLawyerDependencyPolicy: true,
     totalChecks: checks.length,
     passedChecks,
     allPassed: passedChecks === checks.length,

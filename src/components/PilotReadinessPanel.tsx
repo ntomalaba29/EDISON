@@ -114,7 +114,7 @@ export function PilotReadinessPanel({
       const rep = data.report as PilotReadinessVerificationReport;
       setSuiteReport(rep);
       setStatusMsg(
-        `Phase 12 Pilot Readiness suite complete: ${rep.passedChecks}/${rep.totalChecks} checks passed (hardwareTested=false, stageP6Deferred=true, countryActivated=false).`
+        `Phase 12 software checklist: ${rep.passedChecks}/${rep.totalChecks} checks passed; physical-device verification remains incomplete.`
       );
       await onSummaryRefresh();
     } catch (err) {
@@ -153,7 +153,7 @@ export function PilotReadinessPanel({
       }
       setOverview(data.overview);
       setStatusMsg(
-        `Registered pilot cohort blueprint "${data.cohort.cohortName}" (${data.cohort.id}, status=${data.cohort.status}, countryActivated=false, hardwareTested=false).`
+        `Registered pilot cohort blueprint "${data.cohort.cohortName}" (${data.cohort.id}, status=${data.cohort.status}); this does not record a completed pilot or hardware test.`
       );
       await onSummaryRefresh();
     } catch (err) {
@@ -272,11 +272,12 @@ export function PilotReadinessPanel({
             Phase 12 · Block 12.1 — Software-First Pilot Readiness &amp; Single Final Stage P6 Runbook
           </h2>
           <p className="text-xs text-slate-600 leading-relaxed max-w-3xl">
-            Enforces EDISON’s single-hardware-pass discipline (<strong>ADR-014</strong>):{' '}
+            EDISON is pre-production. This software checklist does not establish hardware support or release readiness. The planned physical device verification is documented in the Stage P6 runbook.
+            {' '}
+            <strong>ADR-014</strong> records the single-hardware-pass testing policy;{' '}
             <code className="font-mono">hardwareTested=false</code>,{' '}
             <code className="font-mono">pilotHardwareExecuted=false</code>,{' '}
             <code className="font-mono">stageP6Deferred=true</code>,{' '}
-            <code className="font-mono">countryActivated=false</code>, and{' '}
             <code className="font-mono">paymentCollectionActive=false</code>. Physical Smart TV + smartphone verification runs once at Stage P6 after software completion.
           </p>
         </div>
@@ -336,11 +337,11 @@ export function PilotReadinessPanel({
         </div>
 
         <div className="bg-white border border-slate-200 rounded-lg p-4">
-          <p className="text-xs font-medium text-slate-500">Country &amp; Commercial Status</p>
+          <p className="text-xs font-medium text-slate-500">Commercial Status</p>
           <p className="mt-1 text-sm font-semibold text-slate-900 font-mono">
-            NOT ACTIVATED ($0.00)
+            Payments disabled ($0.00 collected)
           </p>
-          <p className="mt-0.5 text-xs text-slate-600">countryActivated=false · paymentCollectionActive=false</p>
+          <p className="mt-0.5 text-xs text-slate-600">paymentCollectionActive=false · commercialLaunchAuthorized=false</p>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-lg p-4">
@@ -663,10 +664,10 @@ export function PilotReadinessPanel({
         <div className="pb-3 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
             <h3 className="text-sm font-semibold text-slate-900">
-              Closed Pilot Cohort Blueprints (Admin Only Write · Country Non-Activated)
+              Closed Pilot Cohort Blueprints (Admin Only Write)
             </h3>
             <p className="text-xs text-slate-600 mt-0.5">
-              Prepares closed opt-in household cohorts (max 50 households) enforcing <code className="font-mono">DEC-OPEN-01</code> active consent and <code className="font-mono">countryActivated=false</code>.
+              Prepares closed opt-in household cohorts (max 50 households) with active <code className="font-mono">DEC-OPEN-01</code> consent. A blueprint is not an executed pilot or a product-availability gate.
             </p>
           </div>
           <span className="text-xs font-mono text-slate-600">
@@ -805,7 +806,7 @@ export function PilotReadinessPanel({
                       {c.enrolledHouseholdIds.length} / {c.maxHouseholdsCap}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-slate-600">
-                      countryActivated=false · hwTested=false
+                      Physical device test: not completed
                     </td>
                     <td className="px-3 py-2.5">
                       <p className="font-mono font-semibold text-slate-900">{c.status}</p>

@@ -758,7 +758,7 @@ export function HouseholdPrivacyView({
     'EDISON — TRACK B HOUSEHOLD, MULTI-PROFILE & CONSENT GOVERNANCE REPORT',
     `Actor: ${currentUser.email} (${currentUser.role})`,
     `DEC-OPEN-01 Policy: LOCKED — Scope B Full Model + Bundled Commercial/Charity Withdrawal`,
-    `Initial Launch Market: Zimbabwe (ZW) + International Country Geo Configurations (${countries.length} countries, all NOT ACTIVATED)`,
+    `Reference targeting geography: Zimbabwe (ZW); ${countries.length} country targeting profiles are configured. This is not a product-release coverage statement.`,
     selectedHousehold
       ? `Active Household: ${selectedHousehold.householdLabel} (${selectedHousehold.id}) | Epoch v${selectedHousehold.consentEpoch} | Commercial: ${selectedHousehold.commercialConsentStatus} | Charity/Opportunities: ${selectedHousehold.charityAndOpportunityStatus} | Targeting Area: ${selectedHousehold.publicLocation?.targetingKey ?? 'N/A'}`
       : 'Active Household: Advertiser / Submitter aggregate-only view',
@@ -820,7 +820,7 @@ export function HouseholdPrivacyView({
                 Track B Automated Verification Suite ({suiteReport.passedChecks}/{suiteReport.totalChecks} Passed)
               </h3>
               <p className="text-xs text-slate-600">
-                Initial Launch Market: {suiteReport.initialLaunchMarket} · {suiteReport.decOpen01Status}
+                Reference targeting geography: {suiteReport.referenceTargetingCountryCode} · {suiteReport.decOpen01Status}
               </p>
             </div>
             <span className="text-xs font-mono font-semibold text-emerald-700">
@@ -1199,7 +1199,7 @@ export function HouseholdPrivacyView({
                     >
                       {countries.map((c) => (
                         <option key={c.countryCode} value={c.countryCode}>
-                          {c.countryName} ({c.countryCode}) {c.isInitialLaunchMarket ? '· Launch Market' : ''}
+                          {c.countryName} ({c.countryCode}) {c.isReferenceTargetingProfile ? '· Reference profile' : ''}
                         </option>
                       ))}
                     </select>
@@ -1341,16 +1341,16 @@ export function HouseholdPrivacyView({
 
                 <div className="pt-3 border-t border-slate-200">
                   <p className="text-xs font-semibold text-slate-800 mb-2">
-                    Country Expansion Configuration ({countries.length} Countries · All NOT ACTIVATED)
+                    Campaign Targeting Geography Profiles ({countries.length} representative profiles)
                   </p>
                   <div className="space-y-1.5 text-xs text-slate-600">
                     {countries.map((c) => (
                       <div key={c.countryCode} className="flex items-center justify-between">
                         <span>
                           {c.countryName} ({c.countryCode})
-                          {c.isInitialLaunchMarket ? ' · Initial Launch Market' : ''}
+                          {c.isReferenceTargetingProfile ? ' · Reference profile' : ''}
                         </span>
-                        <span className="font-mono text-slate-500">NOT ACTIVATED</span>
+                        <span className="font-mono text-slate-500">Targeting profile</span>
                       </div>
                     ))}
                   </div>
@@ -2134,16 +2134,16 @@ export function HouseholdPrivacyView({
         </>
       )}
 
-      {/* Phase 10 Block 10.1: Privacy Posture, Retention Automation & Independent 6-Country Statutory Register */}
+      {/* Phase 10 Block 10.1: Privacy Posture, Retention Automation & Jurisdiction References */}
       {complianceOverview && (
         <div className="bg-white border border-slate-200 rounded-lg p-6 space-y-5">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-200">
             <div>
               <h3 className="text-base font-semibold text-slate-900">
-                Phase 10 · Block 10.1: Privacy Posture, Retention &amp; Country Statutory Register
+                Phase 10 · Block 10.1: Privacy Posture, Retention &amp; Jurisdiction References
               </h3>
               <p className="text-xs text-slate-600 mt-0.5">
-                Software-First Compliance Readiness (ADR-015) · No Legal Counsel Dependency · externalPenTestCompleted: false · legalComplianceClaimed: false · cameraMicAttentionTrackingEnabled: false
+                Public-source references are not legal advice; qualified review is required (ADR-019). External security review and compliance determinations remain outstanding.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -2201,9 +2201,9 @@ export function HouseholdPrivacyView({
             </div>
 
             <div className="border border-slate-200 rounded-lg p-4">
-              <p className="text-slate-500 font-medium">Jurisdiction Launch Status</p>
-              <p className="mt-1 text-base font-semibold text-amber-800">0 / 6 Activated</p>
-              <p className="mt-0.5 text-slate-600">Zero formal legal compliance claimed</p>
+              <p className="text-slate-500 font-medium">Jurisdiction Review Status</p>
+              <p className="mt-1 text-base font-semibold text-amber-800">Not assessed</p>
+              <p className="mt-0.5 text-slate-600">No compliance determination; qualified review remains outstanding.</p>
             </div>
           </div>
 
@@ -2248,7 +2248,7 @@ export function HouseholdPrivacyView({
                   <th className="px-3.5 py-2.5 font-semibold text-slate-700">Territory</th>
                   <th className="px-3.5 py-2.5 font-semibold text-slate-700">Researched Public Statutes</th>
                   <th className="px-3.5 py-2.5 font-semibold text-slate-700">Unresolved Regulatory Uncertainty</th>
-                  <th className="px-3.5 py-2.5 font-semibold text-slate-700 text-right">Launch Status</th>
+                  <th className="px-3.5 py-2.5 font-semibold text-slate-700 text-right">Review Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -2265,7 +2265,7 @@ export function HouseholdPrivacyView({
                       {c.unresolvedRegulatoryUncertainties.join(' · ')}
                     </td>
                     <td className="px-3.5 py-2.5 text-right font-mono text-amber-800 whitespace-nowrap">
-                      NOT ACTIVATED · Compliance: false
+                      Not reviewed · no compliance determination
                     </td>
                   </tr>
                 ))}

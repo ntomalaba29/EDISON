@@ -70,17 +70,17 @@ describe('EDISON Track B — Households, Profiles, Personalisation, Bundled Cons
     }
   });
 
-  it('serves ZW initial launch market + international country configs (all unactivated) and passes 7/7 Track B verification suite', async () => {
+  it('serves representative geographic targeting profiles and passes the Track B verification suite', async () => {
     const cfgRes = await request(app)
       .get('/api/track-b/country-configs')
       .set('Authorization', `Bearer ${viewerToken}`);
     expect(cfgRes.status).toBe(200);
     expect(cfgRes.body.decOpen01Status).toBe('LOCKED_SCOPE_B_BUNDLED_WITHDRAWAL');
-    expect(cfgRes.body.initialLaunchMarket).toBe('ZW');
+    expect(cfgRes.body.referenceTargetingCountryCode).toBe('ZW');
     expect(Array.isArray(cfgRes.body.countries)).toBe(true);
     const zw = cfgRes.body.countries.find((c: { countryCode: string }) => c.countryCode === 'ZW');
     const gb = cfgRes.body.countries.find((c: { countryCode: string }) => c.countryCode === 'GB');
-    expect(zw?.isInitialLaunchMarket).toBe(true);
+    expect(zw?.isReferenceTargetingProfile).toBe(true);
     expect(gb).toBeTruthy();
     expect(cfgRes.body.countries.every((c: { countryActivated: boolean }) => c.countryActivated === false)).toBe(true);
 

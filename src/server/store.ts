@@ -48,7 +48,7 @@ import type {
   InternationalExpansionDecisionRecord,
   InternationalExpansionOverview,
   RegionalLocalizationConfig,
-  LaunchMarketCode,
+  TargetingGeographyCode,
   LiveReportSnapshot,
   MultiCurrencyProFormaEstimate,
   OpportunityOpsOverview,
@@ -5382,7 +5382,7 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
         id: 'qa_141_country_launch_readiness_gate',
         block: 'Block 14.1',
         label:
-          'Phase 14 Block 14.1: Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine (ZW Initial + 5 Expansion Markets)',
+          'Retired market-activation controls and legacy jurisdiction-data verification',
         status: (() => {
           const p14 = runCountryLaunchVerificationSuite();
           return p14.allPassed &&
@@ -5393,14 +5393,13 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
             p14.paymentCollectionActive === false &&
             p14.hardwareTested === false &&
             p14.stageP6Deferred &&
-            p14.legalComplianceClaimed === false &&
-            p14.noLawyerDependencyPolicy === true
+            p14.legalComplianceClaimed === false
             ? 'pass'
             : 'fail';
         })(),
         scope: 'automated_invariant',
         detail:
-          '8/8 Phase 14 country launch readiness invariants passed: 6/6 ADR-015 markets inventoried (ZW Initial Launch Market), 4/4 software controls separated from 2 external clearances, fail-closed COUNTRY_LAUNCH_GATE_LOCKED on activation (countryActivated=false, legalComplianceClaimed=false).',
+          'Legacy software checks only: no market activation is authorized, legal compliance is not claimed, and decision-write endpoints return HTTP 410. This does not establish launch readiness.',
       },
       {
         id: 'qa_151_international_expansion_readiness',
@@ -5766,19 +5765,19 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     const latestAudit = persistedData ? persistedData.latestAudit : this.data.auditLogs[0] ?? null;
     return {
       generatedAt: new Date().toISOString(),
-      phase: 'Phases 1–15 Software & Infrastructure Engineering Complete (85.0% Full App · Stage P6 & External Clearances Deferred)',
-      stage: 'Workstreams A–K Complete (PG16 Migrations, Real FFmpeg Worker, Playwright Chromium E2E, AURA/HDMI-CEC, Disputes, 9-Language i18n, Sovereign Manifests, Deployment Pack & Stage P6 Runbook)',
-      block: 'Final Software & Infrastructure Handover Release (34/34 Automated QA Invariants · Stage P6 Strictly Deferred)',
-      gateStatus: 'ALL IMPLEMENTABLE SOFTWARE, INFRASTRUCTURE & PACKAGING WORK COMPLETE — READY FOR STAGE P6 PHYSICAL TEST & EXTERNAL CLEARANCES',
+      phase: 'Pre-production — 77 of 99 executable subphases complete',
+      stage: 'Cloudflare preview only; production storage, media processing, payments, and physical-device validation remain incomplete',
+      block: 'Global release model and targeting-geography separation implemented; policy drafts require owner and counsel review',
+      gateStatus: 'NOT PRODUCTION-READY — global release authorization and operational evidence are outstanding',
       progressMetrics: {
         aiStudioAssignmentPct: 100,
-        softwareToStageP6Pct: 87.1,
-        overallFullAppPct: 85.0,
-        remainingUntilFullAppPct: 15.0,
+        executionSubphasesCompleted: 77,
+        executionSubphasesTotal: 99,
+        executionSubphasePct: 77.8,
+        remainingExecutionSubphasePct: 22.2,
         consentBlockedScopePct: 0,
         trackBStatus: 'COMMITTED',
-        rubricSummary:
-          'Phase 1 Specs (6.0%) + Phase 2 Track A+B Complete (14.0%) + Phase 3 PG16/Playwright/Security/Observability (11.5% / 12.0%) + Phase 4 AURA/HDMI-CEC/OEM Contracts (10.0% / 12.0%) + Phase 5 Complete (12.0%) + Phase 6 Delivery Infra (4.0%) + Phase 7 Advertiser Ops & Disputes (3.0%) + Phase 8 Render Validation & Real FFmpeg Worker (3.0%) + Phase 9 Opportunity Ops (2.0%) + Phase 10 Privacy/Security/Audit (4.0%) + Phase 11 Reliability/Chaos FM-01..FM-20 (4.0%) + Phase 12 Pilot Readiness & Stage P6 Runbook (2.0% / 4.0%) + Phase 13 Commercial Readiness (3.0% / 4.0%) + Phase 14 Country Launch Gate (3.0% / 5.0%) + Phase 15 9-Lang i18n & Sovereign Manifests (3.5% / 5.0%) = 85.0% of Full Commercial App (87.1% to Stage P6; 15.0% strictly reserved for Stage P6 physical TV/phone tests, external pen-test, live remote DB/acquirer provisioning & regulatory sign-off).',
+        rubricSummary: '77 of 99 executable subphases complete (77.8%); 22 subphases remain. This is software task progress, not production or launch readiness.',
       },
       latestAuditAt: latestAudit?.createdAt ?? null,
       latestAuditAction: latestAudit?.action ?? null,
@@ -7257,7 +7256,7 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
     });
   }
 
-  // --- Phase 14 Block 14.1: Country-by-Country Launch Readiness Gate & Jurisdiction Policy Engine ---
+  // Legacy jurisdiction reference records; these do not control product availability.
 
   getCountryLaunchOverview(actor: PublicUser): CountryLaunchOverview {
     this.syncIfDiskNewer();
@@ -7287,7 +7286,7 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
   updateCountryPolicyConfig(
     actor: PublicUser,
     input: {
-      countryCode: LaunchMarketCode;
+      countryCode: TargetingGeographyCode;
       consentBannerStrictMode: boolean;
       requirePreBroadcastHumanModeration: boolean;
       enforceVppsOrLocalPrivacyLock: boolean;
@@ -7332,7 +7331,7 @@ export class EdisonPrototypeStore implements EdisonDataRepository {
   submitCountryLaunchDecision(
     actor: PublicUser,
     input: {
-      countryCode: LaunchMarketCode;
+      countryCode: TargetingGeographyCode;
       decisionOutcome: CountryLaunchDecisionOutcome;
       requestedCountryActivation: boolean;
       summaryNote: string;

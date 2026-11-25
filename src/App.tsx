@@ -232,7 +232,7 @@ export default function App() {
         <div className="p-4 m-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-1">
           <p className="font-semibold text-slate-800">Operational Boundary</p>
           <p className="leading-relaxed">
-            Phases 1–15 software-first baseline + PG16 SQL migrations, FFmpeg worker &amp; Chromium E2E complete. Physical TV/smartphone tests (Stage P6), live payments &amp; country launches remain locked/deferred.
+            Pre-production software includes PostgreSQL migrations and local media-worker code. Cloudflare application APIs, production media, payments, and physical-device behavior are not verified; the intended release is simultaneous.
           </p>
         </div>
       </aside>

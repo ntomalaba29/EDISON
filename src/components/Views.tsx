@@ -79,15 +79,15 @@ export function ReportsView() {
           </p>
         </div>
         <div className="bg-white border border-slate-200 rounded-lg p-5">
-          <p className="text-xs font-medium text-slate-500">Progress Until Full App</p>
+          <p className="text-xs font-medium text-slate-500">Executable Subphase Progress</p>
           <p className="mt-1.5 text-lg font-semibold text-slate-900 tabular-nums">
             {liveSnapshot?.progressMetrics
-              ? `${liveSnapshot.progressMetrics.overallFullAppPct}% Full App · ${liveSnapshot.progressMetrics.aiStudioAssignmentPct}% Phase 2 AI Studio`
-              : '25.0% Full App · 85% Phase 2 AI Studio'}
+              ? `${liveSnapshot.progressMetrics.executionSubphasePct}% complete · ${liveSnapshot.progressMetrics.aiStudioAssignmentPct}% Phase 2 scope`
+              : 'Calculating subphase progress...'}
           </p>
           <p className="mt-1 text-xs text-slate-600 tabular-nums">
             {liveSnapshot?.progressMetrics
-              ? `${liveSnapshot.progressMetrics.softwareToStageP6Pct}% to Stage P6 · ${liveSnapshot.progressMetrics.remainingUntilFullAppPct}% remaining · ${liveSnapshot.progressMetrics.consentBlockedScopePct}% blocked (DEC-OPEN-01)`
+              ? `${liveSnapshot.progressMetrics.executionSubphasesCompleted}/${liveSnapshot.progressMetrics.executionSubphasesTotal} tasks · ${liveSnapshot.progressMetrics.remainingExecutionSubphasePct}% remaining`
               : 'Calculating milestone progress...'}
           </p>
         </div>
@@ -210,7 +210,7 @@ export function RoadmapView() {
       <div className="bg-white border border-slate-200 rounded-lg p-6">
         <h2 className="text-lg font-semibold text-slate-900">Complete 15-Phase EDISON Development Roadmap</h2>
         <p className="text-sm text-slate-600 mt-1">
-          Sequential lifecycle from Project Definition (Phase 1) through International Expansion (Phase 15).
+          Development work is tracked by engineering phase; geographic selection is used for ad targeting, not release waves.
         </p>
 
         <div className="mt-4 overflow-x-auto border border-slate-200 rounded-lg">
@@ -544,7 +544,7 @@ interface RiskFmeaViewProps {
 export function RiskFmeaView({ currentUser, onNavigateAuth }: RiskFmeaViewProps) {
   const riskDoc = EDISON_DOCUMENTS.find((d) => d.id === 'risk-reg');
   const fmeaDoc = EDISON_DOCUMENTS.find((d) => d.id === 'fmea');
-  const countryDoc = EDISON_DOCUMENTS.find((d) => d.id === 'country-reg');
+  const countryDoc = EDISON_DOCUMENTS.find((d) => d.id === 'jurisdiction-register');
 
   const [tab, setTab] = useState<'chaos_lab' | 'fmea' | 'risk' | 'country'>('chaos_lab');
   const activeDoc = tab === 'risk' ? riskDoc : tab === 'fmea' ? fmeaDoc : countryDoc;

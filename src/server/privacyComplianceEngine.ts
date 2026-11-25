@@ -28,11 +28,10 @@ export function listCountryStatutoryComplianceRecords(): CountryStatutoryComplia
   return [
     {
       countryCode: 'ZW',
-      countryName: 'Zimbabwe (Initial Launch Market)',
-      isInitialLaunchMarket: true,
+      countryName: 'Zimbabwe',
+      isReferenceTargetingProfile: true,
       countryActivated: false,
       legalComplianceClaimed: false,
-      noLawyerDependencyPolicy: true,
       statutesResearched: [
         'Cyber and Data Protection Act [Chapter 12:07] & POTRAZ Data Controller Guidance',
         'Broadcasting Services Act [Chapter 12:06] (BAZ rules)',
@@ -56,10 +55,9 @@ export function listCountryStatutoryComplianceRecords(): CountryStatutoryComplia
     {
       countryCode: 'GB',
       countryName: 'United Kingdom',
-      isInitialLaunchMarket: false,
+      isReferenceTargetingProfile: false,
       countryActivated: false,
       legalComplianceClaimed: false,
-      noLawyerDependencyPolicy: true,
       statutesResearched: [
         'UK GDPR & PECR Reg. 6 (Terminal Equipment Storage Consent)',
         'ASA / CAP / BCAP Advertising Codes',
@@ -82,10 +80,9 @@ export function listCountryStatutoryComplianceRecords(): CountryStatutoryComplia
     {
       countryCode: 'EU',
       countryName: 'European Union (Representative: DE / FR / IE)',
-      isInitialLaunchMarket: false,
+      isReferenceTargetingProfile: false,
       countryActivated: false,
       legalComplianceClaimed: false,
-      noLawyerDependencyPolicy: true,
       statutesResearched: [
         'GDPR & ePrivacy Directive Art. 5(3) (TV Terminal Storage Consent)',
         'Digital Services Act (DSA) Transparency & Advertiser Disclosure',
@@ -108,10 +105,9 @@ export function listCountryStatutoryComplianceRecords(): CountryStatutoryComplia
     {
       countryCode: 'US',
       countryName: 'United States',
-      isInitialLaunchMarket: false,
+      isReferenceTargetingProfile: false,
       countryActivated: false,
       legalComplianceClaimed: false,
-      noLawyerDependencyPolicy: true,
       statutesResearched: [
         'Video Privacy Protection Act (VPPA — 18 U.S.C. § 2710)',
         'State Privacy Statutes (CCPA/CPRA Opt-Out Signals)',
@@ -133,10 +129,9 @@ export function listCountryStatutoryComplianceRecords(): CountryStatutoryComplia
     {
       countryCode: 'ZA',
       countryName: 'South Africa',
-      isInitialLaunchMarket: false,
+      isReferenceTargetingProfile: false,
       countryActivated: false,
       legalComplianceClaimed: false,
-      noLawyerDependencyPolicy: true,
       statutesResearched: [
         'Protection of Personal Information Act (POPIA)',
         'Advertising Regulatory Board (ARB) Code of Practice',
@@ -158,10 +153,9 @@ export function listCountryStatutoryComplianceRecords(): CountryStatutoryComplia
     {
       countryCode: 'KE_NG',
       countryName: 'Kenya / Nigeria (Representative Expansion)',
-      isInitialLaunchMarket: false,
+      isReferenceTargetingProfile: false,
       countryActivated: false,
       legalComplianceClaimed: false,
-      noLawyerDependencyPolicy: true,
       statutesResearched: [
         'Kenya Data Protection Act 2019 & Communications Authority Rules',
         'Nigeria Data Protection Act 2023 (NDPA)',
@@ -394,7 +388,6 @@ export function buildPrivacyComplianceOverview(params: {
     externalPenTestCompleted: false,
     hardwareTested: false,
     stageP6Deferred: true,
-    noLawyerDependencyPolicy: true,
     legalComplianceClaimed: false,
     cameraMicAttentionTrackingEnabled: false,
     posture: {
@@ -694,16 +687,15 @@ export function runPrivacyComplianceVerificationSuite(): PrivacyComplianceVerifi
     advertiserOverview.posture.totalHouseholdsEvaluated === 0 &&
     advertiserOverview.posture.expiredSessionsPendingPurge === 0;
 
-  // Check 7: Country Statutory Register truthfulness (6 markets, ZW initial, ZERO legal compliance claimed, NOT ACTIVATED)
+  // Check 7: Jurisdiction references remain distinct from legal-compliance determinations.
   const countries = overviewSample.countries;
   const check7 =
     countries.length === 6 &&
-    countries.some((c) => c.countryCode === 'ZW' && c.isInitialLaunchMarket) &&
+    countries.some((c) => c.countryCode === 'ZW' && c.isReferenceTargetingProfile) &&
     countries.every(
       (c) =>
         c.countryActivated === false &&
         c.legalComplianceClaimed === false &&
-        c.noLawyerDependencyPolicy === true &&
         c.unresolvedRegulatoryUncertainties.length >= 1
     );
 
@@ -755,7 +747,7 @@ export function runPrivacyComplianceVerificationSuite(): PrivacyComplianceVerifi
       checkId: 'p10_country_statutory_register',
       label: '7. Independent Public Country Statutory Register (ADR-015 · ZERO Compliance Claimed)',
       passed: check7,
-      detail: '6 territories mapped (ZW initial launch market) with countryActivated=false and explicit regulatory uncertainties.',
+      detail: 'Six representative jurisdiction profiles include unresolved regulatory questions; no compliance determination is made.',
     },
     {
       checkId: 'p10_audit_hardware_boundary',

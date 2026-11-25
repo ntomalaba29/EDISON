@@ -16,7 +16,7 @@ import type {
   HouseholdInstallationRecord,
   HouseholdQrRedirectPersistenceState,
   InternationalExpansionDecisionRecord,
-  LaunchMarketCode,
+  TargetingGeographyCode,
   LiveReportSnapshot,
   OpportunityAppealRecord,
   OpportunityComplaintRecord,
@@ -1316,7 +1316,7 @@ function decodeCommercialBoardDecision(value: unknown): CommercialBoardDecisionR
 
 function decodeCountryPolicyProfile(value: unknown): CountryJurisdictionPolicyConfig {
   const profile = value as CountryJurisdictionPolicyConfig | null;
-  const marketCodes: LaunchMarketCode[] = ['ZW', 'GB', 'EU', 'US', 'ZA', 'KE_NG'];
+  const marketCodes: TargetingGeographyCode[] = ['ZW', 'GB', 'EU', 'US', 'ZA', 'KE_NG'];
   if (
     typeof profile !== 'object' ||
     profile === null ||
@@ -1338,7 +1338,7 @@ function decodeCountryPolicyProfile(value: unknown): CountryJurisdictionPolicyCo
 
 function decodeCountryLaunchDecision(value: unknown): CountryLaunchDecisionRecord {
   const decision = value as CountryLaunchDecisionRecord | null;
-  const marketCodes: LaunchMarketCode[] = ['ZW', 'GB', 'EU', 'US', 'ZA', 'KE_NG'];
+  const marketCodes: TargetingGeographyCode[] = ['ZW', 'GB', 'EU', 'US', 'ZA', 'KE_NG'];
   if (
     typeof decision !== 'object' ||
     decision === null ||
@@ -1355,7 +1355,6 @@ function decodeCountryLaunchDecision(value: unknown): CountryLaunchDecisionRecor
     decision.paymentCollectionActive !== false ||
     decision.hardwareTested !== false ||
     decision.legalComplianceClaimed !== false ||
-    decision.noLawyerDependencyPolicy !== true ||
     !/^[0-9a-f]{64}$/i.test(decision.decisionSha256) ||
     typeof decision.createdAt !== 'string'
   ) {

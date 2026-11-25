@@ -12,7 +12,7 @@ import tvPreviewMd from '../../TELEVISION_PREVIEW_EXPERIENCE.md?raw';
 import opportunityMgmtMd from '../../OPPORTUNITY_MANAGEMENT.md?raw';
 import advertiserMgmtMd from '../../ADVERTISER_MANAGEMENT.md?raw';
 import privacySecMd from '../../PRIVACY_SECURITY_AND_COMPLIANCE.md?raw';
-import countryRegMd from '../../COUNTRY_ACTIVATION_REGISTER.md?raw';
+import jurisdictionRegisterMd from '../../JURISDICTION_COMPLIANCE_REGISTER.md?raw';
 import riskRegMd from '../../RISK_REGISTER.md?raw';
 import fmeaMd from '../../FAILURE_MODE_ANALYSIS.md?raw';
 import roadmapMd from '../../COMPLETE_DEVELOPMENT_ROADMAP.md?raw';
@@ -163,11 +163,11 @@ export const EDISON_DOCUMENTS: EdisonDocument[] = [
     content: privacySecMd,
   },
   {
-    id: 'country-reg',
-    filename: 'COUNTRY_ACTIVATION_REGISTER.md',
-    title: 'Country Activation Register',
+    id: 'jurisdiction-register',
+    filename: 'JURISDICTION_COMPLIANCE_REGISTER.md',
+    title: 'Jurisdiction Compliance Considerations',
     category: 'Compliance, Risk & QA',
-    content: countryRegMd,
+    content: jurisdictionRegisterMd,
   },
   {
     id: 'risk-reg',

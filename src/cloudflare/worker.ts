@@ -18,6 +18,8 @@ interface EdisonWorkerExecutionContext {
   passThroughOnException(): void;
 }
 
+const WORKER_MEDIA_PROCESSING_DISABLED = true;
+
 let workerRuntime:
   | { database: D1AuthDatabaseBinding; api: Express }
   | undefined;
@@ -95,7 +97,7 @@ export default {
                 : null;
             },
           },
-          disableMediaProcessing: true,
+          disableMediaProcessing: WORKER_MEDIA_PROCESSING_DISABLED,
           mediaStorageBackend,
         }),
       };
@@ -108,7 +110,7 @@ export default {
           mediaCompatibilityReady: false,
           mediaStorageConfigured: Boolean(mediaStorageBackend),
           mediaUploadReady: Boolean(mediaStorageBackend),
-          mediaProcessingReady: false,
+          mediaProcessingReady: !WORKER_MEDIA_PROCESSING_DISABLED,
         });
       });
     }

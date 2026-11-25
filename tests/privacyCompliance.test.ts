@@ -4,6 +4,7 @@ import path from 'node:path';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createEdisonApp } from '../src/server/app.ts';
+import { COUNTRY_GEO_CONFIGS } from '../src/server/trackBHouseholdConsent.ts';
 import {
   runPrivacyComplianceVerificationSuite,
   scanAnalyticsZeroPii,
@@ -45,6 +46,28 @@ describe('Phase 10 Block 10.1 — Privacy, Security & Statutory Compliance Readi
     if (tempRoot && fs.existsSync(tempRoot)) {
       fs.rmSync(tempRoot, { recursive: true, force: true });
     }
+  });
+
+  it('keeps geographic legal references distinct from launch activation and compliance claims', () => {
+    expect(
+      COUNTRY_GEO_CONFIGS.every(
+        (country) =>
+          country.legalConsentBaseline.includes('Qualified review required') &&
+          !country.legalConsentBaseline.includes('NOT ACTIVATED') &&
+          !country.legalConsentBaseline.toLowerCase().includes('initial launch')
+      )
+    ).toBe(true);
+  });
+
+  it('keeps geographic legal references distinct from launch activation and compliance claims', () => {
+    expect(
+      COUNTRY_GEO_CONFIGS.every(
+        (country) =>
+          country.legalConsentBaseline.includes('Qualified review required') &&
+          !country.legalConsentBaseline.includes('NOT ACTIVATED') &&
+          !country.legalConsentBaseline.toLowerCase().includes('initial launch')
+      )
+    ).toBe(true);
   });
 
   it('passes all 8 deterministic Block 10.1 privacy/statutory checks with honest pen-test, legal & hardware flags', () => {
@@ -96,7 +119,7 @@ describe('Phase 10 Block 10.1 — Privacy, Security & Statutory Compliance Readi
     expect(leaked).toBe(2);
   });
 
-  it('enforces DSR export redaction, Right-to-Erasure cascade + HTTP 403 QR revocation, retention purge, RBAC, 25/25 QA, and 66.0% Full App', async () => {
+  it('enforces DSR export redaction, erasure, QR revocation, retention purge, and role-based access', async () => {
     // 1. Auth & CSRF baseline guards
     const unauthOverview = await request(app).get('/api/compliance/overview');
     expect(unauthOverview.status).toBe(401);
@@ -129,7 +152,14 @@ describe('Phase 10 Block 10.1 — Privacy, Security & Statutory Compliance Readi
     expect(advOverview.body.overview.posture.expiredSessionsPendingPurge).toBe(0);
     expect(advOverview.body.overview.externalPenTestCompleted).toBe(false);
     expect(advOverview.body.overview.legalComplianceClaimed).toBe(false);
+    expect(advOverview.body.overview).not.toHaveProperty('noLawyerDependencyPolicy');
     expect(advOverview.body.overview.countries).toHaveLength(6);
+    expect(
+      advOverview.body.overview.countries.every(
+        (country: { noLawyerDependencyPolicy?: boolean }) =>
+          !Object.prototype.hasOwnProperty.call(country, 'noLawyerDependencyPolicy')
+      )
+    ).toBe(true);
     expect(
       advOverview.body.overview.countries.every(
         (c: { countryActivated: boolean; legalComplianceClaimed: boolean }) =>
@@ -276,8 +306,7 @@ describe('Phase 10 Block 10.1 — Privacy, Security & Statutory Compliance Readi
 
     const liveRes = await request(app).get('/api/reports/live');
     expect(liveRes.status).toBe(200);
-    expect(liveRes.body.progressMetrics.overallFullAppPct).toBe(85.0);
-    expect(liveRes.body.progressMetrics.remainingUntilFullAppPct).toBe(15.0);
-    expect(liveRes.body.progressMetrics.softwareToStageP6Pct).toBe(87.1);
+    expect(liveRes.body.progressMetrics.executionSubphasePct).toBe(77.8);
+    expect(liveRes.body.progressMetrics.remainingExecutionSubphasePct).toBe(22.2);
   });
 });

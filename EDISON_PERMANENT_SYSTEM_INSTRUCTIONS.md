@@ -147,7 +147,7 @@ Separate milestones:
 5. Hardware integration verified
 6. Controlled pilot completed
 7. Commercial readiness approved
-8. Country launch authorised
+8. One simultaneous product release authorized
 9. International expansion authorised
 
 ---

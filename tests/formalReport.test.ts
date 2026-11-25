@@ -7,7 +7,10 @@ describe('formal report subphase progress', () => {
     (command) => {
       const report = generateFormalReport(command, null);
 
-      expect(report.body).toContain('EXECUTABLE SUBPHASE PROGRESS: 48 / 69 complete (69.6%)');
+      expect(report.body).toContain('EXECUTABLE SUBPHASE PROGRESS: 77 / 99 complete (77.8%)');
+      expect(report.body).not.toContain('85.0%');
+      expect(report.body).not.toContain('87.1%');
+      expect(report.body).not.toContain('No Legal Counsel Dependency');
     }
   );
 });

@@ -17,7 +17,7 @@ EDISON is an international Smart TV advertising and verified opportunity network
 6. **Network-Wide Shared Ad Intelligence (`ADR-016`, `v2.2` Core Requirement)**: A scoped, corroborated software simulation and local cache are implemented and tested. A durable, deployed fleet service and real participating TVs remain incomplete.
 7. **Normal Everyday TV Remote Control (`ADR-017` / `PRD-20`)**: The AURA command path and platform simulators are implemented and tested. Real TV transport adapters and physical compatibility remain incomplete; this capability stays strictly separate from ad-break switching and programme restoration.
 8. **Software-First Testing + Single Final Physical Test (`ADR-014`)**: Development testing uses automated tests, browser automation, recorded media, and `SimulationTvAdapter`—with zero repeated physical TV tests during development and **strictly one planned final integrated physical test at app completion (`Stage P6`)**.
-9. **Independent Public Legal Research (`ADR-015`, No Legal Counsel Dependency)**: Applicable country laws are researched independently from official public legislation/regulator sources without external lawyers as a development gate; technical controls never claim legal compliance (`ZERO LEGAL COMPLIANCE CLAIMED`).
+9. **Legal and Jurisdiction Review (`ADR-019`)**: Public-source research and software controls do not establish legal compliance. Owner fact-checking and qualified legal review are required before policy publication or commercial operation, as applicable.
 10. **Locked Out-of-Scope Boundaries**: Commercial business discovery and automated email outreach remain **STRICTLY PAUSED AND LOCKED**. AURA's current remote path is simulator-only; real adapters remain incomplete.
 
 ---

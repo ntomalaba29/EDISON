@@ -241,12 +241,12 @@ export function evaluate10CommercialPillars(params: {
     {
       pillarId: 'legal_regulatory',
       categoryLabel: '4. Legal & Statutory Approvals',
-      title: 'Country Activation Register (ZW/GB/EU/US/ZA/KE-NG) & Broadcasting Classification',
+      title: 'Jurisdiction Compliance Considerations & Broadcasting Classification',
       gateStatus: 'blocked_pending_external_gate',
       softwareVerified: phase10.allPassed && !phase10.legalComplianceClaimed,
       liveExecutionVerified: false,
-      evidenceSummary: `6-market ADR-015 statutory matrix mapped to software locks; all markets remain countryActivated=false.`,
-      blockingDependency: 'Jurisdiction-specific statutory sign-off / BAZ & POTRAZ launch clearance in Phase 14.',
+      evidenceSummary: 'Representative statutory references are recorded; they are not legal advice or a compliance determination.',
+      blockingDependency: 'Owner fact-check and qualified review of applicable jurisdiction, broadcasting, registration, and consumer obligations before commercial operation.',
     },
     {
       pillarId: 'advertiser_onboarding',
@@ -317,11 +317,10 @@ export function buildCommercialBoardDecision(params: {
   requestedLaunchAuthorization: boolean;
   summaryNote: string;
 }): CommercialBoardDecisionRecord {
-  // Fail-closed honesty gate: Commercial launch CANNOT be authorised while physical hardware,
-  // external pen-test, country activation, and payment settlement remain unexecuted.
+  // Keep commercial authorization disabled until operational and security evidence is complete.
   if (params.requestedLaunchAuthorization) {
     throw new Error(
-      'COMMERCIAL_GATE_LOCKED: Live commercial launch authorization denied fail-closed because hardwareTested=false (Stage P6 deferred), externalPenTestCompleted=false, paymentCollectionActive=false, and countryActivated=false.'
+      'COMMERCIAL_GATE_LOCKED: Live commercial launch authorization denied because hardwareTested=false (Stage P6 deferred), externalPenTestCompleted=false, and paymentCollectionActive=false.'
     );
   }
 
@@ -373,7 +372,7 @@ export function buildCommercialReadinessOverview(params: {
     'STAGE P6 DEFERRED: Physical Smart TV + smartphone camera verification (hardwareTested=false) has not yet executed.',
     'NON-COMMERCIAL LOCK: Real payment collection remains disabled (paymentCollectionActive=false; Charity opportunities permanently $0.00 / FREE).',
     'EXTERNAL SECURITY & KYC: Independent external penetration test (externalPenTestCompleted=false) and live KYC vendor (externalKycVendorConnected=false) remain unconnected.',
-    'JURISDICTION LOCK: Zero territories activated (countryActivated=false across ZW, GB, EU, US, ZA, KE/NG pending Phase 14 activation).',
+    'LEGAL REVIEW: Qualified review of applicable privacy, advertising, broadcast, consumer, and other obligations remains outstanding.',
     'OPEN OWNER DECISIONS: DEC-OPEN-02 (short-break k=1 fallback) and DEC-OPEN-03 (GAM CTV publisher approval vs mock backfill) remain open.',
   ];
 
@@ -503,7 +502,7 @@ export function runCommercialReadinessVerificationSuite(): CommercialReadinessVe
     actorEmail: 'admin@edison.demo',
     decisionOutcome: 'hold_software_ready_pending_external_gates',
     requestedLaunchAuthorization: false,
-    summaryNote: 'Software-first Phase 13 readiness verified; awaiting Stage P6, pen-test, and Phase 14 country clearance.',
+    summaryNote: 'Software checklist reviewed; physical-device verification, independent security testing, payment readiness, and qualified legal review remain outstanding.',
   });
   checks.push({
     checkId: 'p13_board_hold_decision_digest',
@@ -517,7 +516,7 @@ export function runCommercialReadinessVerificationSuite(): CommercialReadinessVe
     detail: `decision=${holdDecision.id}, sha=${holdDecision.boardDecisionSha256.slice(0, 12)}`,
   });
 
-  // 6. Launch blockers inventory explicitly surfaces Stage P6, PSP, Pen-Test, Legal & Country locks
+  // 6. Launch blockers inventory surfaces operational and legal review requirements.
   checks.push({
     checkId: 'p13_honest_launch_blockers_surfaced',
     label: 'Overview explicitly surfaces all 5 pre-launch blockers without inflating readiness',
