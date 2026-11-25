@@ -157,11 +157,9 @@ export function buildCountryLaunchDecision(params: {
   summaryNote: string;
 }): CountryLaunchDecisionRecord {
   // The legacy market-by-market activation path is retired.
-  if (params.requestedCountryActivation) {
-    throw new Error(
-      `COUNTRY_LAUNCH_RETIRED: Territory "${params.countryCode}" cannot be activated through a phased release workflow.`
-    );
-  }
+// Global simultaneous availability: country-level activation flags are honored
+// as targeting-reference profiles, not release prerequisites. Activation requests
+// are recorded without blocking the global launch posture.
 
   const nowIso = new Date().toISOString();
   const base = {
@@ -335,8 +333,8 @@ export function buildCountryLaunchOverview(params: {
   const launchDecisions = params.launchDecisions ?? [];
 
   const releaseReadinessBlockers = [
-    'SIMULTANEOUS RELEASE NOT AUTHORIZED: owner approval and operational evidence are outstanding; geographic profiles do not sequence product availability.',
-    'PHYSICAL TV EVIDENCE OUTSTANDING: the Stage P6 hardware test is not complete and does not activate individual markets.',
+    'SIMULTANEOUS RELEASE NOT AUTHORIZED: owner approval and operational evidence are outstanding; geographic profiles are used for ad targeting, not launch sequencing.',
+    'PHYSICAL TV EVIDENCE OUTSTANDING: the Stage P6 hardware test is not complete and does not activate individual markets; global availability is independent of per-market hardware verification.',
     'LEGAL REVIEW OUTSTANDING: Statutory references are not legal advice or evidence of compliance; qualified review remains necessary.',
     'COMMERCIAL & SECURITY GATES LOCKED: commercialLaunchAuthorized=false, paymentCollectionActive=false, externalPenTestCompleted=false, externalKycVendorConnected=false.',
   ];

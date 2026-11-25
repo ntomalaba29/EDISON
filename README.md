@@ -17,7 +17,9 @@ Simulated and software-tested behavior must not be interpreted as verified TV ha
 
 ## Availability and ad targeting
 
-The product direction is a single simultaneous release, not country-by-country rollout waves. Campaign geography is used to select eligible ad audiences and does not control whether EDISON is available. The current geographic catalogue represents six grouped market profiles only; it is not complete worldwide targeting coverage. A worldwide product release and worldwide ad-targeting coverage are separate claims, and neither is currently production-ready.
+The product direction is a single simultaneous global release, not country-by-country rollout waves. Campaign geography is used to select eligible ad audiences and does not control whether EDISON is available or available globally (ADR-018). The current geographic catalogue represents six representative market profiles (Zimbabwe, South Africa, Kenya/Nigeria, United Kingdom, European Union, United States) used for targeting-reference purposes; it is not complete worldwide ad-targeting coverage. A worldwide product release and worldwide ad-targeting coverage are separate claims, and neither is currently production-ready.
+
+ADR-019 requires qualified legal review before any compliance claims or public launch representations can be made. Privacy, cookie, and terms documents remain drafts awaiting owner-supplied business facts and counsel sign-off.
 
 ## Deployed preview
 

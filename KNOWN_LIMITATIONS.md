@@ -20,9 +20,10 @@
 
 ## Geographic targeting
 
-- Campaign selection uses campaign `targetRegions`; geographic selection is for ad targeting, not service availability.
+- Campaign selection uses campaign `targetRegions`; geographic selection is for ad targeting, not service availability (ADR-018).
 - A campaign can use the `GLOBAL` target token, but this does not prove that EDISON has worldwide users, inventory, valid location data, or legal authorization to serve ads in every location.
-- The built-in geography profiles cover six grouped market labels and selected subregions. The list is incomplete, includes a combined Kenya/Nigeria profile and a grouped EU profile, and is not an authoritative world-boundary dataset.
+- The built-in geography profiles cover six representative market profiles (Zimbabwe, South Africa, Kenya/Nigeria, United Kingdom, European Union, United States) used for targeting-reference purposes; the list is incomplete and is not an authoritative world-boundary dataset.
+- ADR-019 requires qualified legal review before any compliance claims or public launch representations can be made. Privacy, cookie, and terms documents remain drafts awaiting owner-supplied business facts and counsel sign-off.
 - No complete country/region polygon dataset, verified TV location source, radius targeting, device-movement verification, or global targeting accuracy has been established.
 
 ## Privacy, cookies, and legal readiness

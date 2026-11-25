@@ -9,9 +9,10 @@
 - EDISON is pre-production. The Cloudflare deployment is a limited preview; its compatibility endpoint reports the application API, media upload, and media processing as unavailable.
 - R2 is not active and the remote media bucket has not been created. The local media adapter does not provide production transcoding.
 - TV control code and simulations have not been verified on physical television hardware. Broadcaster, ad-network, identity, and payment integrations are not active.
-- The intended service release is simultaneous. Geography is used to select eligible campaign audiences, not to sequence product availability. The current catalogue is a small set of grouped profiles, not worldwide ad-targeting coverage.
+- The intended service release is simultaneous and global at launch. Geography is used to select eligible campaign audiences for ad targeting, not to sequence product availability. The current catalogue includes representative profiles (Zimbabwe, South Africa, Kenya/Nigeria, United Kingdom, European Union, United States) used for targeting-reference purposes, not as activated launch markets.
 - Privacy, Cookie, and Terms documents are drafts. They contain unresolved facts and decisions and are not approved or effective policies. Owner fact-check and qualified legal review remain pending (Phase 10.7).
 - External security review, production operations and recovery evidence, hardware testing, commercial authorization, and release authorization remain outstanding.
+- ADR-018 records simultaneous availability with geography used for ad targeting; ADR-019 requires qualified legal review and supersedes the earlier no-counsel policy.
 
 ## Verified evidence
 

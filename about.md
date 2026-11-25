@@ -21,9 +21,10 @@ The local R2 adapter and future Wrangler binding are prepared, but R2 has not be
 ## Product and operational limits
 
 - No live broadcaster, ad-network, or payment-provider integration is active.
-- Payment collection is disabled; the intended product release is simultaneous, with geography used only for campaign targeting.
+- Payment collection is disabled; the intended product release is simultaneous and global at launch. Geography is used to select eligible campaign audiences for ad targeting, not to sequence product availability (ADR-018).
 - Shared ad intelligence is a software prototype, not a deployed fleet service.
 - Physical hardware testing has not been completed.
 - The project ledger reports 77/99 executable substages complete (77.8%). This is task completion, not product or launch readiness; consult the [execution plan](EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md) for evidence and blockers.
+- Qualified legal review is required per ADR-019 before any compliance claims or public launch representations can be made. Privacy, cookie, and terms documents remain drafts awaiting owner-supplied business facts and counsel sign-off.
 
 See the [README](README.md) for setup and commands, and [Known Limitations](KNOWN_LIMITATIONS.md) for the detailed boundary between implemented software and external or physical work.
