@@ -94,7 +94,6 @@ import { runPrivacyComplianceVerificationSuite } from './privacyComplianceEngine
 import { runReliabilityChaosVerificationSuite } from './reliabilityChaosEngine.ts';
 import { runPilotReadinessVerificationSuite } from './pilotReadinessEngine.ts';
 import { runCommercialReadinessVerificationSuite } from './commercialReadinessEngine.ts';
-import { runCountryLaunchVerificationSuite } from './countryLaunchEngine.ts';
 import { runInternationalExpansionVerificationSuite } from './internationalExpansionEngine.ts';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -146,8 +145,6 @@ import {
   commercialDisputeResolveSchema,
   companionPolicyEvalSchema,
   complaintCreateSchema,
-  countryLaunchDecisionSchema,
-  countryPolicyUpdateSchema,
   deliveryEventIngestBatchSchema,
   deliveryManifestRequestSchema,
   emptyStrictSchema,
@@ -3812,16 +3809,7 @@ export function createEdisonApp(
     '/api/country-launch/overview',
     requireAuth,
     asyncHandler(async (req, res) => {
-      const user = (req as AuthenticatedRequest).currentUser!;
-      res.setHeader('Cache-Control', 'no-store, private');
-      try {
-        await synchronizeCountryLaunchStateFromD1();
-        res.json({ overview: store.getCountryLaunchOverview(user) });
-      } catch (err) {
-        if (isD1DomainError(err)) throw err;
-        const { code, message } = mapErrorStatus(err);
-        res.status(code).json({ error: message });
-      }
+      res.status(410).json({ error: 'Country launch activation is retired. Use campaign targeting geography instead.' });
     })
   );
 
@@ -3829,44 +3817,15 @@ export function createEdisonApp(
     '/api/country-launch/policy',
     requireAdmin,
     asyncHandler(async (req, res) => {
-      const user = (req as AuthenticatedRequest).currentUser!;
-      const parsed = parseWithZod(countryPolicyUpdateSchema, req.body);
-      if (!parsed.ok) {
-        sendValidationError(res, parsed);
-        return;
-      }
-      try {
-        await synchronizeCountryLaunchStateFromD1();
-        const overview = store.updateCountryPolicyConfig(user, parsed.data);
-        if (domainRecordRepository) {
-          const profile = overview.countries.find(
-            (country) => country.countryCode === parsed.data.countryCode
-          )?.policyConfig;
-          if (profile) await domainRecordRepository.putCountryPolicyProfile(profile);
-        }
-        res.setHeader('Cache-Control', 'no-store, private');
-        res.json({ overview });
-      } catch (err) {
-        if (isD1DomainError(err)) throw err;
-        const { code, message } = mapErrorStatus(err);
-        res.status(code).json({ error: message });
-      }
+      res.status(410).json({ error: 'Country launch policy updates are retired.' });
     })
   );
 
   app.post(
     '/api/country-launch/decision',
     requireAdmin,
-    (req: AuthenticatedRequest, res: Response) => {
-      const parsed = parseWithZod(countryLaunchDecisionSchema, req.body);
-      if (!parsed.ok) {
-        sendValidationError(res, parsed);
-        return;
-      }
-      res.setHeader('Cache-Control', 'no-store, private');
-      res.status(410).json({
-        error: 'Per-country launch activation is retired. Campaign geography is used for ad targeting, not release waves.',
-      });
+    (res: Response) => {
+      res.status(410).json({ error: 'Per-country launch activation is retired. Campaign geography is used for ad targeting, not release waves.' });
     }
   );
 
