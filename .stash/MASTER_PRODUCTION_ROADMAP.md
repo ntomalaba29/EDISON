@@ -140,8 +140,9 @@ Boundary decisions:
   provided.
 - Official-source Stage 3 research found no ordinary retail-device evidence for
   the complete automatic launch and exact input/channel restoration contract.
-  An OEM/operator-authorized integration remains a conditional candidate, not
-  a verified capability.
+  Current AOSP docs place TV HAL access in system TV Inputs and identify the
+  TV App as a system app. An OEM/operator-authorized integration remains a
+  conditional candidate, not a verified capability.
 
 ## Stage 1 completion evidence
 
