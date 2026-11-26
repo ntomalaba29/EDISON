@@ -3,7 +3,7 @@
 **Status:** Active execution plan; production readiness is not established  
 **Last reviewed:** 2026-11-26  
 **Audited starting snapshot:** `1e28771293defed325da07d7b6fa476a25074c55` (`test`)
-**Latest reviewed code state:** Based on `main` at `3d0d1981acfd5f399ea94f07c8cb75f7321a411a`; APP-03 implementation and stash updates are in the worktree and have not yet been committed.
+**APP-03 implementation commit:** `d86a836ea71ed0368a2b4467eaeaeda169e36c54` (`feat: add Android TV enrollment flow`), pushed to `new-origin/main`.
 **Scope:** EDISON's Android TV application, its Google CTV advertising integration, and the build/CI/technical evidence required for those components.
 
 This is the authoritative task ledger for this scoped effort. It replaces the Android TV/advertising completion counts and status claims in older `.stash` notes. It does not recalculate the separate 99-substage general project ledger. Do not report a percentage for this path.
@@ -181,6 +181,7 @@ Status values: `IN PROGRESS`, `PENDING`, `BLOCKED`, `DONE`. No task is `DONE` wi
   - Validation: `npm.cmd run lint` PASS; `npm.cmd run test -- tests/tvEnrollment.test.ts` PASS (5 tests); `npm.cmd run build` PASS (Vite reports the existing large-chunk advisory); `:app:testDebugUnitTest :app:assembleDebug` PASS using the installed SDK; `git diff --check` PASS.
   - Android 16 TV AVD `EDISON_TV_API36`: installed and launched the debug APK; UI hierarchy showed the setup-required screen, `Connect this TV` initially focused, and `Exit EDISON TV` available. No live enrollment request was triggered. A first hierarchy read was interrupted by a transient emulator transport disconnect; retry succeeded. Temporary emulator was stopped afterward.
   - Not verified: QR camera scanning, real owner sign-in/approval, live D1 status polling, token rotation/recovery, physical hardware, remote migration/secret configuration, any playback or ads. APP-03 remains in progress; APP-04 and all release gates remain open.
+  - Source changes were committed as `d86a836` and pushed to `new-origin/main`. No Worker deployment, remote migration, secret write, or live enrollment was performed.
 
 ## Next task
 
