@@ -20,7 +20,7 @@ CL-01 — Stage 30, retired country-launch helper and stale route tests.
 
 CL-02 — Stage 24, add focused HLS parser malformed/duplicate/discontinuity
 fixtures. This task remains queued until its production-stage dependencies are
-eligible. Do not start it automatically while Stage 2 is active.
+eligible. Do not start it automatically.
 
 ## Cline operating rules
 

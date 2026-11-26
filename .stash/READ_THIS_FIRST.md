@@ -32,7 +32,8 @@ The workflow is automatic. Viewer-triggered switching is not a substitute.
 1. `.stash/MASTER_PRODUCTION_ROADMAP.md`
 2. `.stash/CLINE_TASK.md`
 3. `.stash/CLINE_REPORT.md`
-4. `.stash/PRODUCTION_PATH_ANDROID_TV_GOOGLE_ADS.md`
+4. `.stash/STAGE2_PHYSICAL_ARCHITECTURE.md`
+5. `.stash/PRODUCTION_PATH_ANDROID_TV_GOOGLE_ADS.md`
 
 The master roadmap overrides the older Android TV/AdSense queue for the
 automatic television advertising project. The older document remains historical
@@ -40,14 +41,17 @@ implementation evidence and must not be used to claim real switching or playback
 
 ## Current state
 
-- Repository HEAD: `e95d3ee556f0e01e5056bcc4037634f6c42797d2`
-- Working tree was clean before the handoff documents were created; current
-  work includes the accepted CL-01 baseline repair and stash updates.
+- Last reviewed code baseline: `74e521fd8954e25205bc5f4eb57bb73d10160981`;
+  verify the current HEAD and worktree before starting further work.
+- CL-01 was committed and pushed; the Stage 2 update is documentation-only.
 - Stage 1 is complete.
-- Stage 2 is active: physical-system architecture and trust boundaries.
+- Stage 2 is complete: architecture and trust boundaries are in
+  `.stash/STAGE2_PHYSICAL_ARCHITECTURE.md`.
+- Stage 3 is blocked pending a named, owner-authorized TV/STB target and access
+  evidence for feasibility testing.
 - CL-01 is accepted after Copilot repaired the discovered decision-route defect.
 - There is no active Cline task. CL-02 remains queued until its Stage 24
-  dependencies are eligible; do not start it while Stage 2 is active.
+  dependencies are eligible.
 - Current local checks: TypeScript pass, Vitest 36 files/165 passed/1 skipped,
   Playwright 2/2 passed. Android CI and physical-device validation remain open.
 - The existing TV platform adapters and watchdogs are software simulations.
@@ -79,5 +83,5 @@ implementation evidence and must not be used to claim real switching or playback
 
 ## Immediate next action
 
-Copilot owns Stage 2 and the automatic-switching feasibility gate. No Cline task
+Copilot owns Stage 3 and the automatic-switching feasibility gate. No Cline task
 is active; CL-02 is queued behind Stage 24 prerequisites.

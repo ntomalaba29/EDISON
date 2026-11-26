@@ -41,8 +41,8 @@ tests remain separate evidence classes.
 | Stage | Status | Objective |
 |---|---|---|
 | 1 | DONE | Freeze the implemented baseline and establish the new handoff |
-| 2 | IN PROGRESS | Define physical-system architecture and trust boundaries |
-| 3 | PENDING | Execute the automatic-switching feasibility gate |
+| 2 | DONE | Define physical-system architecture and trust boundaries |
+| 3 | BLOCKED | Execute the automatic-switching feasibility gate |
 | 4 | PENDING | Define the authorized broadcast signal source |
 | 5 | PENDING | Replace synthetic profiles with validated contracts |
 | 6 | PENDING | Implement an authorized AD TRACKER input reader |
@@ -77,16 +77,19 @@ tests remain separate evidence classes.
 | 35 | PENDING | Complete operational deployment and incident readiness |
 | 36 | PENDING | Prepare final launch evidence and sign-off |
 
-**Current stage:** 2 — Define the Physical-System Architecture and Trust Boundary
+**Current stage:** 3 — Automatic-Switching Feasibility Gate (blocked pending a
+named, owner-authorized target device and access evidence)
 
-**Next external gate:** Stage 3 — Automatic-Switching Feasibility Gate
+**Current hard gate:** Stage 3 — Automatic-Switching Feasibility Gate
 
 **Baseline status:** CL-01 local code/test reconciliation is accepted. Stage 30
 remains in progress pending its Stage 24 dependency and repository CI gate.
 
-## Stage 2 provisional architecture boundary
+## Stage 2 architecture boundary
 
-The following is a design constraint, not an implementation or capability claim:
+The detailed decision and evidence are in
+`.stash/STAGE2_PHYSICAL_ARCHITECTURE.md`. This boundary is not an
+implementation or feasibility claim:
 
 ```text
 Authorized broadcast source
@@ -117,6 +120,17 @@ Boundary decisions:
 - Any source that requires OEM, operator, signature, or partner privileges must
   remain an external blocker until authorization/evidence exists.
 - Emulator state transitions do not prove real switching or restoration.
+
+## Stage 2 completion evidence
+
+- `.stash/STAGE2_PHYSICAL_ARCHITECTURE.md` defines execution/trust domains,
+  state and failure ownership, observed repository boundaries, and measurable
+  Stage 3 proof requirements.
+- The native app manifest has no TV-input service or switching permission; its
+  activity is an app shell, not a tuner controller.
+- The server TV adapter is simulated and cannot establish platform authority.
+- No device or live source was named, so Stage 3 is blocked pending
+  target-device/vendor capability evidence. No switching implementation began.
 
 ## Stage 1 completion evidence
 
