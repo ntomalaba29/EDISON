@@ -4,18 +4,18 @@ Scope: standalone Android TV app + eligible Google CTV advertising.
 Assessment: NOT PRODUCTION READY.
 Authoritative task ledger: .stash/PRODUCTION_PATH_ANDROID_TV_GOOGLE_ADS.md
 
-Completed: native app/build scaffold, setup-required TV shell, and Android 16
-TV emulator validation. Owner chose Cloudflare Workers + D1 and QR + short-code
-approval from a signed-in household account. Local D1 enrollment API groundwork
-and migration 0004 are implemented/tested; no remote migration, secret setup,
-or deployment was performed. Public Worker still reports applicationApiReady
-false.
+Completed: native app/build scaffold and setup-required TV shell. APP-03 is in
+progress: local owner approval UI, QR and short-code flow, Android Keystore
+credential storage, and enrollment polling are implemented and build/test
+verified. Android 16 TV AVD install/launch/focus check passed; no live
+enrollment request was sent. APP-04 migration/API groundwork is local only; no
+remote migration, secret setup, or deployment was performed. Public Worker
+still reports applicationApiReady false.
 
-Next: add the web owner-approval surface and Android QR/code enrollment UX,
-store the revocable device token in Android Keystore, and poll enrollment
-status. Then verify D1 migration and secret configuration in staging only with
-explicit owner authorization, add edge-wide abuse controls and authenticated
-TV configuration/event APIs, and test durable restart behavior.
+Queue: 19 outstanding scoped tasks; see the numbered list in the production
+path. Next: finish APP-03 credential rotation/recovery, then complete APP-04
+staging migration/secret, edge-wide abuse control, device APIs, and durable
+restart verification only with explicit owner authorization.
 
 Blockers: no IMA/playback/event ingestion, Google product/account approval,
 physical TV results, release signing, or green repository-wide test baseline.

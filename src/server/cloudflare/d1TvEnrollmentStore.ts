@@ -226,6 +226,38 @@ export class D1TvEnrollmentStore {
       : null;
   }
 
+  async findPendingByPairingCodeHash(
+    pairingCodeHash: string,
+    now: string
+  ): Promise<Array<{
+    enrollmentId: string;
+    deviceLabel: string;
+    status: TvEnrollmentRecord['status'];
+    expiresAt: string;
+  }>> {
+    const result = await this.database
+      .prepare(
+        `SELECT enrollment_id, device_label, status, expires_at
+         FROM edison_tv_enrollments
+         WHERE pairing_code_hash = ? AND status = 'pending' AND expires_at > ?
+         LIMIT 2`
+      )
+      .bind(pairingCodeHash, now)
+      .all<{
+        enrollment_id: string;
+        device_label: string;
+        status: TvEnrollmentRecord['status'];
+        expires_at: string;
+      }>();
+    assertSuccess(result, 'READ');
+    return (result.results ?? []).map((row) => ({
+      enrollmentId: row.enrollment_id,
+      deviceLabel: row.device_label,
+      status: row.status,
+      expiresAt: row.expires_at,
+    }));
+  }
+
   async getByDeviceTokenHash(
     enrollmentId: string,
     deviceTokenHash: string,

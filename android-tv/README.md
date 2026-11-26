@@ -24,9 +24,18 @@ after release would create a different Android application.
 
 ## Current implementation boundary
 
-The project has the native app entry point, Android TV launcher metadata, and
-an initial setup-required screen with a focus-visible Exit action. It does not
-yet have the complete focus-first app shell, loading/error/empty state flow,
-backend connection, Google IMA, ad playback, or emulator/device validation.
-Those are tracked in
-`.stash/PRODUCTION_PATH_ANDROID_TV_GOOGLE_ADS.md`.
+The app has a D-pad setup flow that requests a time-limited enrollment from the
+EDISON API, displays its QR approval link and eight-digit fallback code,
+persists the pending device credential encrypted with Android Keystore, and
+polls until approval, expiry, lockout, or revocation. A household viewer can
+approve the TV in the EDISON web app or select **Connect a TV** and enter the
+short code. The debug build defaults to the public Worker origin; override it
+with `-PedisonApiBaseUrl=https://your-https-origin` when building a different
+environment. Only an HTTPS origin without a path is accepted.
+
+The public Worker is not yet configured for enrollment, and the complete flow
+has not been tested end to end. The D1 migration and pairing secret require
+owner-authorized staging setup; edge-wide abuse control, credential rotation,
+device configuration APIs, Google IMA, ad playback, event ingestion, and
+physical-device verification remain open. Enrollment does not enable playback.
+See `.stash/PRODUCTION_PATH_ANDROID_TV_GOOGLE_ADS.md` for evidence and tasks.

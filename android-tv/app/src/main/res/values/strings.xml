@@ -2,6 +2,14 @@
     <string name="app_name">EDISON TV</string>
     <string name="setup_required">SETUP REQUIRED</string>
     <string name="setup_message">This TV is not connected to EDISON yet.</string>
+    <string name="connect_tv">Connect this TV</string>
+    <string name="resume_tv_setup">Resume TV setup</string>
+    <string name="enrollment_instructions">Scan this QR code with a phone signed in to your EDISON household account, or choose Connect a TV in EDISON and enter the code. Confirm the pairing code before approving.</string>
+    <string name="enrollment_pending">WAITING FOR OWNER APPROVAL</string>
+    <string name="enrolled">TV APPROVED</string>
+    <string name="enrolled_message">This TV is approved. Playback is not available until an approved content service is connected.</string>
+    <string name="enrollment_unavailable">EDISON TV setup is temporarily unavailable. Check your connection and try again.</string>
+    <string name="enrollment_expired">This pairing session expired or was revoked. Start setup again.</string>
     <string name="playback_unavailable">Playback is unavailable until this TV is set up and approved content is available.</string>
     <string name="exit_app">Exit EDISON TV</string>
     <string name="state_loading">LOADING</string>

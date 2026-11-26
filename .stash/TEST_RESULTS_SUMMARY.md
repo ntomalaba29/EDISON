@@ -1,4 +1,16 @@
-# EDISON Test Results Summary
+# Historical EDISON Test Results Summary — Superseded
+
+> The results below are a historical general-project snapshot, not the current
+> Android TV/Google advertising verification state. Use
+> [`PRODUCTION_PATH_ANDROID_TV_GOOGLE_ADS.md`](PRODUCTION_PATH_ANDROID_TV_GOOGLE_ADS.md)
+> for current evidence and the numbered queue. Latest scoped checks:
+> `npm.cmd run test -- tests/tvEnrollment.test.ts` (5 passed),
+> `npm.cmd run lint`, `npm.cmd run build`,
+> Android `:app:testDebugUnitTest :app:assembleDebug`, and Android 16 TV AVD
+> install/launch/focus check passed. A related D1 regression run had 24 passes
+> and one known 410-vs-200 assertion for a retired country-policy endpoint;
+> the full repository baseline is not green. The live enrollment path remains
+> unverified because no remote migration, secret, or deployment was performed.
 
 *Generated from verification runs — read alongside .stash/PROJECT_STATUS.md*
 

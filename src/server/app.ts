@@ -136,6 +136,7 @@ import {
   auraHeartbeatSchema,
   auraInitiatePairingSchema,
   tvEnrollmentApproveSchema,
+  tvEnrollmentLookupSchema,
   tvEnrollmentStartSchema,
   breakDurationPredictSchema,
   broadcastCueParseSchema,
@@ -431,6 +432,27 @@ function sendValidationError(
   });
 }
 
+function normalizePublicHttpsOrigin(value?: string): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (
+      url.protocol !== 'https:' ||
+      url.origin !== value.replace(/\/$/, '') ||
+      url.pathname !== '/' ||
+      url.search ||
+      url.hash ||
+      url.username ||
+      url.password
+    ) {
+      return null;
+    }
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
+
 function asyncHandler(
   handler: (req: Request, res: Response, next: NextFunction) => Promise<unknown>
 ): RequestHandler {
@@ -450,6 +472,7 @@ export function createEdisonApp(
     domainRecordRepository?: EdisonDomainRecordRepository;
     tvEnrollmentStore?: D1TvEnrollmentStore;
     tvEnrollmentHmacSecret?: string;
+    tvEnrollmentPublicOrigin?: string;
     governanceDocRepository?: {
       listGovernanceDocs: () => Promise<GovernanceDocRecord[]>;
       getGovernanceDocById: (id: string) => Promise<GovernanceDocRecord | null>;
@@ -464,6 +487,7 @@ export function createEdisonApp(
   const domainRecordRepository = options?.domainRecordRepository;
   const tvEnrollmentStore = options?.tvEnrollmentStore;
   const tvEnrollmentHmacSecret = options?.tvEnrollmentHmacSecret;
+  const tvEnrollmentPublicOrigin = normalizePublicHttpsOrigin(options?.tvEnrollmentPublicOrigin);
   const tvEnrollmentHmacKey =
     tvEnrollmentHmacSecret && /^[a-f0-9]{64}$/i.test(tvEnrollmentHmacSecret)
       ? Buffer.from(tvEnrollmentHmacSecret, 'hex')
@@ -885,7 +909,7 @@ export function createEdisonApp(
     tvEnrollmentRateMiddleware,
     express.json({ limit: '16kb' }),
     asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-      if (!tvEnrollmentStore || !tvEnrollmentHmacKey) {
+      if (!tvEnrollmentStore || !tvEnrollmentHmacKey || !tvEnrollmentPublicOrigin) {
         res.status(503).json({
           error: 'TV_ENROLLMENT_UNAVAILABLE',
           message: 'TV enrollment is not configured for this API runtime.',
@@ -923,6 +947,8 @@ export function createEdisonApp(
         createdAt: now.toISOString(),
       });
 
+      const approvalUrl = new URL(tvEnrollmentPublicOrigin);
+      approvalUrl.hash = `tv-enroll?${new URLSearchParams({ enrollmentId, pairingCode })}`;
       res.setHeader('Cache-Control', 'no-store');
       res.status(201).json({
         enrollmentId,
@@ -930,7 +956,54 @@ export function createEdisonApp(
         pairingCode,
         deviceToken,
         pairingExpiresAt: expiresAt,
+        approvalUrl: approvalUrl.toString(),
       });
+    })
+  );
+
+  app.post(
+    '/api/tv/enrollment/lookup',
+    requireAuth,
+    requireTvOwner,
+    tvEnrollmentRateMiddleware,
+    express.json({ limit: '16kb' }),
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+      if (!tvEnrollmentStore || !tvEnrollmentHmacKey) {
+        res.status(503).json({
+          error: 'TV_ENROLLMENT_UNAVAILABLE',
+          message: 'TV enrollment is not configured for this API runtime.',
+        });
+        return;
+      }
+      const parsed = parseWithZod(tvEnrollmentLookupSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const pairingCodeHash = crypto
+        .createHmac('sha256', tvEnrollmentHmacKey)
+        .update(parsed.data.pairingCode)
+        .digest('hex');
+      const matches = await tvEnrollmentStore.findPendingByPairingCodeHash(
+        pairingCodeHash,
+        new Date().toISOString()
+      );
+      if (matches.length === 0) {
+        res.status(404).json({
+          error: 'TV_ENROLLMENT_NOT_FOUND',
+          message: 'No active TV pairing was found for this code.',
+        });
+        return;
+      }
+      if (matches.length > 1) {
+        res.status(409).json({
+          error: 'TV_ENROLLMENT_CODE_AMBIGUOUS',
+          message: 'This code matches more than one TV. Scan the QR code instead.',
+        });
+        return;
+      }
+      res.setHeader('Cache-Control', 'no-store');
+      res.json({ enrollment: matches[0] });
     })
   );
 

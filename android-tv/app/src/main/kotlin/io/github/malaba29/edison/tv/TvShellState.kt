@@ -3,6 +3,8 @@ package io.github.malaba29.edison.tv
 sealed interface TvShellState {
     data object Loading : TvShellState
     data object SetupRequired : TvShellState
+    data object EnrollmentPending : TvShellState
+    data object Enrolled : TvShellState
     data object Empty : TvShellState
     data class Error(val canRetry: Boolean) : TvShellState
     data object Ready : TvShellState

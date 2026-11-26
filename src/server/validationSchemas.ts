@@ -1162,6 +1162,12 @@ export const tvEnrollmentApproveSchema = z
   })
   .strict();
 
+export const tvEnrollmentLookupSchema = z
+  .object({
+    pairingCode: z.string().trim().regex(/^\d{8}$/),
+  })
+  .strict();
+
 export const auraHeartbeatSchema = z
   .object({
     networkOnline: z.boolean(),

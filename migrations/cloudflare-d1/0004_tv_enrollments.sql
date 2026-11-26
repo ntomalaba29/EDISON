@@ -21,3 +21,6 @@ CREATE TABLE IF NOT EXISTS edison_tv_enrollments (
 
 CREATE INDEX IF NOT EXISTS idx_edison_tv_enrollments_owner
   ON edison_tv_enrollments (owner_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_edison_tv_enrollments_pairing_code
+  ON edison_tv_enrollments (pairing_code_hash, status, expires_at);

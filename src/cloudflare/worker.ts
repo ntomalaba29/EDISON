@@ -13,6 +13,7 @@ interface EdisonWorkerEnv {
   ASSETS: { fetch(request: Request): Promise<Response> };
   EDISON_R2_BUCKET?: R2BucketLike;
   EDISON_TV_PAIRING_HMAC_SECRET?: string;
+  EDISON_PUBLIC_ORIGIN?: string;
 }
 
 interface EdisonWorkerExecutionContext {
@@ -26,6 +27,7 @@ let workerRuntime:
   | {
       database: D1AuthDatabaseBinding;
       tvEnrollmentHmacSecret: string | undefined;
+      tvEnrollmentPublicOrigin: string | undefined;
       api: Express;
     }
   | undefined;
@@ -69,10 +71,12 @@ export default {
 
     const database = env.EDISON_DB;
     const tvEnrollmentHmacSecret = env.EDISON_TV_PAIRING_HMAC_SECRET;
+    const tvEnrollmentPublicOrigin = env.EDISON_PUBLIC_ORIGIN;
     if (
       !workerRuntime ||
       workerRuntime.database !== database ||
-      workerRuntime.tvEnrollmentHmacSecret !== tvEnrollmentHmacSecret
+      workerRuntime.tvEnrollmentHmacSecret !== tvEnrollmentHmacSecret ||
+      workerRuntime.tvEnrollmentPublicOrigin !== tvEnrollmentPublicOrigin
     ) {
       const [
         { createEdisonApp },
@@ -90,6 +94,7 @@ export default {
       workerRuntime = {
         database,
         tvEnrollmentHmacSecret,
+        tvEnrollmentPublicOrigin,
         api: createEdisonApp(new EdisonPrototypeStore({ storageMode: 'memory' }), {
           authSessionRepository: new D1AuthSessionStore(database, {
             isProduction: () => true,
@@ -97,6 +102,7 @@ export default {
           domainRecordRepository: new D1DomainRecordRepository(database),
           tvEnrollmentStore: new D1TvEnrollmentStore(database),
           tvEnrollmentHmacSecret,
+          tvEnrollmentPublicOrigin,
           governanceDocRepository: {
             listGovernanceDocs: () =>
               Promise.all(
@@ -124,6 +130,7 @@ export default {
           tvEnrollmentHmacKeyConfigured:
             typeof tvEnrollmentHmacSecret === 'string' &&
             /^[a-f0-9]{64}$/i.test(tvEnrollmentHmacSecret),
+          tvEnrollmentOriginConfigured: isPublicHttpsOrigin(tvEnrollmentPublicOrigin),
           mediaCompatibilityReady: false,
           mediaStorageConfigured: Boolean(mediaStorageBackend),
           mediaUploadReady: Boolean(mediaStorageBackend),
@@ -136,3 +143,13 @@ export default {
     return httpServerHandler(server).fetch(request);
   },
 };
+
+function isPublicHttpsOrigin(value?: string): boolean {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && url.origin === value && url.pathname === '/';
+  } catch {
+    return false;
+  }
+}

@@ -58,7 +58,10 @@ describe('Cloudflare D1 Android TV enrollment', () => {
     temporaryRoot = undefined;
   });
 
-  function createApp(secret = 'a'.repeat(64)) {
+  function createApp(
+    secret = 'a'.repeat(64),
+    publicOrigin = 'https://edison.ntomalaba29.workers.dev'
+  ) {
     database = new DatabaseSync(':memory:');
     database.exec(
       fs.readFileSync(
@@ -70,6 +73,7 @@ describe('Cloudflare D1 Android TV enrollment', () => {
     const app = createEdisonApp(store, {
       tvEnrollmentStore: new D1TvEnrollmentStore(new SqliteD1Binding(database)),
       tvEnrollmentHmacSecret: secret,
+      tvEnrollmentPublicOrigin: publicOrigin,
     });
     return { app, database };
   }
@@ -96,6 +100,14 @@ describe('Cloudflare D1 Android TV enrollment', () => {
     expect(start.status, JSON.stringify(start.body)).toBe(201);
     expect(start.body.pairingCode).toMatch(/^\d{8}$/);
     expect(start.body.deviceToken).toMatch(/^[A-Za-z0-9_-]{40,64}$/);
+    const approvalUrl = new URL(start.body.approvalUrl);
+    expect(approvalUrl.origin).toBe('https://edison.ntomalaba29.workers.dev');
+    expect(approvalUrl.search).toBe('');
+    expect(approvalUrl.hash.startsWith('#tv-enroll?')).toBe(true);
+    const approvalParams = new URLSearchParams(approvalUrl.hash.slice('#tv-enroll?'.length));
+    expect(approvalParams.get('enrollmentId')).toBe(start.body.enrollmentId);
+    expect(approvalParams.get('pairingCode')).toBe(start.body.pairingCode);
+    expect(start.body.approvalUrl).not.toContain(start.body.deviceToken);
     const stored = db
       .prepare(
         'SELECT pairing_code_hash, device_token_hash FROM edison_tv_enrollments WHERE enrollment_id = ?'
@@ -123,6 +135,22 @@ describe('Cloudflare D1 Android TV enrollment', () => {
       .set(auth);
     expect(approvalDetails.body.enrollment.deviceLabel).toBe('Living Room TV');
 
+    const codeLookup = await request(app)
+      .post('/api/tv/enrollment/lookup')
+      .set(auth)
+      .send({ pairingCode: start.body.pairingCode });
+    expect(codeLookup.status).toBe(200);
+    expect(codeLookup.body.enrollment.enrollmentId).toBe(start.body.enrollmentId);
+    expect(codeLookup.body.enrollment.deviceLabel).toBe('Living Room TV');
+
+    const invalidPairingCode =
+      start.body.pairingCode === '00000000' ? '00000001' : '00000000';
+    const invalidCodeLookup = await request(app)
+      .post('/api/tv/enrollment/lookup')
+      .set(auth)
+      .send({ pairingCode: invalidPairingCode });
+    expect(invalidCodeLookup.status).toBe(404);
+
     const advertiserRegistration = await request(app).post('/api/auth/register').send({
       email: 'tv-advertiser@example.test',
       password: 'StrongPass!234',
@@ -130,6 +158,12 @@ describe('Cloudflare D1 Android TV enrollment', () => {
       organisationName: 'EDISON Test',
       role: 'advertiser',
     });
+    const forbiddenLookup = await request(app)
+      .post('/api/tv/enrollment/lookup')
+      .set({ Authorization: `Bearer ${advertiserRegistration.body.token}` })
+      .send({ pairingCode: start.body.pairingCode });
+    expect(forbiddenLookup.status).toBe(403);
+
     const forbiddenApproval = await request(app)
       .post('/api/tv/enrollment/approve')
       .set({ Authorization: `Bearer ${advertiserRegistration.body.token}` })
@@ -222,6 +256,15 @@ describe('Cloudflare D1 Android TV enrollment', () => {
 
   it('fails closed when the pairing HMAC secret is missing or too short', async () => {
     const { app } = createApp('short');
+    const response = await request(app)
+      .post('/api/tv/enrollment/start')
+      .send({ deviceLabel: 'Office TV' });
+    expect(response.status).toBe(503);
+    expect(response.body.error).toBe('TV_ENROLLMENT_UNAVAILABLE');
+  });
+
+  it('fails closed when the TV approval origin is not HTTPS', async () => {
+    const { app } = createApp('a'.repeat(64), 'http://attacker.example');
     const response = await request(app)
       .post('/api/tv/enrollment/start')
       .send({ deviceLabel: 'Office TV' });

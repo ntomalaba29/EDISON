@@ -9,18 +9,27 @@ Verified:
 - Android 16 TV emulator install, launch, readable UI, D-pad Exit/Back, and
   shell lifecycle tests passed; see the authoritative ledger for evidence.
 - Owner selected Cloudflare Workers + D1 and QR + short-code owner approval.
-- Initial D1 enrollment API groundwork and migration 0004 are implemented
-  locally. `npm.cmd run test -- tests/tvEnrollment.test.ts`: 4 passed;
-  `npm.cmd run lint`: passed.
+- APP-03 local owner approval UI, QR/deep link, code fallback, Android
+  Keystore-encrypted credentials, and status polling are implemented. The API
+  builds approval links from a fixed HTTPS origin; the device token is never
+  included in the URL.
+- `npm.cmd run test -- tests/tvEnrollment.test.ts`: 5 passed;
+  `npm.cmd run lint` and `npm.cmd run build`: passed.
+- Android `:app:testDebugUnitTest :app:assembleDebug`: passed. Android 16 TV
+  AVD install/launch and initial D-pad focus verified; no enrollment request
+  was sent.
 - Public Cloudflare compatibility endpoint still reports
   `applicationApiReady:false`; no remote migration, secret, or deploy was made.
 
 Not complete:
-- No Android enrollment UI/client, QR flow, owner-approval UI, device API,
-  IMA integration, real ad playback/events, or physical-device evidence.
-- D1 migration/secret and edge-wide rate limiting are not configured remotely.
+- APP-03 credential rotation/recovery and end-to-end staging enrollment are
+  unverified. D1 migration/secret and edge-wide rate limiting are not configured
+  remotely.
+- No device configuration API, IMA integration, real ad playback/events, or
+  physical-device evidence.
 - Full repository baseline remains non-green; see BASE-01 and the work log.
 
-Next: implement the authenticated owner-approval UI and Android TV QR/code
-enrollment client. Do not claim enrollment, API, ad, or production readiness
-until the remaining acceptance evidence is recorded.
+Queue size: 19 outstanding scoped tasks; see the authoritative numbered list.
+Next: APP-03 — implement the authenticated owner-approval UI and Android TV
+QR/code enrollment client. Do not claim enrollment, API, ad, or production
+readiness until the remaining acceptance evidence is recorded.

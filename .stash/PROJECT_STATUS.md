@@ -2,34 +2,36 @@
 
 ## Current handoff
 
-The active request is an evidence-based production path for the Android TV
-application and Google CTV advertising integration. The authoritative ordered
-task ledger, acceptance criteria, status, and continuation record are:
+The current numbered queue and evidence ledger are:
 
 [`PRODUCTION_PATH_ANDROID_TV_GOOGLE_ADS.md`](PRODUCTION_PATH_ANDROID_TV_GOOGLE_ADS.md)
 
-Read that ledger before continuing. It supersedes conflicting Android TV and
-advertising claims in older stash notes. Do not rely on historical progress
-percentages as evidence of implementation or production readiness.
+The owner asked to finish the existing Android TV enrollment/API work first.
+APP-03 is in progress: the owner approval screen, QR/code flow, Android
+Keystore-encrypted session, and polling client now exist locally. The remaining
+APP-03 work is credential rotation/recovery and end-to-end staging verification.
+APP-04 has local D1/API groundwork but is not deployed or ready.
 
 ## Current assessment
 
-**Not production ready.** At the audited repository snapshot
-`1e28771293defed325da07d7b6fa476a25074c55`, product source contains TV platform
-simulations, but no EDISON native Android application or Google IMA integration
-was found. No live ad playback or physical Android TV test is evidenced. The
-repository's README also describes the product as pre-production.
+**Not production ready.** The native Android TV project and setup-required
+shell exist; Android 16 TV emulator evidence covers install, launch, layout and
+D-pad Exit/Back behavior. Playback, Google IMA, actual ad requests/events,
+physical TV verification and production enrollment are not complete. The
+public Cloudflare preview still reports `applicationApiReady:false`.
 
-The initial TypeScript check found a parse error and related shared-state defects
-in `src/server/sharedIntelligencePreview.ts`. AUD-01 is repaired and verified:
-`npm.cmd run lint` and all 11 focused shared-intelligence tests pass. The full
-Vitest and E2E suites still have failures recorded in BASE-01; production and
-CI readiness are not established.
+The local D1 enrollment API has five focused passing tests; TypeScript check,
+web production build, Android JVM tests and APK build pass. Android 16 TV AVD
+install/launch and initial focus are verified. No live enrollment request was
+sent. The full repository baseline remains non-green; see BASE-01 in the
+authoritative queue. No Cloudflare secret, remote migration, deployment, live
+ad request or release was performed.
 
-## Safety and scope
+## Scope and guardrails
 
-Work only on Android TV, the eligible Google CTV ad path, and directly required
-build/CI/technical verification. Tizen, webOS, Fire TV, AdMob, and paid
-advertiser purchasing/billing are out of scope. Do not deploy, change billing,
-make live ad requests, or claim owner/legal/hardware approvals without explicit
+The queue covers Android TV, native Google CTV advertising, a separate AdSense
+website-eligibility assessment, and directly required build/CI/technical
+verification. Tizen, webOS, Fire TV, AdMob, other ad networks and paid-advertiser
+marketplace/billing work are excluded. Do not deploy, change billing, make live
+ad requests, or claim owner/legal/hardware approvals without explicit
 authorization and recorded evidence.

@@ -2,10 +2,13 @@ EDISON scoped production work has an authoritative ordered ledger:
 
   .stash/PRODUCTION_PATH_ANDROID_TV_GOOGLE_ADS.md
 
-Read that file first. It records current evidence, exclusions, task dependencies,
-acceptance criteria, verification history, and the exact next task. AUD-01 is
-verified; AUD-02 is recorded; BASE-01 is blocked by pre-existing test/route
-mismatches, while Android architecture remains pending.
+Read its **Numbered production queue — all remaining in-scope work** first.
+APP-03 is in progress: the owner approval screen, QR and short-code lookup,
+Android Keystore session storage, and enrollment polling are implemented
+locally. Finish credential rotation/recovery and end-to-end staging verification.
+APP-04 remains in progress; remote migration and secret configuration are not
+done. ARCH-01/02 and APP-01/02 are complete; APP-03 emulator launch/focus
+evidence is recorded in the ledger.
 
 Do not use the historical 77/99 or 92/99 Android TV/advertising claims as
 implementation or production-readiness evidence. No percentage is reported for

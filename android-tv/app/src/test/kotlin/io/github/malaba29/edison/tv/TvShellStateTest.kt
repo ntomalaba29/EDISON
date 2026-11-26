@@ -12,6 +12,8 @@ class TvShellStateTest {
         val nonReadyStates = listOf(
             TvShellState.Loading,
             TvShellState.SetupRequired,
+            TvShellState.EnrollmentPending,
+            TvShellState.Enrolled,
             TvShellState.Empty,
             TvShellState.Error(canRetry = true),
             TvShellState.Error(canRetry = false)
@@ -37,6 +39,8 @@ class TvShellStateTest {
         val nonReadyStates = listOf(
             TvShellState.Loading,
             TvShellState.SetupRequired,
+            TvShellState.EnrollmentPending,
+            TvShellState.Enrolled,
             TvShellState.Empty,
             TvShellState.Error(canRetry = true)
         )

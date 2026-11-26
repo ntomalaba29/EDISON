@@ -36,6 +36,7 @@ import { OpportunityView } from './components/OpportunityView';
 import { AdminAnalyticsView } from './components/AdminAnalyticsView';
 import { QaHandoverView } from './components/QaHandoverView';
 import { SharedIntelligencePreviewView } from './components/SharedIntelligencePreviewView';
+import { TvEnrollmentApprovalView } from './components/TvEnrollmentApprovalView';
 import { HouseholdPrivacyView } from './components/HouseholdPrivacyView';
 import { COMMIT_AND_NEXT_MESSAGE, copyTextWithFallback } from './components/CopyReportFooter';
 import { EDISON_DOCUMENTS } from './data/documents';
@@ -44,6 +45,7 @@ import type { PublicUser } from './types/edison';
 
 type NavTab =
   | 'auth'
+  | 'tv_enrollment'
   | 'household'
   | 'profile'
   | 'campaigns'
@@ -79,6 +81,7 @@ interface FoundationSummary {
 
 const PROTOTYPE_NAV: { id: NavTab; label: string; icon: typeof KeyRound }[] = [
   { id: 'auth', label: 'Auth & RBAC Console', icon: KeyRound },
+  { id: 'tv_enrollment', label: 'Connect a TV', icon: Tv },
   { id: 'household', label: 'Households, Profiles & Consent', icon: Tv },
   { id: 'profile', label: 'Advertiser Profile', icon: Building2 },
   { id: 'campaigns', label: 'Campaigns (10-State)', icon: Megaphone },
@@ -141,6 +144,39 @@ export default function App() {
   const allItems = [...PROTOTYPE_NAV, ...GOVERNANCE_NAV];
   const currentItem = allItems.find((item) => item.id === activeTab) ?? PROTOTYPE_NAV[0];
   const isPrototypeTab = PROTOTYPE_NAV.some((item) => item.id === activeTab);
+  const isTvEnrollmentApproval = window.location.hash.startsWith('#tv-enroll');
+  const tvEnrollmentParams = isTvEnrollmentApproval
+    ? new URLSearchParams(window.location.hash.slice('#tv-enroll?'.length))
+    : null;
+  const enrollmentId = tvEnrollmentParams?.get('enrollmentId') ?? null;
+  const pairingCode = tvEnrollmentParams?.get('pairingCode') ?? null;
+
+  if (isTvEnrollmentApproval) {
+    return currentUser?.role === 'household_viewer' ? (
+      <TvEnrollmentApprovalView
+        currentUser={currentUser}
+        enrollmentId={enrollmentId}
+        pairingCode={pairingCode}
+        allowManualFallback={false}
+      />
+    ) : (
+      <main className="min-h-screen bg-slate-50 px-4 py-10">
+        <section className="mx-auto max-w-3xl">
+          <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5">
+            <h1 className="text-xl font-bold text-slate-900">Sign in to approve your TV</h1>
+            <p className="mt-2 text-sm text-slate-600">
+              Use the household viewer account for the home where this TV will be installed.
+            </p>
+          </div>
+          <AuthRbacView
+            currentUser={currentUser}
+            summary={summary}
+            onAuthChange={refreshAuthState}
+          />
+        </section>
+      </main>
+    );
+  }
 
   const handleNavClick = (id: NavTab) => {
     setActiveTab(id);
@@ -305,6 +341,22 @@ export default function App() {
               summary={summary}
               onAuthChange={refreshAuthState}
             />
+          )}
+          {activeTab === 'tv_enrollment' && (
+            currentUser?.role === 'household_viewer' ? (
+              <TvEnrollmentApprovalView
+                currentUser={currentUser}
+                enrollmentId={null}
+                pairingCode={null}
+                allowManualFallback
+              />
+            ) : (
+              <AuthRbacView
+                currentUser={currentUser}
+                summary={summary}
+                onAuthChange={refreshAuthState}
+              />
+            )
           )}
           {activeTab === 'household' && (
             <HouseholdPrivacyView
