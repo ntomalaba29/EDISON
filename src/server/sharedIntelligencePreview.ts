@@ -71,7 +71,7 @@ function computeManifestHash(
     .slice(0, 16);
 }
 
-// REAL: Compute real percentile from observed data (not prototype-simulated averaging)
+// Calculate the requested percentile of supplied values; callers define their provenance.
 export function computeRealPercentile(durations: number[], p: number): number {
   if (durations.length === 0) return 0;
   const sorted = [...durations].sort((a, b) => a - b);
@@ -184,20 +184,20 @@ export function createInitialSharedIntelPreviewState(): SharedIntelPreviewState 
       action: 'PREVIEW_INITIALISED',
       scopeId: null,
       detail:
-        'Real Smart TV break duration calibration initialised: 3 scoped compatibility bundles, quorum=3, FPR rollback guard=2.5%, zero viewer PII. Break duration history collection active. Percentile computation from observed data enabled.',
+        'Prototype simulation initialised with synthetic compatibility bundles and device fixtures; no live TV telemetry is represented.',
       createdAt: now,
     },
   ];
 
   return {
-    isPrototypeSimulation: false,
+    isPrototypeSimulation: true,
     implementationNote:
-      'Real Smart TV break duration calibration: collects observed break durations per scope, computes real p10/p50 percentiles from corroborated data, updates bundle calibration from actual telemetry, enforces FPR rollback guard at 2.5%. Zero-PII enforcement active. Audit trail tracks all calibration events.',
+      'Prototype simulation only: seeded device IDs, bundles, and observations are synthetic. No live TV telemetry, device quorum, or production calibration is represented.',
     quorumThreshold: SHARED_INTEL_QUORUM_REQUIRED,
     fprRollbackThresholdPct: SHARED_INTEL_FPR_ROLLBACK_THRESHOLD_PCT,
     zeroPiiEnforced: true,
     rejectedPiiAttemptCount: 0,
-    breakDurationHistory: {} as Record<string, Array<{tvDeviceId: string; durationSec: number; observedAt: string; trustDecision: string}>,
+    breakDurationHistory: {},
     bundles,
     deviceCaches,
     observations: [],
@@ -208,6 +208,12 @@ export function createInitialSharedIntelPreviewState(): SharedIntelPreviewState 
 function cloneState(state: SharedIntelPreviewState): SharedIntelPreviewState {
   return {
     ...state,
+    breakDurationHistory: Object.fromEntries(
+      Object.entries(state.breakDurationHistory).map(([scopeId, history]) => [
+        scopeId,
+        history.map((entry) => ({ ...entry })),
+      ])
+    ),
     bundles: state.bundles.map((b) => ({
       ...b,
       scope: { ...b.scope },
@@ -436,17 +442,24 @@ export function submitSharedIntelObservation(
     }
   }
 
-  // REAL: Compute new bundle p50/p10 from observed break duration history, not simple averaging
+  // Compute bounded percentile values from observations accepted in this simulation.
   const observedDurations = (nextState.breakDurationHistory[scopeId] || []).filter(
     (h) => h.trustDecision === 'accepted_corroborated'
   ).map((h) => h.durationSec);
-  const newP50 = observedDurations.length > 0 ? SharedIntelPreview.computeRealPercentile(observedDurations, 50) : bundle.p50BreakDurationSec;
-  const newP10 = observedDurations.length > 0 ? SharedIntelPreview.computeRealPercentile(observedDurations, 10) : bundle.p10BreakDurationSec;
+  const newP50 =
+    observedDurations.length > 0
+      ? computeRealPercentile(observedDurations, 50)
+      : bundle.p50BreakDurationSec;
+  const newP10 =
+    observedDurations.length > 0
+      ? computeRealPercentile(observedDurations, 10)
+      : bundle.p10BreakDurationSec;
   // Preserve reasonable bounds: new p10 < new p50, and keep min/max guards
   const boundedP10 = Math.max(15, Math.min(newP10, newP50 - 25));
   const boundedP50 = Math.max(boundedP10 + 25, Math.min(newP50, 300));
 
   const nextLatency = Math.round((bundle.switchingLatencyMs + input.transitionLatencyMs) / 2);
+  const nextVersion = bundle.version + 1;
 
   bundle.previousGoodVersion = bundle.version;
   bundle.version = nextVersion;
@@ -473,9 +486,9 @@ export function submitSharedIntelObservation(
     }
   }
 
-  // REAL: Collect observed break duration into per-scope history (only accepted/corroborated observations)
+  // Keep the accepted fixture history bounded; it remains simulated telemetry.
   if (input.estimatedBreakDurationSec >= 10 && input.estimatedBreakDurationSec <= 1200) {
-    const durationEntry = {
+    const durationEntry: SharedIntelPreviewState['breakDurationHistory'][string][number] = {
       tvDeviceId,
       durationSec: input.estimatedBreakDurationSec,
       observedAt: now,

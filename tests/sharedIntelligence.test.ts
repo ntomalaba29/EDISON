@@ -6,6 +6,14 @@ import {
 } from '../src/server/sharedIntelligencePreview.ts';
 
 describe('Shared Ad Intelligence Prototype Preview (Block P2-V2.4 / ADR-016)', () => {
+  it('identifies seeded device fixtures as a prototype simulation', () => {
+    const state = createInitialSharedIntelPreviewState();
+
+    expect(state.isPrototypeSimulation).toBe(true);
+    expect(state.implementationNote).toContain('synthetic');
+    expect(state.deviceCaches.every((device) => device.tvDeviceId.startsWith('sim_tv_'))).toBe(true);
+  });
+
   it('holds a single TV observation in quarantine and prevents Sybil self-corroboration', () => {
     const init = createInitialSharedIntelPreviewState();
     const targetScope = init.bundles[0].scope.scopeId;

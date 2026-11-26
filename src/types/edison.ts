@@ -844,6 +844,15 @@ export interface SharedIntelPreviewState {
   fprRollbackThresholdPct: number;
   zeroPiiEnforced: true;
   rejectedPiiAttemptCount: number;
+  breakDurationHistory: Record<
+    string,
+    Array<{
+      tvDeviceId: string;
+      durationSec: number;
+      observedAt: string;
+      trustDecision: SharedIntelTrustDecision;
+    }>
+  >;
   bundles: SharedIntelBundleRecord[];
   deviceCaches: SharedIntelLocalDeviceCache[];
   observations: SharedIntelObservationRecord[];

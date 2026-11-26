@@ -95,6 +95,7 @@ import { runReliabilityChaosVerificationSuite } from './reliabilityChaosEngine.t
 import { runPilotReadinessVerificationSuite } from './pilotReadinessEngine.ts';
 import { runCommercialReadinessVerificationSuite } from './commercialReadinessEngine.ts';
 import { runInternationalExpansionVerificationSuite } from './internationalExpansionEngine.ts';
+import { runCountryLaunchVerificationSuite } from './countryLaunchEngine.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import { auraRemoteEngine } from './auraRemoteEngine.ts';

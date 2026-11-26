@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">EDISON TV</string>
+    <string name="setup_required">SETUP REQUIRED</string>
+    <string name="setup_message">This TV is not connected to EDISON yet.</string>
+    <string name="playback_unavailable">Playback is unavailable until this TV is set up and approved content is available.</string>
+    <string name="exit_app">Exit EDISON TV</string>
+    <string name="state_loading">LOADING</string>
+    <string name="loading_message">Checking this TV’s EDISON setup.</string>
+    <string name="state_empty">NO APPROVED CONTENT</string>
+    <string name="empty_message">There is no approved content available for this TV.</string>
+    <string name="state_error">CONNECTION ERROR</string>
+    <string name="error_message">EDISON could not complete setup. Playback was not started.</string>
+    <string name="state_ready">SETUP READY</string>
+    <string name="ready_message">EDISON is ready. Playback remains viewer-controlled.</string>
+    <string name="playback_not_started">Playback has not started.</string>
+</resources>

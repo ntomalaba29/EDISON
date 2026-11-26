@@ -4,6 +4,7 @@ dist/
 coverage/
 .DS_Store
 *.log
+.gradle/
 .env*
 !.env.example
 .wrangler/
@@ -11,3 +12,4 @@ coverage/
 /data/
 playwright-report/
 test-results/
+android-tv/local.properties
