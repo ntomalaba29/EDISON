@@ -156,10 +156,14 @@ export function buildCountryLaunchDecision(params: {
   requestedCountryActivation: boolean;
   summaryNote: string;
 }): CountryLaunchDecisionRecord {
-  // The legacy market-by-market activation path is retired.
-// Global simultaneous availability: country-level activation flags are honored
-// as targeting-reference profiles, not release prerequisites. Activation requests
-// are recorded without blocking the global launch posture.
+  // This helper remains for verification fixtures; the public decision route is retired.
+  if (params.requestedCountryActivation) {
+    const err = new Error(
+      'COUNTRY_LAUNCH_RETIRED: Legacy country activation is retired; use global targeting profiles only.'
+    );
+    err.name = 'COUNTRY_LAUNCH_RETIRED';
+    throw err;
+  }
 
   const nowIso = new Date().toISOString();
   const base = {

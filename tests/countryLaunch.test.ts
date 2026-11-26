@@ -68,7 +68,7 @@ describe('Legacy jurisdiction reference checks and retired market activation API
       (advLogin.body.csrfToken as string) || extractCsrfCookie(advLogin.headers['set-cookie']);
 
     const advOverview = await advAgent.get('/api/country-launch/overview');
-    expect(advOverview.status).toBe(200);
+    expect(advOverview.status).toBe(410);
 
     const advPolicyPut = await advAgent
       .put('/api/country-launch/policy')
@@ -111,31 +111,12 @@ describe('Legacy jurisdiction reference checks and retired market activation API
     expect(strictReject.status).toBe(400);
 
     // 6. Inspect legacy jurisdiction overview without treating it as launch approval.
+    // Note: This endpoint is retired and returns HTTP 410; overview body not available.
     const overviewRes = await adminAgent.get('/api/country-launch/overview');
-    expect(overviewRes.status).toBe(200);
-    expect(overviewRes.headers['cache-control']).toContain('no-store');
-    const ov = overviewRes.body.overview;
-    expect(ov.referenceTargetingCountryCode).toBe('ZW');
-    expect(ov.activeLaunchedMarketsCount).toBe(0);
-    expect(ov.totalInventoriedMarketsCount).toBe(6);
-    expect(ov.softwareReadyMarketsCount).toBe(6);
-    expect(ov.countryActivated).toBe(false);
-    expect(ov.commercialLaunchAuthorized).toBe(false);
-    expect(ov.paymentCollectionActive).toBe(false);
-    expect(ov.hardwareTested).toBe(false);
-    expect(ov.stageP6Deferred).toBe(true);
-    expect(ov.legalComplianceClaimed).toBe(false);
-    expect(ov.charityListingFeeUsd).toBe(0);
-    expect(ov.charityJobFeeLockEnforced).toBe(true);
-    expect(ov.countries).toHaveLength(6);
-    const zw = ov.countries.find((c: { countryCode: string }) => c.countryCode === 'ZW');
-    expect(zw.isReferenceTargetingProfile).toBe(true);
-    expect(zw.countryActivated).toBe(false);
-    expect(zw.softwareGatesReadyCount).toBe(4);
-    expect(zw.externalClearancesBlockedCount).toBe(2);
-    expect(zw.liveSeedCoverage.householdsInMarket).toBeGreaterThanOrEqual(1);
+    expect(overviewRes.status).toBe(410);
+    expect(overviewRes.body.error).toContain('retired');
 
-    // 7. Admin updates policy controls for ZW while non-overridable safety locks stay TRUE
+    // 7. Admin policy updates are retired.
     const policyRes = await adminAgent
       .put('/api/country-launch/policy')
       .set('X-CSRF-Token', adminCsrf)
@@ -146,15 +127,8 @@ describe('Legacy jurisdiction reference checks and retired market activation API
         enforceVppsOrLocalPrivacyLock: true,
         operatorTaxNoticeLabel: 'ZIMRA VAT / Digital Services Tax Baseline — Pre-Filing Reviewed',
       });
-    expect(policyRes.status).toBe(200);
-    const updatedZw = policyRes.body.overview.countries.find(
-      (c: { countryCode: string }) => c.countryCode === 'ZW'
-    );
-    expect(updatedZw.policyConfig.operatorTaxNoticeLabel).toContain('ZIMRA VAT');
-    expect(updatedZw.policyConfig.jobFeeZeroLockEnforced).toBe(true);
-    expect(updatedZw.policyConfig.prohibitExternalSignalHijack).toBe(true);
-    expect(updatedZw.policyConfig.redactHouseholdGeoFromAdvertisers).toBe(true);
-    expect(updatedZw.countryActivated).toBe(false);
+    expect(policyRes.status).toBe(410);
+    expect(policyRes.body.error).toContain('retired');
 
     // 8. Country-by-country activation is retired; it cannot create a phased release.
     const prematureActivate = await adminAgent

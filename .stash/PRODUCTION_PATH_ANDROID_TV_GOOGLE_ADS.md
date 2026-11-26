@@ -6,7 +6,16 @@
 **APP-03 implementation commit:** `d86a836ea71ed0368a2b4467eaeaeda169e36c54` (`feat: add Android TV enrollment flow`), pushed to `new-origin/main`.
 **Scope:** EDISON's Android TV application, its Google CTV advertising integration, and the build/CI/technical evidence required for those components.
 
-This is the authoritative task ledger for this scoped effort. It replaces the Android TV/advertising completion counts and status claims in older `.stash` notes. It does not recalculate the separate 99-substage general project ledger. Do not report a percentage for this path.
+**Automatic advertising superseding ledger:** `.stash/MASTER_PRODUCTION_ROADMAP.md`.
+The Android TV enrollment/AdSense path remains relevant to the app and ad
+delivery foundations, but it is not evidence of automatic broadcast detection,
+real switching, real restoration, or physical-device capability.
+
+This ledger tracks Android app and Google-advertising work. For the automatic
+broadcast-advertising workflow, `.stash/MASTER_PRODUCTION_ROADMAP.md` is the
+authoritative stage ledger. This document replaces older Android TV/advertising
+completion counts; it does not recalculate the separate 99-substage project
+ledger. Do not report a percentage for this path.
 
 ## Continuation protocol
 
@@ -37,13 +46,16 @@ Excluded: Samsung Tizen, LG webOS, Fire TV, AdMob, OpenRTB, Magnite/FreeWheel/Pu
 
 Production release remains blocked until the app exists, Google confirms an eligible account/product configuration, real playback/events are validated, security/privacy/policy gates pass, and a supported physical Android TV device passes the release test. Any step requiring an owner account, signing key, paid service, legal decision, hardware, deployment, or public release must be explicitly identified as owner action; do not simulate its completion.
 
-## Numbered production queue — all remaining in-scope work
+## Numbered production queue — ordered in-scope work
 
-These are the open tasks, in execution order. The numbers are a queue, not a completion percentage. Completed work is intentionally omitted. Task IDs below link each item to its acceptance criteria in the ledger. **Priority 1 is to finish the enrollment work already underway**; do not start a parallel production path.
+Items are in execution order; completed work is retained for traceability and is
+not a completion percentage. Task IDs link to the acceptance criteria below.
+**Priority 1 is to finish the enrollment work already underway**; do not start a
+parallel production path.
 
 1. **APP-03 — NEXT: finish owner-approved device enrollment.** The logged-in approval screen, fixed-origin QR link, eight-digit manual code lookup, D-pad setup, Android Keystore-encrypted session, status polling, and retry/expiry/lock/revocation states are implemented locally. Remaining: credential rotation/recovery and end-to-end staging verification after APP-04's owner-authorized migration/secret setup. No real device is enrolled.
 2. **APP-04 — finish the Cloudflare Workers + D1 API path.** Exercise migration `0004` and `EDISON_TV_PAIRING_HMAC_SECRET` in staging only after explicit owner authorization; add a Cloudflare-wide abuse limit, enforce device ownership/status/revocation on every device API, implement only required configuration and event endpoints, and verify restart durability. Keep `applicationApiReady:false` until the full app path is evidenced.
-3. **BASE-01 — reconcile the non-green repository baseline.** Determine which readiness/country-route tests are stale versus genuine defects, preserve the intended retired-route behavior unless a product decision changes it, then get the applicable unit/E2E/CI checks green. This is a release blocker; do not claim a green baseline now.
+3. **BASE-01 — DONE: reconcile the local repository baseline.** Retired country-launch tests were corrected, the decision route's Express handler defect was repaired, and local TypeScript, full Vitest (36 files; 165 passed, 1 skipped), and Playwright (2/2) checks pass. Android CI/repository CI remains tracked separately; this does not establish production readiness.
 4. **MEDIA-01 — define media delivery requirements.** Specify the source, supported video formats/codecs, HTTPS/cache/timeouts, content validation, playback handoff and safe fallback for the Android player.
 5. **ADS-01 — resolve native CTV Google product and eligibility.** Use current official Google documentation and owner/account evidence to establish whether GAM/IMA is supported for this inventory, account approval, ad-tag/inventory setup, policy limits and permitted linear formats. No live request before approval.
 6. **ADS-WEB-01 — assess AdSense separately.** Determine whether EDISON owns an eligible website property and document ownership, site-content and policy/approval requirements. AdSense is not the Android TV playback SDK; if no eligible website exists, record “not applicable” rather than inventing a TV integration.
@@ -68,8 +80,8 @@ Status values: `IN PROGRESS`, `PENDING`, `BLOCKED`, `DONE`. No task is `DONE` wi
 | ID | Status | Task and acceptance evidence | Depends on |
 |---|---|---|---|
 | AUD-01 | DONE | Repair the malformed TypeScript type, restore the declared shared-intelligence history shape, fix the missing helper/version references and app import found by the compiler, and truthfully label seeded fixtures as simulation. `npm.cmd run lint` passes; all 11 shared-intelligence tests pass, including the new synthetic-fixture assertion. | — |
-| AUD-02 | DONE | Run and record the software baseline plus current CI status. Baseline is not green; see the work log and BASE-01. | AUD-01 |
-| BASE-01 | BLOCKED | Reconcile the existing non-Android failures before claiming repository CI is green: 13 Vitest failures (mostly 33/34 readiness assertions because the legacy country-launch verification returns 7/8, plus tests that expect country-launch routes to remain live although the app returns 410) and one E2E assertion for a PostgreSQL readiness message absent from the UI. Do not silently restore retired behavior or broaden product scope; agree whether to update stale tests or change behavior before touching those contracts. | AUD-02 |
+| AUD-02 | DONE | Run and record the initial software baseline and CI status. The initial local failures were reconciled under BASE-01; Android CI remains open. | AUD-01 |
+| BASE-01 | DONE | Local baseline reconciled without restoring retired behavior: the route handler now returns 410, country-launch verification passes 8/8, all 36 Vitest files pass (165 passed, 1 skipped), and both Playwright tests pass. CI/Android CI remains a separate task. | AUD-02 |
 | ARCH-01 | DONE | Owner chose a standalone foreground app: EDISON plays only after the viewer opens EDISON; no overlay/takeover of another app's tuner, HDMI input, or protected surface. IMA/Media3 are for EDISON's own app-owned video playback. | AUD-02 |
 | ARCH-02 | DONE | Reviewed current official Android TV, Android TV quality, IMA Android TV, IMA compatibility and Media3-IMA integration guidance. Source notes below. Google publisher-account/product approval is a separate owner gate in ADS-01. | ARCH-01 |
 | APP-01 | DONE | Created the EDISON-owned native Android TV Gradle project under `android-tv/`, isolated from research samples. Owner selected app ID `io.github.malaba29.edison.tv` and launcher name `EDISON TV`. JDK 17, API 36, Build-Tools 36.0.0, Platform-Tools 37.0.3, AGP 9.5.3, and Gradle wrapper 9.9.2 are configured. The wrapper distribution SHA-256 is pinned. Debug build and `aapt dump badging` confirm the package, TV launcher activity, and non-required touchscreen. Store availability/ownership of the chosen ID is not verified. Emulator shell validation is recorded under APP-02; physical-device testing remains open. | ARCH-02 |
@@ -108,6 +120,7 @@ Status values: `IN PROGRESS`, `PENDING`, `BLOCKED`, `DONE`. No task is `DONE` wi
 - `npm.cmd test` — FAIL: 35 files; 147 passed, 13 failed, 1 skipped. Failures trace to the existing readiness invariant and tests expecting retired country-launch routes to remain active. See BASE-01; do not treat this as a green CI baseline.
 - `npm.cmd run test:e2e` — FAIL: 1 passed, 1 failed. TV app Back-control test passed; `tests/e2e/edison.spec.ts` timed out expecting a “Verified real PostgreSQL 16+ schema migrations” UI message that was absent.
 - `npm.cmd run build` — PASS; Vite reports the existing ~1.29 MB JavaScript chunk-size advisory.
+
 - `git diff --check` — PASS.
 - GitHub Actions run [45768819903](https://github.com/ntomalaba29/EDISON/actions/runs/45768819903) for this audited commit failed at the TypeScript step; subsequent CI steps were skipped. Local type-check passes after the repairs, but the remote run remains a failure on the committed snapshot. No push or deployment was made.
 - Owner selected the **standalone foreground Android TV app** model. EDISON will not claim to control external TV tuners, HDMI, or another app's protected surface.
@@ -183,6 +196,34 @@ Status values: `IN PROGRESS`, `PENDING`, `BLOCKED`, `DONE`. No task is `DONE` wi
   - Not verified: QR camera scanning, real owner sign-in/approval, live D1 status polling, token rotation/recovery, physical hardware, remote migration/secret configuration, any playback or ads. APP-03 remains in progress; APP-04 and all release gates remain open.
   - Source changes were committed as `d86a836` and pushed to `new-origin/main`. No Worker deployment, remote migration, secret write, or live enrollment was performed.
 
+### 2026-11-26 — CL-01 review and baseline repair
+
+- Cline's `.stash/CLINE_REPORT.md` remained the starter placeholder. Its diff
+  partially updated the country-launch helper and tests but did not complete the
+  assigned D1 regression test or record test results.
+- Copilot fixed the malformed Express handler in
+  `src/server/app.ts`; the retired decision route now returns HTTP 410 instead
+  of HTTP 500. D1 tests now verify retired policy/overview operations do not
+  persist country policy or decision records.
+- Rejected Cline's out-of-scope test additions in the D1 break-event, HLS parser,
+  and TV enrollment test files. The D1 additions had a syntax error and several
+  assertions inconsistent with current contracts. No behavior changes were
+  made for those additions.
+- `npm.cmd run lint` — PASS.
+- `npm.cmd run test -- tests/countryLaunch.test.ts` — PASS, 2 tests.
+- `npm.cmd run test -- tests/d1AuthSessionApp.test.ts` — PASS, 20 tests.
+- `npm.cmd run test` — PASS, 36 files; 165 passed, 1 skipped.
+- `npm.cmd run test:e2e` — PASS, 2 tests.
+- CL-01 accepted with Copilot repairs. Stage 30 remains in progress pending
+  Stage 24 and Android/CI gates; Stage 2 remains the current production stage.
+
 ## Next task
 
-        Continue APP-03 by adding credential rotation/recovery and its regression tests. Then, only after explicit owner authorization, complete APP-04 staging migration/secret setup, Cloudflare-wide abuse control and restart-durability/device-API verification to enable an end-to-end enrollment test. Do not claim production enrollment or API readiness until those checks pass. BASE-01, Google product/account eligibility, IMA/playback, live ads, physical-device QA, and release sign-off remain open.
+Continue APP-03 by adding credential rotation/recovery and its regression tests.
+Then, only after explicit owner authorization, complete APP-04 staging
+migration/secret setup, Cloudflare-wide abuse control and restart-durability/
+device-API verification to enable an end-to-end enrollment test. Do not claim
+production enrollment or API readiness until those checks pass. BASE-01 local
+baseline reconciliation is complete; Android CI, Google product/account
+eligibility, IMA/playback, live ads, physical-device QA, and release sign-off
+remain open.

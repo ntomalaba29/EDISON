@@ -1563,7 +1563,7 @@ describe('D1 authentication/session Express integration', () => {
         enforceVppsOrLocalPrivacyLock: true,
         operatorTaxNoticeLabel: 'Zimbabwe test policy notice label',
       });
-    expect(policyUpdate.status).toBe(200);
+    expect(policyUpdate.status).toBe(410);
     const countryDecision = await request(adminApp)
       .post('/api/country-launch/decision')
       .set('Authorization', `Bearer ${adminToken}`)
@@ -1575,12 +1575,7 @@ describe('D1 authentication/session Express integration', () => {
       });
     expect(countryDecision.status).toBe(410);
     expect(await domainRecordRepository.listCountryLaunchDecisions()).toEqual([]);
-    expect(await domainRecordRepository.listCountryPolicyProfiles()).toEqual([
-      expect.objectContaining({
-        countryCode: 'ZW',
-        operatorTaxNoticeLabel: 'Zimbabwe test policy notice label',
-      }),
-    ]);
+    expect(await domainRecordRepository.listCountryPolicyProfiles()).toEqual([]);
 
     const regionUpdate = await request(adminApp)
       .put('/api/international-expansion/region-config')
@@ -1658,13 +1653,9 @@ describe('D1 authentication/session Express integration', () => {
     const countryOverview = await request(restartedApp)
       .get('/api/country-launch/overview')
       .set('Authorization', `Bearer ${restartedAdminLogin.body.token}`);
-    expect(countryOverview.status).toBe(200);
-    expect(countryOverview.body.overview.launchDecisions).toEqual([]);
-    expect(
-      countryOverview.body.overview.countries.find(
-        (country: { countryCode: string }) => country.countryCode === 'ZW'
-      ).policyConfig.operatorTaxNoticeLabel
-    ).toBe('Zimbabwe test policy notice label');
+    expect(countryOverview.status).toBe(410);
+    expect(await domainRecordRepository.listCountryLaunchDecisions()).toEqual([]);
+    expect(await domainRecordRepository.listCountryPolicyProfiles()).toEqual([]);
 
     const expansionOverview = await request(restartedApp)
       .get('/api/international-expansion/overview')

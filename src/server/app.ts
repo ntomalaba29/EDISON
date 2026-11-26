@@ -4141,7 +4141,7 @@ export function createEdisonApp(
   app.post(
     '/api/country-launch/decision',
     requireAdmin,
-    (res: Response) => {
+    (_req: Request, res: Response) => {
       res.status(410).json({ error: 'Per-country launch activation is retired. Campaign geography is used for ad targeting, not release waves.' });
     }
   );
