@@ -1,7 +1,7 @@
 # Stage 2 — Physical-System Architecture and Trust Boundaries
 
-**Status:** DECIDED, CONDITIONAL ON STAGE 3 FEASIBILITY  
-**Reviewed:** 2026-11-26  
+**Status:** DECIDED, CONDITIONAL ON STAGE 3 FEASIBILITY
+**Reviewed:** 2026-11-26
 **Scope:** Android TV / Google TV and traditional broadcast only
 
 ## Decision
