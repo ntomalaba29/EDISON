@@ -1149,6 +1149,19 @@ export const auraConfirmPairingSchema = z
   })
   .strict();
 
+export const tvEnrollmentStartSchema = z
+  .object({
+    deviceLabel: z.string().trim().min(2).max(80),
+  })
+  .strict();
+
+export const tvEnrollmentApproveSchema = z
+  .object({
+    enrollmentId: z.string().trim().min(16).max(80),
+    pairingCode: z.string().trim().regex(/^\d{8}$/),
+  })
+  .strict();
+
 export const auraHeartbeatSchema = z
   .object({
     networkOnline: z.boolean(),

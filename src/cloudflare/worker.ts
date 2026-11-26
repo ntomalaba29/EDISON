@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { httpServerHandler } from 'cloudflare:node';
 import { D1AuthSessionStore } from '../server/cloudflare/d1AuthSessionStore.ts';
 import { D1DomainRecordRepository } from '../server/cloudflare/d1DomainRecordRepository.ts';
+import { D1TvEnrollmentStore } from '../server/cloudflare/d1TvEnrollmentStore.ts';
 import { R2MediaStorage, type R2BucketLike } from '../server/cloudflare/r2MediaStorage.ts';
 import type { D1AuthDatabaseBinding } from '../server/cloudflare/d1AuthSessionStore.ts';
 import type { Express } from 'express';
@@ -11,6 +12,7 @@ interface EdisonWorkerEnv {
   EDISON_DB: D1AuthDatabaseBinding;
   ASSETS: { fetch(request: Request): Promise<Response> };
   EDISON_R2_BUCKET?: R2BucketLike;
+  EDISON_TV_PAIRING_HMAC_SECRET?: string;
 }
 
 interface EdisonWorkerExecutionContext {
@@ -21,7 +23,11 @@ interface EdisonWorkerExecutionContext {
 const WORKER_MEDIA_PROCESSING_DISABLED = true;
 
 let workerRuntime:
-  | { database: D1AuthDatabaseBinding; api: Express }
+  | {
+      database: D1AuthDatabaseBinding;
+      tvEnrollmentHmacSecret: string | undefined;
+      api: Express;
+    }
   | undefined;
 
 async function readWorkerGovernanceDoc(
@@ -62,7 +68,12 @@ export default {
     }
 
     const database = env.EDISON_DB;
-    if (!workerRuntime || workerRuntime.database !== database) {
+    const tvEnrollmentHmacSecret = env.EDISON_TV_PAIRING_HMAC_SECRET;
+    if (
+      !workerRuntime ||
+      workerRuntime.database !== database ||
+      workerRuntime.tvEnrollmentHmacSecret !== tvEnrollmentHmacSecret
+    ) {
       const [
         { createEdisonApp },
         { EdisonPrototypeStore },
@@ -78,11 +89,14 @@ export default {
         : undefined;
       workerRuntime = {
         database,
+        tvEnrollmentHmacSecret,
         api: createEdisonApp(new EdisonPrototypeStore({ storageMode: 'memory' }), {
           authSessionRepository: new D1AuthSessionStore(database, {
             isProduction: () => true,
           }),
           domainRecordRepository: new D1DomainRecordRepository(database),
+          tvEnrollmentStore: new D1TvEnrollmentStore(database),
+          tvEnrollmentHmacSecret,
           governanceDocRepository: {
             listGovernanceDocs: () =>
               Promise.all(
@@ -107,6 +121,9 @@ export default {
           runtime: 'cloudflare-workers',
           state: 'd1-backed-app-shell',
           applicationApiReady: false,
+          tvEnrollmentHmacKeyConfigured:
+            typeof tvEnrollmentHmacSecret === 'string' &&
+            /^[a-f0-9]{64}$/i.test(tvEnrollmentHmacSecret),
           mediaCompatibilityReady: false,
           mediaStorageConfigured: Boolean(mediaStorageBackend),
           mediaUploadReady: Boolean(mediaStorageBackend),

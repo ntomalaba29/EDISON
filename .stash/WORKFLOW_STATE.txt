@@ -1,24 +1,25 @@
 EDISON WORKFLOW STATE - 2026-11-26
 
-Current scope: Android TV application + eligible Google CTV advertising.
-Current assessment: NOT PRODUCTION READY.
-Authoritative work ledger: .stash/PRODUCTION_PATH_ANDROID_TV_GOOGLE_ADS.md
+Scope: standalone Android TV app + eligible Google CTV advertising.
+Assessment: NOT PRODUCTION READY.
+Authoritative task ledger: .stash/PRODUCTION_PATH_ANDROID_TV_GOOGLE_ADS.md
 
-Next task: APP-03 device enrollment/authentication. Resolve APP-04 deployed
-backend/runtime scope before implementation. Do not simulate fleet enrollment
-or production credentials. APP-01 native project/build and APP-02 TV shell
-are complete. Owner selected `io.github.malaba29.edison.tv`; Play Store
-availability is unverified.
-Temurin JDK 17, Android API 36, Build-Tools 36.0.0, Platform-Tools 37.0.3,
-AGP 9.5.3, and Gradle 9.9.2 are installed/configured. The Google Android SDK
-license required for these packages was accepted under prior owner approval.
-ARCH-01: owner chose standalone app. AUD-01 is verified; AUD-02 baseline is
-recorded but not green. BASE-01 blocks a green full-suite claim. No IMA,
-playback, backend, or enrollment is done. Emulator runtime validation is now
-done; physical-device validation remains blocked by owner hardware evidence.
-Read `.stash/PRODUCTION_PATH_ANDROID_TV_GOOGLE_ADS.md` before continuing.
+Completed: native app/build scaffold, setup-required TV shell, and Android 16
+TV emulator validation. Owner chose Cloudflare Workers + D1 and QR + short-code
+approval from a signed-in household account. Local D1 enrollment API groundwork
+and migration 0004 are implemented/tested; no remote migration, secret setup,
+or deployment was performed. Public Worker still reports applicationApiReady
+false.
 
-Latest verified Android milestone: shell state/lifecycle unit tests, debug
-APK build, and Android 16 TV emulator runtime pass. APK SHA-256 is
-545CDA16E5A305D733A4C2A08DD44D0FE3CF7A24E54FC4677CB033243D7D98EB.
-WHPX acceleration is usable; D-pad Center/Back exit behavior is verified.
+Next: add the web owner-approval surface and Android QR/code enrollment UX,
+store the revocable device token in Android Keystore, and poll enrollment
+status. Then verify D1 migration and secret configuration in staging only with
+explicit owner authorization, add edge-wide abuse controls and authenticated
+TV configuration/event APIs, and test durable restart behavior.
+
+Blockers: no IMA/playback/event ingestion, Google product/account approval,
+physical TV results, release signing, or green repository-wide test baseline.
+Android toolchain is installed; app ID is
+`io.github.malaba29.edison.tv` (Play availability remains unverified).
+Read the authoritative ledger before continuing; do not claim production
+readiness based on simulation or local-only verification.

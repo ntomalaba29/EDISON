@@ -5,6 +5,7 @@ import express, {
   type NextFunction,
   type RequestHandler,
 } from 'express';
+import crypto from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import {
   ALL_CAMPAIGN_STATUSES,
@@ -17,6 +18,7 @@ import type {
   EdisonDataRepository,
 } from './repository.ts';
 import { D1DomainRecordRepository } from './cloudflare/d1DomainRecordRepository.ts';
+import { D1TvEnrollmentStore } from './cloudflare/d1TvEnrollmentStore.ts';
 import {
   STATIC_ASSET_SECURITY_HEADERS,
   UPLOADS_DIR,
@@ -133,6 +135,8 @@ import {
   auraConfirmPairingSchema,
   auraHeartbeatSchema,
   auraInitiatePairingSchema,
+  tvEnrollmentApproveSchema,
+  tvEnrollmentStartSchema,
   breakDurationPredictSchema,
   broadcastCueParseSchema,
   broadcastRenderValidateSchema,
@@ -444,6 +448,8 @@ export function createEdisonApp(
     requestTimeoutMs?: number;
     authSessionRepository?: EdisonAuthSessionRepository;
     domainRecordRepository?: EdisonDomainRecordRepository;
+    tvEnrollmentStore?: D1TvEnrollmentStore;
+    tvEnrollmentHmacSecret?: string;
     governanceDocRepository?: {
       listGovernanceDocs: () => Promise<GovernanceDocRecord[]>;
       getGovernanceDocById: (id: string) => Promise<GovernanceDocRecord | null>;
@@ -456,6 +462,12 @@ export function createEdisonApp(
   const mediaStorageBackend = options?.mediaStorageBackend;
   const authSessionRepository = options?.authSessionRepository ?? store;
   const domainRecordRepository = options?.domainRecordRepository;
+  const tvEnrollmentStore = options?.tvEnrollmentStore;
+  const tvEnrollmentHmacSecret = options?.tvEnrollmentHmacSecret;
+  const tvEnrollmentHmacKey =
+    tvEnrollmentHmacSecret && /^[a-f0-9]{64}$/i.test(tvEnrollmentHmacSecret)
+      ? Buffer.from(tvEnrollmentHmacSecret, 'hex')
+      : null;
   const app = express();
   app.set('trust proxy', true);
   app.disable('x-powered-by');
@@ -675,6 +687,19 @@ export function createEdisonApp(
     (req) => req.ip || 'unknown'
   );
 
+  const tvEnrollmentRateMiddleware = limiter.middleware(
+    {
+      name: 'tv-enrollment',
+      windowMs: 15 * 60 * 1000,
+      maxRequests: 10,
+    },
+    (req) => req.ip || 'unknown'
+  );
+  const noStoreTvApiMiddleware: RequestHandler = (_req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store');
+    next();
+  };
+
   const mutationRateMiddleware = limiter.middleware(
     {
       name: 'api-mutation',
@@ -720,10 +745,19 @@ export function createEdisonApp(
     next();
   }
 
+  function requireTvOwner(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+    if (req.currentUser?.role !== 'household_viewer') {
+      res.status(403).json({ error: 'A household viewer account is required to manage TVs.' });
+      return;
+    }
+    next();
+  }
+
   const CSRF_PUBLIC_BOOTSTRAP_PATHS = new Set([
     '/api/auth/login',
     '/api/auth/register',
     '/api/qr/validate',
+    '/api/tv/enrollment/start',
   ]);
 
   async function requireCsrfAndSameOrigin(
@@ -842,6 +876,215 @@ export function createEdisonApp(
       drainAuditWrites(() => originalSend(body))) as Response['send'];
     next();
   });
+
+  app.use('/api/tv/enrollment', noStoreTvApiMiddleware);
+  app.use('/api/tv/devices', noStoreTvApiMiddleware);
+
+  app.post(
+    '/api/tv/enrollment/start',
+    tvEnrollmentRateMiddleware,
+    express.json({ limit: '16kb' }),
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+      if (!tvEnrollmentStore || !tvEnrollmentHmacKey) {
+        res.status(503).json({
+          error: 'TV_ENROLLMENT_UNAVAILABLE',
+          message: 'TV enrollment is not configured for this API runtime.',
+        });
+        return;
+      }
+      const parsed = parseWithZod(tvEnrollmentStartSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+
+      const now = new Date();
+      const enrollmentId = crypto.randomUUID();
+      const deviceId = `tv_${crypto.randomUUID().replace(/-/g, '')}`;
+      const pairingCode = String(crypto.randomInt(0, 100_000_000)).padStart(8, '0');
+      const deviceToken = crypto.randomBytes(32).toString('base64url');
+      const expiresAt = new Date(now.getTime() + 5 * 60 * 1000).toISOString();
+      const pairingCodeHash = crypto
+        .createHmac('sha256', tvEnrollmentHmacKey)
+        .update(pairingCode)
+        .digest('hex');
+      const deviceTokenHash = crypto
+        .createHash('sha256')
+        .update(deviceToken)
+        .digest('hex');
+
+      await tvEnrollmentStore.create({
+        enrollmentId,
+        deviceId,
+        deviceLabel: parsed.data.deviceLabel,
+        pairingCodeHash,
+        deviceTokenHash,
+        expiresAt,
+        createdAt: now.toISOString(),
+      });
+
+      res.setHeader('Cache-Control', 'no-store');
+      res.status(201).json({
+        enrollmentId,
+        deviceId,
+        pairingCode,
+        deviceToken,
+        pairingExpiresAt: expiresAt,
+      });
+    })
+  );
+
+  app.post(
+    '/api/tv/enrollment/approve',
+    requireAuth,
+    requireTvOwner,
+    express.json({ limit: '16kb' }),
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+      if (!tvEnrollmentStore || !tvEnrollmentHmacKey) {
+        res.status(503).json({
+          error: 'TV_ENROLLMENT_UNAVAILABLE',
+          message: 'TV enrollment is not configured for this API runtime.',
+        });
+        return;
+      }
+      const parsed = parseWithZod(tvEnrollmentApproveSchema, req.body);
+      if (!parsed.ok) {
+        sendValidationError(res, parsed);
+        return;
+      }
+      const pairingCodeHash = crypto
+        .createHmac('sha256', tvEnrollmentHmacKey)
+        .update(parsed.data.pairingCode)
+        .digest('hex');
+      const result = await tvEnrollmentStore.approve({
+        enrollmentId: parsed.data.enrollmentId,
+        pairingCodeHash,
+        ownerId: req.currentUser!.id,
+        now: new Date().toISOString(),
+      });
+      if (result !== 'approved') {
+        const statusCode =
+          result === 'expired' ? 410 :
+            result === 'locked' ? 429 :
+              result === 'already_approved' ? 409 : 400;
+        res.status(statusCode).json({
+          error: `TV_ENROLLMENT_${result.toUpperCase()}`,
+          message:
+            result === 'invalid'
+              ? 'Enrollment ID or pairing code is invalid.'
+              : `TV enrollment could not be approved (${result}).`,
+        });
+        return;
+      }
+      recordRouteAudit(
+        req,
+        req.currentUser!,
+        'TV_DEVICE_ENROLLMENT_APPROVED',
+        parsed.data.enrollmentId,
+        'Household owner approved an Android TV enrollment.'
+      );
+      res.setHeader('Cache-Control', 'no-store');
+      res.json({ enrollmentId: parsed.data.enrollmentId, status: 'approved' });
+    })
+  );
+
+  app.get(
+    '/api/tv/enrollment/:enrollmentId/approval-details',
+    requireAuth,
+    requireTvOwner,
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+      if (!tvEnrollmentStore) {
+        res.status(503).json({ error: 'TV_ENROLLMENT_UNAVAILABLE' });
+        return;
+      }
+      const details = await tvEnrollmentStore.getApprovalDetails(req.params.enrollmentId);
+      if (!details) {
+        res.status(404).json({ error: 'TV_ENROLLMENT_NOT_FOUND' });
+        return;
+      }
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.json({ enrollment: details });
+    })
+  );
+
+  app.get(
+    '/api/tv/enrollment/:enrollmentId',
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+      if (!tvEnrollmentStore) {
+        res.status(503).json({ error: 'TV_ENROLLMENT_UNAVAILABLE' });
+        return;
+      }
+      const token = req.get('authorization')?.match(/^Bearer\s+([A-Za-z0-9_-]{40,64})$/i)?.[1];
+      if (!token) {
+        res.status(401).json({ error: 'TV_DEVICE_CREDENTIAL_REQUIRED' });
+        return;
+      }
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+      const enrollment = await tvEnrollmentStore.getByDeviceTokenHash(
+        req.params.enrollmentId,
+        tokenHash,
+        new Date().toISOString()
+      );
+      if (!enrollment) {
+        res.status(401).json({ error: 'TV_DEVICE_CREDENTIAL_INVALID' });
+        return;
+      }
+      res.setHeader('Cache-Control', 'no-store');
+      res.json({
+        enrollmentId: enrollment.enrollmentId,
+        deviceId: enrollment.deviceId,
+        status: enrollment.status,
+        pairingExpiresAt: enrollment.expiresAt,
+        approvedAt: enrollment.approvedAt,
+        revokedAt: enrollment.revokedAt,
+      });
+    })
+  );
+
+  app.get(
+    '/api/tv/devices',
+    requireAuth,
+    requireTvOwner,
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+      if (!tvEnrollmentStore) {
+        res.status(503).json({ error: 'TV_ENROLLMENT_UNAVAILABLE' });
+        return;
+      }
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.json({ items: await tvEnrollmentStore.listDevices(req.currentUser!.id) });
+    })
+  );
+
+  app.post(
+    '/api/tv/devices/:enrollmentId/revoke',
+    requireAuth,
+    requireTvOwner,
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+      if (!tvEnrollmentStore) {
+        res.status(503).json({ error: 'TV_ENROLLMENT_UNAVAILABLE' });
+        return;
+      }
+      const revoked = await tvEnrollmentStore.revoke({
+        enrollmentId: req.params.enrollmentId,
+        ownerId: req.currentUser!.id,
+        now: new Date().toISOString(),
+      });
+      if (!revoked) {
+        res.status(404).json({ error: 'TV_DEVICE_NOT_FOUND' });
+        return;
+      }
+      recordRouteAudit(
+        req,
+        req.currentUser!,
+        'TV_DEVICE_CREDENTIAL_REVOKED',
+        req.params.enrollmentId,
+        'Household owner revoked an Android TV device credential.'
+      );
+      await Promise.all(req.pendingAuditWrites ?? []);
+      req.pendingAuditWrites = [];
+      res.status(204).end();
+    })
+  );
 
   // Validated media upload endpoint (auth + CSRF + upload rate limit before parsing 26MB JSON)
   app.post(

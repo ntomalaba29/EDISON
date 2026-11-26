@@ -6,6 +6,7 @@
 
 - The public Cloudflare Worker is a limited preview. Its compatibility endpoint reports `applicationApiReady: false`, `mediaUploadReady: false`, and `mediaProcessingReady: false`.
 - The Worker uses D1 bindings for authentication and domain records, but the application also has in-memory state. Restart durability and full production data-path readiness are not established by the public preview.
+- Local Android TV enrollment groundwork now has a D1 migration and owner-approved pairing API (short-lived HMAC-protected code, attempt lockout, hashed revocable device credential, owner-scoped revoke). It is not deployed: migration 0004 and the 32-byte HMAC secret are not applied/configured remotely, no native TV QR client or owner-approval UI exists, and the current application rate limiter is isolate-local rather than a verified edge-wide control. The API compatibility flag therefore remains false; no TV configuration/ad/event API readiness is claimed.
 - The R2 binding and local adapter exist, but R2 is not active and the remote bucket has not been created. Durable media upload is unavailable.
 - The Node.js FFmpeg worker is for compatible Node environments only. Media processing is explicitly disabled in Cloudflare Workers; no remote transcoding provider is selected.
 - Production backups, restore drills, monitoring, alerting, incident response, and an external security review have not been completed.

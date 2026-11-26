@@ -1,39 +1,26 @@
 EDISON ANDROID TV + GOOGLE CTV ADS STATUS
 Last reviewed: 2026-11-26
 
-Status: NOT PRODUCTION READY; implementation and production evidence are incomplete.
-Authoritative sequence and per-task status:
+Status: NOT PRODUCTION READY. Authoritative task sequence and evidence:
   .stash/PRODUCTION_PATH_ANDROID_TV_GOOGLE_ADS.md
 
-The prior 92/99 and Android TV/AdSense completion claims are unsupported and
-superseded. Do not report progress percentages for this scoped path.
+Verified:
+- APP-01 native Android TV project and APP-02 shell are implemented.
+- Android 16 TV emulator install, launch, readable UI, D-pad Exit/Back, and
+  shell lifecycle tests passed; see the authoritative ledger for evidence.
+- Owner selected Cloudflare Workers + D1 and QR + short-code owner approval.
+- Initial D1 enrollment API groundwork and migration 0004 are implemented
+  locally. `npm.cmd run test -- tests/tvEnrollment.test.ts`: 4 passed;
+  `npm.cmd run lint`: passed.
+- Public Cloudflare compatibility endpoint still reports
+  `applicationApiReady:false`; no remote migration, secret, or deploy was made.
 
-AUD-01 source repair is verified locally. Full verification is not green:
-  - TypeScript check: passes locally after repair.
-  - Shared-intelligence tests: 11/11 pass.
-  - Full Vitest: 147 passed, 13 failed, 1 skipped.
-  - Browser E2E: 1 passed, 1 failed.
-  - Production frontend build: passes with a large-chunk advisory.
-  - GitHub Actions for the audited commit failed at TypeScript before repair.
-See BASE-01 and the verification log in the authoritative ledger.
+Not complete:
+- No Android enrollment UI/client, QR flow, owner-approval UI, device API,
+  IMA integration, real ad playback/events, or physical-device evidence.
+- D1 migration/secret and edge-wide rate limiting are not configured remotely.
+- Full repository baseline remains non-green; see BASE-01 and the work log.
 
-No EDISON native Android application, Google IMA integration, live ad playback
-evidence, or physical Android TV test was found in the audited product source.
-Research samples are not product implementation. No deployment, live ad request,
-account change, or hardware result is claimed.
-
-The owner selected a standalone foreground Android TV app and the application
-ID `io.github.malaba29.edison.tv` (Play availability not verified). APP-01 and
-APP-02 are complete. APP-02 passed Android 16 TV emulator install, launch,
-1920×1080 UI, focused Exit, D-pad Center, and Back verification. No IMA,
-playback, backend, physical-device, or enrollment evidence is complete.
-
-Next: APP-03 device enrollment/authentication after the APP-04 deployed-backend
-decision. Do not claim synthetic enrollment or live-ad completion.
-
-APP-02 lifecycle unit tests, the debug build, and Android 16 TV emulator runtime
-validation pass. IMA, backend, live ads, and physical-device QA remain outside
-the current verified milestone.
-
-Next: APP-03 device enrollment, following the deployed-backend decision in
-APP-04. No synthetic enrollment or live-ad completion will be claimed.
+Next: implement the authenticated owner-approval UI and Android TV QR/code
+enrollment client. Do not claim enrollment, API, ad, or production readiness
+until the remaining acceptance evidence is recorded.
