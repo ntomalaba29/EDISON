@@ -491,13 +491,14 @@ simulation-only tests are clearly labeled.
 
 **Blocker-independent preparation:** An Android CI job is configured to run the
 TV application's JVM unit tests and debug APK assembly. The first hosted run
-failed during SDK setup because the action's default legacy `tools` package is
-no longer available; the workflow now skips that default and installs the
-required SDK 36 packages explicitly. The next run reached Gradle but failed
-because the checked-in wrapper script lacks the executable bit; invoke it
-through Bash to avoid relying on that bit. Verify a successful hosted rerun
-before counting this preparation as remotely validated. This does not complete
-Stage 24, Stage 33, emulator testing, or physical-device validation.
+failed because the action's default legacy `tools` package is unavailable; the
+second reached Gradle but failed because the wrapper lacks the executable bit.
+Both issues were corrected. [GitHub Actions run 45903131145](https://github.com/ntomalaba29/EDISON/actions/runs/45903131145)
+passed both the Android job and existing Node/Playwright job. This is
+software-build evidence only; it does not complete Stage 24, Stage 33, emulator
+testing, or physical-device validation. Checkout still reports a non-blocking
+warning for the existing `research/study/adhush` gitlink missing a `.gitmodules`
+entry.
 
 ## 25. Emulator End-to-End Testing
 

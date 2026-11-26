@@ -58,11 +58,12 @@ implementation evidence and must not be used to claim real switching or playback
   dependencies are eligible.
 - Current local checks: TypeScript pass, Vitest 36 files/165 passed/1 skipped,
   Playwright 2/2 passed. Android CI and physical-device validation remain open.
-- Android `testDebugUnitTest` and `assembleDebug` pass locally. The first
-  hosted CI attempt failed during SDK setup because of the legacy default
-  `tools` package. The second reached Gradle but failed on the wrapper's
-  missing executable bit; the workflow now invokes it through Bash. Verify the
-  latest hosted run before claiming the Android CI job passes.
+- Android `testDebugUnitTest` and `assembleDebug` pass locally and in
+  [GitHub Actions run 45903131145](https://github.com/ntomalaba29/EDISON/actions/runs/45903131145).
+  The run also passed the existing Node/Playwright job. Checkout reports a
+  non-blocking warning for the existing `research/study/adhush` gitlink without
+  a `.gitmodules` entry. Android emulator and physical-device validation remain
+  separate and incomplete.
 - The existing TV platform adapters and watchdogs are software simulations.
 - The EDISON Android app exists, but it has no real ad playback or real switcher.
 - Physical automatic switching is not established.
