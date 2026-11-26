@@ -109,7 +109,7 @@ Status values: `IN PROGRESS`, `PENDING`, `BLOCKED`, `DONE`. No task is `DONE` wi
   - Began APP-02 with a D-pad-oriented setup-required screen, explicit playback-unavailable messaging, a visible focused state on the sole available action, and a working Exit action. No mock content or simulated playback is presented.
   - `.\android-tv\gradlew.bat --no-daemon --console=plain -p android-tv :app:assembleDebug` — PASS after APP-02 UI changes. `aapt dump badging` again confirms the app ID, TV launcher label/activity, and optional touchscreen. `git diff --check` — PASS.
   - Current debug APK SHA-256: `26B765D4276992555B0026B93D217B7859F05B5DDD2395F5AD7AC1D337FD8CAA`.
-  - APP-02 remains in progress: loading/error/empty state rendering and player controls depend on subsequent connection/media work; no Android emulator is installed or running, so D-pad behavior and viewing-distance accessibility have not been validated. Do not mark the shell complete based only on compilation.
+  - At this checkpoint APP-02 was still in progress; the later emulator validation below supersedes that status.
   - Expanded APP-02 with an explicit `Loading`, `SetupRequired`, `Empty`, `Error`, `Ready` state model and rendered loading/error/empty/setup/ready messages. The current launch state remains setup-required; no state claims real playback readiness.
   - Added `TvShellStateTest` with JUnit 4.13.2. The suite passed after setting `ANDROID_HOME` and `ANDROID_SDK_ROOT` explicitly:
     - `.\android-tv\gradlew.bat --no-daemon --console=plain -p android-tv :app:testDebugUnitTest :app:assembleDebug` — PASS.
@@ -126,9 +126,9 @@ Status values: `IN PROGRESS`, `PENDING`, `BLOCKED`, `DONE`. No task is `DONE` wi
     - D-pad Back also left EDISON without a resumed/foreground activity.
     - No `FATAL EXCEPTION` or app crash was found in the collected logcat window.
   - Emulator package `37.3.10`, Android TV system image `android-36;android-tv;x86_64`, and Google TV system image `android-36;google-tv;x86_64` were installed. A manually registered AVD named `EDISON_TV_API36` was created with a 1080p TV profile.
-  - Emulator boot is BLOCKED: Windows reports `HypervisorPresent=False`, `emulator -accel-check` returns `Android Emulator hypervisor driver is not installed`, and Windows Device Guard virtualization-based security status is `0`. The official `Android_Emulator_Hypervisor_Driver 2.2.0` package was downloaded, but its elevated installer did not leave a usable accelerator. Do not enable BIOS virtualization or Windows Hypervisor features without separate owner approval. This blocker prevents emulator installation, D-pad input, UI distance validation, and APK runtime testing.
-  - Hypervisor Platform was then owner-approved and enabled. After reboot, BIOS/UEFI still reports `VirtualizationFirmwareEnabled=False`; Windows Hypervisor Platform remains enabled with no reboot-needed feature state distinction, but `HypervisorPresent=False` and emulator acceleration remains unavailable. The owner must enable Intel VT-x/virtualization in BIOS/UEFI or otherwise provide firmware virtualization; do not edit firmware automatically.
-  - No commit or push was made; production readiness is not established.
+  - Emulator access was initially blocked; this was resolved when the owner enabled Windows Hypervisor Platform and restarted. `emulator -accel-check` returned `WHPX(10.0.19045) is installed and usable`, and the Android 16 TV AVD booted. The firmware virtualization property remained false in one Windows CIM query, but it did not prevent WHPX acceleration or emulator runtime validation.
+  - APP-02 emulator validation is complete; see the verified Android 16 TV launch, UI hierarchy, focus, D-pad Center/Back, and logcat evidence above.
+  - Commit `5868d4a` added the Android TV scaffold and scoped audit repairs; merge commit `d2b878f` integrated remote commit `3a6a847` and was pushed to `new-origin/main`. Production readiness remains unestablished.
 
 ## Next task
 
