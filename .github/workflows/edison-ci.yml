@@ -33,7 +33,7 @@ jobs:
 
       - name: Run Android unit tests and assemble debug APK
         working-directory: android-tv
-        run: ./gradlew --no-daemon testDebugUnitTest assembleDebug
+        run: bash gradlew --no-daemon testDebugUnitTest assembleDebug
 
   verify:
     name: TypeScript, PG16 Migrations, FFmpeg Worker, Vitest, Playwright Chromium & Vite Build

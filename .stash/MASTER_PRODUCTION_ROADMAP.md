@@ -493,9 +493,11 @@ simulation-only tests are clearly labeled.
 TV application's JVM unit tests and debug APK assembly. The first hosted run
 failed during SDK setup because the action's default legacy `tools` package is
 no longer available; the workflow now skips that default and installs the
-required SDK 36 packages explicitly. Verify a successful hosted rerun before
-counting this preparation as remotely validated. This does not complete Stage
-24, Stage 33, emulator testing, or physical-device validation.
+required SDK 36 packages explicitly. The next run reached Gradle but failed
+because the checked-in wrapper script lacks the executable bit; invoke it
+through Bash to avoid relying on that bit. Verify a successful hosted rerun
+before counting this preparation as remotely validated. This does not complete
+Stage 24, Stage 33, emulator testing, or physical-device validation.
 
 ## 25. Emulator End-to-End Testing
 
