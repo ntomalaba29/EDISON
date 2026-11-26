@@ -110,6 +110,11 @@ current authoritative platform/vendor documentation and device evidence:
   loop.
 - The failure behavior and explicit unsupported-device result.
 
+**Owner update (2026-11-26):** The owner confirmed no target device is available
+or selected yet. Stage 3 is therefore blocked. Do not substitute generic
+Android assumptions, a simulator, or an unverified repository claim for the
+target-specific capability and restoration evidence.
+
 **Stage 2 completion evidence:** Responsibility domains, trust flow, state
 ownership, fail-closed behavior, repository evidence, and Stage 3 proof
 requirements are recorded here. This is an architecture decision, not a

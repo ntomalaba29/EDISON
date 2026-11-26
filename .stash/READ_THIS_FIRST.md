@@ -49,6 +49,7 @@ implementation evidence and must not be used to claim real switching or playback
   `.stash/STAGE2_PHYSICAL_ARCHITECTURE.md`.
 - Stage 3 is blocked pending a named, owner-authorized TV/STB target and access
   evidence for feasibility testing.
+- Owner confirmed no target is currently available or selected.
 - CL-01 is accepted after Copilot repaired the discovered decision-route defect.
 - There is no active Cline task. CL-02 remains queued until its Stage 24
   dependencies are eligible.

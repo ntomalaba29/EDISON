@@ -131,6 +131,9 @@ Boundary decisions:
 - The server TV adapter is simulated and cannot establish platform authority.
 - No device or live source was named, so Stage 3 is blocked pending
   target-device/vendor capability evidence. No switching implementation began.
+- Owner confirmed on 2026-11-26 that no target device is available or selected;
+  Stage 3 remains blocked until a named authorized target and access are
+  provided.
 
 ## Stage 1 completion evidence
 
