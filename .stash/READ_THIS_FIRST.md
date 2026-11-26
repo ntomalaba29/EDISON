@@ -58,6 +58,8 @@ implementation evidence and must not be used to claim real switching or playback
   dependencies are eligible.
 - Current local checks: TypeScript pass, Vitest 36 files/165 passed/1 skipped,
   Playwright 2/2 passed. Android CI and physical-device validation remain open.
+- Android `testDebugUnitTest` and `assembleDebug` pass locally; an Android
+  GitHub Actions job has been added, but its hosted run is not yet verified.
 - The existing TV platform adapters and watchdogs are software simulations.
 - The EDISON Android app exists, but it has no real ad playback or real switcher.
 - Physical automatic switching is not established.

@@ -8,6 +8,31 @@ on:
   workflow_dispatch:
 
 jobs:
+  android:
+    name: Android TV unit tests and debug build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Run Android unit tests and assemble debug APK
+        working-directory: android-tv
+        run: ./gradlew --no-daemon testDebugUnitTest assembleDebug
+
   verify:
     name: TypeScript, PG16 Migrations, FFmpeg Worker, Vitest, Playwright Chromium & Vite Build
     runs-on: ubuntu-latest

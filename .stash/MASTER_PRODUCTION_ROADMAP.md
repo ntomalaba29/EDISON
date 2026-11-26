@@ -489,6 +489,11 @@ simulation-only tests are clearly labeled.
 
 **Dependencies:** 5 through 23, with Stage 3 as an independent blocker gate.
 
+**Blocker-independent preparation:** The Android CI job now runs the TV
+application's JVM unit tests and debug APK assembly on GitHub Actions. This is
+software-build evidence only; it does not complete Stage 24, Stage 33, emulator
+testing, or physical-device validation.
+
 ## 25. Emulator End-to-End Testing
 
 **Objective:** Verify the complete software state sequence.
