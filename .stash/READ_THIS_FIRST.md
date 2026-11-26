@@ -33,7 +33,8 @@ The workflow is automatic. Viewer-triggered switching is not a substitute.
 2. `.stash/CLINE_TASK.md`
 3. `.stash/CLINE_REPORT.md`
 4. `.stash/STAGE2_PHYSICAL_ARCHITECTURE.md`
-5. `.stash/PRODUCTION_PATH_ANDROID_TV_GOOGLE_ADS.md`
+5. `.stash/STAGE3_FEASIBILITY_RESEARCH.md`
+6. `.stash/PRODUCTION_PATH_ANDROID_TV_GOOGLE_ADS.md`
 
 The master roadmap overrides the older Android TV/AdSense queue for the
 automatic television advertising project. The older document remains historical
@@ -50,6 +51,8 @@ implementation evidence and must not be used to claim real switching or playback
 - Stage 3 is blocked pending a named, owner-authorized TV/STB target and access
   evidence for feasibility testing.
 - Owner confirmed no target is currently available or selected.
+- `.stash/STAGE3_FEASIBILITY_RESEARCH.md` explains why a standard retail streamer
+  is not evidence for the full switching workflow.
 - CL-01 is accepted after Copilot repaired the discovered decision-route defect.
 - There is no active Cline task. CL-02 remains queued until its Stage 24
   dependencies are eligible.

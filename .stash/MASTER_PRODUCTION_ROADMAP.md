@@ -82,6 +82,10 @@ named, owner-authorized target device and access evidence)
 
 **Current hard gate:** Stage 3 — Automatic-Switching Feasibility Gate
 
+**Stage 3 research:** `.stash/STAGE3_FEASIBILITY_RESEARCH.md` records current
+official Android documentation, a retail streamer candidate assessment, and
+the remaining target-specific blocker. It does not close the gate.
+
 **Baseline status:** CL-01 local code/test reconciliation is accepted. Stage 30
 remains in progress pending its Stage 24 dependency and repository CI gate.
 
@@ -134,6 +138,10 @@ Boundary decisions:
 - Owner confirmed on 2026-11-26 that no target device is available or selected;
   Stage 3 remains blocked until a named authorized target and access are
   provided.
+- Official-source Stage 3 research found no ordinary retail-device evidence for
+  the complete automatic launch and exact input/channel restoration contract.
+  An OEM/operator-authorized integration remains a conditional candidate, not
+  a verified capability.
 
 ## Stage 1 completion evidence
 
