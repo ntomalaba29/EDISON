@@ -1,7 +1,7 @@
 # EDISON Production Path — Android TV + Google CTV Ads
 
 **Status:** Active execution plan; production readiness is not established  
-**Last reviewed:** 2026-11-26  
+**Last reviewed:** 2026-11-27 (current)
 **Audited starting snapshot:** `1e28771293defed325da07d7b6fa476a25074c55` (`test`)
 **APP-03 implementation commit:** `d86a836ea71ed0368a2b4467eaeaeda169e36c54` (`feat: add Android TV enrollment flow`), pushed to `new-origin/main`.
 **Scope:** EDISON's Android TV application, its Google CTV advertising integration, and the build/CI/technical evidence required for those components.
@@ -53,7 +53,7 @@ not a completion percentage. Task IDs link to the acceptance criteria below.
 **Priority 1 is to finish the enrollment work already underway**; do not start a
 parallel production path.
 
-1. **APP-03 — NEXT: finish owner-approved device enrollment.** The logged-in approval screen, fixed-origin QR link, eight-digit manual code lookup, D-pad setup, Android Keystore-encrypted session, status polling, and retry/expiry/lock/revocation states are implemented locally. Remaining: credential rotation/recovery and end-to-end staging verification after APP-04's owner-authorized migration/secret setup. No real device is enrolled.
+1. **APP-03 — NEXT: finish owner-approved device enrollment.** The logged-in approval screen, fixed-origin QR link, eight-digit manual code lookup, D-pad setup, Android Keystore-encrypted session, status polling, rotation, and retry/expiry/lock/revocation states are implemented locally. Rotation is not robust if its response is lost after the old credential is invalidated; owner-assisted re-enrollment may be required. Remaining: review/fix or explicitly accept that failure mode, then end-to-end staging verification after APP-04's owner-authorized migration/secret setup. No real device is enrolled.
 2. **APP-04 — finish the Cloudflare Workers + D1 API path.** Exercise migration `0004` and `EDISON_TV_PAIRING_HMAC_SECRET` in staging only after explicit owner authorization; add a Cloudflare-wide abuse limit, enforce device ownership/status/revocation on every device API, implement only required configuration and event endpoints, and verify restart durability. Keep `applicationApiReady:false` until the full app path is evidenced.
 3. **BASE-01 — DONE: reconcile the local repository baseline.** Retired country-launch tests were corrected, the decision route's Express handler defect was repaired, and local TypeScript, full Vitest (36 files; 165 passed, 1 skipped), and Playwright (2/2) checks pass. Android CI/repository CI remains tracked separately; this does not establish production readiness.
 4. **MEDIA-01 — define media delivery requirements.** Specify the source, supported video formats/codecs, HTTPS/cache/timeouts, content validation, playback handoff and safe fallback for the Android player.
@@ -65,7 +65,7 @@ parallel production path.
 10. **ADS-05 — implement privacy and consent controls.** Minimize data, define age/child handling and consent/retention behavior from approved requirements, and obtain owner/counsel review where needed.
 11. **SAFE-01 — verify playback recovery.** Test network loss, ad timeout, decode error, process death, background/foreground and device restart; do not fabricate completion/impression events.
 12. **SAFE-02 — complete scoped security review.** Review TV credential storage/rotation/revocation, API authorization, transport, logs/PII, abuse controls, dependencies and event replay; add regression tests and record unresolved risk.
-13. **CI-01 — add Android CI.** Build the Android TV app and run JVM/unit checks in GitHub Actions with pinned compatible JDK/Gradle/SDK tooling and safe caching.
+13. **CI-01 — Android CI added.** The Android TV app now builds and runs JVM/unit checks in GitHub Actions; hosted run `45903131145` passed both Android and Node/browser jobs. Emulator, physical-device, and switching evidence remain separate.
 14. **CI-02 — complete automated verification.** Add the player/IMA/event/failure tests and run the relevant repository checks after BASE-01 is reconciled.
 15. **QA-01 — repeat full app emulator acceptance.** Run documented supported-profile install, D-pad, enrollment, playback, event, lifecycle and failure-path checks; record artifact hash, commands and logs.
 16. **QA-02 — verify on physical Android TV/Google TV hardware.** Owner-provided device; record model/build/app hash and real installation, playback, interruption/recovery and event evidence.
@@ -81,23 +81,23 @@ Status values: `IN PROGRESS`, `PENDING`, `BLOCKED`, `DONE`. No task is `DONE` wi
 |---|---|---|---|
 | AUD-01 | DONE | Repair the malformed TypeScript type, restore the declared shared-intelligence history shape, fix the missing helper/version references and app import found by the compiler, and truthfully label seeded fixtures as simulation. `npm.cmd run lint` passes; all 11 shared-intelligence tests pass, including the new synthetic-fixture assertion. | — |
 | AUD-02 | DONE | Run and record the initial software baseline and CI status. The initial local failures were reconciled under BASE-01; Android CI remains open. | AUD-01 |
-| BASE-01 | DONE | Local baseline reconciled without restoring retired behavior: the route handler now returns 410, country-launch verification passes 8/8, all 36 Vitest files pass (165 passed, 1 skipped), and both Playwright tests pass. CI/Android CI remains a separate task. | AUD-02 |
+| BASE-01 | DONE | Local baseline reconciled without restoring retired behavior: the route handler now returns 410, country-launch verification passes 8/8, and the latest full run passes all 37 Vitest files (171 passed, 1 skipped) and both Playwright tests. CI/Android CI remains a separate task. | AUD-02 |
 | ARCH-01 | DONE | Owner chose a standalone foreground app: EDISON plays only after the viewer opens EDISON; no overlay/takeover of another app's tuner, HDMI input, or protected surface. IMA/Media3 are for EDISON's own app-owned video playback. | AUD-02 |
 | ARCH-02 | DONE | Reviewed current official Android TV, Android TV quality, IMA Android TV, IMA compatibility and Media3-IMA integration guidance. Source notes below. Google publisher-account/product approval is a separate owner gate in ADS-01. | ARCH-01 |
 | APP-01 | DONE | Created the EDISON-owned native Android TV Gradle project under `android-tv/`, isolated from research samples. Owner selected app ID `io.github.malaba29.edison.tv` and launcher name `EDISON TV`. JDK 17, API 36, Build-Tools 36.0.0, Platform-Tools 37.0.3, AGP 9.5.3, and Gradle wrapper 9.9.2 are configured. The wrapper distribution SHA-256 is pinned. Debug build and `aapt dump badging` confirm the package, TV launcher activity, and non-required touchscreen. Store availability/ownership of the chosen ID is not verified. Emulator shell validation is recorded under APP-02; physical-device testing remains open. | ARCH-02 |
 | APP-02 | DONE | Implemented a D-pad/focus-first TV shell with setup/loading/error/empty/ready states, lifecycle-safe pause/destroy handling, and an Exit action. JVM state/lifecycle tests pass. Android 16 TV emulator 1920×1080 validation passed: APK installed and launched by Leanback category, setup-required UI was readable, Exit was initially focused, D-pad Center exited, and Back removed the app from foreground. No real player or playback is implemented, so this task does not claim media or ad readiness. | APP-01 |
-| APP-03 | IN PROGRESS | Implemented the owner QR approval route and explicit approval UI, plus an authenticated eight-digit fallback lookup; API returns a same-origin HTTPS approval URL with pairing material only in the URL fragment (never the device token). Android TV now requests enrollment, renders QR/code, stores the session AES-GCM encrypted using Android Keystore, resumes after process restart, and polls pending/approved/expired/locked/revoked status. API tests, TypeScript, web production build, Android JVM tests/build, and Android 16 TV emulator install/launch/focus check pass. Still open: rotation/recovery and end-to-end enrollment; no owner approval or real device enrollment has been performed. Do not reuse the simulated AURA PIN flow as production device auth. | APP-01, APP-04 backend contract |
-| APP-04 | IN PROGRESS | Owner selected Cloudflare Workers + D1 (2026-11-26). `wrangler.jsonc` binds the deployed `edison-staging` D1 database and configures the public HTTPS origin; `src/cloudflare/worker.ts` runs Express through the Cloudflare Node HTTP bridge with D1 auth/domain repositories and reports origin/secret configuration separately. Public preview currently reports `applicationApiReady:false`. Migration `0004_tv_enrollments.sql` provides a 5-minute pairing code (HMAC stored with a required 32-byte hex secret), indexed pairing-code lookup, five-attempt lockout, household-viewer approval, random hashed device credential, owner-scoped listing/revocation, and status polling. Five focused local D1 tests pass. Still not production-ready: migration and secret are not configured/applied remotely; the rate limiter is isolate-local; token rotation, device configuration/ad/event APIs and broad persistence readiness are unverified. Keep the compatibility flag false. No remote migration, secret write, or deploy has been authorized or performed. | ARCH-01 |
-| MEDIA-01 | PENDING | Define the source and delivery requirements for ad media: supported formats/codecs, HTTPS, timeouts, cache policy, content validation, and error behavior. Confirm the selected Android player can play the chosen assets on the supported device/API range. | APP-01 |
+| APP-03 | IN PROGRESS | Implemented owner QR approval, eight-digit lookup, AES-GCM Android Keystore session storage, status polling, and approved-device token rotation with old-token rejection. The Android client retries one credential rotation on HTTP 401. If the rotation response is lost after the server changes the stored hash, the old token is no longer usable and owner-assisted re-enrollment may be required; this recovery limitation remains to be reviewed. Still open: remote D1 migration/secret setup, broad abuse control, restart-durability verification, and end-to-end enrollment. No owner approval or real device enrollment has been performed. | APP-01, APP-04 backend contract |
+| APP-04 | IN PROGRESS | Owner selected Cloudflare Workers + D1 (2026-11-26). `wrangler.jsonc` binds the deployed `edison-staging` D1 database and configures the public HTTPS origin; `src/cloudflare/worker.ts` runs Express through the Cloudflare Node HTTP bridge with D1 auth/domain repositories and reports origin/secret configuration separately. Public preview currently reports `applicationApiReady:false`. Migration `0004_tv_enrollments.sql` provides a 5-minute pairing code (HMAC stored with a required 32-byte hex secret), indexed pairing-code lookup, five-attempt lockout, household-viewer approval, random hashed device credential, owner-scoped listing/revocation, status polling, and approved-device token rotation. Focused local D1 tests pass. Still not production-ready: migration and secret are not configured/applied remotely; the rate limiter is isolate-local; device configuration/ad/event APIs and broad persistence readiness are unverified. Keep the compatibility flag false. No remote migration, secret write, or deploy has been authorized or performed. | ARCH-01 |
+| MEDIA-01 | DONE | Defined version 1.0 Android TV ad media contract: HTTPS-only H.264 High@L4.1/yuv420p and AAC-LC MP4, 1920x1080, 5-90 seconds, 18 MB maximum, SHA-256, expiry, bounded cache and no-playback fallback. Focused contract tests pass. Real delivery and Android playback remain separate. | APP-01 |
 | ADS-01 | PENDING | Resolve native CTV product/eligibility with official Google documentation and the owner: assess GAM CTV requirements, account approval, inventory/ad-tag setup, policy constraints and supported formats. Do not treat AdSense as a native TV SDK; no live ad request until approved. | ARCH-02 |
 | ADS-WEB-01 | PENDING | Separately determine whether EDISON has an eligible, owner-controlled website property for AdSense and document site ownership/content/policy/approval requirements. If no qualifying website is in scope, record not applicable; do not substitute AdSense for IMA on Android TV. | ARCH-02 |
 | ADS-02 | PENDING | Add the supported Google IMA SDK dependency and initialize its ad display container/loader with a non-production test configuration. Verify SDK version, dependency provenance/license, app lifecycle cleanup, and test-ad request on emulator. | APP-01, MEDIA-01, ADS-01 |
 | ADS-03 | PENDING | Implement the ad request → load → play → pause/resume/skip (where allowed) → completion/error lifecycle using the selected Android media player and IMA APIs. Verify event ordering, listener cleanup, timeout behavior, and no UI deadlocks. | ADS-02 |
-| ADS-04 | PENDING | Implement server-side, authenticated, idempotent event ingestion for actual IMA/player events. Persist request/session correlation and event type/timestamp; reject duplicates/replays and malformed/out-of-order inputs. Never count an ad request or simulated playback as an impression. | APP-04, ADS-03 |
+| ADS-04 | IN PROGRESS | Server ingestion now has replay-payload, timestamp, minimum-playback and session-lifecycle guards; focused tests pass. Remaining: authenticated real IMA/player callbacks, durable persistence, and production replay/idempotency storage. Never count a request or simulated playback as a real impression. | APP-04, ADS-03 |
 | ADS-05 | PENDING | Implement and test policy-compliant consent/privacy behavior, age/child handling if applicable, regional restrictions supplied by approved policy, data minimization, retention, and user-facing disclosures. Obtain owner/counsel review where required; do not invent legal approval. | ADS-01, APP-03, ADS-04 |
-| SAFE-01 | PENDING | Make playback fail safely on network loss, ad timeout, decode error, app process death, background/foreground transitions, and device restart. Return to a usable app/ordinary TV state without fabricated completion or impression events. | APP-02, ADS-03 |
-| SAFE-02 | PENDING | Review device credential storage, transport security, logging/PII, request validation, dependency risks, abuse limits, and event authorization. Add focused regression tests; record unresolved risks and any independent review required. | APP-03, APP-04, ADS-04 |
-| CI-01 | PENDING | Add Android build and unit-test jobs to GitHub Actions, pin compatible JDK/Gradle/Android SDK tooling, cache safely, and make failures block the scoped release branch. Keep existing TypeScript/Node CI intact. | APP-01 |
+| SAFE-01 | IN PROGRESS | Android watchdog decisions now distinguish verified restoration from unverified fail-closed deadlines/interruption. Existing platform/chaos outcomes remain simulated. Real playback, process-death, network, decoder and physical restoration evidence remain open. | APP-02, ADS-03 |
+| SAFE-02 | IN PROGRESS | Device credentials are hashed/HMACed, Android secrets use AES-GCM/Keystore, old credentials fail, and rotation rejects pending/revoked devices. Replay, PII and lifecycle guards pass focused tests. Independent security review, remote abuse control and third-party IMA dependency review remain open. | APP-03, APP-04, ADS-04 |
+| CI-01 | DONE | Added Android build/unit-test jobs to GitHub Actions with Java 17, Android SDK 36, Gradle 9.9.2 and APK assembly. GitHub Actions run 45903131145 passed Android and existing Node/Playwright jobs. | APP-01 |
 | CI-02 | PENDING | Add automated Android tests for app lifecycle, remote/focus controls, player state transitions, IMA event mapping, event retry/idempotency, and failure paths. Run relevant full repository checks in CI. | APP-02, ADS-03, ADS-04, CI-01, BASE-01 |
 | QA-01 | PENDING | Run reproducible Android emulator tests on a documented supported API/device profile; record artifact hash, environment, commands, results, logs, and defects. Emulator tests do not satisfy physical-device acceptance. | CI-02 |
 | QA-02 | PENDING | On owner-provided Android TV / Google TV hardware, verify installation, D-pad operation, real ad test-tag playback, network interruption/recovery, event delivery, and logs. Record make/model, OS/build, app version/hash, test configuration, measurements, and owner-observed result. | QA-01, ADS-03, ADS-04 |
@@ -214,16 +214,42 @@ Status values: `IN PROGRESS`, `PENDING`, `BLOCKED`, `DONE`. No task is `DONE` wi
 - `npm.cmd run test -- tests/d1AuthSessionApp.test.ts` — PASS, 20 tests.
 - `npm.cmd run test` — PASS, 36 files; 165 passed, 1 skipped.
 - `npm.cmd run test:e2e` — PASS, 2 tests.
-- CL-01 accepted with Copilot repairs. Stage 30 remains in progress pending
-  Stage 24 and Android/CI gates; Stage 2 remains the current production stage.
+- CL-01 accepted with Copilot repairs. Stage 24 CI/baseline reconciliation and
+  Stage 30 whole-app reconciliation are complete; Stage 3 remains the hard
+  feasibility gate.
+
+### 2026-11-27 — lifecycle hardening, media contract, and PC handoff
+
+- Implemented the approved-device credential-rotation API/client path, typed
+  Android ad-session/lifecycle/watchdog models, server-side delivery-event
+  replay/order/time guards, and the versioned Android TV media contract.
+- Added focused regression coverage for credential rotation, event validation,
+  state transitions, and media descriptor validation. These are software
+  controls only; no real player, IMA callback, durable event pipeline, or
+  physical watchdog was added.
+- Recorded a known rotation failure mode: if the server updates the token hash
+  but the response is lost before Android securely saves the new token, the old
+  token is invalid and the device may require owner-assisted re-enrollment.
+  Review this before describing rotation as robust.
+- Added `.stash/NEXT_PC_SETUP.md` with the verified Windows toolchain, Android
+  SDK/AVD versions, build instructions, setup provenance limits, and cleanup
+  scope for the move to another PC.
+- Validation: `npm.cmd run lint` PASS; focused enrollment/delivery/media/
+  security tests PASS (33 passed, 1 skipped); full Vitest PASS (37 files,
+  171 passed, 1 skipped); Playwright PASS (2/2); `npm.cmd run build` PASS
+  (existing large-chunk advisory); Android
+  `:app:testDebugUnitTest :app:assembleDebug` PASS with `ANDROID_HOME`,
+  `ANDROID_SDK_ROOT`, and `JAVA_HOME` set; `git diff --check` PASS.
+- No remote migration, Cloudflare secret, deployment, live enrollment, ad
+  request, or physical-device test occurred. The implementation is not
+  production-ready.
 
 ## Next task
 
-Continue APP-03 by adding credential rotation/recovery and its regression tests.
-Then, only after explicit owner authorization, complete APP-04 staging
-migration/secret setup, Cloudflare-wide abuse control and restart-durability/
-device-API verification to enable an end-to-end enrollment test. Do not claim
-production enrollment or API readiness until those checks pass. BASE-01 local
-baseline reconciliation is complete; Android CI, Google product/account
-eligibility, IMA/playback, live ads, physical-device QA, and release sign-off
-remain open.
+Review the credential-rotation lost-response recovery limitation. Then, only
+after explicit owner authorization, complete APP-04 staging migration/secret
+setup, Cloudflare-wide abuse control and restart-durability/device-API
+verification; repeat end-to-end enrollment. Do not claim production enrollment
+or API readiness until those checks pass. Stage 24 and Stage 30 are complete;
+Google product/account eligibility, IMA/playback, live ads, physical-device QA,
+and release sign-off remain open.

@@ -90,6 +90,77 @@ describe('Cloudflare D1 Android TV enrollment', () => {
     return { Authorization: `Bearer ${response.body.token}` };
   }
 
+  it('rotates an approved device credential atomically and rejects the old credential', async () => {
+    const { app } = createApp();
+    const auth = await registerViewer(app);
+    const start = await request(app)
+      .post('/api/tv/enrollment/start')
+      .send({ deviceLabel: 'Rotating Room TV' });
+    expect(start.status).toBe(201);
+
+    const approval = await request(app)
+      .post('/api/tv/enrollment/approve')
+      .set(auth)
+      .send({
+        enrollmentId: start.body.enrollmentId,
+        pairingCode: start.body.pairingCode,
+      });
+    expect(approval.status).toBe(200);
+
+    const rotation = await request(app)
+      .post(`/api/tv/enrollment/${start.body.enrollmentId}/rotate`)
+      .set('Authorization', `Bearer ${start.body.deviceToken}`);
+    expect(rotation.status).toBe(200);
+    expect(rotation.body.deviceToken).toMatch(/^[A-Za-z0-9_-]{40,64}$/);
+    expect(rotation.body.deviceToken).not.toBe(start.body.deviceToken);
+    expect(rotation.body.status).toBe('approved');
+
+    const oldStatus = await request(app)
+      .get(`/api/tv/enrollment/${start.body.enrollmentId}`)
+      .set('Authorization', `Bearer ${start.body.deviceToken}`);
+    expect(oldStatus.status).toBe(401);
+    expect(oldStatus.body.error).toBe('TV_DEVICE_CREDENTIAL_INVALID');
+
+    const newStatus = await request(app)
+      .get(`/api/tv/enrollment/${start.body.enrollmentId}`)
+      .set('Authorization', `Bearer ${rotation.body.deviceToken}`);
+    expect(newStatus.status).toBe(200);
+    expect(newStatus.body.status).toBe('approved');
+  });
+
+  it('refuses credential rotation for pending and revoked devices', async () => {
+    const { app } = createApp();
+    const auth = await registerViewer(app);
+    const pendingStart = await request(app)
+      .post('/api/tv/enrollment/start')
+      .send({ deviceLabel: 'Pending Room TV' });
+    expect(pendingStart.status).toBe(201);
+
+    const pendingRotation = await request(app)
+      .post(`/api/tv/enrollment/${pendingStart.body.enrollmentId}/rotate`)
+      .set('Authorization', `Bearer ${pendingStart.body.deviceToken}`);
+    expect(pendingRotation.status).toBe(409);
+
+    const approval = await request(app)
+      .post('/api/tv/enrollment/approve')
+      .set(auth)
+      .send({
+        enrollmentId: pendingStart.body.enrollmentId,
+        pairingCode: pendingStart.body.pairingCode,
+      });
+    expect(approval.status).toBe(200);
+
+    const revoked = await request(app)
+      .post(`/api/tv/devices/${pendingStart.body.enrollmentId}/revoke`)
+      .set(auth);
+    expect(revoked.status).toBe(204);
+
+    const revokedRotation = await request(app)
+      .post(`/api/tv/enrollment/${pendingStart.body.enrollmentId}/rotate`)
+      .set('Authorization', `Bearer ${pendingStart.body.deviceToken}`);
+    expect(revokedRotation.status).toBe(410);
+  });
+
   it('creates a hashed D1 enrollment, requires owner approval, and supports status and revocation', async () => {
     const { app, database: db } = createApp();
     const auth = await registerViewer(app);

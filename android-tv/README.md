@@ -35,7 +35,17 @@ environment. Only an HTTPS origin without a path is accepted.
 
 The public Worker is not yet configured for enrollment, and the complete flow
 has not been tested end to end. The D1 migration and pairing secret require
-owner-authorized staging setup; edge-wide abuse control, credential rotation,
-device configuration APIs, Google IMA, ad playback, event ingestion, and
+owner-authorized staging setup; edge-wide abuse control, local credential
+rotation/recovery, device configuration APIs, Google IMA, ad playback, event ingestion, and
 physical-device verification remain open. Enrollment does not enable playback.
+The app also contains a unit-tested in-process ad-session state machine for
+authorization/loading/play/pause/completion/failure/abort states. It does not
+start playback or claim IMA integration.
+It also has state-gated lifecycle event envelopes for ready, started, paused,
+resumed, completed, failed, aborted and timeout outcomes. No transport or real
+player is connected yet.
+The app also has a software watchdog decision model: deadlines or interruptions
+request restoration only when restoration is explicitly verified; otherwise they
+produce a fail-closed restoration-failed result. This is not an OS/hardware
+watchdog and does not prove TV restoration.
 See `.stash/PRODUCTION_PATH_ANDROID_TV_GOOGLE_ADS.md` for evidence and tasks.

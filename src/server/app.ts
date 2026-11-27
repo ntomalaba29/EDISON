@@ -1114,6 +1114,66 @@ export function createEdisonApp(
     })
   );
 
+  app.post(
+    '/api/tv/enrollment/:enrollmentId/rotate',
+    tvEnrollmentRateMiddleware,
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+      if (!tvEnrollmentStore) {
+        res.status(503).json({ error: 'TV_ENROLLMENT_UNAVAILABLE' });
+        return;
+      }
+      const oldToken = req.get('authorization')?.match(/^Bearer\s+([A-Za-z0-9_-]{40,64})$/i)?.[1];
+      if (!oldToken) {
+        res.status(401).json({ error: 'TV_DEVICE_CREDENTIAL_REQUIRED' });
+        return;
+      }
+      const oldTokenHash = crypto.createHash('sha256').update(oldToken).digest('hex');
+      const enrollment = await tvEnrollmentStore.getByDeviceTokenHash(
+        req.params.enrollmentId,
+        oldTokenHash,
+        new Date().toISOString()
+      );
+      if (!enrollment) {
+        res.status(401).json({ error: 'TV_DEVICE_CREDENTIAL_INVALID' });
+        return;
+      }
+      if (enrollment.status !== 'approved') {
+        res.status(enrollment.status === 'revoked' ? 410 : 409).json({
+          error: 'TV_DEVICE_CREDENTIAL_ROTATION_NOT_ALLOWED',
+          message: 'Only an approved Android TV can rotate its credential.',
+        });
+        return;
+      }
+
+      const newToken = crypto.randomBytes(32).toString('base64url');
+      const newTokenHash = crypto.createHash('sha256').update(newToken).digest('hex');
+      const result = await tvEnrollmentStore.rotateApprovedCredential({
+        enrollmentId: req.params.enrollmentId,
+        oldDeviceTokenHash: oldTokenHash,
+        newDeviceTokenHash: newTokenHash,
+        now: new Date().toISOString(),
+      });
+      if (result === 'not_found') {
+        res.status(401).json({ error: 'TV_DEVICE_CREDENTIAL_INVALID' });
+        return;
+      }
+      if (result === 'not_approved') {
+        res.status(409).json({
+          error: 'TV_DEVICE_CREDENTIAL_ROTATION_NOT_ALLOWED',
+        });
+        return;
+      }
+
+      res.setHeader('Cache-Control', 'no-store');
+      res.json({
+        enrollmentId: enrollment.enrollmentId,
+        deviceId: enrollment.deviceId,
+        deviceToken: newToken,
+        status: 'approved',
+      });
+    })
+  );
+
   app.get(
     '/api/tv/devices',
     requireAuth,

@@ -1,6 +1,6 @@
 # EDISON Progress Tracker
 
-**Status snapshot:** 2026-11-25
+**Status snapshot:** 2026-11-27
 
 **Authoritative task progress:** 77 of 99 executable subphases complete (77.8%). This is a count of accepted project tasks, not a measure of product completeness, compliance, or readiness to launch. The detailed phase ledger and acceptance evidence are in [the execution plan](EDISON_AI_STUDIO_HANDOFF_AND_EXECUTION_PLAN.md); `execution-ledger.json` is the input for `npm run progress`.
 
@@ -16,7 +16,8 @@
 
 ## Verified evidence
 
-- Latest published CI result cited in the project documentation: [GitHub Actions run 45454484004](https://github.com/ntomalaba29/EDISON/actions/runs/45454484004), passed on published commit `a7d86df`. This does not validate uncommitted changes in the current worktree.
+- Current code baseline: `9c2ba4d237488b90041a166fc329e18a68e1c790`.
+- GitHub Actions Android + Node/browser [run 45903131145](https://github.com/ntomalaba29/EDISON/actions/runs/45903131145) passed.
 - Prior local Worker media-adapter checks and focused tests are recorded in the historical snapshot at [`.stash/PROGRESS_TRACKER_2026-11-24_ARCHIVE.md`](.stash/PROGRESS_TRACKER_2026-11-24_ARCHIVE.md). They do not establish remote R2 readiness or production transcoding.
 - Historical CI and environment-specific checks are preserved in that archived snapshot. Verify current code and rerun checks before relying on them.
 

@@ -1,8 +1,8 @@
 # EDISON Automatic TV Advertising — Master Production Roadmap
 
 **Status:** ACTIVE
-**Last reconciled:** 2026-11-26
-**Baseline HEAD:** `e95d3ee556f0e01e5056bcc4037634f6c42797d2`
+**Last reconciled:** 2026-11-27
+**Baseline HEAD:** `9c2ba4d237488b90041a166fc329e18a68e1c790`
 **Total stages:** 36
 
 ## Whole-app audit — 2026-11-26
@@ -55,21 +55,21 @@ tests remain separate evidence classes.
 | 13 | PENDING | Implement the verified automatic launch bridge |
 | 14 | PENDING | Implement SWITCHER platform controls |
 | 15 | PENDING | Implement and verify broadcast restoration |
-| 16 | PENDING | Build the Android ad-session shell |
-| 17 | PENDING | Define approved ad media contracts |
+| 16 | IN PROGRESS | Build the Android ad-session shell |
+| 17 | DONE | Define approved ad media contracts |
 | 18 | PENDING | Integrate the approved native player/IMA path |
-| 19 | PENDING | Implement app-to-SWITCHER lifecycle events |
+| 19 | IN PROGRESS | Implement app-to-SWITCHER lifecycle events |
 | 20 | PENDING | Replace mock scheduling with approved inventory |
-| 21 | PENDING | Implement idempotent ad event persistence |
-| 22 | PENDING | Complete security and privacy controls |
-| 23 | PENDING | Implement watchdog and failure recovery |
-| 24 | PENDING | Reconcile repository CI and automated baseline |
+| 21 | IN PROGRESS | Implement idempotent ad event persistence |
+| 22 | IN PROGRESS | Complete security and privacy controls |
+| 23 | IN PROGRESS | Implement watchdog and failure recovery |
+| 24 | DONE | Reconcile repository CI and automated baseline |
 | 25 | PENDING | Complete emulator end-to-end testing |
 | 26 | PENDING | Prepare physical-device integration prerequisites |
 | 27 | PENDING | Perform physical Android TV end-to-end validation |
 | 28 | PENDING | Obtain final production acceptance |
-| 29 | PENDING | Finish Android enrollment and Cloudflare D1 operations |
-| 30 | IN PROGRESS | Reconcile the whole-app baseline and retired interfaces |
+| 29 | IN PROGRESS | Finish Android enrollment and Cloudflare D1 operations |
+| 30 | DONE | Reconcile the whole-app baseline and retired interfaces |
 | 31 | PENDING | Complete media ingestion and delivery validation |
 | 32 | PENDING | Complete privacy, consent, and DSR production gates |
 | 33 | PENDING | Complete Android CI and scoped automated verification |
@@ -86,8 +86,9 @@ named, owner-authorized target device and access evidence)
 official Android documentation, a retail streamer candidate assessment, and
 the remaining target-specific blocker. It does not close the gate.
 
-**Baseline status:** CL-01 local code/test reconciliation is accepted. Stage 30
-remains in progress pending its Stage 24 dependency and repository CI gate.
+**Baseline status:** CL-01 local code/test reconciliation is accepted. Stage 24
+CI evidence and Stage 30 baseline reconciliation are complete. Stage 33 remains
+open for emulator-scoped verification and Stage 29 remains open for remote setup.
 
 ## Stage 2 architecture boundary
 
@@ -146,7 +147,7 @@ Boundary decisions:
 
 ## Stage 1 completion evidence
 
-- Repository state verified: HEAD `e95d3ee556f0e01e5056bcc4037634f6c42797d2`.
+- Repository state verified: HEAD `9c2ba4d237488b90041a166fc329e18a68e1c790`.
 - Working tree was clean before handoff-document creation.
 - `.stash/READ_THIS_FIRST.md` established as the entry point.
 - `.stash/MASTER_PRODUCTION_ROADMAP.md` established as the initial 28-stage
@@ -390,6 +391,13 @@ cannot start a second ad; no content claims real playback.
 
 **Dependencies:** 11, 13.
 
+**Partial evidence:** `TvShellState.kt` now includes a bounded ad-session state
+machine for authorization, loading, playing, paused, completed, failed, aborted,
+and reset. The reducer rejects stale session IDs and terminal-state replay.
+JVM tests and the debug APK pass. This is app-shell evidence only; no player,
+real trigger, IMA request, or playback exists, and Stage 16 remains blocked by
+the SWITCHER/launch dependencies.
+
 ## 17. Approved Ad Media Contract
 
 **Objective:** Define the exact native ad format and delivery source.
@@ -401,6 +409,13 @@ checksum, expiry, timeout, and fallback.
 fails without blocking broadcast restoration.
 
 **Dependencies:** 16.
+
+**Current evidence:** `src/server/androidTvAdMediaContract.ts` defines version
+`1.0` with HTTPS-only H.264 High@L4.1/yuv420p, AAC-LC 48 kHz, 1920x1080,
+5-90 second, 18 MB maximum, SHA-256, expiry, bounded cache and
+`no_playback` fallback. `tests/androidTvAdMediaContract.test.ts` passes
+unsafe-URI, checksum, duration and expiry rejection cases. This completes the
+software contract; it does not establish real media delivery or Android playback.
 
 ## 18. Native Ad Playback Integration
 
@@ -425,6 +440,13 @@ events with session/correlation IDs.
 approved terminal outcome; stale replay is rejected.
 
 **Dependencies:** 11, 16, 18.
+
+**Partial evidence:** `TvShellState.kt` now defines validated
+`AdLifecycleEvent` envelopes for ready, started, paused, resumed, completed,
+failed, aborted, and timeout outcomes. Event emission is state-gated by session
+state and rejects invalid session/reason identifiers. JVM tests and APK assembly
+pass. This is in-process app event structure only; no real player or SWITCHER
+transport exists, and it does not prove impressions or playback completion.
 
 ## 20. Approved Ad Selection
 
@@ -453,6 +475,12 @@ crash/replay tests pass.
 
 **Dependencies:** 10, 19, 20.
 
+**Partial evidence:** Server delivery ingestion now validates replay payload
+consistency, invalid timestamps, a 1000ms minimum for `ad_played`, and
+session-scoped lifecycle order. A played event cannot skip the viewable stage.
+Focused delivery/security tests pass. This remains software simulation
+evidence; no authenticated real IMA callback or production persistence exists.
+
 ## 22. Security and Privacy
 
 **Objective:** Protect credentials, triggers, state snapshots, logs, and events.
@@ -465,6 +493,14 @@ owners. No secrets exist in Git or stash.
 
 **Dependencies:** 9, 12, 21.
 
+**Partial evidence:** TV pairing and device tokens are hashed or HMACed;
+pairing, approval, rotation and revocation routes use no-store responses.
+Rotation refuses pending/revoked devices and old credentials stop working.
+Android credentials use AES-GCM/Android Keystore. Delivery replay, PII rejects,
+and lifecycle guards pass focused tests. Independent security review, final
+threat model, remote abuse controls, legal/privacy decisions and third-party
+IMA dependency review remain open.
+
 ## 23. Watchdog and Failure Recovery
 
 **Objective:** Make all interruptions fail closed.
@@ -476,6 +512,12 @@ timeout, process death, and restoration failure.
 restoration-failed state. No duplicate switch can occur.
 
 **Dependencies:** 11, 15, 16, 19.
+
+**Partial evidence:** `TvShellState.kt` now has bounded deadline/interruption
+watchdog decisions. Verified restoration produces an explicit restore request;
+unverified restoration produces `RestorationFailed`. Unit tests and APK assembly
+pass. This does not implement OS/hardware watchdogs or prove physical return to
+broadcast. The existing TV platform/chaos watchdog behavior remains simulated.
 
 ## 24. Repository CI and Automated Baseline
 
@@ -495,10 +537,16 @@ failed because the action's default legacy `tools` package is unavailable; the
 second reached Gradle but failed because the wrapper lacks the executable bit.
 Both issues were corrected. [GitHub Actions run 45903131145](https://github.com/ntomalaba29/EDISON/actions/runs/45903131145)
 passed both the Android job and existing Node/Playwright job. This is
-software-build evidence only; it does not complete Stage 24, Stage 33, emulator
+software-build evidence only; it completes Stage 24; it does not complete Stage 33, emulator
 testing, or physical-device validation. Checkout still reports a non-blocking
 warning for the existing `research/study/adhush` gitlink missing a `.gitmodules`
 entry.
+
+**Stage 24 completion evidence:** GitHub Actions run 45903131145 passed Android
+unit tests/APK assembly and the Node, PostgreSQL migration, Vitest, Playwright,
+and Vite build jobs. This closes repository CI/baseline reconciliation for the
+current software baseline. Emulator profiles and physical hardware remain Stage
+25/27 evidence, not covered by this stage.
 
 ## 25. Emulator End-to-End Testing
 
@@ -574,6 +622,13 @@ pairing secret is configured, revoked/expired credentials fail, and
 **Owner:** Copilot for architecture/security; Cline may add focused tests and
 fixtures after Stage 24.
 
+**Current evidence:** Device-token rotation is implemented as an authenticated,
+approved-device-only API. It atomically replaces the stored token hash; the old
+credential is rejected and the Android client can save a rotated token or clear
+the session if recovery fails. This is local software evidence only. Remote D1
+migration, secret setup, broad abuse control, restart durability, and real
+device enrollment remain incomplete.
+
 ## 30. Reconcile the Whole-App Baseline
 
 **Objective:** Make the repository's automated and application evidence honest.
@@ -595,11 +650,10 @@ count or retired 200 expectation remains.
 **Owner:** Cline for bounded test/helper corrections; Copilot for integration
 review and cross-module defects.
 
-**Current evidence (2026-11-26):** Local baseline reconciliation is complete:
+**Current evidence (2026-11-27):** Local baseline reconciliation is complete:
 `npm.cmd run lint` passes; Vitest passes 36 files (165 passed, 1 skipped);
 Playwright passes 2/2. CL-01 is accepted with Copilot repairs. Stage 30 remains
-`IN PROGRESS` because Stage 24 is a declared dependency and Android/CI gates
-remain open.
+`DONE`; hosted Android and Node/Playwright CI passed in run 45903131145.
 
 ## 31. Complete Media Ingestion and Delivery Validation
 
@@ -717,7 +771,7 @@ Only one Cline task may be active at a time.
 | CL-04 | 24 | Cline | Add D1 break-event identity/replay/PII rejection test cases | QUEUE |
 | CL-05 | 24 | Cline | Add offline-cache stale-scope and replay test cases | QUEUE |
 | CL-06 | 31 | Cline | Add media contract fixtures and validation test cases | QUEUE |
-| CL-07 | 33 | Cline | Add Android CI build/unit-test steps with pinned SDK/JDK | QUEUE |
+| CL-07 | 33 | Copilot | Android CI build/unit-test work already completed by Copilot; retain no Cline task | DONE |
 | CL-08 | 30 | Cline | Add a focused TypeScript test inventory/report script | QUEUE |
 | CL-09 | 32 | Cline | Reconcile privacy draft and roadmap status labels | QUEUE |
 | CL-10 | 35 | Cline | Add configuration-free release-readiness checklist validation | QUEUE |

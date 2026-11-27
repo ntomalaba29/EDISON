@@ -1617,6 +1617,7 @@ export interface DeliveryPreloadManifestResult {
 
 export interface DeliveryEventIngestItem {
   idempotencyKey: string;
+  sessionId?: string;
   deviceSlotId: string;
   campaignId: string;
   qrToken?: string | null;

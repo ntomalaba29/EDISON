@@ -1,4 +1,4 @@
-EDISON WORKFLOW STATE - 2026-11-26
+EDISON WORKFLOW STATE - 2026-11-27
 
 Scope: standalone Android TV app + eligible Google CTV advertising.
 Assessment: NOT PRODUCTION READY.
@@ -13,13 +13,16 @@ remote migration, secret setup, or deployment was performed. Public Worker
 still reports applicationApiReady false.
 
 Queue: 19 outstanding scoped tasks; see the numbered list in the production
-path. Next: finish APP-03 credential rotation/recovery, then complete APP-04
-staging migration/secret, edge-wide abuse control, device APIs, and durable
-restart verification only with explicit owner authorization.
+path. APP-03 rotation code exists, but a lost response can invalidate the old
+credential before the TV stores the new one; recovery may require owner-assisted
+re-enrollment. Next: review/fix or explicitly accept that failure mode, then
+complete APP-03/APP-04 staging and restart verification only with explicit
+owner authorization.
 
 Blockers: no IMA/playback/event ingestion, Google product/account approval,
-physical TV results, release signing, or green repository-wide test baseline.
-Android toolchain is installed; app ID is
+physical TV results, release signing, or end-to-end staging verification.
+The verified Android setup and current-PC cleanup record is in
+`.stash/NEXT_PC_SETUP.md`. App ID is
 `io.github.malaba29.edison.tv` (Play availability remains unverified).
 Read the authoritative ledger before continuing; do not claim production
 readiness based on simulation or local-only verification.

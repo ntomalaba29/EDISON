@@ -284,6 +284,61 @@ describe('Phase 6 Block 6.1: Advertising Delivery Infrastructure (Software-First
     ).toBe('SKIP_FREQUENCY_CAP_REACHED');
   });
 
+  it('rejects replay payload mismatch, short plays and out-of-order lifecycle events', () => {
+    const infra = new AdvertisingDeliveryInfrastructure();
+    const base = {
+      sessionId: 'session-valid-01',
+      deviceSlotId: 'tv_slot_hardened',
+      campaignId: 'cmp_capped',
+      qrToken: 'dlv-active',
+      regionCode: 'GB',
+      occurredAt: '2026-11-16T12:00:00.000Z',
+    };
+
+    const requested = infra.ingestDeliveryEvents([{
+      ...base,
+      idempotencyKey: 'evt-requested',
+      eventType: 'ad_requested',
+      playbackDurationMs: 0,
+    }]);
+    expect(requested.acceptedNewCount).toBe(1);
+
+    const replayMismatch = infra.ingestDeliveryEvents([{
+      ...base,
+      idempotencyKey: 'evt-requested',
+      eventType: 'ad_delivered',
+      playbackDurationMs: 100,
+    }]);
+    expect(replayMismatch.rejectedAnomalyCount).toBe(1);
+    expect(replayMismatch.rejectedReasons[0]).toContain('replay key payload mismatch');
+
+    const shortPlay = infra.ingestDeliveryEvents([{
+      ...base,
+      idempotencyKey: 'evt-short-play',
+      eventType: 'ad_played',
+      playbackDurationMs: 999,
+    }]);
+    expect(shortPlay.rejectedAnomalyCount).toBe(1);
+    expect(shortPlay.rejectedReasons[0]).toContain('at least 1000ms');
+
+    const delivered = infra.ingestDeliveryEvents([{
+      ...base,
+      idempotencyKey: 'evt-out-of-order',
+      eventType: 'ad_delivered',
+      playbackDurationMs: 0,
+    }]);
+    expect(delivered.acceptedNewCount).toBe(1);
+
+    const outOfOrder = infra.ingestDeliveryEvents([{
+      ...base,
+      idempotencyKey: 'evt-play-before-viewable',
+      eventType: 'ad_played',
+      playbackDurationMs: 15000,
+    }]);
+    expect(outOfOrder.rejectedAnomalyCount).toBe(1);
+    expect(outOfOrder.rejectedReasons[0]).toContain('out-of-order lifecycle');
+  });
+
   it('passes all 8 deterministic checks in runDeliveryInfraVerificationSuite with hardwareTested=false', () => {
     const suite = runDeliveryInfraVerificationSuite();
     expect(suite.totalChecks).toBe(8);

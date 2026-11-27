@@ -103,6 +103,8 @@ function sha256Hex(payload: string): string {
 
 export class AdvertisingDeliveryInfrastructure {
   private seenIdempotencyKeys = new Set<string>();
+  private seenEventFingerprints = new Map<string, string>();
+  private lifecycleStageBySession = new Map<string, number>();
   private dailyImpressionCounts = new Map<string, number>();
   private manifestsCompiledTotal = 0;
   private failoverRecoveriesTotal = 0;
@@ -296,6 +298,18 @@ export class AdvertisingDeliveryInfrastructure {
     const rejectedReasons: string[] = [];
 
     for (const evt of events) {
+      const fingerprint = sha256Hex(JSON.stringify({
+        idempotencyKey: evt.idempotencyKey,
+        sessionId: evt.sessionId ?? null,
+        deviceSlotId: evt.deviceSlotId,
+        campaignId: evt.campaignId,
+        qrToken: evt.qrToken ?? null,
+        eventType: evt.eventType,
+        regionCode: evt.regionCode,
+        playbackDurationMs: evt.playbackDurationMs,
+        occurredAt: evt.occurredAt ?? null,
+      }));
+
       if (evt.playbackDurationMs < 0 || evt.playbackDurationMs > 300000) {
         rejectedAnomalyCount += 1;
         this.ingestedEventsRejectedAnomalyTotal += 1;
@@ -305,13 +319,67 @@ export class AdvertisingDeliveryInfrastructure {
         continue;
       }
 
-      if (this.seenIdempotencyKeys.has(evt.idempotencyKey)) {
-        deduplicatedReplayCount += 1;
-        this.ingestedEventsDeduplicatedTotal += 1;
+      if (
+        evt.occurredAt !== undefined &&
+        (!Number.isFinite(Date.parse(evt.occurredAt)) ||
+          evt.occurredAt.length > 60)
+      ) {
+        rejectedAnomalyCount += 1;
+        this.ingestedEventsRejectedAnomalyTotal += 1;
+        rejectedReasons.push(
+          `Event "${evt.idempotencyKey}" rejected: invalid occurredAt timestamp.`
+        );
         continue;
       }
 
+      if (evt.eventType === 'ad_played' && evt.playbackDurationMs < 1000) {
+        rejectedAnomalyCount += 1;
+        this.ingestedEventsRejectedAnomalyTotal += 1;
+        rejectedReasons.push(
+          `Event "${evt.idempotencyKey}" rejected: ad_played requires at least 1000ms of playback.`
+        );
+        continue;
+      }
+
+      if (this.seenIdempotencyKeys.has(evt.idempotencyKey)) {
+        if (this.seenEventFingerprints.get(evt.idempotencyKey) === fingerprint) {
+          deduplicatedReplayCount += 1;
+          this.ingestedEventsDeduplicatedTotal += 1;
+        } else {
+          rejectedAnomalyCount += 1;
+          this.ingestedEventsRejectedAnomalyTotal += 1;
+          rejectedReasons.push(
+            `Event "${evt.idempotencyKey}" rejected: replay key payload mismatch.`
+          );
+        }
+        continue;
+      }
+
+      if (evt.sessionId) {
+        const stageByType: Record<DeliveryEventIngestItem['eventType'], number> = {
+          ad_requested: 0,
+          ad_delivered: 1,
+          ad_viewable: 2,
+          ad_played: 3,
+        };
+        const stage = stageByType[evt.eventType];
+        const previous = this.lifecycleStageBySession.get(evt.sessionId) ?? -1;
+        if (
+          stage <= previous ||
+          (evt.eventType === 'ad_played' && previous < 2)
+        ) {
+          rejectedAnomalyCount += 1;
+          this.ingestedEventsRejectedAnomalyTotal += 1;
+          rejectedReasons.push(
+            `Event "${evt.idempotencyKey}" rejected: out-of-order lifecycle event for session "${evt.sessionId}".`
+          );
+          continue;
+        }
+        this.lifecycleStageBySession.set(evt.sessionId, stage);
+      }
+
       this.seenIdempotencyKeys.add(evt.idempotencyKey);
+      this.seenEventFingerprints.set(evt.idempotencyKey, fingerprint);
       acceptedNewCount += 1;
       this.ingestedEventsAcceptedTotal += 1;
 

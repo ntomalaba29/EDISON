@@ -552,6 +552,7 @@ export const offlineCacheEvaluateBreakSchema = z
 export const offlineQueueEnqueueSchema = z
   .object({
     idempotencyKey: z.string().trim().min(3).max(120),
+    sessionId: z.string().trim().regex(/^[A-Za-z0-9._-]{8,128}$/).optional(),
     scopeId: z.string().trim().min(3).max(160),
     channelNumber: z.coerce.number().int().min(1).max(999),
     signalType: z.enum(['scte35_cue', 'hbbtv_ait', 'av_cadence', 'offline_skip']),

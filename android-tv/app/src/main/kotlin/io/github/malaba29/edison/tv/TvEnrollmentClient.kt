@@ -21,9 +21,27 @@ data class TvEnrollmentStatus(
     val deviceId: String
 )
 
+class TvEnrollmentHttpException(
+    val statusCode: Int,
+    message: String
+) : IOException(message)
+
 class TvEnrollmentClient(
     private val apiBaseUrl: String = BuildConfig.EDISON_API_BASE_URL
 ) {
+    fun rotate(session: TvEnrollmentSession): TvEnrollmentSession {
+        val response = request(
+            path = "/api/tv/enrollment/${session.enrollmentId}/rotate",
+            method = "POST",
+            bearerToken = session.deviceToken
+        )
+        val deviceToken = response.getString("deviceToken")
+        if (!deviceToken.matches(Regex("[A-Za-z0-9_-]{40,64}"))) {
+            throw IOException("The enrollment service returned an invalid rotated device credential.")
+        }
+        return session.copy(deviceToken = deviceToken)
+    }
+
     fun start(deviceLabel: String): TvEnrollmentSession {
         val response = request(
             path = "/api/tv/enrollment/start",
@@ -100,7 +118,7 @@ class TvEnrollmentClient(
                     "message",
                     response.optString("error", "EDISON request failed (HTTP $statusCode).")
                 )
-                throw IOException(message)
+                throw TvEnrollmentHttpException(statusCode, message)
             }
             return response
         } finally {

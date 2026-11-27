@@ -1,4 +1,27 @@
-# Historical EDISON Test Results Summary — Superseded
+# EDISON Test Results Summary
+
+## Latest verified results — 2026-11-27
+
+| Check | Result |
+|---|---|
+| `npm.cmd run lint` | PASS |
+| Focused enrollment/delivery/media/security Vitest run | 4 files; 33 passed, 1 skipped |
+| Full `npm.cmd run test` | 37 files; 171 passed, 1 skipped |
+| `npm.cmd run test:e2e` | 2 passed |
+| `npm.cmd run build` | PASS; existing large-chunk advisory |
+| Android `:app:testDebugUnitTest :app:assembleDebug` | PASS with Android SDK and JDK 17 paths set |
+| `git diff --check` | PASS |
+
+These are local software checks, not production readiness evidence. Cloudflare
+staging, real enrollment, live ads, physical TV testing, and release approval
+remain incomplete.
+
+## Historical results
+
+The remainder of this file is an archival snapshot from an earlier project
+state. Use
+[`PRODUCTION_PATH_ANDROID_TV_GOOGLE_ADS.md`](PRODUCTION_PATH_ANDROID_TV_GOOGLE_ADS.md)
+for the current acceptance queue and detailed evidence.
 
 > The results below are a historical general-project snapshot, not the current
 > Android TV/Google advertising verification state. Use

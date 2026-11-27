@@ -347,6 +347,47 @@ export class D1TvEnrollmentStore {
     return result.meta?.changes === 1;
   }
 
+  async rotateApprovedCredential(input: {
+    enrollmentId: string;
+    oldDeviceTokenHash: string;
+    newDeviceTokenHash: string;
+    now: string;
+  }): Promise<'rotated' | 'not_found' | 'not_approved'> {
+    const current = await this.database
+      .prepare(
+        `SELECT enrollment_id, device_id, owner_id, device_label,
+                pairing_code_hash, device_token_hash, status, failed_attempts,
+                expires_at, created_at, approved_at, revoked_at
+         FROM edison_tv_enrollments
+         WHERE enrollment_id = ? AND device_token_hash = ?
+         LIMIT 1`
+      )
+      .bind(input.enrollmentId, input.oldDeviceTokenHash)
+      .all<TvEnrollmentRow>();
+    assertSuccess(current, 'ROTATE_READ');
+    const row = current.results?.[0];
+    if (!row) return 'not_found';
+
+    const enrollment = decodeEnrollment(row);
+    if (enrollment.status !== 'approved') return 'not_approved';
+
+    const result = await this.database
+      .prepare(
+        `UPDATE edison_tv_enrollments
+         SET device_token_hash = ?, approved_at = COALESCE(approved_at, ?)
+         WHERE enrollment_id = ? AND device_token_hash = ? AND status = 'approved'`
+      )
+      .bind(
+        input.newDeviceTokenHash,
+        input.now,
+        input.enrollmentId,
+        input.oldDeviceTokenHash
+      )
+      .run();
+    assertSuccess(result, 'ROTATE');
+    return result.meta?.changes === 1 ? 'rotated' : 'not_found';
+  }
+
   private async getEnrollment(
     enrollmentId: string
   ): Promise<TvEnrollmentRecord | null> {

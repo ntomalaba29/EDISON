@@ -1,6 +1,6 @@
 # EDISON Automatic TV Advertising — Read This First
 
-**Last reconciled:** 2026-11-26
+**Last reconciled:** 2026-11-27
 
 This stash controls Copilot/Cline handoff for the complete automatic television
 advertising implementation.
@@ -35,6 +35,7 @@ The workflow is automatic. Viewer-triggered switching is not a substitute.
 4. `.stash/STAGE2_PHYSICAL_ARCHITECTURE.md`
 5. `.stash/STAGE3_FEASIBILITY_RESEARCH.md`
 6. `.stash/PRODUCTION_PATH_ANDROID_TV_GOOGLE_ADS.md`
+7. `.stash/NEXT_PC_SETUP.md` — setup and cleanup record for moving to another PC
 
 The master roadmap overrides the older Android TV/AdSense queue for the
 automatic television advertising project. The older document remains historical
@@ -42,8 +43,9 @@ implementation evidence and must not be used to claim real switching or playback
 
 ## Current state
 
-- Last reviewed code baseline: `74e521fd8954e25205bc5f4eb57bb73d10160981`;
-  verify the current HEAD and worktree before starting further work.
+- The setup record was created from a worktree based on
+  `9c2ba4d237488b90041a166fc329e18a68e1c790`; verify current HEAD and worktree
+  before starting further work.
 - CL-01 was committed and pushed; the Stage 2 update is documentation-only.
 - Stage 1 is complete.
 - Stage 2 is complete: architecture and trust boundaries are in
@@ -56,8 +58,10 @@ implementation evidence and must not be used to claim real switching or playback
 - CL-01 is accepted after Copilot repaired the discovered decision-route defect.
 - There is no active Cline task. CL-02 remains queued until its Stage 24
   dependencies are eligible.
-- Current local checks: TypeScript pass, Vitest 36 files/165 passed/1 skipped,
-  Playwright 2/2 passed. Android CI and physical-device validation remain open.
+- Latest local checks: TypeScript and web build pass; Vitest 37 files/171
+  passed/1 skipped; Playwright 2/2; Android unit tests and APK assembly pass.
+  Stage 24 CI/baseline reconciliation is complete; physical-device validation
+  remains open.
 - Android `testDebugUnitTest` and `assembleDebug` pass locally and in
   [GitHub Actions run 45903131145](https://github.com/ntomalaba29/EDISON/actions/runs/45903131145).
   The run also passed the existing Node/Playwright job. Checkout reports a
@@ -67,6 +71,10 @@ implementation evidence and must not be used to claim real switching or playback
 - The existing TV platform adapters and watchdogs are software simulations.
 - The EDISON Android app exists, but it has no real ad playback or real switcher.
 - Physical automatic switching is not established.
+- APP-03 local enrollment and credential-rotation code exists, but it is not
+  end-to-end verified against staging. A lost rotation response can invalidate
+  the old token before the TV saves the new one; recovery may require
+  owner-assisted re-enrollment.
 
 ## Cline workflow
 
@@ -93,5 +101,6 @@ implementation evidence and must not be used to claim real switching or playback
 
 ## Immediate next action
 
-Copilot owns Stage 3 and the automatic-switching feasibility gate. No Cline task
-is active; CL-02 is queued behind Stage 24 prerequisites.
+Continue from the authoritative production ledger. Before staging enrollment,
+review the credential-rotation lost-response recovery limitation and complete
+APP-04 only with explicit owner authorization. No Cline task is active.

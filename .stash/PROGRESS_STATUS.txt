@@ -1,5 +1,5 @@
 EDISON ANDROID TV + GOOGLE CTV ADS STATUS
-Last reviewed: 2026-11-26
+Last reviewed: 2026-11-27
 
 Status: NOT PRODUCTION READY. Authoritative task sequence and evidence:
   .stash/PRODUCTION_PATH_ANDROID_TV_GOOGLE_ADS.md
@@ -20,6 +20,9 @@ Verified:
   was sent.
 - Public Cloudflare compatibility endpoint still reports
   `applicationApiReady:false`; no remote migration, secret, or deploy was made.
+- Latest local verification: lint and production build pass; Vitest 37 files
+  (171 passed, 1 skipped); Playwright 2/2; Android unit tests and APK assembly
+  pass when the Android SDK environment variables are set.
 
 Not complete:
 - APP-03 credential rotation/recovery and end-to-end staging enrollment are
@@ -27,9 +30,12 @@ Not complete:
   remotely.
 - No device configuration API, IMA integration, real ad playback/events, or
   physical-device evidence.
-- Full repository baseline remains non-green; see BASE-01 and the work log.
+- Production readiness remains blocked by backend staging, IMA/playback, Google
+  eligibility, physical-device, privacy/security, and release gates.
 
 Queue size: 19 outstanding scoped tasks; see the authoritative numbered list.
-Next: APP-03 — implement the authenticated owner-approval UI and Android TV
-QR/code enrollment client. Do not claim enrollment, API, ad, or production
-readiness until the remaining acceptance evidence is recorded.
+Next: review rotation recovery's lost-response case, then complete APP-03/APP-04
+staging and restart verification only after explicit owner authorization. The
+current PC setup/cleanup record is in .stash/NEXT_PC_SETUP.md. Do not claim
+enrollment, API, ad, or production readiness until remaining evidence is
+recorded.

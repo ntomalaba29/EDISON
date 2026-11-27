@@ -21,6 +21,7 @@ import java.util.concurrent.Executors
 
 class MainActivity : Activity() {
     private var shellState: TvShellState = TvShellState.SetupRequired
+    private var adSessionState: AdSessionState = AdSessionState.Idle
     private var playbackWasStarted = false
     private var enrollmentSession: TvEnrollmentSession? = null
     private var isActive = false
@@ -188,6 +189,10 @@ class MainActivity : Activity() {
                         }
                     }
                 } catch (error: Exception) {
+                    if (error is TvEnrollmentHttpException && error.statusCode == 401) {
+                        recoverCredential(session)
+                        return@execute
+                    }
                     runOnUiThread {
                         if (isFinishing || isDestroyed || enrollmentSession != session) {
                             return@runOnUiThread
@@ -225,6 +230,24 @@ class MainActivity : Activity() {
             messageView.text = getString(R.string.enrollment_expired)
         } catch (error: IOException) {
             showSetupError(error.message ?: getString(R.string.enrollment_unavailable))
+        }
+    }
+
+    private fun recoverCredential(session: TvEnrollmentSession) {
+        try {
+            val rotated = enrollmentClient.rotate(session)
+            credentialStore.save(rotated)
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                enrollmentSession = rotated
+                showEnrollmentSession(rotated)
+                scheduleStatusPoll(0)
+            }
+        } catch (_: Exception) {
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                clearExpiredSession()
+            }
         }
     }
 
