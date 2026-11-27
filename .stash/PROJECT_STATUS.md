@@ -46,9 +46,10 @@ token. In that case owner-assisted re-enrollment may be required; this must be
 reviewed before production use.
 
 The exact local toolchain and next-PC setup steps are recorded in
-[`NEXT_PC_SETUP.md`](NEXT_PC_SETUP.md). Cleanup is being performed only after
-the repository changes are pushed; the owner will handle remaining manual
-cleanup.
+[`NEXT_PC_SETUP.md`](NEXT_PC_SETUP.md). The repository changes are pushed and
+Warp, Claude Code, Cline, and the Android SDK/AVD were removed. The Temurin JDK
+uninstaller failed with MSI error 1603, so the owner must remove it manually;
+other retained tools and local user data are listed in that setup record.
 
 ## Scope and guardrails
 

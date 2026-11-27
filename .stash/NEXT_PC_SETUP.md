@@ -56,7 +56,10 @@ This is a setup record, not a production-readiness claim.
 | VS Code | 1.148.0 | Retained on this PC; no VS Code extensions were listed |
 | Node.js | 22.23.5 | Project runtime |
 | npm | 10.9.9 | Project packages come from `package-lock.json` |
-| Temurin JDK | 17.0.21.1+2 | Installed at `C:\Program Files\Eclipse Adoptium\jdk-17.0.21.10002-hotspot`; remove from this PC per the user's cleanup request |
+| Git | 2.56.0.4 | Available on this PC; install provenance not established |
+| GitHub CLI | 2.105.0 | Available on this PC; install provenance not established |
+| FFmpeg | 9.0.2 | `Gyan.FFmpeg` winget package; install directory dates to 2026-11-17, before the Android setup recorded here |
+| Temurin JDK | 17.0.21.1+2 | Installed at `C:\Program Files\Eclipse Adoptium\jdk-17.0.21.10002-hotspot`; winget uninstall failed (MSI 1603), so it remains for manual removal |
 | Android command-line tools | sdkmanager 22.0 | Installed under `%LOCALAPPDATA%\Android\Sdk\cmdline-tools\latest`; CLI reports deprecation warning |
 | Android platform | `platforms;android-36` revision 2 | Compile SDK 36 |
 | Android build tools | `build-tools;36.0.0` | |
@@ -89,6 +92,9 @@ and the user selected the command-line SDK approach instead.
 - Git and Node.js are recorded as available project prerequisites. Their
   installation provenance was not established, so this cleanup does not remove
   them.
+- GitHub CLI and FFmpeg were also present. Their origin/use by other work is
+  not established, so they were left for the owner to remove manually if no
+  longer needed.
 
 ## Configuration and items not to assume
 
@@ -109,8 +115,27 @@ and the user selected the command-line SDK approach instead.
 
 ## Current-PC cleanup record
 
-The owner requested: push repository work first; then remove Warp, Claude Code,
-Cline, and EDISON-specific development setup while retaining VS Code. This
-section must be updated with verified results after each cleanup action.
+The owner requested that repository work be pushed first, then Warp, Claude
+Code, Cline, and EDISON-specific development setup be removed while retaining
+VS Code. Cleanup was attempted after the code commit was pushed.
 
-- Pending at the time this file was written.
+- **Removed:** Warp (`Warp.Warp`) with winget; Claude Code
+  (`@anthropic-ai/claude-code@2.1.330`) and Cline (`cline@3.0.76`) global npm
+  packages; the `claude.cmd`, `cline.cmd`, and `edison.cmd` launchers; and the
+  obsolete `C:\Users\HP\bin` user-PATH entry. Verification showed Warp absent
+  and the global npm package list empty.
+- **Removed:** Android SDK API/build/emulator packages, command-line tools,
+  Android TV/Google TV system images, the `EDISON_TV_API36` AVD, generated
+  `.android` user data, and the Gradle 9.9.2 wrapper distribution cache.
+  `%LOCALAPPDATA%\Android\Sdk` and `%USERPROFILE%\.android` no longer exist.
+- **Not removed:** Temurin JDK 17.0.21.1+2 remains installed. Winget's MSI
+  uninstaller failed twice with error 1603, including after stopping the
+  project Gradle daemon. This requires manual Windows uninstall/elevation.
+- **Retained:** VS Code 1.148.0. Git, Node.js/npm, GitHub CLI, and FFmpeg were
+  retained because their installation provenance or use by other projects is
+  unknown. Windows Hypervisor Platform/firmware virtualization settings were
+  left unchanged. Shared Gradle caches, app settings/history, and the EDISON
+  repository were not deleted; the owner said they will handle remaining
+  manual cleanup.
+- The computer is therefore **not yet at “VS Code only.”** Recheck installed
+  apps and any remaining user data after manual cleanup.
